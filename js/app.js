@@ -704,8 +704,28 @@
       route();
     });
     if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
-      navigator.serviceWorker.register("sw.js").catch(function (e) { console.warn("SW registration failed", e); });
+      navigator.serviceWorker.register("sw.js").then(function (reg) {
+        // iOS resumes home-screen apps without reloading, so check for a new version on every resume.
+        document.addEventListener("visibilitychange", function () { if (!document.hidden) reg.update().catch(function () {}); });
+      }).catch(function (e) { console.warn("SW registration failed", e); });
+      autoUpdate();
     }
+    try { if (sessionStorage.getItem("cbUpdated")) { sessionStorage.removeItem("cbUpdated"); setTimeout(function () { UI.toast("App updated", "✨"); }, 600); } } catch (e) {}
+  }
+
+  /* When a new version takes over, reload once — but only on a "safe" screen, never mid-lesson or mid-game. */
+  function autoUpdate() {
+    if (!navigator.serviceWorker.controller) return;        // first install: nothing old to replace
+    var pending = false, done = false;
+    function safe() { var h = location.hash.replace(/^#\/?/, ""); return h === "" || h === "learn" || h === "games" || h === "review" || h === "me"; }
+    function go() {
+      if (done || !pending || !safe()) return;
+      done = true;
+      try { sessionStorage.setItem("cbUpdated", "1"); } catch (e) {}
+      location.reload();
+    }
+    navigator.serviceWorker.addEventListener("controllerchange", function () { pending = true; go(); });
+    window.addEventListener("hashchange", go);
   }
 
   window.App = {

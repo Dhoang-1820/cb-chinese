@@ -27,7 +27,7 @@
       skills: {},     // skillId -> { r: right, w: wrong }
       mockHistory: [], // [{ id, date, total, sections }]
       challenges: {}, // date -> true when the daily challenge was completed
-      stats: { cards: 0, correct: 0, perfectQuizzes: 0, bossWins: 0, nightOwl: 0 }
+      stats: { cards: 0, correct: 0, perfectQuizzes: 0, bossWins: 0, nightOwl: 0, hearts: 0 }
     };
   }
 

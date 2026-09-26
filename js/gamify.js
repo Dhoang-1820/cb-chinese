@@ -108,31 +108,58 @@
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="hg' + k + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".35" stop-color="' + c + '"/><stop offset="1" stop-color="' + c + '"/></linearGradient></defs>' +
       '<path fill="url(#hg' + k + ')" d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.6 4.5c2.1 0 3.5 1.2 4.4 2.5.9-1.3 2.3-2.5 4.4-2.5 3.6 0 5.7 3.7 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg>';
   }
-  var heartSeq = 0;
-  function hearts(x, y, n) {
-    if (reduced || !document.body.animate) return;
+  var heartSeq = 0, inFlight = 0;
+  function heartIcon() { return '<svg class="hc-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff4d8d" d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.6 4.5c2.1 0 3.5 1.2 4.4 2.5.9-1.3 2.3-2.5 4.4-2.5 3.6 0 5.7 3.7 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg>'; }
+  function layer() {
+    if (!fxLayer || !fxLayer.isConnected) { fxLayer = document.createElement("div"); fxLayer.className = "heart-fx"; document.body.appendChild(fxLayer); }
+    return fxLayer;
+  }
+  function makeHeart(x, y, s, c) {
+    var h = document.createElement("div"); h.className = "fx-heart"; h.style.width = h.style.height = s + "px";
+    h.innerHTML = heartSVG(c, heartSeq++ % 1000); layer().appendChild(h);
+    h.style.transform = "translate(" + (x - s / 2) + "px," + (y - s / 2) + "px)";
+    return h;
+  }
+  function showCount() {
+    var chip = document.getElementById("chip-heart"); if (!chip) return;
+    chip.innerHTML = heartIcon() + "<b>" + (Store.state.stats.hearts || 0) + "</b>";
+    chip.classList.remove("bump"); void chip.offsetWidth; chip.classList.add("bump");
+  }
+  /* Collect a heart: every correct answer earns one (saved right away); a heart flies from where
+     the learner tapped to the ❤️ counter in the top bar, which bumps. With Reduce Motion it just counts. */
+  function hearts(x, y) {
+    Store.state.stats.hearts = (Store.state.stats.hearts || 0) + 1; Store.save();
+    var chip = document.getElementById("chip-heart");
+    if (reduced || !document.body.animate || !chip) { showCount(); return; }
     if (x == null) {
       if (Date.now() - lastTap.t < 1500) { x = lastTap.x; y = lastTap.y; }
       else { var q = document.getElementById("qcard") || document.getElementById("app"); var r = q.getBoundingClientRect(); x = r.left + r.width / 2; y = Math.min(innerHeight * 0.7, r.top + r.height * 0.6); }
     }
-    if (!fxLayer || !fxLayer.isConnected) { fxLayer = document.createElement("div"); fxLayer.className = "heart-fx"; document.body.appendChild(fxLayer); }
-    n = n || 7;
-    for (var k = 0; k < n; k++) (function (k) {
-      var s = 18 + Math.random() * 16, c = HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
-      var h = document.createElement("div"); h.className = "fx-heart"; h.style.width = h.style.height = s + "px";
-      h.innerHTML = heartSVG(c, heartSeq++ % 1000); fxLayer.appendChild(h);
-      var x0 = x - s / 2, y0 = y - s / 2, dx = (Math.random() * 2 - 1) * 70, up = 120 + Math.random() * 100, rot = (Math.random() * 2 - 1) * 35;
-      var a = h.animate([
-        { transform: "translate(" + x0 + "px," + y0 + "px) scale(.2)", opacity: 0 },
-        { transform: "translate(" + (x0 + dx * .3) + "px," + (y0 - up * .25) + "px) scale(1.15) rotate(" + rot / 2 + "deg)", opacity: 1, offset: .2 },
-        { transform: "translate(" + (x0 + dx * .7) + "px," + (y0 - up * .7) + "px) scale(1) rotate(" + (-rot / 2) + "deg)", opacity: .9, offset: .65 },
-        { transform: "translate(" + (x0 + dx) + "px," + (y0 - up) + "px) scale(.8) rotate(" + rot + "deg)", opacity: 0 }
-      ], { duration: 900 + Math.random() * 500, delay: k * 40, easing: "cubic-bezier(.2,.7,.3,1)", fill: "both" });
-      a.onfinish = a.oncancel = function () { h.remove(); };
+    var c = chip.getBoundingClientRect(), tx = c.left + 16, ty = c.top + c.height / 2, s = 30;
+    var mx = (x + tx) / 2 + (Math.random() * 2 - 1) * 60, my = Math.min(y, ty) - 70;
+    var h = makeHeart(x, y, s, "#ff4d8d");
+    inFlight++;
+    var a = h.animate([
+      { transform: "translate(" + (x - s / 2) + "px," + (y - s / 2) + "px) scale(.4)", opacity: 0 },
+      { transform: "translate(" + (x - s / 2) + "px," + (y - s / 2 - 20) + "px) scale(1.3)", opacity: 1, offset: .15 },
+      { transform: "translate(" + (mx - s / 2) + "px," + (my - s / 2) + "px) scale(1)", opacity: 1, offset: .55 },
+      { transform: "translate(" + (tx - s / 2) + "px," + (ty - s / 2) + "px) scale(.5)", opacity: .9 }
+    ], { duration: 800, easing: "cubic-bezier(.5,0,.3,1)", fill: "both" });
+    a.onfinish = a.oncancel = function () { h.remove(); inFlight = Math.max(0, inFlight - 1); showCount(); };
+    // a few small hearts pop where the answer was tapped
+    for (var k = 0; k < 3; k++) (function (k) {
+      var ss = 14 + Math.random() * 8, hh = makeHeart(x, y, ss, HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)]);
+      var dx = (Math.random() * 2 - 1) * 50, up = 60 + Math.random() * 60;
+      var b = hh.animate([
+        { transform: "translate(" + (x - ss / 2) + "px," + (y - ss / 2) + "px) scale(.3)", opacity: 0 },
+        { transform: "translate(" + (x - ss / 2 + dx * .5) + "px," + (y - ss / 2 - up * .5) + "px) scale(1)", opacity: 1, offset: .4 },
+        { transform: "translate(" + (x - ss / 2 + dx) + "px," + (y - ss / 2 - up) + "px) scale(.7)", opacity: 0 }
+      ], { duration: 700, delay: k * 50, easing: "ease-out", fill: "both" });
+      b.onfinish = b.oncancel = function () { hh.remove(); };
     })(k);
   }
 
-  window.UI = { toast: toast, confetti: confetti, pop: pop, shake: shake, modal: modal, mascot: mascot, reduced: reduced, hearts: hearts };
+  window.UI = { toast: toast, confetti: confetti, pop: pop, shake: shake, modal: modal, mascot: mascot, reduced: reduced, hearts: hearts, heartIcon: heartIcon, heartsInFlight: function () { return inFlight > 0; } };
 
   /* ---------------- Levels ---------------- */
   var LEVELS = [

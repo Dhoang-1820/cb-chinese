@@ -97,6 +97,7 @@
     var s = Store.state, lv = Game.level(s.xp);
     var st = document.getElementById("chip-streak"); if (st) st.innerHTML = "🔥 <b>" + Store.streak() + "</b>";
     var xp = document.getElementById("chip-xp"); if (xp) xp.innerHTML = "⭐ <b>" + s.xp + "</b>";
+    var hc = document.getElementById("chip-heart"); if (hc && !UI.heartsInFlight()) hc.innerHTML = UI.heartIcon() + "<b>" + (s.stats.hearts || 0) + "</b>";
     var lvEl = document.getElementById("chip-lv"); if (lvEl) lvEl.textContent = "Lv " + lv.n;
     var n = SRS.dueIds(WORDMAP).length, b = document.getElementById("due-badge");
     if (b) { b.textContent = n; b.hidden = n === 0; }

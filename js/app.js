@@ -3,7 +3,7 @@
   "use strict";
   var BUILD = "dev"; // replaced with the commit SHA at deploy time
 
-  var DAYS = [], DAYMAP = {}, WORDS = [], WORDMAP = {}, LOAD_ERRORS = [];
+  var DAYS = [], DAYMAP = {}, WORDS = [], WORDMAP = {}, LOAD_ERRORS = [], CORE = [], COREMAP = {};
   var app = document.getElementById("app");
   var keyHandler = null, searchQuery = "", pendingJump = null;
 
@@ -124,6 +124,8 @@
     return fullP || (fullP = loadAll(["full.js"]).then(function () {
       var F = window.CB_FULL || {};
       Object.keys(F).forEach(function (n) { if (DAYMAP[n]) Object.assign(DAYMAP[n], F[n]); });
+      var CX = window.CB_CORE_EX || {};
+      Object.keys(CX).forEach(function (id) { if (WORDMAP[id]) WORDMAP[id].example = CX[id]; });
       fullReady = !!window.CB_FULL;
       if (!fullReady) fullP = null; // allow a retry later (e.g. offline before it was cached)
     }));
@@ -138,7 +140,7 @@
   }
   function needs(v, parts) {
     var n = [];
-    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || (v === "game" && (parts[1] === "builder" || parts[1] === "drill")) || v === "mistakes")) n.push(ensureFull());
+    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && (parts[1] === "builder" || parts[1] === "drill" || parts[1] === "type")) || v === "mistakes")) n.push(ensureFull());
     if (!mocksReady && (v === "mock" || v === "mistakes")) n.push(ensureMocks());
     return n;
   }
@@ -149,10 +151,23 @@
       DAYMAP[d.day] = d;
       (d.words || []).forEach(function (w) { w._day = d.day; WORDS.push(w); WORDMAP[w.id] = w; });
     });
+    // HSK 4 Core deck: general exam vocabulary, organised in sets of ~20
+    CORE = (window.CB_CORE || []).slice().sort(function (a, b) { return a.set - b.set; }); COREMAP = {};
+    CORE.forEach(function (set) {
+      COREMAP[set.set] = set;
+      set.words.forEach(function (w) { w._set = set.set; if (!w.level) w.level = "HSK4"; WORDS.push(w); WORDMAP[w.id] = w; });
+    });
+    WORD_RE = null;
+  }
+  function wordHome(w) { return w._set ? "#/core/" + w._set : "#/day/" + w._day + "/words"; }
+  function wordPlace(w) { return w._set ? "Core set " + w._set : "Day " + w._day; }
+  function nextCoreSet() {
+    for (var i = 0; i < CORE.length; i++) if (CORE[i].words.some(function (w) { return !SRS.has(w.id); })) return CORE[i];
+    return null;
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK 4 Core" };
   function route() {
     Audio2.stop(); setKeys(null);
     var parts = location.hash.replace(/^#\/?/, "").split("/");
@@ -176,7 +191,8 @@
     else if (v === "game") Games.run(parts[1], parts[2]);
     else if (v === "quiz") { location.replace("#/game/quick"); return; }
     else if (v === "search") viewSearch();
-    else if (v === "learn") viewLearn();
+    else if (v === "learn") viewLearn(parts[1]);
+    else if (v === "core") viewCoreSet(parseInt(parts[1], 10));
     else if (v === "me" || v === "settings") viewMe();
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "plan") viewPlan();
@@ -188,7 +204,7 @@
       else viewMockSection(parts[1], parts[2]);
     }
     else viewHome();
-    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", mock: "me", mistakes: "review", plan: "home", progress: "me" }[v] || "home";
+    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     document.getElementById("page-title").textContent = TITLES[v] || "C&B 中文";
     refreshChrome();
@@ -250,9 +266,40 @@
   }
 
   /* ---------- learn (plan) ---------- */
-  function viewLearn() {
+  function learnSeg(which) {
+    return '<nav class="seg"><a class="' + (which === "cb" ? "active" : "") + '" href="#/learn">C&amp;B lessons</a><a class="' + (which === "core" ? "active" : "") + '" href="#/learn/core">HSK 4 Core</a></nav>';
+  }
+  function viewCoreList() {
+    var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("core") +
+      '<section class="card g-blue"><h2>HSK 4 Core</h2><p class="sub">' + CORE.reduce(function (n, s) { return n + s.words.length; }, 0) +
+      ' general HSK 4 words the exam expects — the ones not already in your C&amp;B lessons. Add a set to review, then flashcards and games take it from there.</p></section><div class="daygrid">';
+    CORE.forEach(function (set) {
+      var n = set.words.length, inSrs = set.words.filter(function (w) { return SRS.has(w.id); }).length;
+      var strong = set.words.filter(function (w) { var c = SRS.get(w.id); return c && c.box >= 4; }).length, done = inSrs === n;
+      html += '<a class="daycard card' + (done ? " done" : "") + '" href="#/core/' + set.set + '"><span class="dnum">' + (done ? "✓ " : "") + "Set " + set.set + '</span><span class="dzh zh">' +
+        esc(set.words.slice(0, 3).map(function (w) { return w.hanzi; }).join(" · ")) + '</span><span class="dbar"><i style="width:' + Math.round(inSrs / n * 100) + '%"></i></span><span class="dmeta">' +
+        inSrs + "/" + n + " in review" + (strong ? " · " + strong + " strong" : "") + "</span></a>";
+    });
+    render(html + "</div>", "learn");
+  }
+  function viewCoreSet(n) {
+    var set = COREMAP[n];
+    if (!set) { render('<p class="empty">Set not found. <a href="#/learn/core">Back</a></p>'); return; }
+    var ws = set.words, notIn = ws.filter(function (w) { return !SRS.has(w.id); }).length;
+    var html = '<header class="dayhead card g-blue"><div class="dh-nav">' + (COREMAP[n - 1] ? '<a class="pill" href="#/core/' + (n - 1) + '">‹ ' + (n - 1) + "</a>" : '<a class="pill" href="#/learn/core">‹ All</a>') +
+      '<span class="dh-day">HSK 4 Core</span>' + (COREMAP[n + 1] ? '<a class="pill" href="#/core/' + (n + 1) + '">' + (n + 1) + " ›</a>" : "<span></span>") + "</div>" +
+      "<h1>Set " + n + '</h1><p class="sub">' + ws.length + " words</p></header>" +
+      '<div class="actions"><a class="btn primary" href="#/cards/k' + n + '">🃏 Flashcards</a><a class="btn" href="#/game/quick/k' + n + '">❓ Quiz</a><a class="btn" href="#/game/write/k' + n + '">✍️ Write</a>' +
+      (notIn ? '<button class="btn" id="add-all">＋ Add ' + notIn + " to review</button>" : '<span class="ok-text">✓ All in review</span>') + "</div>" +
+      ws.map(wordCard).join("");
+    render(html, "day");
+    var add = document.getElementById("add-all");
+    if (add) add.onclick = function () { SRS.addMany(ws.map(function (w) { return w.id; })); Game.award(5); UI.toast(notIn + " words added to review", "➕"); viewCoreSet(n); };
+  }
+  function viewLearn(sub) {
+    if (sub === "core") return viewCoreList();
     var st = Store.state, plan = window.CB_PLAN || [];
-    var html = '<a class="searchbar card" href="#/search">🔎 <span>Search 240 words — hanzi, pinyin, Việt, English</span></a>';
+    var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb");
     for (var w = 0; w < 6; w++) {
       var weekDays = plan.slice(w * 5, w * 5 + 5);
       html += '<h2 class="week-h"><span class="wk g' + (w % 6) + '">Week ' + (w + 1) + "</span></h2><div class=\"daygrid\">";
@@ -297,6 +344,9 @@
     var act = document.querySelector(".seg .active"); if (act && act.scrollIntoView) act.scrollIntoView({ inline: "center", block: "nearest" });
   }
 
+  function exHTML(w) {
+    return w.example ? '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(w.example.zh) + "</span>" + SAY(w.example.zh) + "</div>" + PY(w.example.py) + '<div class="tr">' + M(w.example) + "</div></div>" : "";
+  }
   function wordCard(w) {
     return '<article class="word card" id="w-' + esc(w.id) + '">' +
       '<div class="w-top"><div><div class="hz">' + esc(w.hanzi) + "</div>" + PY(w.pinyin) + "</div>" + SAY(w.hanzi, null, true) + "</div>" +
@@ -306,8 +356,7 @@
       '<div class="colls">' + (w.collocations || []).map(function (c) {
         return '<div class="coll"><div><span class="zh">' + esc(c.zh) + "</span> " + PY(c.py) + '<div class="dim">' + M(c) + "</div></div>" + SAY(c.zh) + "</div>";
       }).join("") + "</div>" +
-      '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(w.example.zh) + "</span>" + SAY(w.example.zh) + "</div>" + PY(w.example.py) + '<div class="tr">' + M(w.example) + "</div></div>" +
-      "</article>";
+      exHTML(w) + "</article>";
   }
   function tabWords(d, body) {
     var ws = dayWords(d), notIn = ws.filter(function (w) { return !SRS.has(w.id); }).length;
@@ -526,6 +575,11 @@
   function viewCards(arg) {
     var words, title, back;
     if (arg === "all") { words = WORDS; title = "All words"; back = "#/learn"; }
+    else if (/^k\d+$/.test(arg || "")) {
+      var cs = COREMAP[parseInt(arg.slice(1), 10)];
+      if (!cs) { render('<p class="empty">Set not found.</p>'); return; }
+      words = cs.words; title = "HSK 4 Core · Set " + cs.set; back = "#/core/" + cs.set;
+    }
     else {
       var d = DAYMAP[parseInt(arg, 10)];
       if (!d) { render('<p class="empty">Day not found.</p>'); return; }
@@ -544,7 +598,7 @@
         (requeued[w.id] ? '<p class="dim">practice again</p>' : '<p class="hint">Tap to flip</p>') + "</div>" +
         '<div class="face back"><div class="hz mid">' + esc(w.hanzi) + '</div><div class="big-py">' + esc(w.pinyin) + '</div><div class="w-mean">' + M(w) + "</div>" +
         '<div class="tags center"><span class="tag">' + esc(w.pos) + "</span>" + levelBadge(w.level) + "</div>" +
-        '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(w.example.zh) + "</span>" + SAY(w.example.zh) + "</div>" + PY(w.example.py) + '<div class="tr">' + M(w.example) + "</div></div>" +
+        exHTML(w) +
         '</div></div><div class="swipe-l">Again</div><div class="swipe-r">Got it</div></div>' +
         '<div class="deck-btns" id="dbtns"><button class="btn primary wide" id="flip">Show answer</button></div>' +
         '<p class="hint center">After flipping: swipe → got it · ← again</p></div>', "deckview");
@@ -659,8 +713,8 @@
         return [w.pinyin, w.vi, w.en].some(function (f) { return norm(f).indexOf(nq) >= 0; });
       });
       out.innerHTML = hits.length ? '<div class="card wlist">' + hits.slice(0, 100).map(function (w) {
-        return '<div class="wl-row"><a href="#/day/' + w._day + '/words" data-jump="' + esc(w.id) + '"><span class="zh">' + esc(w.hanzi) + "</span> " + PY(w.pinyin) +
-          '<div class="dim">' + M(w) + " · Day " + w._day + "</div></a>" + SAY(w.hanzi) + "</div>";
+        return '<div class="wl-row"><a href="' + wordHome(w) + '" data-jump="' + esc(w.id) + '"><span class="zh">' + esc(w.hanzi) + "</span> " + PY(w.pinyin) +
+          '<div class="dim">' + M(w) + " · " + wordPlace(w) + "</div></a>" + SAY(w.hanzi) + "</div>";
       }).join("") + "</div>" : '<p class="empty">No results.</p>';
     }
   }
@@ -1105,7 +1159,7 @@
   }
 
   /* ---------- mistake notebook, weak areas & targeted drills ---------- */
-  var SKILL_LINK = { handwriting: "#/game/write", vocab: "#/review", pinyin: "#/game/race", "listen-word": "#/game/listen", "word-order": "#/game/builder", "listen-sentence": "#/game/drill" };
+  var SKILL_LINK = { typing: "#/game/type", handwriting: "#/game/write", vocab: "#/review", pinyin: "#/game/race", "listen-word": "#/game/listen", "word-order": "#/game/builder", "listen-sentence": "#/game/drill" };
   function skillName(k) { var i = Learn.SKILLS[k]; return i ? i.icon + " " + esc(Store.state.settings.lang === "vi" ? i.vi : i.en) : esc(k); }
   function accBar(acc) {
     var pct = Math.round(acc * 100), cls = pct >= 80 ? "hi" : pct >= 60 ? "mid" : "lo";
@@ -1180,6 +1234,10 @@
     if (e.kind === "order") {
       var parts = shuffle(e.parts.map(function (_, k) { return k; }));
       return orderQ(e.parts, parts, e.core, e.end || "", e, (e.py ? PY(e.py) : "") + '<div class="tr">' + M(e) + "</div>");
+    }
+    if (e.kind === "type") {
+      var tcb = null, tc = Games._typeCard(e, function (ok) { tcb(ok); });
+      return { html: tc.html, wire: function (done) { tcb = done; tc.wire(); } };
     }
     if (e.kind === "ls") {
       var cb = null, c = Games._drillCard(e, function (ok) { cb(ok); });
@@ -1307,7 +1365,7 @@
       '<p class="ws-py">' + esc(w.pinyin) + '</p><div class="ws-mean">' + M(w) + "</div>" + levelBadge(w.level) +
       (w.example ? '<div class="ws-ex"><span class="zh">' + esc(w.example.zh) + "</span>" + SAY(w.example.zh) + '<div class="dim">' + M(w.example) + "</div></div>" : "") +
       '<div class="actions center">' + (c ? '<span class="tag t-box">In review · Box ' + c.box + (SRS.hard(id) ? " · hard" : "") + "</span>" : '<button class="btn primary" id="ws-add">➕ Add to review</button>') +
-      '<a class="btn" href="#/day/' + w._day + '/words" id="ws-day">📖 Day ' + w._day + "</a></div></div>");
+      '<a class="btn" href="' + wordHome(w) + '" id="ws-day">📖 ' + wordPlace(w) + "</a></div></div>");
     var add = document.getElementById("ws-add");
     if (add) add.onclick = function () { SRS.addMany([id]); add.outerHTML = '<span class="tag t-box">In review · Box 1</span>'; UI.toast("Added to review", "➕"); refreshChrome(); };
     var day = document.getElementById("ws-day");
@@ -1341,6 +1399,11 @@
     var nMis = Learn.count();
     if (nMis) tasks.push({ ico: "📒", txt: "Fix mistakes (" + nMis + " open)", href: "#/mistakes/all", done: false });
     var lastMock = s.mockHistory.length ? s.mockHistory[s.mockHistory.length - 1].date : null;
+    var cs = nextCoreSet();
+    if (cs && !p.inBuffer) {
+      var addedToday = Object.keys(s.srs).some(function (id) { return /^k/.test(id) && s.srs[id].added === t; });
+      tasks.splice(2, 0, { ico: "📘", txt: "HSK 4 Core · Set " + cs.set + " (" + cs.words.filter(function (w) { return !SRS.has(w.id); }).length + " new words)", href: "#/core/" + cs.set, done: addedToday });
+    }
     var mockDue = p.inBuffer || p.done >= 10 && (!lastMock || Store.daysBetween(lastMock, t) >= 7);
     if (mockDue) tasks.push({ ico: "📝", txt: "Take a mock exam", href: "#/mock", done: lastMock === t });
     var goal = s.settings.dailyGoal || 30, xp = s.log[t] || 0;
@@ -1357,13 +1420,19 @@
     return '<section class="card today"><div class="sec-h"><h2>Today\'s plan</h2><span class="tag ' + st[2] + '">' + st[0] + " " + st[1] + "</span></div>" +
       taskList(tasks) + '<div class="sec-h"><span class="muted">' + n + "/" + tasks.length + ' done</span><a href="#/plan">Full plan ›</a></div></section>';
   }
+  function corePaceHTML(p) {
+    if (!CORE.length) return "";
+    var done = CORE.filter(function (set) { return set.words.every(function (w) { return SRS.has(w.id); }); }).length, left = CORE.length - done;
+    var perWeek = left ? Math.max(1, Math.ceil(left / p.studyLeft * 7)) : 0;
+    return '<p class="sub">HSK 4 Core: <b>' + done + "/" + CORE.length + " sets</b> in review" + (left ? " · pace needed about <b>" + perWeek + " set" + (perWeek > 1 ? "s" : "") + " a week</b>." : " — all done! 🎉") + "</p>";
+  }
   function viewPlan() {
     var p = planInfo(), st = STATUS[p.status], s = Store.state;
     var pace = p.remaining ? (p.perDay >= 1 ? p.perDay.toFixed(1) + " lessons a day" : "about " + Math.max(1, Math.ceil(p.perDay * 7)) + " lessons a week") : "All lessons done";
     var html = '<section class="card g-sun"><h2>🗓️ Road to HSK 4</h2><p class="score-big">' + (p.daysLeft >= 0 ? p.daysLeft : 0) + ' <small>days left</small></p>' +
       '<p><b>' + st[0] + " " + st[1] + "</b> · " + p.done + "/" + p.total + " days done" + (p.status !== "new" && p.status !== "done" ? " (plan: " + p.expected + ")" : "") + "</p>" +
       '<div class="xpbar"><span style="width:' + Math.round(p.done / p.total * 100) + '%"></span></div>' +
-      '<p class="sub">Pace needed: <b>' + pace + "</b> to finish by " + esc(p.finishBy) + ", leaving the last " + BUFFER_DAYS + " days for mock exams and review.</p></section>";
+      '<p class="sub">Pace needed: <b>' + pace + "</b> to finish by " + esc(p.finishBy) + ", leaving the last " + BUFFER_DAYS + " days for mock exams and review.</p>" + corePaceHTML(p) + "</section>";
     html += '<section class="card"><h2>Today</h2>' + taskList(todayTasks()) + "</section>";
     // week-by-week timeline
     var t = Store.today(), weeks = [], cursor = t, lesson = DAYS.filter(function (d) { return !(s.days[d.day] || {}).completed; }).map(function (d) { return d.day; });
@@ -1466,7 +1535,7 @@
     };
     if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addListener(applySettings);
     if (!BUNDLED && !window.CB_MANIFEST) { render('<p class="warn">data/manifest.js is missing.</p>'); return; }
-    (BUNDLED ? Promise.resolve() : loadAll(window.CB_MANIFEST)).then(function () {
+    (BUNDLED ? Promise.resolve() : loadAll(window.CB_MANIFEST.concat(window.CB_CORE_FILES || []))).then(function () {
       buildIndex();
       window.addEventListener("hashchange", route);
       route();
@@ -1501,7 +1570,7 @@
   window.App = {
     esc: esc, M: M, PY: PY, SAY: SAY, shuffle: shuffle, render: render, setKeys: setKeys, typing: typing, rect: rect, norm: norm,
     dayWords: dayWords, studiedWords: studiedWords, levelBadge: levelBadge, refreshChrome: refreshChrome,
-    get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }
+    get CORE() { return CORE; }, get COREMAP() { return COREMAP; }, get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }
   };
   boot();
 })();

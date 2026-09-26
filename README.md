@@ -21,10 +21,12 @@ Tip: iOS may clear data of sites unused for weeks — use **Me → Export** now 
 ## Features
 - **Learn**: 30 days (review days 5/10/15/20/25/30) — words (vi + en), chat-style dialogue with audio, grammar, practice (matching, tap-to-fill, translation), 10-question quiz.
 - **Review**: flashcards with swipe (→ know / ← again), Leitner SRS (1/2/4/8/16 days). Smarter scheduling: words with 2+ lapses come back at half the interval; a slip on a box 4–5 word drops it to box 2; mistakes in games bring a word back today.
+- **HSK 4 Core**: 505 general HSK 2.0 level-4 words (the rest of the official list is already in the C&B lessons), in 25 sets of ~20 — each with vi/en meanings, an original example sentence, audio, flashcards, set quiz and stroke writing. Word list: official HSK 2.0 syllabus; meanings and examples written for this app.
+- **Type the Sentence**: practice for the computer-based HSK writing section — type full sentences with the iPhone pinyin keyboard, see a character-by-character diff, plus free sentences with a given word.
 - **Mock exams**: 3 original tests in the real HSK 4 format (listening, reading, writing), shortened to ~30 min. Practice mode (instant feedback) or exam mode (timed per section). Scored /300, pass 180. Links to Study4 and official sample papers.
 - **Mistake notebook**: wrong answers from quizzes, games, drills and mock exams are collected automatically; each clears after 2 right answers in a row. Targeted drills per skill.
 - **Weak-area report**: accuracy per skill (13 skills: word meaning, pinyin, listening types, connectors, word order, reading passages, handwriting…), with tips and a "Practice" button. Shown after each mock exam too.
-- **Games**: Sentence Builder, Listen & Pick, Speed Match (60 s), Pinyin Race (90 s), Boss Battle (review days), Quick Quiz, Listening Drill (reveal after listening, 0.75× slow mode), Stroke Writing (stroke-order animation + tracing). Daily challenge +15 XP.
+- **Games**: Sentence Builder, Listen & Pick, Speed Match (60 s), Pinyin Race (90 s), Boss Battle (review days), Quick Quiz, Type the Sentence, Listening Drill (reveal after listening, 0.75× slow mode), Stroke Writing (stroke-order animation + tracing). Daily challenge +15 XP.
 - **Study plan**: today's checklist on Home, ahead/on-track/behind status, pace needed and a week-by-week plan to the exam date (last 14 days kept for mocks and review).
 - **Progress charts**: mock scores vs the 180 pass line, section trends, words in review, daily XP.
 - **Tap any word** in a dialogue or reading passage for pinyin, meaning, audio and "Add to review".
@@ -50,7 +52,7 @@ npm i --no-save esbuild && node tools/build.js _site && python3 -m http.server 8
 index.html  sw.js  manifest.webmanifest  icons/
 css/style.css
 js/storage.js  srs.js  audio.js  gamify.js  learn.js  games.js  app.js
-data/day01.js … day30.js, manifest.js, mock1–3.js, mock-manifest.js
+data/day01.js … day30.js, manifest.js, core01–25.js, core-manifest.js, mock1–3.js, mock-manifest.js
 vendor/hanzi-writer.min.js (MIT) + vendor/hanzi/*.json stroke data (Arphic PL — see vendor/README.md)
 audio/manifest.js (+ mp3s generated in CI)
 tools/validate.js  collect_texts.js  gen_audio.py  build.js

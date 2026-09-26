@@ -615,3 +615,13 @@ h3.sec { margin: 18px 4px 8px; color: var(--muted); text-transform: uppercase; f
     linear-gradient(45deg, transparent 49.7%, rgba(229,72,77,.15) 50%, transparent 50.3%), linear-gradient(-45deg, transparent 49.7%, rgba(229,72,77,.15) 50%, transparent 50.3%);
   background-size: 100% 1px, 1px 100%, 100% 100%, 100% 100%; background-position: center; background-repeat: no-repeat; border: 2px solid rgba(229,72,77,.4); }
 .hw-card .drill-btns .btn { padding-left: 8px; padding-right: 8px; font-size: .9rem; }
+
+/* ---------- typing practice ---------- */
+.pieces-static { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.pieces-static .piece { cursor: default; }
+.ty-in { font-size: 1.15rem; margin-top: 8px; }
+.ty-row { display: flex; gap: 8px; align-items: baseline; margin-top: 6px; }
+.ty-row small { width: 52px; opacity: .7; }
+.ty-row .miss { color: #e5484d; text-decoration: underline wavy; font-weight: 800; }
+.ty-row .extra { color: #e5484d; text-decoration: line-through; }
+.sub.small { font-size: .8rem; margin-top: 10px; }

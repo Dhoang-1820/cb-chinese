@@ -161,6 +161,24 @@ days.filter(d => d.type === "review").forEach(d => (d.reviewOf || []).forEach(n 
   else if (n >= d.day) err(`Day ${d.day}`, `reviewOf day ${n} is not an earlier day`);
 }));
 
+// ---- HSK 4 Core deck ----
+run("core-manifest.js");
+(sandbox.window.CB_CORE_FILES || []).forEach(run);
+const core = sandbox.window.CB_CORE || [];
+const coreIds = {}, coreHz = {};
+let coreWords = 0;
+core.forEach(set => (set.words || []).forEach(w => {
+  const where = `Core set ${set.set} · ${w.id || "?"}`;
+  coreWords++;
+  has(w, ["id", "hanzi", "pinyin", "pos", "vi", "en", "example"], where);
+  if (w.example) has(w.example, ["zh", "py", "vi", "en"], where + " example");
+  if (coreIds[w.id]) err(where, "duplicate core id"); coreIds[w.id] = 1;
+  if (coreHz[w.hanzi]) err(where, `duplicate hanzi ${w.hanzi} in core`); coreHz[w.hanzi] = 1;
+  if (seenHanzi[w.hanzi]) err(where, `${w.hanzi} is already a C&B lesson word`);
+  if (w.example && w.example.zh && !w.example.zh.includes(w.hanzi)) err(where, `example doesn't contain ${w.hanzi}`);
+}));
+scanPinyin(core, "Core");
+
 // ---- mock exams ----
 run("mock-manifest.js");
 const mockFiles = sandbox.window.CB_MOCK_FILES || [];
@@ -213,6 +231,7 @@ const checks = [
   ["Mock exams well-formed", !errors.some(e => /^Mock \d/.test(e))]
 ];
 console.log(`Mock exams        : ${mocks.length}`);
+console.log(`HSK 4 Core        : ${core.length} sets, ${coreWords} words`);
 checks.forEach(([name, ok]) => console.log(`${ok ? "PASS" : "FAIL"}  ${name}`));
 console.log("");
 if (warnings.length) { console.log(`Warnings (${warnings.length}):`); warnings.forEach(w => console.log("  ⚠ " + w)); console.log(""); }

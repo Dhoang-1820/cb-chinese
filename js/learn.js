@@ -22,6 +22,7 @@
     "passage":      { sec: "Reading", icon: "📖", en: "Reading passages", vi: "Đọc hiểu đoạn văn", tip: "Find the sentence the question points to; watch 因为/所以 clues." },
     "word-order":   { sec: "Grammar", icon: "🧱", en: "Word order", vi: "Trật tự từ", tip: "Pattern: Subject + time + place + verb + object. Try Sentence Builder." },
     "writing":      { sec: "Writing", icon: "✍️", en: "Writing sentences", vi: "Viết câu", tip: "Write short, correct sentences: Subject + 很/已经/要 + verb + object." },
+    "typing":       { sec: "Writing", icon: "⌨️", en: "Typing sentences (computer test)", vi: "Gõ câu (thi trên máy)", tip: "Type the whole sentence, then compare character by character; watch 的/得/地 and word order." },
     "handwriting":  { sec: "Writing", icon: "🖌️", en: "Handwriting (stroke order)", vi: "Viết tay (thứ tự nét)", tip: "Watch the stroke animation once, then trace without the outline." }
   };
 

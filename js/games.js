@@ -11,7 +11,8 @@
     { id: "boss", icon: "🐉", name: "Boss Battle", desc: "3 lives vs the review boss", cls: "g-boss" },
     { id: "quick", icon: "❓", name: "Quick Quiz", desc: "10 mixed questions", cls: "g-blue" },
     { id: "drill", icon: "🎙️", name: "Listening Drill", desc: "Hear a sentence, then reveal · 0.75× slow mode", cls: "g-teal" },
-    { id: "write", icon: "✍️", name: "Stroke Writing", desc: "Watch stroke order, then trace it", cls: "g-violet" }
+    { id: "write", icon: "✍️", name: "Stroke Writing", desc: "Watch stroke order, then trace it", cls: "g-violet" },
+    { id: "type", icon: "⌨️", name: "Type the Sentence", desc: "Computer-based HSK writing · pinyin keyboard", cls: "g-coral" }
   ];
   var BY = {}; LIST.forEach(function (g) { BY[g.id] = g; });
 
@@ -34,7 +35,7 @@
   function run(id, arg) {
     var g = BY[id];
     if (!g) { location.hash = "#/games"; return; }
-    ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick, drill: drill, write: write })[id](arg);
+    ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick, drill: drill, write: write, type: typeGame })[id](arg);
   }
 
   /* ---------- shared ---------- */
@@ -152,13 +153,17 @@
       (d.words || []).forEach(function (w) { src.push(w.example); });
       if (d.grammar) src = src.concat(d.grammar.examples);
       ((d.exercises || {}).translate || []).forEach(function (t) { src.push(t); });
-      src.forEach(function (x) {
-        var core = x.zh.replace(/[。？！]$/, "");
-        if (seen[core] || /[，、：；“”《》()（）A-Za-z0-9…]/.test(core) || core.length < 7 || core.length > 20) return;
-        seen[core] = 1;
-        out.push({ core: core, end: x.zh.slice(core.length), py: x.py, vi: x.vi, en: x.en });
-      });
+      src.forEach(take);
     });
+    // HSK 4 Core examples for core words already in review
+    App.WORDS.forEach(function (w) { if (w._set && w.example && SRS.has(w.id)) take(w.example); });
+    function take(x) {
+      if (!x || !x.zh) return;
+      var core = x.zh.replace(/[。？！]$/, "");
+      if (seen[core] || /[，、：；“”《》()（）A-Za-z0-9…]/.test(core) || core.length < 7 || core.length > 20) return;
+      seen[core] = 1;
+      out.push({ core: core, end: x.zh.slice(core.length), py: x.py, vi: x.vi, en: x.en });
+    }
     return out;
   }
   function builder() {
@@ -232,7 +237,7 @@
   /* ---------- 3. Speed Match ---------- */
   function speed() {
     var App = A(), g = BY.speed, words = App.shuffle(App.studiedWords());
-    if (words.length < 12) { var md = words.reduce(function (m, w) { return Math.max(m, w._day); }, 4); words = App.shuffle(App.WORDS.filter(function (w) { return w._day <= md; })); }
+    if (words.length < 12) { var md = words.reduce(function (m, w) { return Math.max(m, w._day || 0); }, 4); words = App.shuffle(App.WORDS.filter(function (w) { return w._day && w._day <= md; })); }
     var next = 0, score = 0, combo = 0, left = [], right = [], sel = null, timeLeft = 60, timer = null, over = false;
     function take() { // never put a word on the board twice
       for (var t = 0; t < words.length; t++) {
@@ -382,11 +387,12 @@
   }
 
   /* ---------- 6. Quick Quiz ---------- */
-  function quick() {
-    var App = A(), g = BY.quick, pool = App.shuffle(App.studiedWords()).slice(0, 10), i = 0, score = 0;
+  function quick(arg) {
+    var App = A(), g = BY.quick, set = /^k\d+$/.test(arg || "") && App.COREMAP[parseInt(arg.slice(1), 10)];
+    var pool = App.shuffle(set ? set.words : App.studiedWords()).slice(0, set ? set.words.length : 10), i = 0, score = 0;
     var types = Audio2.available() ? ["h2m", "m2h", "h2p", "aud"] : ["h2m", "m2h", "h2p"];
     function draw() {
-      if (i >= pool.length) return finish("quick", score, score * 2, { title: score + " / " + pool.length, mood: score >= 8 ? "cheer" : score >= 5 ? "happy" : "sad" });
+      if (i >= pool.length) return finish("quick", score, score * 2, { title: score + " / " + pool.length, arg: set ? arg : "", mood: score >= pool.length * 0.8 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad" });
       var q = makeQ(pool[i], i === 0 ? types.filter(function (t) { return t !== "aud"; }) : types);
       App.render(header(g, "⭐ " + score) + bar(i, pool.length) + qHTML(q), "game");
       wireQ(q, function (ok) { if (ok) score++; i++; draw(); });
@@ -405,6 +411,7 @@
       if (d.reading) d.reading.lines.forEach(function (l) { add(l, l.speaker ? Audio2.voiceFor(l.speaker) : "F"); });
       (d.words || []).forEach(function (w) { add(w.example); });
     });
+    App.WORDS.forEach(function (w) { if (w._set && w.example && SRS.has(w.id) && !seen[w.example.zh] && Audio2.has(w.example.zh)) { seen[w.example.zh] = 1; out.push({ zh: w.example.zh, py: w.example.py, vi: w.example.vi, en: w.example.en, voice: "F" }); } });
     return out;
   }
   function drillCard(it, onDone, autoplay) {
@@ -459,7 +466,9 @@
   }
   function write(arg) {
     var App = A(), g = BY.write, dayN = parseInt(arg, 10), words;
-    if (dayN && App.DAYMAP[dayN]) words = App.dayWords(App.DAYMAP[dayN]).slice();
+    var cset = /^k\d+$/.test(arg || "") && App.COREMAP[parseInt(arg.slice(1), 10)];
+    if (cset) { words = cset.words.slice(); dayN = arg; }
+    else if (dayN && App.DAYMAP[dayN]) words = App.dayWords(App.DAYMAP[dayN]).slice();
     else words = App.shuffle(App.studiedWords()).slice(0, 5);
     if (!words.length) { App.render(header(g) + '<p class="empty">Study a day first.</p>', "game"); return; }
     App.render(header(g) + '<p class="empty">Loading stroke data…</p>', "game");
@@ -516,5 +525,84 @@
       })();
     }
   }
-  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
+
+  /* ---------- 9. Type the Sentence (HSK 4 computer-based writing) ---------- */
+  function plain(s) { return String(s || "").replace(/[\s，。？！、：；,.?!:;“”"'‘’（）()…—\-]/g, ""); }
+  /* Longest-common-subsequence alignment → which target chars were typed, and which typed chars are extra. */
+  function align(a, b) {
+    var A = Array.from(a), B = Array.from(b), n = A.length, m = B.length, L = [];
+    for (var i = 0; i <= n; i++) { L.push(new Array(m + 1).fill(0)); }
+    for (i = n - 1; i >= 0; i--) for (var j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    var okA = [], okB = [], x = 0, y = 0;
+    while (x < n && y < m) { if (A[x] === B[y]) { okA[x] = okB[y] = true; x++; y++; } else if (L[x + 1][y] >= L[x][y + 1]) x++; else y++; }
+    return { A: A, B: B, okA: okA, okB: okB, lcs: L[0][0] };
+  }
+  /* one round. it = { core, end, py, vi, en } (arrange) or { word, model, vi, en, free: true } (free sentence) */
+  function typeCard(it, onDone, opts) {
+    var App = A(); opts = opts || {};
+    var parts = it.free ? null : (function () { var c = chunk(it.core); var o = App.shuffle(c.slice()); if (o.join("") === c.join("")) o.reverse(); return o; })();
+    var html = '<div class="card qcard" id="qcard">' +
+      (it.free
+        ? '<p class="sub">Write your own sentence (at least 6 characters) that uses:</p><div class="hz big zh">' + App.esc(it.word) + "</div>" + '<div class="tr">' + App.M(it) + "</div>"
+        : '<p class="sub">Type these words as one correct sentence:</p><div class="pieces-static">' + parts.map(function (p) { return '<span class="piece zh">' + App.esc(p) + "</span>"; }).join("") + "</div>" +
+          '<details class="hint-d"><summary>💡 Meaning</summary><div class="tr">' + App.M(it) + "</div></details>") +
+      '<textarea id="ty" class="w2-input ty-in zh" rows="2" lang="zh-CN" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="用拼音输入…"></textarea>' +
+      '<div id="qfb"></div><button class="btn primary wide" id="ty-chk">Check</button>' +
+      (opts.first ? '<p class="sub small">Tip: add the <b>Chinese (Simplified) – Pinyin</b> keyboard in iPhone Settings → General → Keyboard → Keyboards, then tap 🌐 to switch.</p>' : "") + "</div>";
+    return { html: html, wire: function () {
+      var ta = document.getElementById("ty"), chk = document.getElementById("ty-chk"), done = false;
+      chk.onclick = function () {
+        if (done) { onDone(chk.dataset.ok === "1"); return; }
+        var got = plain(ta.value);
+        if (!got) { UI.shake(ta); return; }
+        done = true; ta.disabled = true; chk.textContent = "Next ›";
+        var ok, fb;
+        if (it.free) {
+          var hasWord = got.indexOf(it.word) >= 0, longEnough = Array.from(got).length >= 6;
+          fb = '<div class="qexp ' + (hasWord && longEnough ? "ok" : "no") + '">' + (hasWord ? "✓ Uses " : "✗ Doesn't use ") + '<span class="zh">' + App.esc(it.word) + "</span>" + (longEnough ? "" : " · a bit short") +
+            '<div class="ex-zh">Model: <span class="zh">' + App.esc(it.model) + "</span></div><p class=\"sub\">Is your sentence correct?</p>" +
+            '<div class="tf-btns"><button class="btn good-btn" id="ty-ok">Yes ✔</button><button class="btn bad-btn" id="ty-no">Not quite ✘</button></div></div>';
+          document.getElementById("qfb").innerHTML = fb; chk.hidden = true;
+          var fin = function (v) { chk.dataset.ok = v ? "1" : "0"; rec(v); (v ? Audio2.sfx.good : Audio2.sfx.bad)(); onDone(v); };
+          document.getElementById("ty-ok").onclick = function () { fin(hasWord && longEnough); };
+          document.getElementById("ty-no").onclick = function () { fin(false); };
+          return;
+        }
+        var target = plain(it.core), al = align(target, got);
+        ok = got === target;
+        var close = !ok && al.lcs >= Math.max(1, Math.round(target.length * 0.85)) && Math.abs(got.length - target.length) <= 2;
+        var show = al.A.map(function (c, k) { return al.okA[k] ? '<span>' + App.esc(c) + "</span>" : '<span class="miss">' + App.esc(c) + "</span>"; }).join("");
+        var yours = al.B.map(function (c, k) { return al.okB[k] ? '<span>' + App.esc(c) + "</span>" : '<span class="extra">' + App.esc(c) + "</span>"; }).join("");
+        fb = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Perfect!" : close ? "≈ Almost — check the highlighted characters" : "✗ Not quite") +
+          (ok ? "" : '<div class="ty-row"><small>You</small><span class="zh">' + yours + '</span></div><div class="ty-row"><small>Answer</small><span class="zh">' + show + App.esc(it.end || "") + "</span></div>") +
+          (it.py ? App.PY(it.py) : "") + "</div>";
+        document.getElementById("qfb").innerHTML = fb;
+        chk.dataset.ok = ok ? "1" : "0"; rec(ok);
+        (ok ? Audio2.sfx.good : Audio2.sfx.bad)(); if (!ok) UI.shake(document.getElementById("qcard"));
+      };
+      function rec(v) {
+        if (!window.Learn) return;
+        if (it.free) Learn.record("tf:" + it.word, { skill: "typing", statsOnly: true }, v);
+        else Learn.record("ty:" + it.core, { kind: "type", skill: "typing", core: it.core, end: it.end, py: it.py, vi: it.vi, en: it.en }, v);
+      }
+      ta.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); chk.click(); } });
+    } };
+  }
+  function typeGame() {
+    var App = A(), g = BY.type;
+    if (!dict) buildDict();
+    var arr = App.shuffle(sentences()).filter(function (s) { var c = chunk(s.core); return c.length >= 3 && new Set(c).size === c.length; }).slice(0, 6);
+    var free = App.shuffle(App.studiedWords().filter(function (w) { return w.example && w.hanzi.length >= 2; })).slice(0, 2)
+      .map(function (w) { return { free: true, word: w.hanzi, model: w.example.zh, vi: w.vi, en: w.en }; });
+    var pool = arr.concat(free), i = 0, score = 0, review = [];
+    if (arr.length < 3) { App.render(header(g) + '<p class="empty">Study a few days first to unlock sentences.</p>', "game"); return; }
+    (function draw() {
+      if (i >= pool.length) return finish("type", score, score * 3, { title: score + " / " + pool.length + " typed correctly", mood: score >= pool.length - 1 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad",
+        review: '<div class="card akey">' + review.map(function (r) { return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "✗") + '</span><div class="zh">' + App.esc(r.t) + "</div></div>"; }).join("") + "</div>" });
+      var it = pool[i], c = typeCard(it, function (ok) { if (ok) score++; review.push({ ok: ok, t: it.free ? it.word + " · " + it.model : it.core + (it.end || "") }); i++; draw(); }, { first: i === 0 });
+      App.render(header(g, (i + 1) + "/" + pool.length) + bar(i, pool.length) + c.html, "game");
+      c.wire();
+    })();
+  }
+  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
 })();

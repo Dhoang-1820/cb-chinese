@@ -47,8 +47,15 @@ vm.createContext(sb);
 const load = f => vm.runInContext(read("data/" + f), sb, { filename: f });
 load("manifest.js");
 sb.window.CB_MANIFEST.forEach(load);
+load("core-manifest.js");
+sb.window.CB_CORE_FILES.forEach(load);
 load("mock-manifest.js");
 sb.window.CB_MOCK_FILES.forEach(load);
+// HSK 4 Core: word basics start up with the app; example sentences go with the lazy data
+const coreLight = [], coreEx = {};
+(sb.window.CB_CORE || []).forEach(set => coreLight.push({ set: set.set, words: set.words.map(w => {
+  const o = Object.assign({}, w); delete o.example; if (w.example) coreEx[w.id] = w.example; return o;
+}) }));
 
 const days = sb.window.CB_DAYS.slice().sort((a, b) => a.day - b.day);
 const light = days.map(d => {
@@ -67,8 +74,8 @@ days.forEach(d => {
 const J = x => JSON.stringify(x);
 const sizes = {};
 sizes["data/index.js"] = write("data/index.js", minifyJS(
-  "window.CB_BUNDLED=true;window.CB_PLAN=" + J(sb.window.CB_PLAN || []) + ";window.CB_DAYS=" + J(light) + ";"));
-sizes["data/full.js"] = write("data/full.js", minifyJS("window.CB_FULL=" + J(full) + ";"));
+  "window.CB_BUNDLED=true;window.CB_PLAN=" + J(sb.window.CB_PLAN || []) + ";window.CB_DAYS=" + J(light) + ";window.CB_CORE=" + J(coreLight) + ";"));
+sizes["data/full.js"] = write("data/full.js", minifyJS("window.CB_FULL=" + J(full) + ";window.CB_CORE_EX=" + J(coreEx) + ";"));
 sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(sb.window.CB_MOCK) + ";"));
 
 // ---- 3. app bundle (same order as index.html; data/audio manifests stay separate) ----

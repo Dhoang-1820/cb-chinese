@@ -1,6 +1,7 @@
 /* C&B 中文 — main app (vanilla JS, hash routing). Mobile-first, tuned for iPhone. */
 (function () {
   "use strict";
+  var BUILD = "dev"; // replaced with the commit SHA at deploy time
 
   var DAYS = [], DAYMAP = {}, WORDS = [], WORDMAP = {}, LOAD_ERRORS = [];
   var app = document.getElementById("app");
@@ -638,7 +639,8 @@
       row("Import progress", '<label class="btn small">Import<input type="file" id="s-imp" accept=".json,application/json" hidden></label>') +
       row("Reset progress", '<button class="btn small bad" id="s-reset">Reset</button>') + "</section>" +
       (isIOS && !standalone ? '<section class="card"><h2>Install on iPhone</h2><p class="sub">In Chrome, tap <b>Share ⬆︎</b> (address bar) → <b>Add to Home Screen</b>. The home-screen app opens full-screen, works offline, and iOS won\'t clear its progress. Export a backup now and then anyway.</p></section>' : "") +
-      '<p class="sub center">' + DAYS.length + " days · " + WORDS.length + ' words · <a href="#/search">Search</a></p>';
+      '<p class="sub center">' + DAYS.length + " days · " + WORDS.length + ' words · <a href="#/search">Search</a></p>' +
+      '<p class="sub center">Version 1.1 · build ' + BUILD + "</p>";
     render(html, "me");
     function sv(k, v) { set[k] = v; Store.save(); applySettings(); }
     document.getElementById("s-py").onchange = function () { sv("showPinyin", this.checked); };

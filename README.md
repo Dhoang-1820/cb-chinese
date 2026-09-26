@@ -9,7 +9,9 @@ Built for **iPhone 14 + Chrome**, works offline after the first visit.
 3. Push / re-run **Actions → Deploy**. The workflow:
    - validates the content (`tools/validate.js`),
    - generates all audio with **edge-tts** (free Microsoft neural voices: Xiaoxiao ♀, Yunxi ♂),
-   - publishes to `https://<user>.github.io/<repo>/`.
+   - builds the site with `tools/build.js` (esbuild): one minified app bundle, a light start-up data file, lesson details and mock exams loaded lazily, hashed file names,
+   - publishes to `https://<user>.github.io/<repo>/`,
+   - runs **Lighthouse CI** on the live site (informational; scores and a report link are in the "lighthouse" job log).
    Audio is cached between runs; only changed sentences are regenerated.
 
 ## Install on iPhone (Chrome)
@@ -38,6 +40,11 @@ node tools/collect_texts.js && python3 tools/gen_audio.py
 ```
 Opening `index.html` directly (file://) also works, minus offline caching.
 
+Test the production build locally:
+```bash
+npm i --no-save esbuild && node tools/build.js _site && python3 -m http.server 8000 -d _site
+```
+
 ## Structure
 ```
 index.html  sw.js  manifest.webmanifest  icons/
@@ -46,7 +53,8 @@ js/storage.js  srs.js  audio.js  gamify.js  learn.js  games.js  app.js
 data/day01.js … day30.js, manifest.js, mock1–3.js, mock-manifest.js
 vendor/hanzi-writer.min.js (MIT) + vendor/hanzi/*.json stroke data (Arphic PL — see vendor/README.md)
 audio/manifest.js (+ mp3s generated in CI)
-tools/validate.js  collect_texts.js  gen_audio.py
+tools/validate.js  collect_texts.js  gen_audio.py  build.js
+lighthouserc.json
 .github/workflows/deploy.yml
 ```
 

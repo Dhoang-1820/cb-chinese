@@ -4,6 +4,7 @@ var VERSION = "dev";
 var SHELL = "cb-shell-" + VERSION;
 var AUDIO = "cb-audio";
 var STROKES = "cb-strokes"; // handwriting data: never changes, kept across app versions
+/* PRECACHE:START — tools/build.js replaces this block with the built file list */
 var DAYS = [];
 for (var i = 1; i <= 30; i++) DAYS.push("data/day" + (i < 10 ? "0" + i : i) + ".js");
 var MOCKS = ["data/mock-manifest.js", "data/mock1.js", "data/mock2.js", "data/mock3.js"];
@@ -13,9 +14,14 @@ var PRECACHE = [
   "audio/manifest.js", "data/manifest.js", "vendor/hanzi-writer.min.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
 ].concat(DAYS).concat(MOCKS);
+/* PRECACHE:END */
 
 self.addEventListener("install", function (e) {
-  e.waitUntil(caches.open(SHELL).then(function (c) { return c.addAll(PRECACHE); }).then(function () { return self.skipWaiting(); }));
+  // cache: "reload" skips the browser's HTTP cache (GitHub Pages allows 10 min), so a new version
+  // never gets stored with a stale copy of the previous version's files.
+  e.waitUntil(caches.open(SHELL).then(function (c) {
+    return c.addAll(PRECACHE.map(function (u) { return new Request(u, { cache: "reload" }); }));
+  }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener("activate", function (e) {

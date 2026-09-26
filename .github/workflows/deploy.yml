@@ -47,13 +47,11 @@ jobs:
           node tools/collect_texts.js > audio_texts.json
           python tools/gen_audio.py audio_texts.json
 
-      - name: Assemble site
+      # Bundles + minifies (esbuild), splits start-up data from lazy data, stamps the version.
+      - name: Build site
         run: |
-          mkdir _site
-          cp -r index.html manifest.webmanifest sw.js css js data audio icons vendor _site/
-          sed -i "s/var VERSION = \"dev\";/var VERSION = \"${GITHUB_SHA::8}\";/" _site/sw.js
-          sed -i "s/var BUILD = \"dev\";/var BUILD = \"${GITHUB_SHA::8}\";/" _site/js/app.js
-          touch _site/.nojekyll
+          npm install --no-save --no-package-lock esbuild@0.28.2
+          node tools/build.js _site "$GITHUB_SHA"
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
@@ -63,9 +61,25 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Speed check of the live site on a simulated mid-range phone. Informational only:
+  # it never blocks a deploy. Open the run's log for the scores and a link to the full report.
+  lighthouse:
+    needs: deploy
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Lighthouse CI
+        run: npx --yes @lhci/cli@0.14.x autorun --collect.url="${{ needs.deploy.outputs.page_url }}"

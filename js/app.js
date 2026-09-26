@@ -103,18 +103,44 @@
   }
 
   /* ---------- loading ---------- */
+  /* Download all files in parallel but run them in order (async=false keeps insertion order). */
   function loadAll(files) {
-    return files.reduce(function (p, f) {
-      return p.then(function () {
-        return new Promise(function (res) {
-          var s = document.createElement("script");
-          s.src = "data/" + f;
-          s.onload = res;
-          s.onerror = function () { LOAD_ERRORS.push(f); res(); };
-          document.head.appendChild(s);
-        });
+    return Promise.all(files.map(function (f) {
+      return new Promise(function (res) {
+        var s = document.createElement("script");
+        s.src = "data/" + f; s.async = false;
+        s.onload = res;
+        s.onerror = function () { LOAD_ERRORS.push(f); res(); };
+        document.head.appendChild(s);
       });
-    }, Promise.resolve());
+    }));
+  }
+  /* Lazy data. In the deployed build (window.CB_BUNDLED) the app starts from a light word index;
+     dialogues, grammar, exercises and quizzes (data/full.js) and the mock exams (data/mocks.js) load on demand.
+     In the source tree everything is loaded up front, so local testing is unchanged. */
+  var BUNDLED = !!window.CB_BUNDLED, fullReady = !BUNDLED, mocksReady = false, fullP = null, mocksP = null;
+  function ensureFull() {
+    if (fullReady) return Promise.resolve();
+    return fullP || (fullP = loadAll(["full.js"]).then(function () {
+      var F = window.CB_FULL || {};
+      Object.keys(F).forEach(function (n) { if (DAYMAP[n]) Object.assign(DAYMAP[n], F[n]); });
+      fullReady = !!window.CB_FULL;
+      if (!fullReady) fullP = null; // allow a retry later (e.g. offline before it was cached)
+    }));
+  }
+  function ensureMocks() {
+    if (mocksReady) return Promise.resolve();
+    return mocksP || (mocksP = loadAll(BUNDLED ? ["mocks.js"] : (window.CB_MOCK_FILES || [])).then(function () {
+      buildMockIndex();
+      mocksReady = MOCK.length > 0;
+      if (!mocksReady) mocksP = null;
+    }));
+  }
+  function needs(v, parts) {
+    var n = [];
+    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || (v === "game" && (parts[1] === "builder" || parts[1] === "drill")) || v === "mistakes")) n.push(ensureFull());
+    if (!mocksReady && (v === "mock" || v === "mistakes")) n.push(ensureMocks());
+    return n;
   }
   function buildIndex() {
     DAYS = (window.CB_DAYS || []).slice().sort(function (a, b) { return a.day - b.day; });
@@ -132,6 +158,17 @@
     var parts = location.hash.replace(/^#\/?/, "").split("/");
     var v = parts[0] || "";
     if (!(v === "mock" && parts[2] && parts[2] !== "result")) clearExamTimer(); // leaving an exam pauses its clock
+    var pending = needs(v, parts);
+    if (pending.length) {
+      var h = location.hash;
+      render('<p class="empty">Loading…</p>');
+      Promise.all(pending).then(function () {
+        if (location.hash !== h) return;
+        if (needs(v, parts).length) { render('<p class="warn">Couldn\'t load this part of the app. Check your connection and try again.</p>'); return; }
+        route();
+      });
+      return;
+    }
     if (v === "day") viewDay(parseInt(parts[1], 10), parts[2] || "words");
     else if (v === "cards") viewCards(parts[1]);
     else if (v === "review") viewReview();
@@ -241,8 +278,9 @@
   function viewDay(n, tab) {
     var d = DAYMAP[n];
     if (!d) { render('<p class="empty">Day not available. <a href="#/learn">Back</a></p>'); return; }
-    var tabs = [["words", "Words"], ["reading", d.reading && d.reading.kind === "passage" ? "Reading" : "Dialogue"]];
-    if (d.grammar) tabs.push(["grammar", "Grammar"]);
+    var rk = d.reading ? d.reading.kind : d._rk; // _rk/_g: flags from the light index before full data loads
+    var tabs = [["words", "Words"], ["reading", rk === "passage" ? "Reading" : "Dialogue"]];
+    if (d.grammar || d._g) tabs.push(["grammar", "Grammar"]);
     tabs.push(["practice", "Practice"], ["quiz", "Quiz"]);
     if (!tabs.some(function (t) { return t[0] === tab; })) tab = "words";
     var html = '<header class="dayhead card g-w' + (Math.floor((n - 1) / 5) % 6) + '">' +
@@ -1427,14 +1465,13 @@
       UI.toast(Store.state.settings.showPinyin ? "Pinyin on" : "Pinyin off", "拼");
     };
     if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addListener(applySettings);
-    if (!window.CB_MANIFEST) { render('<p class="warn">data/manifest.js is missing.</p>'); return; }
-    loadAll(window.CB_MANIFEST).then(function () {
+    if (!BUNDLED && !window.CB_MANIFEST) { render('<p class="warn">data/manifest.js is missing.</p>'); return; }
+    (BUNDLED ? Promise.resolve() : loadAll(window.CB_MANIFEST)).then(function () {
       buildIndex();
-      return loadAll(window.CB_MOCK_FILES || []);
-    }).then(function () {
-      buildMockIndex();
       window.addEventListener("hashchange", route);
       route();
+      // warm up the rest in the background so it's ready (and cached for offline) before it's needed
+      setTimeout(function () { ensureFull(); ensureMocks(); }, 1500);
     });
     if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
       navigator.serviceWorker.register("sw.js").then(function (reg) {

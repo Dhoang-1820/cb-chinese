@@ -5,3 +5,4 @@ audio/*.part
 _site/
 node_modules/
 .DS_Store
+.lighthouseci/

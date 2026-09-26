@@ -1,0 +1,7 @@
+# Generated locally or in CI
+audio_texts.json
+audio/*.mp3
+audio/*.part
+_site/
+node_modules/
+.DS_Store

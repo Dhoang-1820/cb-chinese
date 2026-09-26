@@ -490,7 +490,7 @@
         if (ok) score++;
       });
       el.querySelector("#fscore").textContent = score + "/" + items.length;
-      (score === items.length ? Audio2.sfx.good : Audio2.sfx.bad)();
+      if (score === items.length) Audio2.sfx.good({ quiet: true }); else Audio2.sfx.bad();
       var rec = Store.day(d.day).practice; rec.fill = Math.max(rec.fill || 0, score);
       if (!checked) { checked = true; Game.award(score, rect(ev.target)); } else Store.save();
     };
@@ -588,7 +588,7 @@
     runDeck({ title: title, words: words, mode: "learn", back: back });
   }
   function runDeck(opts) {
-    var queue = shuffle(opts.words), pos = 0, flipped = false, right = 0, wrong = 0, missed = [], requeued = {}, busy = false;
+    var queue = shuffle(opts.words), pos = 0, flipped = false, right = 0, wrong = 0, missed = [], requeued = {}, busy = false, deckHash = location.hash;
     function draw() {
       if (pos >= queue.length) return finish();
       var w = queue[pos]; flipped = false; busy = false;
@@ -636,16 +636,17 @@
       if (busy) return; busy = true;
       var w = queue[pos], card = document.getElementById("card");
       var s = Store.state;
+      if (ok) { var cr = card && card.getBoundingClientRect(); if (cr) UI.hearts(cr.left + cr.width / 2, cr.top + cr.height / 2, 6); }
       if (!requeued[w.id]) {
         SRS.grade(w.id, ok);
         s.stats.cards++; if (ok) { s.stats.correct++; right++; } else { wrong++; missed.push(w); }
         Game.award(ok ? 2 : 1, { silent: true });
       }
       if (!ok && opts.mode === "review" && !requeued[w.id]) { requeued[w.id] = true; queue.push(w); }
-      (ok ? Audio2.sfx.good : Audio2.sfx.bad)();
+      if (ok) Audio2.sfx.good({ quiet: true }); else Audio2.sfx.bad(); // hearts already launched from the card above
       if (card) { card.style.transition = "transform .3s ease, opacity .3s"; card.style.transform = "translateX(" + (ok ? 120 : -120) + "vw) rotate(" + (ok ? 20 : -20) + "deg) rotateY(180deg)"; card.style.opacity = "0"; }
       UI.pop(ok ? "+2 XP" : "+1 XP", null, innerHeight * 0.3, ok ? "good" : "");
-      setTimeout(function () { pos++; draw(); }, UI.reduced ? 0 : 260);
+      setTimeout(function () { if (location.hash !== deckHash) return; pos++; draw(); }, UI.reduced ? 0 : 260); // don't redraw over a page the learner moved to
     }
     function finish() {
       setKeys(null);
@@ -762,7 +763,7 @@
     document.getElementById("s-py").onchange = function () { sv("showPinyin", this.checked); };
     document.getElementById("s-lang").onchange = function () { sv("lang", this.value); };
     document.getElementById("s-theme").onchange = function () { sv("theme", this.value); };
-    document.getElementById("s-sfx").onchange = function () { sv("sfx", this.checked); if (this.checked) Audio2.sfx.good(); };
+    document.getElementById("s-sfx").onchange = function () { sv("sfx", this.checked); if (this.checked) Audio2.sfx.good({ quiet: true }); };
     document.getElementById("s-rate").onchange = function () { sv("audioRate", parseFloat(this.value)); };
     document.getElementById("s-goal").onchange = function () { sv("dailyGoal", parseInt(this.value, 10)); };
     document.getElementById("s-exam").onchange = function () { if (this.value) sv("examDate", this.value); };
@@ -913,6 +914,7 @@
       b.classList.toggle("picked", v === chosen);
       if (mode === "practice") { b.classList.toggle("good", v === correct); b.classList.toggle("bad", v === chosen && chosen !== correct); b.disabled = true; }
     });
+    if (mode === "practice" && chosen === correct && !markMC.restoring) UI.hearts();
     updateCount();
   }
 
@@ -1056,10 +1058,12 @@
       '<button class="btn primary big" id="m-next">' + (isLast ? "✅ Finish exam" : "Next section ▶") + "</button>";
     render(html, "mock");
     if (section === "listening") wireListening(m, mode); else if (section === "reading") wireReading(m, mode); else wireWriting(m, mode);
+    markMC.restoring = true;
     mockItems(m).forEach(function (x) { // restore earlier picks after a re-render
       var a = EXAM.answers[x.it.id];
       if (a !== undefined && (x.kind === "tf" || x.kind === "dlg" || x.kind === "aud" || x.kind === "sent" || x.kind === "pass")) markMC(x.it.id, a, x.it.answer, mode);
     });
+    markMC.restoring = false;
     document.getElementById("m-next").onclick = function () {
       var ids = sectionIds(m, section), left = ids.filter(function (id) { return EXAM.answers[id] === undefined; }).length;
       if (left && !window.confirm(left + " question" + (left > 1 ? "s are" : " is") + " unanswered. " + (isLast ? "Finish the exam anyway?" : "Go to the next section anyway?"))) return;

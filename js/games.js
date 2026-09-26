@@ -265,7 +265,7 @@
       var li = side === "L" ? idx : sel.i, ri = side === "R" ? idx : sel.i;
       if (left[li].id === right[ri].id) {
         combo++; var pts = Math.min(combo, 5); score += pts;
-        Audio2.sfx.combo(combo);
+        Audio2.sfx.combo(combo); UI.hearts(null, null, 5);
         UI.pop("+" + pts + (combo > 1 ? " ×" + Math.min(combo, 5) : ""), App.rect(b).x, App.rect(b).y, "good");
         var nw = take(); left[li] = nw; right[ri] = nw;
         drawBoard();

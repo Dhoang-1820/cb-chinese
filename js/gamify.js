@@ -98,7 +98,41 @@
       eyes + mouth + "</svg>";
   }
 
-  window.UI = { toast: toast, confetti: confetti, pop: pop, shake: shake, modal: modal, mascot: mascot, reduced: reduced };
+  /* ---------------- Heart burst (correct answers) ----------------
+     Small hearts float up from where the learner last tapped. Skipped with Reduce Motion. */
+  var lastTap = { x: 0, y: 0, t: 0 };
+  document.addEventListener("pointerdown", function (e) { lastTap = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
+  var HEART_COLORS = ["#ff4d8d", "#ff7a59", "#b36bff", "#ff5c7a", "#ff8fb8"];
+  var fxLayer = null;
+  function heartSVG(c, k) {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="hg' + k + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".35" stop-color="' + c + '"/><stop offset="1" stop-color="' + c + '"/></linearGradient></defs>' +
+      '<path fill="url(#hg' + k + ')" d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.6 4.5c2.1 0 3.5 1.2 4.4 2.5.9-1.3 2.3-2.5 4.4-2.5 3.6 0 5.7 3.7 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg>';
+  }
+  var heartSeq = 0;
+  function hearts(x, y, n) {
+    if (reduced || !document.body.animate) return;
+    if (x == null) {
+      if (Date.now() - lastTap.t < 1500) { x = lastTap.x; y = lastTap.y; }
+      else { var q = document.getElementById("qcard") || document.getElementById("app"); var r = q.getBoundingClientRect(); x = r.left + r.width / 2; y = Math.min(innerHeight * 0.7, r.top + r.height * 0.6); }
+    }
+    if (!fxLayer || !fxLayer.isConnected) { fxLayer = document.createElement("div"); fxLayer.className = "heart-fx"; document.body.appendChild(fxLayer); }
+    n = n || 7;
+    for (var k = 0; k < n; k++) (function (k) {
+      var s = 18 + Math.random() * 16, c = HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
+      var h = document.createElement("div"); h.className = "fx-heart"; h.style.width = h.style.height = s + "px";
+      h.innerHTML = heartSVG(c, heartSeq++ % 1000); fxLayer.appendChild(h);
+      var x0 = x - s / 2, y0 = y - s / 2, dx = (Math.random() * 2 - 1) * 70, up = 120 + Math.random() * 100, rot = (Math.random() * 2 - 1) * 35;
+      var a = h.animate([
+        { transform: "translate(" + x0 + "px," + y0 + "px) scale(.2)", opacity: 0 },
+        { transform: "translate(" + (x0 + dx * .3) + "px," + (y0 - up * .25) + "px) scale(1.15) rotate(" + rot / 2 + "deg)", opacity: 1, offset: .2 },
+        { transform: "translate(" + (x0 + dx * .7) + "px," + (y0 - up * .7) + "px) scale(1) rotate(" + (-rot / 2) + "deg)", opacity: .9, offset: .65 },
+        { transform: "translate(" + (x0 + dx) + "px," + (y0 - up) + "px) scale(.8) rotate(" + rot + "deg)", opacity: 0 }
+      ], { duration: 900 + Math.random() * 500, delay: k * 40, easing: "cubic-bezier(.2,.7,.3,1)", fill: "both" });
+      a.onfinish = a.oncancel = function () { h.remove(); };
+    })(k);
+  }
+
+  window.UI = { toast: toast, confetti: confetti, pop: pop, shake: shake, modal: modal, mascot: mascot, reduced: reduced, hearts: hearts };
 
   /* ---------------- Levels ---------------- */
   var LEVELS = [

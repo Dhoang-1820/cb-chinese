@@ -70,7 +70,10 @@
   function on() { return !window.Store || Store.state.settings.sfx !== false; }
   var sfx = {
     tap: function () { if (on()) tone(520, 0.06, "triangle", 0, 0.08); },
-    good: function () { if (on()) { tone(660, 0.12, "sine"); tone(990, 0.18, "sine", 0.09); } },
+    good: function (opts) {
+      if (on()) { tone(660, 0.12, "sine"); tone(990, 0.18, "sine", 0.09); }
+      if (!(opts && opts.quiet) && window.UI && UI.hearts) UI.hearts(); // correct answer → heart burst
+    },
     bad: function () { if (on()) { tone(220, 0.16, "square", 0, 0.07); tone(160, 0.2, "square", 0.1, 0.07); } },
     combo: function (n) { if (on()) tone(600 + Math.min(n, 8) * 80, 0.1, "triangle"); },
     win: function () { if (on()) [523, 659, 784, 1047].forEach(function (f, i) { tone(f, 0.22, "triangle", i * 0.11); }); },

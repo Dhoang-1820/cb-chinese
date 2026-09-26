@@ -625,3 +625,8 @@ h3.sec { margin: 18px 4px 8px; color: var(--muted); text-transform: uppercase; f
 .ty-row .miss { color: #e5484d; text-decoration: underline wavy; font-weight: 800; }
 .ty-row .extra { color: #e5484d; text-decoration: line-through; }
 .sub.small { font-size: .8rem; margin-top: 10px; }
+
+/* ---------- heart burst on correct answers ---------- */
+.heart-fx { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.fx-heart { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+.fx-heart svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 3px 6px rgba(255, 77, 141, .35)); }

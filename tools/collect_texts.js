@@ -13,6 +13,8 @@ vm.createContext(sb);
 const load = f => vm.runInContext(fs.readFileSync(path.join(ROOT, "data", f), "utf8"), sb);
 load("manifest.js");
 sb.window.CB_MANIFEST.forEach(load);
+load("mock-manifest.js");
+sb.window.CB_MOCK_FILES.forEach(load);
 
 const out = new Map();
 const add = (t, v = "F") => { if (t && /[㐀-鿿]/.test(t)) out.set(v + "|" + t, { v, t }); };
@@ -32,6 +34,12 @@ for (const d of sb.window.CB_DAYS) {
   (ex.fill || []).forEach(f => add(f.zh.replace("___", f.answer)));
   (ex.translate || []).forEach(t => add(t.zh));
 }
+for (const m of sb.window.CB_MOCK || []) {
+  for (const it of m.listening.p1) add(it.audio.text, it.audio.voice);
+  for (const it of m.listening.p2) it.dialogue.forEach(l => add(l.text, l.voice));
+  for (const it of m.listening.p3) add(it.audio.text, it.audio.voice);
+}
+
 add("你好，这是薪酬福利中文。");
 process.stdout.write(JSON.stringify([...out.values()]));
 process.stderr.write(`collected ${out.size} texts\n`);

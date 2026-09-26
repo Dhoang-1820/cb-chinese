@@ -161,6 +161,38 @@ days.filter(d => d.type === "review").forEach(d => (d.reviewOf || []).forEach(n 
   else if (n >= d.day) err(`Day ${d.day}`, `reviewOf day ${n} is not an earlier day`);
 }));
 
+// ---- mock exams ----
+run("mock-manifest.js");
+const mockFiles = sandbox.window.CB_MOCK_FILES || [];
+mockFiles.forEach(run);
+const mocks = sandbox.window.CB_MOCK || [];
+if (!mocks.length) warn("mock-manifest.js", "CB_MOCK is empty — mock exam tab will show nothing");
+mocks.forEach(m => {
+  const where = `Mock ${m.id}`;
+  if (!m.title) err(where, "missing title");
+  const checkMC = (item, label, nOpts) => {
+    if (!Array.isArray(item.options) || item.options.length !== nOpts) err(where, `${label} needs exactly ${nOpts} options`);
+    if (typeof item.answer !== "number" || item.answer < 0 || item.answer >= (item.options || []).length) err(where, `${label} answer index out of range`);
+  };
+  (m.listening.p1 || []).forEach(it => { has(it, ["audio", "statement"], where); if (typeof it.answer !== "boolean") err(where, `${it.id} answer must be true/false`); });
+  (m.listening.p2 || []).forEach(it => { if (!Array.isArray(it.dialogue) || !it.dialogue.length) err(where, `${it.id} missing dialogue`); checkMC(it, it.id, 4); });
+  (m.listening.p3 || []).forEach(it => { has(it, ["audio", "question"], where); checkMC(it, it.id, 4); });
+  (m.reading.p1 || []).concat(m.reading.p2 || []).forEach(it => { if (!it.sentence.includes("____")) err(where, `${it.id} sentence needs a ____ blank`); checkMC(it, it.id, 4); });
+  (m.reading.p3 || []).forEach((pg, i) => (pg.questions || []).forEach(q => checkMC(q, `passage ${i + 1} · ${q.id}`, 4)));
+  (m.writing.p1 || []).forEach(it => {
+    if (!Array.isArray(it.tokens) || it.tokens.length < 3) err(where, `${it.id} needs 3+ tokens`);
+    if (it.tokens.join("") !== it.answer) err(where, `${it.id} tokens joined don't equal the answer`);
+    const sorted = x => [...x].sort().join("");
+    (it.alt || []).forEach(alt => { if (sorted(alt) !== sorted(it.answer)) err(where, `${it.id} alt "${alt}" uses different characters than the answer`); });
+  });
+  (m.writing.p2 || []).forEach(it => has(it, ["word", "emoji", "sample"], where));
+  const counts = { L1: (m.listening.p1 || []).length, L2: (m.listening.p2 || []).length, L3: (m.listening.p3 || []).length,
+    R1: (m.reading.p1 || []).length, R2: (m.reading.p2 || []).length, R3: (m.reading.p3 || []).reduce((s, p) => s + (p.questions || []).length, 0),
+    W1: (m.writing.p1 || []).length, W2: (m.writing.p2 || []).length };
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (total < 20) warn(where, `only ${total} items total — feels thin for a mock test`);
+});
+
 // report
 const lessons = days.filter(d => d.type === "lesson").length;
 const reviews = days.filter(d => d.type === "review").length;
@@ -177,8 +209,10 @@ const checks = [
   ["All required fields present", !errors.some(e => /missing|needs/.test(e))],
   ["No duplicate hanzi", !errors.some(e => /duplicate hanzi/.test(e))],
   ["Correct word count per day", !errors.some(e => /words, expected|must not add new words/.test(e))],
-  ["Every quiz answer exists in its options", !errors.some(e => /answer index|quiz has/.test(e))]
+  ["Every quiz answer exists in its options", !errors.some(e => /answer index|quiz has/.test(e))],
+  ["Mock exams well-formed", !errors.some(e => /^Mock \d/.test(e))]
 ];
+console.log(`Mock exams        : ${mocks.length}`);
 checks.forEach(([name, ok]) => console.log(`${ok ? "PASS" : "FAIL"}  ${name}`));
 console.log("");
 if (warnings.length) { console.log(`Warnings (${warnings.length}):`); warnings.forEach(w => console.log("  ⚠ " + w)); console.log(""); }

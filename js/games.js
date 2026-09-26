@@ -9,7 +9,9 @@
     { id: "speed", icon: "⚡", name: "Speed Match", desc: "60 seconds · build combos", cls: "g-coral" },
     { id: "race", icon: "⌨️", name: "Pinyin Race", desc: "Type the word, like the computer exam", cls: "g-sun" },
     { id: "boss", icon: "🐉", name: "Boss Battle", desc: "3 lives vs the review boss", cls: "g-boss" },
-    { id: "quick", icon: "❓", name: "Quick Quiz", desc: "10 mixed questions", cls: "g-blue" }
+    { id: "quick", icon: "❓", name: "Quick Quiz", desc: "10 mixed questions", cls: "g-blue" },
+    { id: "drill", icon: "🎙️", name: "Listening Drill", desc: "Hear a sentence, then reveal · 0.75× slow mode", cls: "g-teal" },
+    { id: "write", icon: "✍️", name: "Stroke Writing", desc: "Watch stroke order, then trace it", cls: "g-violet" }
   ];
   var BY = {}; LIST.forEach(function (g) { BY[g.id] = g; });
 
@@ -32,7 +34,7 @@
   function run(id, arg) {
     var g = BY[id];
     if (!g) { location.hash = "#/games"; return; }
-    ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick })[id](arg);
+    ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick, drill: drill, write: write })[id](arg);
   }
 
   /* ---------- shared ---------- */
@@ -61,6 +63,7 @@
     var rest = A().shuffle(pool.filter(function (o) { return o.id !== w.id && o.hanzi.length !== w.hanzi.length; }));
     return same.concat(rest).slice(0, n);
   }
+  var T2SKILL = { h2m: "vocab", m2h: "vocab", h2p: "pinyin", aud: "listen-word" };
   /* A multiple-choice question about a word. type: h2m | m2h | h2p | aud */
   function makeQ(w, types) {
     var t = types[Math.floor(Math.random() * types.length)];
@@ -92,6 +95,8 @@
       });
       (ok ? Audio2.sfx.good : Audio2.sfx.bad)();
       if (!ok) UI.shake(document.getElementById("qcard"));
+      if (window.Learn) Learn.record("w:" + q.w.id, { kind: "word", id: q.w.id, skill: T2SKILL[q.t] || "vocab" }, ok);
+      if (!ok && SRS.has(q.w.id)) SRS.lapse(q.w.id);
       if (opts.onAnswer) opts.onAnswer(ok, b);
       var App = A();
       document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '"><span class="zh">' + App.esc(q.w.hanzi) + "</span> " + App.esc(q.w.pinyin) + " — " + App.M(q.w) + "</div>" +
@@ -187,6 +192,7 @@
         if (chk.dataset.done) { i++; draw(); return; }
         var ok = placed.map(function (k) { return parts[k]; }).join("") === s.core;
         chk.dataset.done = 1;
+        if (window.Learn) Learn.record("b:" + s.core, { kind: "order", skill: "word-order", parts: parts, core: s.core, end: s.end, py: s.py, vi: s.vi, en: s.en }, ok);
         if (ok) { score++; Audio2.sfx.good(); UI.pop("+3 XP", null, innerHeight * 0.35, "good"); } else { Audio2.sfx.bad(); UI.shake(document.getElementById("qcard")); }
         ans.classList.add(ok ? "ok" : "no");
         review.push({ s: s, ok: ok });
@@ -306,6 +312,8 @@
         if (ok) { score++; Audio2.sfx.good(); UI.pop("+2 XP", null, innerHeight * 0.3, "good"); } else if (!skip) { Audio2.sfx.bad(); UI.shake(document.getElementById("rf")); }
         if (!skip && !ok) return; // let them try again
         done.push({ w: w, ok: ok });
+        if (window.Learn) Learn.record("w:" + w.id, { kind: "word", id: w.id, skill: "pinyin" }, ok);
+        if (!ok && SRS.has(w.id)) SRS.lapse(w.id);
         document.getElementById("sc").textContent = score;
         document.getElementById("last").innerHTML = (ok ? "✓ " : "↷ ") + '<span class="zh">' + App.esc(w.hanzi) + "</span> " + App.esc(w.pinyin);
         i++; show();
@@ -386,5 +394,127 @@
     draw();
   }
 
-  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
+
+  /* ---------- 7. Listening Drill ---------- */
+  function drillPool() {
+    var App = A(), days = {}, out = [], seen = {};
+    App.studiedWords().forEach(function (w) { days[w._day] = 1; });
+    Object.keys(days).forEach(function (n) {
+      var d = App.DAYMAP[n]; if (!d) return;
+      function add(o, voice) { if (o && o.zh && !seen[o.zh] && Audio2.has(o.zh)) { seen[o.zh] = 1; out.push({ zh: o.zh, py: o.py, vi: o.vi, en: o.en, voice: voice || "F" }); } }
+      if (d.reading) d.reading.lines.forEach(function (l) { add(l, l.speaker ? Audio2.voiceFor(l.speaker) : "F"); });
+      (d.words || []).forEach(function (w) { add(w.example); });
+    });
+    return out;
+  }
+  function drillCard(it, onDone, autoplay) {
+    var App = A();
+    var html = '<div class="card qcard" id="qcard"><p class="sub">Listen first. Reveal the text only when you\'re ready.</p>' +
+      '<div class="drill-btns"><button class="btn primary" id="d-play">▶ Play</button><button class="btn" id="d-slow">🐢 0.75×</button></div>' +
+      '<div id="d-text" class="drill-text" hidden><div class="ex-zh"><span class="zh">' + App.esc(it.zh) + "</span></div>" + (it.py ? App.PY(it.py) : "") + '<div class="tr">' + App.M(it) + "</div></div>" +
+      '<button class="btn wide" id="d-rev">👁 Reveal text</button>' +
+      '<div class="tf-btns" id="d-grade" hidden><button class="btn good-btn" id="d-ok">Understood ✔</button><button class="btn bad-btn" id="d-no">Missed ✘</button></div></div>';
+    return { html: html, wire: function () {
+      var play = function (rate) { Audio2.play(it.zh, it.voice, null, rate); };
+      document.getElementById("d-play").onclick = function () { play(); };
+      document.getElementById("d-slow").onclick = function () { play(0.75); };
+      document.getElementById("d-rev").onclick = function () {
+        document.getElementById("d-text").hidden = false; document.getElementById("d-grade").hidden = false; this.hidden = true;
+      };
+      function grade(ok) {
+        if (window.Learn) Learn.record("ls:" + it.zh, { kind: "ls", skill: "listen-sentence", zh: it.zh, py: it.py, vi: it.vi, en: it.en, voice: it.voice }, ok);
+        (ok ? Audio2.sfx.good : Audio2.sfx.bad)();
+        onDone(ok);
+      }
+      document.getElementById("d-ok").onclick = function () { grade(true); };
+      document.getElementById("d-no").onclick = function () { grade(false); };
+      if (autoplay) play();
+    } };
+  }
+  function drill() {
+    var App = A(), g = BY.drill, pool = App.shuffle(drillPool()).slice(0, 8), i = 0, score = 0;
+    if (!pool.length) {
+      App.render(header(g) + '<p class="empty">' + (Audio2.available() ? "Study a day first to unlock sentences." : "Audio isn't generated yet — it's created when you deploy.") + "</p>", "game");
+      return;
+    }
+    (function draw() {
+      if (i >= pool.length) return finish("drill", score, score * 2, { title: score + " / " + pool.length + " understood", mood: score >= 6 ? "cheer" : score >= 4 ? "happy" : "sad" });
+      var c = drillCard(pool[i], function (ok) { if (ok) score++; i++; draw(); }, i > 0);
+      App.render(header(g, (i + 1) + "/" + pool.length) + bar(i, pool.length) + c.html, "game");
+      c.wire();
+    })();
+  }
+
+  /* ---------- 8. Stroke Writing (Hanzi Writer, MIT · stroke data Arphic PL, bundled in vendor/) ---------- */
+  var hwLoading = null;
+  function loadHW() {
+    if (window.HanziWriter) return Promise.resolve();
+    if (!hwLoading) hwLoading = new Promise(function (res, rej) {
+      var sc = document.createElement("script"); sc.src = "vendor/hanzi-writer.min.js"; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc);
+    });
+    return hwLoading;
+  }
+  function charLoader(ch, onLoad, onErr) {
+    fetch("vendor/hanzi/" + encodeURIComponent(ch) + ".json").then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(onLoad).catch(onErr);
+  }
+  function write(arg) {
+    var App = A(), g = BY.write, dayN = parseInt(arg, 10), words;
+    if (dayN && App.DAYMAP[dayN]) words = App.dayWords(App.DAYMAP[dayN]).slice();
+    else words = App.shuffle(App.studiedWords()).slice(0, 5);
+    if (!words.length) { App.render(header(g) + '<p class="empty">Study a day first.</p>', "game"); return; }
+    App.render(header(g) + '<p class="empty">Loading stroke data…</p>', "game");
+    loadHW().then(function () { session(); }).catch(function () {
+      App.render(header(g) + '<p class="empty">Couldn\'t load the writing module. Check your connection and try again.</p>', "game");
+    });
+    function session() {
+      var wi = 0, score = 0, results = [];
+      (function drawWord() {
+        if (wi >= words.length) return finish("write", score, score * 3, { title: score + " / " + words.length + " words written well", arg: dayN || "", mood: score === words.length ? "cheer" : "happy",
+          review: '<div class="card akey">' + results.map(function (r) { return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "✗") + '</span><div><span class="zh">' + App.esc(r.w.hanzi) + "</span> " + App.esc(r.w.pinyin) + ' <span class="dim">· ' + (r.skipped ? "skipped" : r.miss + " slip" + (r.miss === 1 ? "" : "s")) + "</span></div></div>"; }).join("") + "</div>" });
+        var w = words[wi], chars = Array.from(w.hanzi).filter(function (c) { return /[㐀-鿿]/.test(c); }), ci = 0, miss = 0, skipped = false;
+        (function drawChar() {
+          if (ci >= chars.length) {
+            var ok = !skipped && miss <= chars.length; // about one slip per character is fine
+            if (ok) score++;
+            results.push({ w: w, ok: ok, miss: miss, skipped: skipped });
+            if (window.Learn && !skipped) Learn.record("hw:" + w.id, { skill: "handwriting", statsOnly: true }, ok);
+            (ok ? Audio2.sfx.good : Audio2.sfx.bad)();
+            wi++; return drawWord();
+          }
+          var ch = chars[ci], advanced = false;
+          function advance(extra) { // one move per character, and only while this screen is still showing
+            if (advanced || !document.getElementById("hw")) return;
+            advanced = true; if (extra) extra(); ci++; drawChar();
+          }
+          App.render(header(g, (wi + 1) + "/" + words.length) + bar(wi, words.length) +
+            '<div class="card hw-card"><div class="hw-word"><span class="zh">' + Array.from(w.hanzi).map(function (c, k) { return '<b class="' + (c === ch && k >= ci ? "cur" : "") + '">' + App.esc(c) + "</b>"; }).join("") + "</span>" + App.SAY(w.hanzi) +
+            '<div>' + App.PY(w.pinyin) + '</div><div class="dim">' + App.M(w) + "</div></div>" +
+            '<div class="hw-box" id="hw"></div><p class="sub center" id="hw-msg">Watch the strokes, then trace the character.</p>' +
+            '<div class="drill-btns"><button class="btn" id="hw-anim">▶ Strokes</button><button class="btn primary" id="hw-quiz">✍️ Trace</button><button class="btn" id="hw-blind">🙈 Blind</button></div>' +
+            '<button class="btn wide" id="hw-skip">Skip ›</button></div>', "game");
+          var color = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim() || "#7c5cff";
+          var wr = HanziWriter.create("hw", ch, { width: 260, height: 260, padding: 14, showCharacter: false, showOutline: true, strokeColor: color, radicalColor: color,
+            drawingColor: "#333", drawingWidth: 22, highlightColor: "#1fae6d", outlineColor: "rgba(124,92,255,.18)", strokeAnimationSpeed: 1.2, delayBetweenStrokes: 180, charDataLoader: charLoader,
+            onLoadCharDataError: function () { skipped = true; var mm = document.getElementById("hw-msg"); if (mm) mm.textContent = "No stroke data for " + ch + " — skipping."; setTimeout(function () { advance(); }, 900); } });
+          var msg = document.getElementById("hw-msg");
+          function quiz(blind) {
+            if (blind) wr.hideOutline(); else wr.showOutline();
+            wr.hideCharacter();
+            msg.textContent = blind ? "Write it from memory." : "Trace each stroke in order.";
+            wr.quiz({ showHintAfterMisses: 2, onMistake: function () { miss++; }, onComplete: function (sum) {
+              msg.innerHTML = sum.totalMistakes ? "Done · " + sum.totalMistakes + " slip" + (sum.totalMistakes > 1 ? "s" : "") : "Perfect! ✨";
+              setTimeout(function () { advance(); }, 900);
+            } });
+          }
+          var auto = true; // start tracing automatically after the first animation, unless the learner already chose
+          document.getElementById("hw-anim").onclick = function () { auto = false; wr.cancelQuiz(); wr.showOutline(); wr.animateCharacter(); };
+          document.getElementById("hw-quiz").onclick = function () { auto = false; quiz(false); };
+          document.getElementById("hw-blind").onclick = function () { auto = false; quiz(true); };
+          document.getElementById("hw-skip").onclick = function () { auto = false; wr.cancelQuiz(); advance(function () { skipped = true; }); };
+          wr.animateCharacter({ onComplete: function () { if (auto) quiz(false); } });
+        })();
+      })();
+    }
+  }
+  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
 })();

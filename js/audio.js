@@ -18,7 +18,7 @@
   player.addEventListener("ended", finish);
   player.addEventListener("error", finish);
 
-  function play(text, voice, cb) {
+  function play(text, voice, cb, rate) {
     var f = file(text, voice);
     if (!f) {
       if (window.UI) UI.toast(available() ? "No recording for this text yet." : "Audio isn't generated yet — it's created when you deploy (see README).");
@@ -29,7 +29,8 @@
     try { player.pause(); } catch (e) {}
     onEnd = cb || null;
     player.src = "audio/" + f;
-    player.playbackRate = (window.Store && Store.state.settings.audioRate) || 1;
+    var r = rate || (window.Store && Store.state.settings.audioRate) || 1;
+    player.defaultPlaybackRate = r; player.playbackRate = r; // iOS can reset playbackRate when src changes
     var p = player.play();
     if (p && p.catch) p.catch(function () { finish(); });
     return true;

@@ -501,3 +501,117 @@ h3.sec { margin: 18px 4px 8px; color: var(--muted); text-transform: uppercase; f
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- mock exam ---------- */
+.exam-secs { display: grid; gap: 8px; margin: 10px 0; }
+.exam-sec { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,.18); border-radius: 12px; padding: 10px 14px; }
+.exam-sec span { opacity: .9; font-size: .85rem; }
+.exam-head { display: flex; justify-content: space-between; align-items: center; }
+.exam-head span { font-size: .85rem; opacity: .75; }
+.exam-timer { position: sticky; top: calc(var(--safe-t) + 52px); z-index: 5; margin: 0 auto 12px; width: fit-content; background: var(--primary); color: #fff; font-weight: 800; padding: 6px 16px; border-radius: 999px; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.exam-part { margin: 18px 0 8px; font-size: .95rem; opacity: .85; }
+.q { position: relative; padding-top: 34px; }
+.qn { position: absolute; top: 10px; left: 12px; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff; font-size: .8rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.statement { margin: 8px 0 10px; font-weight: 600; }
+.tf-btns { display: flex; gap: 10px; }
+.opt.tf { flex: 1; text-align: center; }
+.opts { display: grid; gap: 8px; }
+.opt.mc { text-align: left; }
+.opt.picked { border-color: var(--primary); background: rgba(124,92,255,.08); }
+.opt.good { border-color: #1fae6d; background: rgba(31,174,109,.12); color: #1fae6d; }
+.opt.bad { border-color: #e5484d; background: rgba(229,72,77,.1); color: #e5484d; }
+.opt:disabled { opacity: 1; }
+.passage { line-height: 1.7; background: var(--surface-2, var(--surface)); }
+.dlg-play { margin-bottom: 10px; }
+.wans { min-height: 44px; border: 2px dashed var(--border); border-radius: 12px; padding: 8px; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.wans-ph { opacity: .5; font-size: .85rem; padding: 6px; }
+.wtoken { display: inline-flex; align-items: center; padding: 8px 12px; border-radius: 10px; border: none; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.15); font-size: 1.05rem; }
+.wtoken.used { background: var(--primary); color: #fff; box-shadow: none; }
+.wpool { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.w1-check { display: block; margin-top: 8px; font-weight: 700; }
+.good-t { color: #1fae6d; } .bad-t { color: #e5484d; }
+.w2-scene { font-size: 1.4rem; margin: 6px 0; }
+.w2-input { width: 100%; border: 2px solid var(--border); border-radius: 12px; padding: 10px; font-size: 1rem; margin-bottom: 8px; font-family: inherit; }
+.w2-model { margin-top: 10px; }
+.model-t { margin-bottom: 8px; }
+.score-big { font-size: 2.4rem; font-weight: 900; margin: 4px 0 14px; }
+.score-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.score-row span:first-child { width: 76px; font-size: .85rem; }
+.score-bar { flex: 1; height: 10px; border-radius: 999px; background: rgba(255,255,255,.25); overflow: hidden; }
+.score-bar span { display: block; height: 100%; background: #fff; border-radius: 999px; }
+.card.g-sun .sub, .card.g-violet .sub, .card.g-blue .sub, .card.g-teal .sub, .card.g-coral .sub, .card.g-boss .sub { color: rgba(255,255,255,.9); }
+.mock .btn.big { display: flex; justify-content: center; width: 100%; }
+
+/* ---------- mistake notebook & weak areas ---------- */
+.good-btn { background: #1fae6d; color: #fff; border-color: #1fae6d; }
+.bad-btn { background: #fff; color: #e5484d; border-color: #e5484d; }
+.sk-block { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.sk-block:last-child { border-bottom: 0; }
+.sk-block .btn { margin-top: 6px; }
+.sk-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; justify-content: space-between; }
+.sk-n { flex: 0 0 46%; font-weight: 700; font-size: .92rem; }
+.sk-n .m { display: inline; }
+.acc { flex: 1; display: flex; align-items: center; gap: 8px; }
+.acc b { width: 42px; text-align: right; font-size: .9rem; }
+.acc-bar { flex: 1; height: 10px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.acc-bar span { display: block; height: 100%; border-radius: 999px; }
+.acc-bar.hi span { background: #1fae6d; } .acc-bar.mid span { background: #f5a524; } .acc-bar.lo span { background: #e5484d; }
+.focus { background: var(--surface-2, rgba(124,92,255,.06)); border-radius: 14px; padding: 12px; margin: 8px 0; }
+.focus .sub { margin: 4px 0 8px; }
+.drill-btns { display: flex; gap: 10px; margin: 12px 0; }
+.drill-btns .btn { flex: 1; }
+.drill-text { margin: 12px 0; }
+.passage-in { line-height: 1.7; background: rgba(124,92,255,.06); border-radius: 12px; padding: 12px; margin: 8px 0; }
+.script { margin-top: 8px; font-size: .95rem; opacity: .85; }
+.tf-btns.opts { display: flex; }
+.tf-btns.opts .opt { flex: 1; justify-content: center; }
+[hidden] { display: none !important; }
+
+/* ---------- study plan, progress charts, word sheet ---------- */
+.t-warn { background: #ffe6e6; color: #c9353a; }
+.tasks { display: grid; gap: 6px; margin: 8px 0; }
+.task { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); color: inherit; text-decoration: none; font-weight: 700; font-size: .95rem; }
+.task.done { opacity: .6; }
+.task.done span:last-child { text-decoration: line-through; }
+.tk-box { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 7px; border: 2px solid var(--primary); display: flex; align-items: center; justify-content: center; color: #fff; font-size: .8rem; }
+.task.done .tk-box { background: #1fae6d; border-color: #1fae6d; }
+.score-big small { font-size: 1rem; font-weight: 700; opacity: .85; }
+.pw { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--border); flex-wrap: wrap; }
+.pw b { flex: 1; }
+.pw-d { width: 104px; font-size: .8rem; opacity: .7; font-variant-numeric: tabular-nums; }
+.pw.now { background: rgba(124,92,255,.07); border-radius: 10px; padding: 10px 8px; }
+.pw.exam b { color: var(--primary); }
+.chart { width: 100%; height: auto; display: block; margin-top: 6px; }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart .ax { fill: currentColor; opacity: .55; font-size: 9px; }
+.chart .ref { stroke: #1fae6d; stroke-dasharray: 4 3; stroke-width: 1.5; }
+.chart .ref-t { fill: #1fae6d; font-size: 9px; font-weight: 700; }
+.chart .line { fill: none; stroke: var(--primary); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.chart .area { fill: var(--primary); opacity: .1; }
+.chart .dot { fill: var(--surface); stroke: var(--primary); stroke-width: 2; }
+.chart .bar-r { fill: var(--primary); opacity: .45; }
+.chart .bar-r.hit { opacity: 1; }
+.spark3 { display: grid; gap: 12px; }
+.spark3 > div { display: grid; grid-template-columns: 1fr auto; align-items: center; }
+.spark3 .chart { grid-column: 1 / -1; }
+.big-n { font-size: 1.4rem; font-weight: 900; }
+.wlink { border-bottom: 2px dotted var(--primary); cursor: pointer; }
+.wsheet { text-align: center; }
+.ws-top { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.ws-top .hz { font-size: 2.6rem; }
+.ws-py { font-size: 1.2rem; font-weight: 700; color: var(--primary); margin: 4px 0; }
+.ws-mean { margin-bottom: 8px; }
+.ws-ex { background: var(--surface-2); border-radius: 12px; padding: 10px; margin: 10px 0; text-align: left; }
+.exam-timer.practice { background: #1fae6d; }
+
+/* ---------- handwriting ---------- */
+.hw-card { text-align: center; }
+.hw-word { margin-bottom: 8px; }
+.hw-word .zh { font-size: 1.8rem; letter-spacing: 4px; }
+.hw-word b { font-weight: 800; opacity: .45; }
+.hw-word b.cur { opacity: 1; color: var(--primary); }
+.hw-box { width: 260px; height: 260px; margin: 8px auto; border-radius: 18px; background: #fff; touch-action: none; user-select: none; -webkit-user-select: none;
+  background-image: linear-gradient(rgba(229,72,77,.25), rgba(229,72,77,.25)), linear-gradient(90deg, rgba(229,72,77,.25), rgba(229,72,77,.25)),
+    linear-gradient(45deg, transparent 49.7%, rgba(229,72,77,.15) 50%, transparent 50.3%), linear-gradient(-45deg, transparent 49.7%, rgba(229,72,77,.15) 50%, transparent 50.3%);
+  background-size: 100% 1px, 1px 100%, 100% 100%, 100% 100%; background-position: center; background-repeat: no-repeat; border: 2px solid rgba(229,72,77,.4); }
+.hw-card .drill-btns .btn { padding-left: 8px; padding-right: 8px; font-size: .9rem; }

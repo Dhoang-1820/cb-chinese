@@ -22,6 +22,10 @@
       freezes: 0,     // streak freezes in stock (max 2)
       badges: {},     // badgeId -> date earned
       games: {},      // gameId -> { best, plays }
+      mocks: {},      // mockId -> { best, plays, lastScore, lastSections: {listening, reading, writing} }
+      mistakes: {},   // key -> { kind, skill, wrong, streak, added, last, ...refs }  (see js/learn.js)
+      skills: {},     // skillId -> { r: right, w: wrong }
+      mockHistory: [], // [{ id, date, total, sections }]
       challenges: {}, // date -> true when the daily challenge was completed
       stats: { cards: 0, correct: 0, perfectQuizzes: 0, bossWins: 0, nightOwl: 0 }
     };
@@ -47,7 +51,24 @@
       d[k] = (typeof d[k] === "object" && !Array.isArray(d[k])) ? Object.assign(d[k], obj[k]) : obj[k];
     });
     d.version = 2;
+    clean(d);
     return d;
+  }
+  /* Imported files are untrusted: keep numbers numeric and drop malformed entries. */
+  function n(x) { x = +x; return isFinite(x) ? x : 0; }
+  function clean(d) {
+    Object.keys(d.mocks).forEach(function (k) {
+      var r = d.mocks[k]; if (!r || typeof r !== "object") { delete d.mocks[k]; return; }
+      r.best = n(r.best); r.plays = n(r.plays); r.lastScore = n(r.lastScore);
+      if (r.lastSections) ["listening", "reading", "writing"].forEach(function (s) { r.lastSections[s] = n(r.lastSections[s]); });
+    });
+    d.mockHistory = (Array.isArray(d.mockHistory) ? d.mockHistory : []).filter(function (h) { return h && typeof h === "object"; }).map(function (h) {
+      var sec = h.sections || {};
+      return { id: n(h.id), date: /^\d{4}-\d{2}-\d{2}$/.test(h.date) ? h.date : today(), mode: h.mode === "practice" ? "practice" : "exam", total: n(h.total),
+        sections: { listening: n(sec.listening), reading: n(sec.reading), writing: n(sec.writing) } };
+    });
+    Object.keys(d.skills).forEach(function (k) { var v = d.skills[k]; if (!v || typeof v !== "object") delete d.skills[k]; else { v.r = n(v.r); v.w = n(v.w); } });
+    Object.keys(d.mistakes).forEach(function (k) { var v = d.mistakes[k]; if (!v || typeof v !== "object" || typeof v.skill !== "string") delete d.mistakes[k]; });
   }
   function save() {
     if (!available) return;

@@ -3,14 +3,16 @@
 var VERSION = "dev";
 var SHELL = "cb-shell-" + VERSION;
 var AUDIO = "cb-audio";
+var STROKES = "cb-strokes"; // handwriting data: never changes, kept across app versions
 var DAYS = [];
 for (var i = 1; i <= 30; i++) DAYS.push("data/day" + (i < 10 ? "0" + i : i) + ".js");
+var MOCKS = ["data/mock-manifest.js", "data/mock1.js", "data/mock2.js", "data/mock3.js"];
 var PRECACHE = [
   "./", "index.html", "css/style.css", "manifest.webmanifest",
-  "js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/games.js", "js/app.js",
-  "audio/manifest.js", "data/manifest.js",
+  "js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/games.js", "js/app.js",
+  "audio/manifest.js", "data/manifest.js", "vendor/hanzi-writer.min.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
-].concat(DAYS);
+].concat(DAYS).concat(MOCKS);
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(SHELL).then(function (c) { return c.addAll(PRECACHE); }).then(function () { return self.skipWaiting(); }));
@@ -31,6 +33,16 @@ self.addEventListener("fetch", function (e) {
   if (url.origin === location.origin && /\/audio\/[0-9a-f]+\.mp3$/.test(url.pathname)) {
     e.respondWith(caches.open(AUDIO).then(function (c) {
       return c.match(req, { ignoreSearch: true }).then(function (hit) {
+        return hit || fetch(req).then(function (r) { if (r.ok) c.put(req, r.clone()); return r; });
+      });
+    }));
+    return;
+  }
+
+  // Stroke data for handwriting: cache-first in a cache that survives app updates.
+  if (url.origin === location.origin && /\/vendor\/hanzi\/[^/]+\.json$/.test(url.pathname)) {
+    e.respondWith(caches.open(STROKES).then(function (c) {
+      return c.match(req).then(function (hit) {
         return hit || fetch(req).then(function (r) { if (r.ok) c.put(req, r.clone()); return r; });
       });
     }));

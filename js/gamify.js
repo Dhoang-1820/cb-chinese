@@ -140,7 +140,8 @@
     { id: "speedy", icon: "💨", vi: "Tay nhanh", en: "Speed demon", dvi: "Speed Match ≥ 60 điểm", den: "Speed Match score ≥ 60", test: function (s) { return (s.games.speed || {}).best >= 60; } },
     { id: "boss", icon: "🐉", vi: "Diệt boss", en: "Boss slayer", dvi: "Thắng một trận Boss", den: "Win a Boss Battle", test: function (s) { return s.stats.bossWins >= 1; } },
     { id: "night_owl", icon: "🦉", vi: "Cú đêm", en: "Night owl", dvi: "Học sau 22 giờ", den: "Study after 10 pm", test: function (s) { return s.stats.nightOwl >= 1; } },
-    { id: "challenge_7", icon: "🎯", vi: "Thử thách x7", en: "Challenger", dvi: "Hoàn thành 7 thử thách ngày", den: "Finish 7 daily challenges", test: function (s) { return Object.keys(s.challenges).length >= 7; } }
+    { id: "challenge_7", icon: "🎯", vi: "Thử thách x7", en: "Challenger", dvi: "Hoàn thành 7 thử thách ngày", den: "Finish 7 daily challenges", test: function (s) { return Object.keys(s.challenges).length >= 7; } },
+    { id: "mock_pass", icon: "🎓", vi: "Đạt mô phỏng", en: "Mock exam pass", dvi: "≥180/300 ở một đề thi thử", den: "Score ≥180/300 on a mock test", test: function (s) { return Object.keys(s.mocks || {}).some(function (k) { return (s.mocks[k].best || 0) >= 180; }); } }
   ];
 
   function checkBadges() {

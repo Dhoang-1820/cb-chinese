@@ -13,7 +13,8 @@ var PRECACHE = [
   "./", "index.html", "css/style.css", "manifest.webmanifest",
   "js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/games.js", "js/app.js",
   "audio/manifest.js", "data/manifest.js", "vendor/hanzi-writer.min.js",
-  "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
+  "icons/icon-64.png", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
+  "fonts/nunito-latin-wght-normal.woff2", "fonts/nunito-latin-ext-wght-normal.woff2", "fonts/nunito-vietnamese-wght-normal.woff2"
 ].concat(DAYS).concat(MOCKS);
 /* PRECACHE:END */
 

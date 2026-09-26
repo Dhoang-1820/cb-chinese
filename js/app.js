@@ -35,7 +35,7 @@
     if (!UI.reduced) { app.classList.remove("enter"); void app.offsetWidth; app.classList.add("enter"); }
   }
   function levelBadge(l) {
-    return l === "HSK4" ? '<span class="tag t-hsk">HSK 4</span>' : '<span class="tag t-dom">C&amp;B · beyond HSK 4</span>';
+    return l === "HSK4" ? '<span class="tag t-hsk">HSK 4</span>' : l === "Mine" ? '<span class="tag t-mine">My word</span>' : '<span class="tag t-dom">C&amp;B · beyond HSK 4</span>';
   }
   function boxBadge(id) { var c = SRS.get(id); return c ? '<span class="tag t-box">Box ' + c.box + "</span>" : ""; }
   function dayWords(d) {
@@ -80,6 +80,7 @@
     var s = Store.state.settings, root = document.documentElement, b = document.body;
     if (s.theme === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", s.theme);
     b.classList.toggle("hide-py", !s.showPinyin);
+    root.classList.remove("ts-l", "ts-xl"); if (s.textSize === "l" || s.textSize === "xl") root.classList.add("ts-" + s.textSize);
     b.classList.remove("lang-vi", "lang-en", "lang-both");
     b.classList.add("lang-" + s.lang);
     var py = document.getElementById("btn-py");
@@ -141,8 +142,8 @@
   }
   function needs(v, parts) {
     var n = [];
-    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && (parts[1] === "builder" || parts[1] === "drill" || parts[1] === "type")) || v === "mistakes")) n.push(ensureFull());
-    if (!mocksReady && (v === "mock" || v === "mistakes")) n.push(ensureMocks());
+    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && (parts[1] === "builder" || parts[1] === "drill" || parts[1] === "type")) || v === "session" || v === "mistakes")) n.push(ensureFull());
+    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session")) n.push(ensureMocks());
     return n;
   }
   function buildIndex() {
@@ -158,26 +159,29 @@
       COREMAP[set.set] = set;
       set.words.forEach(function (w) { w._set = set.set; if (!w.level) w.level = "HSK4"; WORDS.push(w); WORDMAP[w.id] = w; });
     });
+    // the learner's own words
+    (Store.state.custom || []).forEach(function (w) { w._mine = true; w.level = "Mine"; WORDS.push(w); WORDMAP[w.id] = w; });
     WORD_RE = null;
   }
-  function wordHome(w) { return w._set ? "#/core/" + w._set : "#/day/" + w._day + "/words"; }
-  function wordPlace(w) { return w._set ? "Core set " + w._set : "Day " + w._day; }
+  function wordHome(w) { return w._mine ? "#/learn/mine" : w._set ? "#/core/" + w._set : "#/day/" + w._day + "/words"; }
+  function wordPlace(w) { return w._mine ? "My words" : w._set ? "Core set " + w._set : "Day " + w._day; }
   function nextCoreSet() {
     for (var i = 0; i < CORE.length; i++) if (CORE[i].words.some(function (w) { return !SRS.has(w.id); })) return CORE[i];
     return null;
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK 4 Core" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK 4 Core", "listen-mode": "Listen", session: "Today's session" };
   function route() {
-    Audio2.stop(); setKeys(null);
+    Audio2.stop(); setKeys(null); workDone = false; if (LM) { LM.stop(); LM = null; }
+    if (location.hash.indexOf("#/session") !== 0) sessionBar(null);
     var parts = location.hash.replace(/^#\/?/, "").split("/");
     var v = parts[0] || "";
     if (!(v === "mock" && parts[2] && parts[2] !== "result")) clearExamTimer(); // leaving an exam pauses its clock
     var pending = needs(v, parts);
     if (pending.length) {
       var h = location.hash;
-      render('<p class="empty">Loading…</p>');
+      render(skeleton());
       Promise.all(pending).then(function () {
         if (location.hash !== h) return;
         if (needs(v, parts).length) { render('<p class="warn">Couldn\'t load this part of the app. Check your connection and try again.</p>'); return; }
@@ -194,6 +198,8 @@
     else if (v === "search") viewSearch();
     else if (v === "learn") viewLearn(parts[1]);
     else if (v === "core") viewCoreSet(parseInt(parts[1], 10));
+    else if (v === "listen-mode") viewListenMode();
+    else if (v === "session") viewSession();
     else if (v === "me" || v === "settings") viewMe();
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "plan") viewPlan();
@@ -205,7 +211,7 @@
       else viewMockSection(parts[1], parts[2]);
     }
     else viewHome();
-    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn" }[v] || "home";
+    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", "listen-mode": "review", session: "home" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     document.getElementById("page-title").textContent = TITLES[v] || "C&B 中文";
     refreshChrome();
@@ -245,6 +251,7 @@
       '<div><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + '</p><p class="lv"><span class="zh">' + lv.zh + "</span> · " + lv.en + '</p><p class="lv-n">Level ' + lv.n + "</p></div></div>" +
       '<div class="xpbar"><span style="width:' + Math.round(lv.pct * 100) + '%"></span></div>' +
       '<p class="xp-t">' + s.xp + " XP" + (lv.next ? " · " + (lv.next - s.xp) + " to next level" : " · max level") + "</p></section>";
+    html += sessionCTA();
     html += '<section class="stats3">' +
       '<div class="card stat"><div class="big-ico flame">🔥</div><b>' + Store.streak() + '</b><span>day streak</span><small>🧊 ' + s.freezes + " freeze" + (s.freezes === 1 ? "" : "s") + "</small></div>" +
       '<div class="card stat">' + ring(todayXP / goal, todayXP, "/ " + goal + " XP") + "<span>daily goal</span></div>" +
@@ -268,7 +275,7 @@
 
   /* ---------- learn (plan) ---------- */
   function learnSeg(which) {
-    return '<nav class="seg"><a class="' + (which === "cb" ? "active" : "") + '" href="#/learn">C&amp;B lessons</a><a class="' + (which === "core" ? "active" : "") + '" href="#/learn/core">HSK 4 Core</a></nav>';
+    return '<nav class="seg"><a class="' + (which === "cb" ? "active" : "") + '" href="#/learn">C&amp;B lessons</a><a class="' + (which === "core" ? "active" : "") + '" href="#/learn/core">HSK 4 Core</a><a class="' + (which === "mine" ? "active" : "") + '" href="#/learn/mine">My words</a></nav>';
   }
   function viewCoreList() {
     var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("core") +
@@ -299,6 +306,7 @@
   }
   function viewLearn(sub) {
     if (sub === "core") return viewCoreList();
+    if (sub === "mine") return viewMine();
     var st = Store.state, plan = window.CB_PLAN || [];
     var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb");
     for (var w = 0; w < 6; w++) {
@@ -576,6 +584,7 @@
   function viewCards(arg) {
     var words, title, back;
     if (arg === "all") { words = WORDS; title = "All words"; back = "#/learn"; }
+    else if (arg === "mine") { words = (Store.state.custom || []).map(function (w) { return WORDMAP[w.id]; }).filter(Boolean); title = "My words"; back = "#/learn/mine"; if (!words.length) { location.replace("#/learn/mine"); return; } }
     else if (/^k\d+$/.test(arg || "")) {
       var cs = COREMAP[parseInt(arg.slice(1), 10)];
       if (!cs) { render('<p class="empty">Set not found.</p>'); return; }
@@ -590,6 +599,7 @@
   }
   function runDeck(opts) {
     var queue = shuffle(opts.words), pos = 0, flipped = false, right = 0, wrong = 0, missed = [], requeued = {}, busy = false, deckHash = location.hash;
+    if (!opts.onDone) workDone = false; // a fresh deck (not a session step) starts clean
     function draw() {
       if (pos >= queue.length) return finish();
       var w = queue[pos]; flipped = false; busy = false;
@@ -637,6 +647,7 @@
       if (busy) return; busy = true;
       var w = queue[pos], card = document.getElementById("card");
       var s = Store.state;
+      markWork();
       if (ok) { var cr = card && card.getBoundingClientRect(); if (cr) UI.hearts(cr.left + cr.width / 2, cr.top + cr.height / 2, 6); }
       if (!requeued[w.id]) {
         SRS.grade(w.id, ok);
@@ -651,6 +662,7 @@
     }
     function finish() {
       setKeys(null);
+      if (opts.onDone) return opts.onDone({ right: right, wrong: wrong });
       var mood = wrong === 0 ? "cheer" : right >= wrong ? "happy" : "wow";
       render('<div class="card result">' + UI.mascot(mood, 96) + "<h2>Session complete</h2>" +
         '<p class="big-score"><span class="good">' + right + ' ✓</span> · <span class="bad-t">' + wrong + " ✗</span></p>" +
@@ -672,6 +684,9 @@
 
   /* ---------- review ---------- */
   function mistakesCard() {
+    return mistakesCardInner() + '<a class="cta card g-teal" href="#/listen-mode"><span class="cta-l"><small>Hands-free</small><b>🎧 Listen mode</b><em>Words and examples play by themselves</em></span><span class="cta-go">▶</span></a>';
+  }
+  function mistakesCardInner() {
     var n = Learn.count();
     return n ? '<a class="cta card g-coral" href="#/mistakes"><span class="cta-l"><small>Mistake notebook</small><b>📒 ' + n + ' to fix</b><em>Weak areas &amp; targeted drills</em></span><span class="cta-go">▶</span></a>' :
       '<a class="cta card" href="#/mistakes"><span class="cta-l"><small>Mistake notebook</small><b>📒 No open mistakes</b><em>See your weak-area report</em></span><span class="cta-go">▶</span></a>';
@@ -747,9 +762,15 @@
       row("Theme", sel("s-theme", [["auto", "System"], ["light", "Light"], ["dark", "Dark"]], set.theme)) +
       row("Sound effects", '<label class="switch"><input type="checkbox" id="s-sfx"' + (set.sfx !== false ? " checked" : "") + "><i></i></label>") +
       row("Voice speed", sel("s-rate", [["0.75", "0.75×"], ["0.9", "0.9×"], ["1", "1×"], ["1.15", "1.15×"]], String(set.audioRate || 1))) +
+      row("Text size", sel("s-ts", [["m", "Normal"], ["l", "Large"], ["xl", "Larger"]], set.textSize || "m")) +
       row("Daily goal", sel("s-goal", [["20", "20 XP · chill"], ["30", "30 XP · steady"], ["50", "50 XP · serious"], ["80", "80 XP · intense"]], String(set.dailyGoal || 30))) +
       row("Exam date", '<input type="date" id="s-exam" value="' + esc(set.examDate || "2026-11-14") + '">') +
+      row("App guide", '<button class="btn small" id="s-guide">Show again</button>') +
       row("Test voice", '<button class="btn small" id="s-test">🔊 Play</button>') + "</section>" +
+      '<section class="card settings"><h2>Study reminder</h2><p class="sub">A daily calendar event until your exam, with an alert. Pick a time, then add it to your calendar once.</p>' +
+      row("Time", '<input type="time" id="s-rtime" value="' + esc(set.remindTime || "20:00") + '">') +
+      '<div class="actions"><button class="btn small primary" id="s-ics">📅 iPhone Calendar</button><a class="btn small" id="s-gcal" target="_blank" rel="noopener" href="#">Google Calendar</a></div></section>' +
+      '<section class="card settings"><h2>Cloud backup</h2><div id="gist-box"></div></section>' +
       '<section class="card settings"><h2>Offline & data</h2>' +
       row("Audio recordings", '<span class="muted">' + (nAudio ? nAudio + " files" : "not generated yet") + "</span>") +
       ("caches" in window && location.protocol.indexOf("http") === 0 ? row((nAudio ? "Download audio + stroke data" : "Download stroke data") + " for offline", '<button class="btn small" id="s-dl">⬇ Download</button>') : "") +
@@ -767,6 +788,18 @@
     document.getElementById("s-sfx").onchange = function () { sv("sfx", this.checked); if (this.checked) Audio2.sfx.good({ quiet: true }); };
     document.getElementById("s-rate").onchange = function () { sv("audioRate", parseFloat(this.value)); };
     document.getElementById("s-goal").onchange = function () { sv("dailyGoal", parseInt(this.value, 10)); };
+    document.getElementById("s-ts").onchange = function () { sv("textSize", this.value); };
+    var rt = document.getElementById("s-rtime"), gcal = document.getElementById("s-gcal");
+    function syncCal() { gcal.href = googleCalURL(rt.value || "20:00", set.examDate); }
+    rt.onchange = function () { sv("remindTime", rt.value || "20:00"); syncCal(); }; syncCal();
+    document.getElementById("s-ics").onclick = function () {
+      var blob = new Blob([reminderICS(rt.value || "20:00", set.examDate)], { type: "text/calendar" }), url = URL.createObjectURL(blob);
+      var a = document.createElement("a"); a.href = url; a.download = "chinese-study-reminder.ics"; document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 60000);
+      UI.toast("Opening the calendar file — tap Add to Calendar", "📅");
+    };
+    wireBackup();
+    var sg = document.getElementById("s-guide"); if (sg) sg.onclick = function () { showGuide(); };
     document.getElementById("s-exam").onchange = function () { if (this.value) sv("examDate", this.value); };
     document.getElementById("s-test").onclick = function () { Audio2.play("你好，这是薪酬福利中文。", "F"); };
     var dl = document.getElementById("s-dl");
@@ -909,6 +942,7 @@
   }
   function orderOk(it, a) { return a === it.answer || (it.alt || []).indexOf(a) >= 0; }
   function markMC(itemId, chosen, correct, mode) {
+    if (!markMC.restoring) markWork();
     var group = document.querySelectorAll('[data-item="' + CSS.escape(itemId) + '"].mc, [data-item="' + CSS.escape(itemId) + '"].tf');
     group.forEach(function (b) {
       var v = b.dataset.idx !== undefined ? +b.dataset.idx : (b.dataset.val === "true");
@@ -1020,7 +1054,7 @@
         document.getElementById("wans-" + it.id).innerHTML = used.map(function (t) { return '<span class="wtoken used">' + esc(t) + "</span>"; }).join("") || '<span class="wans-ph">Tap words below…</span>';
         document.getElementById("wpool-" + it.id).innerHTML = pool.map(function (t, idx) { return '<button type="button" class="wtoken" data-w="' + idx + '">' + esc(t) + "</button>"; }).join("");
         document.querySelectorAll('#wpool-' + CSS.escape(it.id) + ' .wtoken').forEach(function (b) {
-          b.onclick = function () { var idx = +b.dataset.w; used.push(pool[idx]); pool.splice(idx, 1); EXAM.answers[it.id] = used.join(""); refresh(); check(); updateCount(); };
+          b.onclick = function () { var idx = +b.dataset.w; used.push(pool[idx]); pool.splice(idx, 1); EXAM.answers[it.id] = used.join(""); markWork(); refresh(); check(); updateCount(); };
         });
       }
       function check() {
@@ -1058,7 +1092,11 @@
     var html = '<section class="card exam-head"><b>' + esc(m.title) + "</b><span>" + SEC_LABEL[section] + "</span></section>" + body +
       '<button class="btn primary big" id="m-next">' + (isLast ? "✅ Finish exam" : "Next section ▶") + "</button>";
     render(html, "mock");
-    if (section === "listening") wireListening(m, mode); else if (section === "reading") wireReading(m, mode); else wireWriting(m, mode);
+    if (section === "listening") {
+      wireListening(m, mode);
+      m.listening.p1.concat(m.listening.p3).forEach(function (it) { Audio2.prefetch(it.audio.text, it.audio.voice); });
+      m.listening.p2.forEach(function (it) { it.dialogue.forEach(function (l) { Audio2.prefetch(l.text, l.voice); }); });
+    } else if (section === "reading") wireReading(m, mode); else wireWriting(m, mode);
     markMC.restoring = true;
     mockItems(m).forEach(function (x) { // restore earlier picks after a re-render
       var a = EXAM.answers[x.it.id];
@@ -1327,14 +1365,16 @@
       } };
   }
 
-  function runMistakeDrill(skill) {
-    var items = shuffle(Learn.list(skill === "all" ? null : skill)).slice(0, 10), i = 0, right = 0, skipped = 0;
+  function runMistakeDrill(skill, o) {
+    o = o || {};
+    var items = shuffle(Learn.list(skill === "all" ? null : skill)).slice(0, o.limit || 10), i = 0, right = 0, skipped = 0;
     var title = skill === "all" ? "All mistakes" : Learn.SKILLS[skill].en;
-    if (!items.length) { location.replace("#/mistakes"); return; }
+    if (!items.length) { if (o.onDone) return o.onDone(0); location.replace("#/mistakes"); return; }
     (function draw() {
       if (i >= items.length) {
         var left = Learn.count(skill === "all" ? null : skill);
-        Game.award(right * 2);
+        Game.award(right * 2, o.onDone ? { silent: true } : undefined);
+        if (o.onDone) return o.onDone(right);
         render('<div class="card result">' + UI.mascot(right === items.length - skipped ? "cheer" : "happy", 88) + "<h2>" + right + " / " + (items.length - skipped) + " right</h2>" +
           '<p class="sub">' + (left ? left + " still in the notebook — they clear after " + Learn.CLEAR_AFTER + " right answers in a row." : "Notebook clear for this skill! 🎉") + "</p>" +
           '<div class="actions center">' + (left ? '<a class="btn primary" href="#/mistakes/' + skill + '" id="again">↻ Drill again</a>' : "") + '<a class="btn" href="#/mistakes">Notebook</a></div></div>', "review");
@@ -1343,8 +1383,12 @@
         return;
       }
       var e = items[i], q = mistakeQ(e);
-      if (!q) { delete Store.state.mistakes[e.key]; Store.save(); skipped++; i++; return draw(); }
-      render('<div class="ghead"><a class="pill" href="#/mistakes">✕</a><b>📒 ' + esc(title) + '</b><span class="ghr">' + (i + 1) + "/" + items.length + "</span></div>" +
+      if (!q) {
+        var loaded = e.kind === "mock" ? mocksReady : (e.kind === "quiz" ? fullReady : true);
+        if (loaded) { delete Store.state.mistakes[e.key]; Store.save(); } // its source really is gone
+        skipped++; i++; return draw();
+      }
+      render('<div class="ghead"><a class="pill" href="' + (o.exit || "#/mistakes") + '">✕</a><b>📒 ' + esc(title) + '</b><span class="ghr">' + (i + 1) + "/" + items.length + "</span></div>" +
         '<div class="bar"><span style="width:' + (i / items.length * 100) + '%"></span></div>' + q.html, "review");
       q.wire(function (ok) { if (ok) right++; i++; draw(); });
     })();
@@ -1520,6 +1564,326 @@
     render(html, "me");
   }
 
+
+  /* ---------- loading placeholders ---------- */
+  function skeleton() {
+    return '<div class="skel" aria-label="Loading" role="status"><i class="sk-h"></i><i class="sk-card"></i><i class="sk-line"></i><i class="sk-line short"></i><i class="sk-card"></i></div>';
+  }
+
+  /* ---------- "leave this quiz?" ----------
+     While a quiz, game, mock exam, flashcard deck, drill or session is in progress (at least one answer
+     given and no result screen yet), tapping the tab bar or logo asks before leaving. */
+  var workDone = false;
+  function markWork() { workDone = true; }
+  function inActivity() {
+    var p = location.hash.replace(/^#\/?/, "").split("/"), v = p[0];
+    var active = v === "game" || v === "cards" || v === "session" || (v === "day" && p[2] === "quiz") ||
+      (v === "mock" && p[2] && p[2] !== "result") || (v === "mistakes" && p[1]);
+    return active && workDone && !app.querySelector(".result, .score-big");
+  }
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest(".tabbar a, .appbar .brand");
+    if (!a || !inActivity()) return;
+    if (!window.confirm("Leave now? Your progress in this activity won't be saved.")) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+
+  /* ---------- first-run guide ---------- */
+  var GUIDE = [
+    { icon: "📚", t: "Learn", d: "30 days of C&B lessons, plus <b>HSK 4 Core</b>: 505 general exam words in 25 sets. Tap any word in a dialogue for its meaning." },
+    { icon: "🔁", t: "Review & mistakes", d: "Add words to review, then do your due flashcards every day. Wrong answers collect in the <b>mistake notebook</b> until you get them right twice." },
+    { icon: "▶️", t: "Today's session", d: "One tap on Home runs a 15-minute mix: reviews, new words, mistakes, typing and listening. Mock exams and your study plan are on Home too." }
+  ];
+  function showGuide() {
+    if (document.querySelector(".modal-wrap.guide")) return;
+    var i = 0, wrap = document.createElement("div");
+    wrap.className = "modal-wrap guide";
+    document.body.appendChild(wrap);
+    function done() { Store.state.settings.onboarded = true; Store.save(); wrap.classList.remove("show"); setTimeout(function () { wrap.remove(); }, 250); }
+    function draw() {
+      var g = GUIDE[i];
+      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-ico">' + g.icon + '</div><h2 id="guide-t">' + g.t + "</h2><p>" + g.d + "</p>" +
+        '<div class="g-dots">' + GUIDE.map(function (_, k) { return '<i class="' + (k === i ? "on" : "") + '"></i>'; }).join("") + "</div>" +
+        '<div class="actions center"><button class="btn" id="g-skip">' + (i < GUIDE.length - 1 ? "Skip" : "Close") + '</button><button class="btn primary" id="g-next">' + (i < GUIDE.length - 1 ? "Next ›" : "Let's go!") + "</button></div></div>";
+      wrap.querySelector("#g-skip").onclick = done;
+      wrap.querySelector("#g-next").onclick = function () { if (i < GUIDE.length - 1) { i++; draw(); } else done(); };
+    }
+    draw();
+    requestAnimationFrame(function () { wrap.classList.add("show"); });
+  }
+
+  /* ---------- my own words ---------- */
+  function viewMine() {
+    var mine = Store.state.custom || [];
+    var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("mine") +
+      '<section class="card"><h2>Add a word from work</h2><p class="sub">Words you meet at work join flashcards, review, games and search. (There\'s no recording for your own words.)</p>' +
+      '<form id="mw-form" class="mw-form" autocomplete="off">' +
+      '<label for="mw-hz">Chinese</label><input id="mw-hz" class="zh" lang="zh-CN" maxlength="12" required placeholder="例如：年终奖">' +
+      '<label for="mw-py">Pinyin <small>(optional)</small></label><input id="mw-py" maxlength="60" placeholder="niánzhōngjiǎng">' +
+      '<label for="mw-vi">Tiếng Việt</label><input id="mw-vi" maxlength="120" placeholder="thưởng cuối năm">' +
+      '<label for="mw-en">English</label><input id="mw-en" maxlength="120" placeholder="year-end bonus">' +
+      '<label for="mw-ex">Example sentence <small>(optional)</small></label><input id="mw-ex" class="zh" lang="zh-CN" maxlength="60" placeholder="今年的年终奖什么时候发？">' +
+      '<p class="mw-err" id="mw-err" hidden></p><button class="btn primary wide" type="submit">＋ Add word</button></form></section>';
+    if (mine.length) {
+      var notIn = mine.filter(function (w) { return !SRS.has(w.id); }).length;
+      html += '<div class="actions"><a class="btn primary" href="#/cards/mine">🃏 Flashcards (' + mine.length + ")</a>" +
+        (notIn ? '<button class="btn" id="mw-add-all">＋ Add ' + notIn + " to review</button>" : '<span class="ok-text">✓ All in review</span>') + "</div>";
+      html += mine.slice().reverse().map(function (w) {
+        return '<article class="word card" id="w-' + esc(w.id) + '"><div class="w-top"><div><div class="hz">' + esc(w.hanzi) + "</div>" + (w.pinyin ? PY(w.pinyin) : "") + "</div>" +
+          '<button class="btn small bad-btn" data-del="' + esc(w.id) + '" aria-label="Delete ' + esc(w.hanzi) + '">Delete</button></div>' +
+          '<div class="w-mean">' + M(w) + '</div><div class="tags">' + levelBadge("Mine") + boxBadge(w.id) + "</div>" +
+          (w.example ? '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(w.example.zh) + "</span></div></div>" : "") + "</article>";
+      }).join("");
+    } else html += '<p class="empty">No words yet — add your first one above.</p>';
+    render(html, "learn");
+    document.getElementById("mw-form").onsubmit = function (e) {
+      e.preventDefault();
+      var v = function (id) { return document.getElementById(id).value.trim(); };
+      var hz = v("mw-hz"), err = document.getElementById("mw-err");
+      function fail(m) { err.textContent = m; err.hidden = false; }
+      if (!/[㐀-鿿]/.test(hz)) return fail("Enter the word in Chinese characters.");
+      if (!v("mw-vi") && !v("mw-en")) return fail("Add a meaning in Vietnamese or English.");
+      if (WORDS.some(function (w) { return w.hanzi === hz; })) return fail(hz + " is already in the app — search for it instead.");
+      var w = { id: "u" + Date.now().toString(36), hanzi: hz, pinyin: v("mw-py"), vi: v("mw-vi"), en: v("mw-en"), pos: "", level: "Mine", added: Store.today() };
+      if (/[㐀-鿿]/.test(v("mw-ex"))) w.example = { zh: v("mw-ex"), py: "", vi: "", en: "" };
+      Store.state.custom.push(w); SRS.add(w.id); Store.save(); buildIndex();
+      UI.toast(hz + " added and in review", "➕"); viewMine();
+    };
+    app.querySelectorAll("[data-del]").forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute("data-del"), w = WORDMAP[id];
+        if (!window.confirm("Delete " + (w ? w.hanzi : "this word") + " from your words?")) return;
+        Store.state.custom = Store.state.custom.filter(function (x) { return x.id !== id; });
+        delete Store.state.srs[id]; Object.keys(Store.state.mistakes || {}).forEach(function (k) { if (k === "w:" + id) delete Store.state.mistakes[k]; });
+        Store.save(); buildIndex(); refreshChrome(); viewMine();
+      };
+    });
+    var aa = document.getElementById("mw-add-all");
+    if (aa) aa.onclick = function () { SRS.addMany(mine.map(function (w) { return w.id; })); viewMine(); };
+  }
+
+  /* ---------- study reminders (calendar) ---------- */
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function reminderICS(time, until) {
+    var t = Store.today().replace(/-/g, ""), hm = time.split(":"), u = (until || "2026-11-14").replace(/-/g, "");
+    var start = t + "T" + pad2(+hm[0]) + pad2(+hm[1]) + "00", endH = (+hm[0] + (+hm[1] + 30 >= 60 ? 1 : 0)) % 24, endM = (+hm[1] + 30) % 60;
+    var url = location.href.split("#")[0];
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//cb-chinese//study reminder//EN", "CALSCALE:GREGORIAN", "BEGIN:VEVENT",
+      "UID:cb-chinese-" + t + "-" + hm.join("") + "@study", "DTSTAMP:" + new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z",
+      "DTSTART:" + start, "DURATION:PT30M", "RRULE:FREQ=DAILY;UNTIL=" + u + "T235959",
+      "SUMMARY:中文 study · C&B Chinese", "DESCRIPTION:Today's session: " + url, "URL:" + url,
+      "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Time to study Chinese 📚", "TRIGGER:PT0M", "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  }
+  function googleCalURL(time, until) {
+    var t = Store.today().replace(/-/g, ""), hm = time.split(":"), start = t + "T" + pad2(+hm[0]) + pad2(+hm[1]) + "00";
+    var d = new Date(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8), +hm[0], +hm[1] + 30);
+    var end = d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + "T" + pad2(d.getHours()) + pad2(d.getMinutes()) + "00";
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent("中文 study · C&B Chinese") +
+      "&dates=" + start + "/" + end + "&recur=" + encodeURIComponent("RRULE:FREQ=DAILY;UNTIL=" + (until || "2026-11-14").replace(/-/g, "")) +
+      "&details=" + encodeURIComponent("Today's session: " + location.href.split("#")[0]);
+  }
+
+  /* ---------- cloud backup (private GitHub Gist) ----------
+     The token stays on this device only (separate key, never exported with progress). */
+  var GIST_KEY = "cbChinese.gist", GIST_FILE = "cb-chinese-progress.json", GIST_DESC = "C&B Chinese progress backup";
+  function gistCfg() { try { return JSON.parse(localStorage.getItem(GIST_KEY)) || {}; } catch (e) { return {}; } }
+  function gistSave(c) { try { localStorage.setItem(GIST_KEY, JSON.stringify(c)); } catch (e) {} }
+  function gh(path, opts, token) {
+    opts = opts || {}; opts.headers = { "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json" };
+    if (opts.body) opts.headers["Content-Type"] = "application/json";
+    return fetch("https://api.github.com" + path, opts).then(function (r) {
+      if (r.status === 401) throw new Error("GitHub didn't accept the token. Check it has the gist permission.");
+      if (!r.ok) throw new Error("GitHub error " + r.status + ". Try again later.");
+      return r.json();
+    });
+  }
+  function gistFind(token) {
+    return gh("/gists?per_page=100", {}, token).then(function (list) {
+      var g = (list || []).filter(function (x) { return x.description === GIST_DESC && x.files && x.files[GIST_FILE]; })[0];
+      return g ? g.id : null;
+    });
+  }
+  function gistBackup(silent) {
+    var c = gistCfg(); if (!c.token) return Promise.reject(new Error("Connect a GitHub token first."));
+    var body = { description: GIST_DESC, files: {} }; body.files[GIST_FILE] = { content: Store.serialize(false) };
+    var p = c.id ? gh("/gists/" + c.id, { method: "PATCH", body: JSON.stringify(body) }, c.token)
+      : gh("/gists", { method: "POST", body: JSON.stringify(Object.assign({ public: false }, body)) }, c.token);
+    return p.then(function (g) { c.id = g.id; c.last = Date.now(); c.needsRestore = false; gistSave(c); if (!silent) UI.toast("Backed up to GitHub", "☁️"); return g; });
+  }
+  function gistRestore() {
+    var c = gistCfg(); if (!c.token || !c.id) return Promise.reject(new Error("No backup found yet."));
+    return gh("/gists/" + c.id, {}, c.token).then(function (g) {
+      var f = g.files && g.files[GIST_FILE]; if (!f) throw new Error("The backup file is missing from the gist.");
+      if (f.truncated && f.raw_url) return fetch(f.raw_url).then(function (r) { return r.text(); });
+      return f.content;
+    });
+  }
+  // back up quietly when the app goes to the background, at most every 6 hours
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) return;
+    var c = gistCfg();
+    // never auto-overwrite a backup this phone hasn't restored or explicitly backed up to yet, or when local progress failed to load
+    if (c.token && c.id && !c.needsRestore && Store.available && navigator.onLine !== false && (!c.last || Date.now() - c.last > 6 * 3600 * 1000)) gistBackup(true).catch(function () {});
+  });
+  function wireBackup() {
+    var c = gistCfg(), box = document.getElementById("gist-box"); if (!box) return;
+    function draw() {
+      c = gistCfg();
+      box.innerHTML = c.token
+        ? (c.needsRestore ? '<p class="warn">A backup already exists in your GitHub. Tap <b>Restore</b> to load it on this phone (or <b>Back up now</b> to replace it with this phone\'s progress). Automatic backup is paused until you choose.</p>' :
+          '<p class="sub">Connected. ' + (c.last ? "Last backup: " + esc(new Date(c.last).toLocaleString()) + "." : "No backup yet.") + ' The app backs up by itself when you leave it (at most every 6 hours).</p>') +
+          '<div class="actions"><button class="btn primary small" id="g-up">☁️ Back up now</button><button class="btn small" id="g-down">⬇ Restore</button><button class="btn small" id="g-off">Disconnect</button></div>'
+        : '<p class="sub">Free, private backup of your progress in your GitHub account. Create a token at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>, with <b>Gists: read and write</b> only, then paste it here. The token stays on this phone.</p>' +
+          '<label for="g-token" class="sr">GitHub token</label><input id="g-token" type="password" autocomplete="off" placeholder="github_pat_…"><div class="actions"><button class="btn primary small" id="g-connect">Connect</button></div>';
+      var bConnect = document.getElementById("g-connect"), bUp = document.getElementById("g-up"), bDown = document.getElementById("g-down"), bOff = document.getElementById("g-off");
+      if (bConnect) bConnect.onclick = function () {
+        var tok = document.getElementById("g-token").value.trim(); if (!tok) return;
+        bConnect.disabled = true; bConnect.textContent = "Connecting…";
+        gistFind(tok).then(function (id) {
+          gistSave({ token: tok, id: id || null, last: null, needsRestore: !!id });
+          UI.toast(id ? "Connected · found your backup" : "Connected", "☁️"); draw();
+          if (!id) gistBackup(false).then(draw).catch(function (e) { UI.toast(e.message, "⚠️"); });
+        }).catch(function (e) { bConnect.disabled = false; bConnect.textContent = "Connect"; UI.toast(e.message, "⚠️"); });
+      };
+      if (bUp) bUp.onclick = function () {
+        if (gistCfg().needsRestore && !window.confirm("Replace the backup in GitHub with this phone's progress?")) return;
+        bUp.disabled = true; gistBackup(false).then(draw).catch(function (e) { bUp.disabled = false; UI.toast(e.message, "⚠️"); }); };
+      if (bDown) bDown.onclick = function () {
+        gistRestore().then(function (text) {
+          var obj = JSON.parse(text), when = obj.exported ? new Date(obj.exported).toLocaleString() : "unknown time";
+          if (!window.confirm("Replace the progress on this phone with the backup from " + when + "?")) return;
+          Store.importJSON(text); var cc = gistCfg(); cc.needsRestore = false; cc.last = Date.now(); gistSave(cc);
+          buildIndex(); applySettings(); UI.toast("Progress restored", "✅"); route();
+        }).catch(function (e) { UI.toast(e.message, "⚠️"); });
+      };
+      if (bOff) bOff.onclick = function () {
+        if (!window.confirm("Disconnect cloud backup on this phone? Your backup stays in GitHub.")) return;
+        try { localStorage.removeItem(GIST_KEY); } catch (e) {} draw();
+      };
+    }
+    draw();
+  }
+
+  /* ---------- hands-free listening ----------
+     Plays each word twice, then its example sentence, and moves on by itself. Keeps the screen awake
+     (iPhone pauses web audio when the screen locks). Lock-screen / headphone controls via Media Session. */
+  var LM = null;
+  function viewListenMode() {
+    var due = SRS.dueIds(WORDMAP).map(function (id) { return WORDMAP[id]; });
+    var recent = Object.keys(Store.state.srs).map(function (id) { return WORDMAP[id]; }).filter(Boolean)
+      .sort(function (a, b) { return (Store.state.srs[b.id].added || "").localeCompare(Store.state.srs[a.id].added || ""); });
+    var pool = (due.length ? due : recent).filter(function (w) { return Audio2.has(w.hanzi); }).slice(0, 30);
+    if (!pool.length) { render('<div class="card result">' + UI.mascot("wow", 80) + '<h2>Nothing to play yet</h2><p class="sub">' + (Audio2.available() ? "Add some words to review first." : "Audio isn't generated yet — it's created when you deploy.") + '</p><a class="btn primary" href="#/learn">Learn</a></div>', "review"); return; }
+    var i = 0, playing = false, rate = 1, token = 0, wake = null;
+    var MS_ACTIONS = ["play", "pause", "nexttrack", "previoustrack"];
+    LM = { stop: function () {
+      token++; playing = false; Audio2.stop(); if (wake) { try { wake.release(); } catch (e) {} wake = null; }
+      if ("mediaSession" in navigator) { MS_ACTIONS.forEach(function (a) { try { navigator.mediaSession.setActionHandler(a, null); } catch (e) {} }); try { navigator.mediaSession.metadata = null; } catch (e) {} }
+    } };
+    render('<div class="ghead"><a class="pill" href="#/review">✕</a><b>🎧 Hands-free</b><span class="ghr" id="lm-n"></span></div>' +
+      '<p class="sub center">' + (due.length ? "Your due words" : "Your most recent words") + " · " + pool.length + ' words · keep the app open, screen stays on</p>' +
+      '<div class="card lm-card" id="qcard"><div class="hz big zh" id="lm-hz"></div><div id="lm-py" class="lm-py"></div><div class="w-mean" id="lm-mean"></div><div class="lm-ex" id="lm-ex"></div></div>' +
+      '<div class="drill-btns"><button class="btn" id="lm-prev" aria-label="Previous">⏮</button><button class="btn primary" id="lm-play">▶ Start</button><button class="btn" id="lm-next" aria-label="Next">⏭</button></div>' +
+      '<div class="drill-btns"><button class="btn small" id="lm-rate">Speed 1×</button></div>', "review");
+    function show() {
+      var w = pool[i];
+      document.getElementById("lm-n").textContent = (i + 1) + "/" + pool.length;
+      document.getElementById("lm-hz").textContent = w.hanzi;
+      document.getElementById("lm-py").textContent = w.pinyin || "";
+      document.getElementById("lm-mean").innerHTML = M(w);
+      document.getElementById("lm-ex").innerHTML = w.example ? '<span class="zh">' + esc(w.example.zh) + "</span>" : "";
+      if ("mediaSession" in navigator && window.MediaMetadata) { try { navigator.mediaSession.metadata = new MediaMetadata({ title: w.hanzi + (w.pinyin ? "  " + w.pinyin : ""), artist: (w.vi || w.en || ""), album: "C&B Chinese · hands-free" }); } catch (e) {} }
+    }
+    function wait(ms, t, fn) { setTimeout(function () { if (t === token && playing) fn(); }, ms / rate); }
+    function step() {
+      var t = token, w = pool[i]; show();
+      Audio2.play(w.hanzi, "F", function () { wait(1200, t, function () {
+        Audio2.play(w.hanzi, "M", function () { wait(900, t, function () {
+          var ex = w.example && Audio2.has(w.example.zh) ? w.example.zh : null;
+          var after = function () { wait(1600, t, function () { i = (i + 1) % pool.length; step(); }); };
+          if (ex) Audio2.play(ex, "F", after, rate); else after();
+        }); }, rate);
+      }); }, rate);
+    }
+    function setPlaying(on) {
+      playing = on; token++; Audio2.stop();
+      document.getElementById("lm-play").textContent = on ? "⏸ Pause" : "▶ Play";
+      if (on) {
+        var t0 = token;
+        if (navigator.wakeLock && navigator.wakeLock.request) navigator.wakeLock.request("screen").then(function (l) {
+          if (t0 !== token || !playing || LM === null) { try { l.release(); } catch (e) {} return; } // stopped or left meanwhile
+          wake = l;
+        }).catch(function () {});
+        step();
+      } else if (wake) { try { wake.release(); } catch (e) {} wake = null; }
+    }
+    function jump(d) { i = (i + d + pool.length) % pool.length; show(); if (playing) { token++; Audio2.stop(); step(); } }
+    document.getElementById("lm-play").onclick = function () { setPlaying(!playing); };
+    document.getElementById("lm-next").onclick = function () { jump(1); };
+    document.getElementById("lm-prev").onclick = function () { jump(-1); };
+    document.getElementById("lm-rate").onclick = function () { rate = rate === 1 ? 0.75 : 1; this.textContent = "Speed " + (rate === 1 ? "1×" : "0.75×"); };
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.setActionHandler("play", function () { setPlaying(true); });
+        navigator.mediaSession.setActionHandler("pause", function () { setPlaying(false); });
+        navigator.mediaSession.setActionHandler("nexttrack", function () { jump(1); });
+        navigator.mediaSession.setActionHandler("previoustrack", function () { jump(-1); });
+      } catch (e) {}
+    }
+    show();
+  }
+
+  /* ---------- Today's session: one tap, about 15 minutes ----------
+     Steps (each skipped when empty): due reviews → new HSK 4 Core words → mistakes → typing → listening. */
+  function sessionPlan() {
+    var due = SRS.dueIds(WORDMAP).slice(0, 20), cs = nextCoreSet(), fresh = cs ? cs.words.filter(function (w) { return !SRS.has(w.id); }).slice(0, 8) : [];
+    var steps = [];
+    if (due.length) steps.push({ id: "review", icon: "🔁", name: "Review " + due.length + " due word" + (due.length > 1 ? "s" : ""), ids: due });
+    if (fresh.length) steps.push({ id: "new", icon: "📘", name: fresh.length + " new HSK 4 Core words", words: fresh });
+    if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: "Fix up to 5 mistakes" });
+    steps.push({ id: "type", icon: "⌨️", name: "Type 3 sentences" });
+    if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: "Listen to 3 sentences" });
+    return steps;
+  }
+  function sessionCTA() {
+    var s = Store.state, done = (s.sessions || {})[Store.today()], steps = sessionPlan();
+    return '<a class="cta card g-violet session-cta' + (done ? " done" : "") + '" href="#/session"><span class="cta-l"><small>' + (done ? "Done today ✓ · run again anytime" : "One tap · about 15 minutes") + "</small><b>▶ Today's session</b><em>" +
+      esc(steps.map(function (x) { return x.icon; }).join(" ")) + " " + steps.length + " steps</em></span><span class=\"cta-go\">▶</span></a>";
+  }
+  function sessionBar(st) {
+    var el = document.getElementById("session-bar");
+    if (!st) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement("div"); el.id = "session-bar"; el.className = "session-bar"; document.body.appendChild(el); }
+    el.innerHTML = '<span>' + st.icon + " Step " + st.n + "/" + st.of + " · " + esc(st.name) + '</span><i style="width:' + Math.round((st.n - 1) / st.of * 100) + '%"></i>';
+  }
+  function viewSession() {
+    var steps = sessionPlan(), k = 0, s = Store.state, start = { xp: s.xp, hearts: s.stats.hearts || 0, srs: Object.keys(s.srs).length, mis: Learn.count() };
+    var log = [];
+    function next(result) {
+      if (k > 0) log.push({ step: steps[k - 1], result: result });
+      if (location.hash !== "#/session") return; // learner left the session
+      if (k >= steps.length) return summary();
+      var st = steps[k++]; sessionBar({ n: k, of: steps.length, icon: st.icon, name: st.name });
+      if (st.id === "review") runDeck({ title: "Review", words: st.ids.map(function (id) { return WORDMAP[id]; }).filter(Boolean), mode: "review", back: "#/", onDone: next });
+      else if (st.id === "new") { SRS.addMany(st.words.map(function (w) { return w.id; })); runDeck({ title: "New words", words: st.words, mode: "learn", back: "#/", onDone: next }); }
+      else if (st.id === "mistakes") runMistakeDrill("all", { limit: 5, onDone: next, exit: "#/" });
+      else if (st.id === "type") Games.run("type", "", { count: 3, onDone: next, exit: "#/" });
+      else if (st.id === "listen") Games.run("drill", "", { count: 3, onDone: next, exit: "#/" });
+    }
+    function summary() {
+      sessionBar(null);
+      s.sessions = s.sessions || {}; var first = !s.sessions[Store.today()]; s.sessions[Store.today()] = true; Store.save();
+      if (first) Game.award(10, { silent: true });
+      var xp = s.xp - start.xp, hearts = (s.stats.hearts || 0) - start.hearts, added = Object.keys(s.srs).length - start.srs, cleared = Math.max(0, start.mis - Learn.count());
+      render('<div class="card result">' + UI.mascot("cheer", 96) + "<h2>Session complete! 🎉</h2>" +
+        '<div class="sum-grid"><div><b>+' + xp + '</b><span>XP' + (first ? " (incl. +10 bonus)" : "") + '</span></div><div><b>' + hearts + '</b><span>❤️ hearts</span></div><div><b>' + added + '</b><span>new words</span></div><div><b>' + cleared + '</b><span>mistakes cleared</span></div></div>' +
+        '<p class="sub">🔥 Streak: ' + Store.streak() + " day" + (Store.streak() === 1 ? "" : "s") + '</p><div class="actions center"><a class="btn primary" href="#/">Home</a><a class="btn" href="#/listen-mode">🎧 Keep listening</a></div></div>', "home");
+      UI.confetti(140);
+    }
+    if (!steps.length) { render('<div class="card result"><h2>Nothing to do right now</h2><a class="btn primary" href="#/learn">Learn</a></div>', "home"); return; }
+    render('<div class="card result"><h2>Today\'s session</h2><div class="tasks">' + steps.map(function (x) { return '<div class="task"><span class="tk-ico">' + x.icon + "</span><span>" + esc(x.name) + "</span></div>"; }).join("") +
+      '</div><button class="btn primary big" id="ss-go">▶ Start</button></div>', "home");
+    document.getElementById("ss-go").onclick = function () { next(); };
+  }
   /* ---------- global events & boot ---------- */
   document.addEventListener("click", function (e) {
     var wl = e.target.closest(".wlink");
@@ -1546,6 +1910,7 @@
       route();
       // warm up the rest in the background so it's ready (and cached for offline) before it's needed
       setTimeout(function () { ensureFull(); ensureMocks(); }, 1500);
+      if (!Store.state.settings.onboarded) setTimeout(showGuide, 600);
     });
     if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
       navigator.serviceWorker.register("sw.js").then(function (reg) {
@@ -1575,7 +1940,7 @@
   window.App = {
     esc: esc, M: M, PY: PY, SAY: SAY, shuffle: shuffle, render: render, setKeys: setKeys, typing: typing, rect: rect, norm: norm,
     dayWords: dayWords, studiedWords: studiedWords, levelBadge: levelBadge, refreshChrome: refreshChrome,
-    get CORE() { return CORE; }, get COREMAP() { return COREMAP; }, get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }
+    markWork: markWork, resetWork: function () { workDone = false; }, get CORE() { return CORE; }, get COREMAP() { return COREMAP; }, get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }
   };
   boot();
 })();

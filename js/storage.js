@@ -13,7 +13,7 @@
   function defaults() {
     return {
       version: 2,
-      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", dailyGoal: 30, installHintDismissed: false },
+      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00" },
       srs: {},        // wordId -> { box, due, right, wrong, added, last }
       days: {},       // dayNo -> { quizBest, practice: {}, completed }
       streak: { count: 0, last: null, best: 0 },
@@ -26,6 +26,8 @@
       mistakes: {},   // key -> { kind, skill, wrong, streak, added, last, ...refs }  (see js/learn.js)
       skills: {},     // skillId -> { r: right, w: wrong }
       mockHistory: [], // [{ id, date, total, sections }]
+      sessions: {},   // date -> true when Today's session was completed
+      custom: [],     // learner's own words: [{ id: "u…", hanzi, pinyin, vi, en, example? }]
       challenges: {}, // date -> true when the daily challenge was completed
       stats: { cards: 0, correct: 0, perfectQuizzes: 0, bossWins: 0, nightOwl: 0, hearts: 0 }
     };
@@ -57,6 +59,14 @@
   /* Imported files are untrusted: keep numbers numeric and drop malformed entries. */
   function n(x) { x = +x; return isFinite(x) ? x : 0; }
   function clean(d) {
+    var st = d.settings, dflt = defaults().settings;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(st.examDate)) st.examDate = dflt.examDate;
+    if (!/^\d{2}:\d{2}$/.test(st.remindTime)) st.remindTime = dflt.remindTime;
+    if (["both", "vi", "en"].indexOf(st.lang) < 0) st.lang = dflt.lang;
+    if (["auto", "light", "dark"].indexOf(st.theme) < 0) st.theme = dflt.theme;
+    if (["m", "l", "xl"].indexOf(st.textSize) < 0) st.textSize = dflt.textSize;
+    st.dailyGoal = [20, 30, 50, 80].indexOf(+st.dailyGoal) >= 0 ? +st.dailyGoal : dflt.dailyGoal;
+    st.audioRate = [0.75, 0.9, 1, 1.15].indexOf(+st.audioRate) >= 0 ? +st.audioRate : dflt.audioRate;
     Object.keys(d.mocks).forEach(function (k) {
       var r = d.mocks[k]; if (!r || typeof r !== "object") { delete d.mocks[k]; return; }
       r.best = n(r.best); r.plays = n(r.plays); r.lastScore = n(r.lastScore);
@@ -68,6 +78,13 @@
         sections: { listening: n(sec.listening), reading: n(sec.reading), writing: n(sec.writing) } };
     });
     Object.keys(d.skills).forEach(function (k) { var v = d.skills[k]; if (!v || typeof v !== "object") delete d.skills[k]; else { v.r = n(v.r); v.w = n(v.w); } });
+    d.custom = (Array.isArray(d.custom) ? d.custom : []).filter(function (w) {
+      return w && typeof w.id === "string" && /^u[0-9a-z]+$/.test(w.id) && typeof w.hanzi === "string" && /[\u3400-\u9fff]/.test(w.hanzi);
+    }).map(function (w) {
+      var o = { id: w.id, hanzi: String(w.hanzi).slice(0, 12), pinyin: String(w.pinyin || "").slice(0, 60), vi: String(w.vi || "").slice(0, 120), en: String(w.en || "").slice(0, 120), pos: "", level: "Mine", added: w.added };
+      if (w.example && typeof w.example.zh === "string") o.example = { zh: w.example.zh.slice(0, 60), py: String(w.example.py || "").slice(0, 160), vi: String(w.example.vi || "").slice(0, 200), en: String(w.example.en || "").slice(0, 200) };
+      return o;
+    });
     Object.keys(d.mistakes).forEach(function (k) { var v = d.mistakes[k]; if (!v || typeof v !== "object" || typeof v.skill !== "string") delete d.mistakes[k]; });
   }
   function save() {
@@ -116,8 +133,9 @@
     return state.games[id];
   }
 
+  function serialize(pretty) { return JSON.stringify({ app: "cb-chinese", exported: new Date().toISOString(), progress: state }, null, pretty ? 2 : 0); }
   function exportJSON() {
-    var data = JSON.stringify({ app: "cb-chinese", exported: new Date().toISOString(), progress: state }, null, 2);
+    var data = serialize(true);
     var blob = new Blob([data], { type: "application/json" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -139,7 +157,7 @@
     get state() { return state; },
     load: load, save: save, touch: touch, streak: streak, day: day, game: game,
     today: today, addDays: addDays, daysBetween: daysBetween,
-    exportJSON: exportJSON, importJSON: importJSON, reset: reset,
+    exportJSON: exportJSON, importJSON: importJSON, serialize: serialize, reset: reset,
     get available() { return available; }
   };
   load();

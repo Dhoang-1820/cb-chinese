@@ -24,7 +24,8 @@ const kb = n => (n / 1024).toFixed(1) + " KB";
 function copy(rel) {
   const src = path.join(ROOT, rel), dst = path.join(OUT, rel);
   if (!fs.existsSync(src)) return;
-  fs.cpSync(src, dst, { recursive: true });
+  // skip bookkeeping and temp files (e.g. audio/.shrunk, *.tmp.mp3, *.part)
+  fs.cpSync(src, dst, { recursive: true, filter: f => !/(^|[\\/])\.[^\\/]+$|\.tmp\.mp3$|\.part$/.test(path.relative(ROOT, f)) || f === src });
 }
 function write(rel, content) {
   const f = path.join(OUT, rel);
@@ -38,7 +39,7 @@ fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
 // ---- 1. static files ----
-["manifest.webmanifest", "icons", "vendor", "audio"].forEach(copy);
+["manifest.webmanifest", "icons", "vendor", "audio", "fonts"].forEach(copy);
 fs.writeFileSync(path.join(OUT, ".nojekyll"), "");
 
 // ---- 2. data bundles ----
@@ -86,7 +87,8 @@ app = minifyJS(app);
 const appName = "app." + hash(app) + ".js";
 sizes[appName] = write(appName, app);
 
-const css = esbuild.transformSync(read("css/style.css"), { loader: "css", minify: true, target: "safari14" }).code;
+// the built CSS sits at the site root, so font URLs move from ../fonts/ to fonts/
+const css = esbuild.transformSync(read("css/style.css").split("../fonts/").join("fonts/"), { loader: "css", minify: true, target: "safari14" }).code;
 const cssName = "style." + hash(css) + ".css";
 sizes[cssName] = write(cssName, css);
 
@@ -108,7 +110,8 @@ const p0 = sw.indexOf("/* PRECACHE:START"), p1 = sw.indexOf("/* PRECACHE:END */"
 if (p0 < 0 || p1 < 0) throw new Error("PRECACHE markers missing in sw.js");
 const precache = ["./", "index.html", cssName, appName, "manifest.webmanifest", "audio/manifest.js",
   "data/index.js", "data/full.js", "data/mocks.js", "vendor/hanzi-writer.min.js",
-  "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
+  "icons/icon-64.png", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
+  "fonts/nunito-latin-wght-normal.woff2", "fonts/nunito-latin-ext-wght-normal.woff2", "fonts/nunito-vietnamese-wght-normal.woff2"];
 precache.forEach(f => { if (f !== "./" && !fs.existsSync(path.join(OUT, f))) throw new Error("precache file missing: " + f); });
 sw = sw.slice(0, p0) + "var PRECACHE = " + J(precache) + ";" + sw.slice(p1 + "/* PRECACHE:END */".length);
 write("sw.js", sw);

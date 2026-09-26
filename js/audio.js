@@ -39,6 +39,14 @@
     var i = 0;
     (function next() { if (i < items.length) { var it = items[i++]; play(it.text, it.voice, next); } })();
   }
+  /* Warm the next clip so it starts instantly: the service worker keeps audio cache-first. */
+  var warmed = {};
+  function prefetch(text, voice) {
+    var f = text && file(text, voice);
+    if (!f || warmed[f] || !window.fetch || location.protocol.indexOf("http") !== 0) return;
+    warmed[f] = 1;
+    fetch("audio/" + f).catch(function () { delete warmed[f]; });
+  }
   function stop() { onEnd = null; try { player.pause(); } catch (e) {} }
   function voiceFor(speaker) { return MALE_SPEAKERS.indexOf(speaker) >= 0 ? "M" : "F"; }
   function allFiles() {
@@ -71,10 +79,12 @@
   var sfx = {
     tap: function () { if (on()) tone(520, 0.06, "triangle", 0, 0.08); },
     good: function (opts) {
+      if (!(opts && opts.quiet) && window.App && App.markWork) App.markWork();
       if (on()) { tone(660, 0.12, "sine"); tone(990, 0.18, "sine", 0.09); }
       if (!(opts && opts.quiet) && window.UI && UI.hearts) UI.hearts(); // correct answer → heart burst
     },
-    bad: function () { if (on()) { tone(220, 0.16, "square", 0, 0.07); tone(160, 0.2, "square", 0.1, 0.07); } },
+    bad: function () {
+      if (window.App && App.markWork) App.markWork(); if (on()) { tone(220, 0.16, "square", 0, 0.07); tone(160, 0.2, "square", 0.1, 0.07); } },
     combo: function (n) { if (on()) tone(600 + Math.min(n, 8) * 80, 0.1, "triangle"); },
     win: function () { if (on()) [523, 659, 784, 1047].forEach(function (f, i) { tone(f, 0.22, "triangle", i * 0.11); }); },
     hit: function () { if (on()) { tone(140, 0.12, "sawtooth", 0, 0.1); tone(90, 0.18, "sine", 0.05, 0.2); } }
@@ -82,5 +92,5 @@
   // Unlock WebAudio on the first touch (iOS requirement).
   document.addEventListener("touchstart", function unlock() { ac(); document.removeEventListener("touchstart", unlock); }, { passive: true });
 
-  window.Audio2 = { play: play, playAll: playAll, stop: stop, has: function (t, v) { return !!file(t, v); }, available: available, voiceFor: voiceFor, allFiles: allFiles, sfx: sfx };
+  window.Audio2 = { play: play, playAll: playAll, stop: stop, prefetch: prefetch, has: function (t, v) { return !!file(t, v); }, available: available, voiceFor: voiceFor, allFiles: allFiles, sfx: sfx };
 })();

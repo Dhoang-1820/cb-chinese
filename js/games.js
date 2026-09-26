@@ -32,17 +32,21 @@
     }).join("") + "</div>", "games");
   }
 
-  function run(id, arg) {
+  function run(id, arg, opts) {
     var g = BY[id];
     if (!g) { location.hash = "#/games"; return; }
+    RUN = opts || {};
+    if (!RUN.onDone && A().resetWork) A().resetWork(); // "Play again" starts a new round
     ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick, drill: drill, write: write, type: typeGame })[id](arg);
   }
 
   /* ---------- shared ---------- */
   function header(g, right) {
-    return '<div class="ghead"><a class="pill" href="#/games">✕</a><b>' + g.icon + " " + g.name + '</b><span class="ghr" id="ghr">' + (right || "") + "</span></div>";
+    return '<div class="ghead"><a class="pill" href="' + (RUN.exit || "#/games") + '">✕</a><b>' + g.icon + " " + g.name + '</b><span class="ghr" id="ghr">' + (right || "") + "</span></div>";
   }
+  var RUN = {}; // options for the current run: { count, onDone, exit } (used by Today's session)
   function finish(id, score, xp, extra) {
+    if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; Store.game(id).plays++; Store.save(); Game.award(xp, { silent: true }); cb(score); return; }
     var App = A(), g = BY[id], st = Store.game(id), s = Store.state, isBest = score > st.best;
     st.plays++; st.best = Math.max(st.best, score);
     var bonus = 0, ch = challenge();
@@ -69,6 +73,7 @@
   function makeQ(w, types) {
     var t = types[Math.floor(Math.random() * types.length)];
     if (t === "aud" && !Audio2.has(w.hanzi)) t = "m2h";
+    if (t === "h2p" && !w.pinyin) t = "h2m"; // own words may have no pinyin
     return { w: w, t: t, opts: A().shuffle([w].concat(pickOthers(w, A().WORDS, 3))) };
   }
   function qHTML(q) {
@@ -225,6 +230,7 @@
     function draw() {
       if (i >= pool.length) return finish("listen", score, score * 2, { title: score + " / " + pool.length, mood: score >= 8 ? "cheer" : score >= 5 ? "happy" : "sad" });
       var q = makeQ(pool[i], [audio ? "aud" : "h2p"]);
+      if (pool[i + 1]) Audio2.prefetch(pool[i + 1].hanzi);
       if (!audio) q.t = "py2h";
       var body = q.t === "py2h"
         ? '<div class="card qcard" id="qcard"><div class="big-py">' + App.esc(q.w.pinyin) + '</div><p class="sub">Pick the word</p><div class="opts">' + q.opts.map(function (o, k) { return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[k] + '</span><span class="zh">' + App.esc(o.hanzi) + "</span></button>"; }).join("") + '</div><div id="qfb"></div></div>'
@@ -363,6 +369,7 @@
     function draw() {
       if (hp <= 0 || lives <= 0 || qn >= 18) return end();
       var q = makeQ(words[qn % words.length], types);
+      Audio2.prefetch(words[(qn + 1) % words.length].hanzi);
       App.render(header(g, "⚔️ " + (qn + 1)) + arena() + qHTML(q), "game");
       wireQ(q, function () { qn++; draw(); }, { onAnswer: function (ok) {
         var be = document.getElementById("bossE");
@@ -394,6 +401,7 @@
     function draw() {
       if (i >= pool.length) return finish("quick", score, score * 2, { title: score + " / " + pool.length, arg: set ? arg : "", mood: score >= pool.length * 0.8 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad" });
       var q = makeQ(pool[i], i === 0 ? types.filter(function (t) { return t !== "aud"; }) : types);
+      if (pool[i + 1]) Audio2.prefetch(pool[i + 1].hanzi);
       App.render(header(g, "⭐ " + score) + bar(i, pool.length) + qHTML(q), "game");
       wireQ(q, function (ok) { if (ok) score++; i++; draw(); });
     }
@@ -439,7 +447,8 @@
     } };
   }
   function drill() {
-    var App = A(), g = BY.drill, pool = App.shuffle(drillPool()).slice(0, 8), i = 0, score = 0;
+    var App = A(), g = BY.drill, pool = App.shuffle(drillPool()).slice(0, RUN.count || 8), i = 0, score = 0;
+    if (!pool.length && RUN.onDone) { var cb0 = RUN.onDone; RUN = {}; cb0(0); return; }
     if (!pool.length) {
       App.render(header(g) + '<p class="empty">' + (Audio2.available() ? "Study a day first to unlock sentences." : "Audio isn't generated yet — it's created when you deploy.") + "</p>", "game");
       return;
@@ -447,6 +456,7 @@
     (function draw() {
       if (i >= pool.length) return finish("drill", score, score * 2, { title: score + " / " + pool.length + " understood", mood: score >= 6 ? "cheer" : score >= 4 ? "happy" : "sad" });
       var c = drillCard(pool[i], function (ok) { if (ok) score++; i++; draw(); }, i > 0);
+      if (pool[i + 1]) Audio2.prefetch(pool[i + 1].zh, pool[i + 1].voice);
       App.render(header(g, (i + 1) + "/" + pool.length) + bar(i, pool.length) + c.html, "game");
       c.wire();
     })();
@@ -594,8 +604,10 @@
     var arr = App.shuffle(sentences()).filter(function (s) { var c = chunk(s.core); return c.length >= 3 && new Set(c).size === c.length; }).slice(0, 6);
     var free = App.shuffle(App.studiedWords().filter(function (w) { return w.example && w.hanzi.length >= 2; })).slice(0, 2)
       .map(function (w) { return { free: true, word: w.hanzi, model: w.example.zh, vi: w.vi, en: w.en }; });
+    if (RUN.count) { arr = arr.slice(0, RUN.count); free = []; }
     var pool = arr.concat(free), i = 0, score = 0, review = [];
-    if (arr.length < 3) { App.render(header(g) + '<p class="empty">Study a few days first to unlock sentences.</p>', "game"); return; }
+    if (arr.length < (RUN.count ? 1 : 3) && RUN.onDone) { var cb1 = RUN.onDone; RUN = {}; cb1(0); return; }
+    if (arr.length < 3 && !RUN.count) { App.render(header(g) + '<p class="empty">Study a few days first to unlock sentences.</p>', "game"); return; }
     (function draw() {
       if (i >= pool.length) return finish("type", score, score * 3, { title: score + " / " + pool.length + " typed correctly", mood: score >= pool.length - 1 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad",
         review: '<div class="card akey">' + review.map(function (r) { return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "✗") + '</span><div class="zh">' + App.esc(r.t) + "</div></div>"; }).join("") + "</div>" });

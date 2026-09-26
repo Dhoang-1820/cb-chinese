@@ -44,6 +44,7 @@ jobs:
       - name: Generate audio (edge-tts)
         run: |
           pip install edge-tts
+          command -v ffmpeg >/dev/null || (sudo apt-get update -q && sudo apt-get install -y -q ffmpeg)
           node tools/collect_texts.js > audio_texts.json
           python tools/gen_audio.py audio_texts.json
 

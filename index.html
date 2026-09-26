@@ -14,16 +14,14 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" href="icons/icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&amp;display=swap">
+  <link rel="preload" href="fonts/nunito-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="lang-both">
   <div class="blobs" aria-hidden="true"><i></i><i></i><i></i></div>
 
   <header class="appbar">
-    <a class="brand" href="#/" aria-label="Home"><img src="icons/icon-192.png" alt="" width="30" height="30"></a>
+    <a class="brand" href="#/" aria-label="Home"><img src="icons/icon-64.png" alt="" width="30" height="30"></a>
     <h1 id="page-title">Home</h1>
     <div class="chips">
       <span class="chip" id="chip-streak">🔥 0</span>
@@ -33,7 +31,7 @@
     </div>
   </header>
 
-  <main id="app" class="container"><p class="empty">Loading…</p></main>
+  <main id="app" class="container"><div class="skel" aria-label="Loading" role="status"><i class="sk-h"></i><i class="sk-card"></i><i class="sk-line"></i><i class="sk-line short"></i><i class="sk-card"></i></div></main>
 
   <nav class="tabbar" aria-label="Main">
     <a href="#/" data-tab="home"><span class="ti">🏠</span><span>Home</span></a>

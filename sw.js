@@ -7,7 +7,7 @@ var STROKES = "cb-strokes"; // handwriting data: never changes, kept across app 
 /* PRECACHE:START — tools/build.js replaces this block with the built file list */
 var DAYS = [];
 for (var i = 1; i <= 30; i++) DAYS.push("data/day" + (i < 10 ? "0" + i : i) + ".js");
-var MOCKS = ["data/mock-manifest.js", "data/mock1.js", "data/mock2.js", "data/mock3.js", "data/core-manifest.js"];
+var MOCKS = ["data/mock-manifest.js", "data/mock1.js", "data/mock2.js", "data/mock3.js", "data/core-manifest.js", "data/grammar.js"];
 for (var j = 1; j <= 25; j++) MOCKS.push("data/core" + (j < 10 ? "0" + j : j) + ".js");
 var PRECACHE = [
   "./", "index.html", "css/style.css", "manifest.webmanifest",

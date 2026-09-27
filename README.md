@@ -20,7 +20,7 @@ Open the site → **Share (⬆) → Add to Home Screen**. Then in the app: **Me 
 Tip: iOS may clear data of sites unused for weeks — use **Me → Export** now and then.
 
 ## Features
-- **Learn**: 30 days (review days 5/10/15/20/25/30) — words (vi + en), chat-style dialogue with audio, grammar, practice (matching, tap-to-fill, translation), 10-question quiz.
+- **Learn**: 30 days (review days 5/10/15/20/25/30) — words (vi + en), chat-style dialogue with audio, grammar, practice (matching with 5 pairs at a time, a decoy meaning and reshuffling after every match; tap-to-fill; translation), 10-question quiz.
 - **Review**: flashcards with swipe (→ know / ← again), Leitner SRS (1/2/4/8/16 days). Smarter scheduling: words with 2+ lapses come back at half the interval; a slip on a box 4–5 word drops it to box 2; mistakes in games bring a word back today.
 - **Today's session**: one tap on Home runs ~15 minutes in order — due reviews, 8 new HSK 4 Core words, up to 5 mistakes, 3 typed sentences, 3 listening sentences — then a summary (+10 XP once a day).
 - **Hands-free listen mode** (Review tab): each word plays twice, then its example, and moves on by itself; keeps the screen awake; headphone/lock-screen controls.
@@ -31,6 +31,8 @@ Tip: iOS may clear data of sites unused for weeks — use **Me → Export** now 
 - **HSK 4 Core**: 505 general HSK 2.0 level-4 words (the rest of the official list is already in the C&B lessons), in 25 sets of ~20 — each with vi/en meanings, an original example sentence, audio, flashcards, set quiz and stroke writing. Word list: official HSK 2.0 syllabus; meanings and examples written for this app.
 - **Type the Sentence**: practice for the computer-based HSK writing section — type full sentences with the iPhone pinyin keyboard, see a character-by-character diff, plus free sentences with a given word.
 - **Mock exams**: 3 original tests in the real HSK 4 format (listening, reading, writing), shortened to ~30 min. Practice mode (instant feedback) or exam mode (timed per section). Scored /300, pass 180. Links to Study4 and official sample papers.
+- **HSK 4 grammar checklist** (Learn → Grammar): 25 grammar points (把/被, 连…都, 不管…都, complements, 是…的, comparisons…) — pattern, vi/en explanation, 2 examples with audio, 5 practice questions each. Mastered at 5/5, or 4/5 twice; wrong answers go to the mistake notebook.
+- **Official practice log + score forecast** (Me → Official practice): log section scores from official HSK 2.0 papers (e.g. the book 《HSK真题集 四级》). The forecast blends official papers (weighted most) with recent in-app mocks and shows an estimate, a likely range, pass verdict and the weakest section — on Home, Progress and the log page.
 - **Mistake notebook**: wrong answers from quizzes, games, drills and mock exams are collected automatically; each clears after 2 right answers in a row. Targeted drills per skill.
 - **Weak-area report**: accuracy per skill (13 skills: word meaning, pinyin, listening types, connectors, word order, reading passages, handwriting…), with tips and a "Practice" button. Shown after each mock exam too.
 - **Games**: Sentence Builder, Listen & Pick, Speed Match (60 s), Pinyin Race (90 s), Boss Battle (review days), Quick Quiz, Type the Sentence, Listening Drill (reveal after listening, 0.75× slow mode), Stroke Writing (stroke-order animation + tracing). Daily challenge +15 XP.
@@ -59,7 +61,7 @@ npm i --no-save esbuild && node tools/build.js _site && python3 -m http.server 8
 index.html  sw.js  manifest.webmanifest  icons/
 css/style.css
 js/storage.js  srs.js  audio.js  gamify.js  learn.js  games.js  app.js
-data/day01.js … day30.js, manifest.js, core01–25.js, core-manifest.js, mock1–3.js, mock-manifest.js
+data/day01.js … day30.js, manifest.js, core01–25.js, core-manifest.js, grammar.js, mock1–3.js, mock-manifest.js
 fonts/ Nunito subsets (SIL OFL 1.1, from @fontsource-variable/nunito) · icons/icon-64.png for the top bar
 vendor/hanzi-writer.min.js (MIT) + vendor/hanzi/*.json stroke data (Arphic PL — see vendor/README.md)
 audio/manifest.js (+ mp3s generated in CI)

@@ -717,3 +717,28 @@ body:has(#session-bar) .container { padding-bottom: calc(var(--tabbar-h) + var(-
 .sum-grid div { background: var(--surface-2); border-radius: 14px; padding: 10px; display: grid; }
 .sum-grid b { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
 .sum-grid span { font-size: .8rem; opacity: .75; }
+
+/* ---------- grammar checklist, official practice, forecast ---------- */
+.seg.seg4 a { font-size: .82rem; padding-left: 6px; padding-right: 6px; }
+.glist { display: grid; gap: 8px; }
+.gitem { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; margin: 0; }
+.gnum { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 9px; background: var(--surface-2); display: grid; place-items: center; font-weight: 900; font-size: .8rem; }
+.gtxt { flex: 1; display: grid; min-width: 0; }
+.gtxt small { font-size: .78rem; opacity: .75; }
+.gst { font-size: .78rem; font-weight: 800; white-space: nowrap; opacity: .7; }
+.gitem.done .gnum { background: #1fae6d; color: #fff; }
+.gitem.done .gst { color: #1fae6d; opacity: 1; }
+.gitem.prog .gst { color: var(--primary); opacity: 1; }
+.gpat { font-size: 1.15rem; font-weight: 800; color: var(--primary); margin: 0 0 8px; }
+.tr.show { display: block !important; }
+.linklike { background: none; border: 0; color: var(--primary); font: inherit; font-weight: 800; text-decoration: underline; cursor: pointer; padding: 0; }
+.of-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.of-row div { display: grid; gap: 4px; }
+.of-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.of-item > div { flex: 1; display: grid; }
+.of-item small { opacity: .7; font-size: .8rem; }
+.fc-mini .tag { align-self: center; }
+.res-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; margin-top: 8px; border-radius: 14px; background: var(--surface-2); color: var(--text); text-decoration: none; }
+.res-link b { font-weight: 800; font-size: .95rem; }
+.res-link .cta-go { width: 34px; height: 34px; background: var(--primary); color: #fff; font-size: 1rem; }
+.fc-mini .tag { background: rgba(255,255,255,.9); }

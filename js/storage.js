@@ -27,6 +27,8 @@
       skills: {},     // skillId -> { r: right, w: wrong }
       mockHistory: [], // [{ id, date, total, sections }]
       sessions: {},   // date -> true when Today's session was completed
+      official: [],   // official past-paper results: [{ id, date, name, l, r, w }] (each section /100)
+      grammar: {},    // grammar point id -> { best, passes, mastered }
       custom: [],     // learner's own words: [{ id: "u…", hanzi, pinyin, vi, en, example? }]
       challenges: {}, // date -> true when the daily challenge was completed
       stats: { cards: 0, correct: 0, perfectQuizzes: 0, bossWins: 0, nightOwl: 0, hearts: 0 }
@@ -77,6 +79,12 @@
       return { id: n(h.id), date: /^\d{4}-\d{2}-\d{2}$/.test(h.date) ? h.date : today(), mode: h.mode === "practice" ? "practice" : "exam", total: n(h.total),
         sections: { listening: n(sec.listening), reading: n(sec.reading), writing: n(sec.writing) } };
     });
+    d.official = (Array.isArray(d.official) ? d.official : []).filter(function (o) { return o && typeof o === "object"; }).map(function (o) {
+      var c = function (x) { x = n(x); return Math.max(0, Math.min(100, Math.round(x))); };
+      return { id: String(o.id || Date.now()).replace(/[^0-9a-z]/gi, "").slice(0, 16) || String(Date.now()), date: /^\d{4}-\d{2}-\d{2}$/.test(o.date) ? o.date : today(),
+        name: String(o.name || "Official paper").slice(0, 60), l: c(o.l), r: c(o.r), w: c(o.w) };
+    });
+    Object.keys(d.grammar).forEach(function (k) { var g = d.grammar[k]; if (!/^g\d\d$/.test(k) || !g || typeof g !== "object") delete d.grammar[k]; else { g.best = n(g.best); g.passes = n(g.passes); g.mastered = !!g.mastered; } });
     Object.keys(d.skills).forEach(function (k) { var v = d.skills[k]; if (!v || typeof v !== "object") delete d.skills[k]; else { v.r = n(v.r); v.w = n(v.w); } });
     d.custom = (Array.isArray(d.custom) ? d.custom : []).filter(function (w) {
       return w && typeof w.id === "string" && /^u[0-9a-z]+$/.test(w.id) && typeof w.hanzi === "string" && /[\u3400-\u9fff]/.test(w.hanzi);

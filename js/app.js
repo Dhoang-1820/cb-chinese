@@ -142,7 +142,7 @@
   }
   function needs(v, parts) {
     var n = [];
-    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && (parts[1] === "builder" || parts[1] === "drill" || parts[1] === "type")) || v === "session" || v === "mistakes")) n.push(ensureFull());
+    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && (parts[1] === "builder" || parts[1] === "drill" || parts[1] === "type")) || v === "session" || v === "grammar" || v === "mistakes")) n.push(ensureFull());
     if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session")) n.push(ensureMocks());
     return n;
   }
@@ -171,7 +171,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK 4 Core", "listen-mode": "Listen", session: "Today's session" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK 4 Core", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice" };
   function route() {
     Audio2.stop(); setKeys(null); workDone = false; if (LM) { LM.stop(); LM = null; }
     if (location.hash.indexOf("#/session") !== 0) sessionBar(null);
@@ -200,6 +200,8 @@
     else if (v === "core") viewCoreSet(parseInt(parts[1], 10));
     else if (v === "listen-mode") viewListenMode();
     else if (v === "session") viewSession();
+    else if (v === "grammar") parts[1] ? viewGrammarPoint(parts[1], parts[2]) : viewGrammarList();
+    else if (v === "official") viewOfficial();
     else if (v === "me" || v === "settings") viewMe();
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "plan") viewPlan();
@@ -211,7 +213,7 @@
       else viewMockSection(parts[1], parts[2]);
     }
     else viewHome();
-    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", "listen-mode": "review", session: "home" }[v] || "home";
+    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", "listen-mode": "review", session: "home", grammar: "learn", official: "me" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     document.getElementById("page-title").textContent = TITLES[v] || "C&B 中文";
     refreshChrome();
@@ -257,6 +259,7 @@
       '<div class="card stat">' + ring(todayXP / goal, todayXP, "/ " + goal + " XP") + "<span>daily goal</span></div>" +
       '<div class="card stat"><div class="big-ico">📅</div><b>' + (exam >= 0 ? exam : "✓") + "</b><span>" + (exam >= 0 ? "days to HSK 4" : "exam done") + "</span></div></section>";
     html += todayCard();
+    html += forecastCard(true);
     html += '<a class="cta card g-coral" href="#/day/' + nd.day + '"><span class="cta-l"><small>Continue · Day ' + nd.day + '</small><b class="zh">' + esc(nd.title.zh) + "</b><em>" + M(nd.title) + '</em></span><span class="cta-go">▶</span></a>';
     html += '<a class="cta card g-teal" href="#/review"><span class="cta-l"><small>Spaced review</small><b>' + (due ? due + " word" + (due > 1 ? "s" : "") + " due" : "All caught up") + "</b><em>" + (due ? "Keep them fresh" : "Come back tomorrow") + '</em></span><span class="cta-go">🔁</span></a>';
     html += '<a class="cta card g-sun' + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="cta-l"><small>Daily challenge' + (chDone ? " · done ✓" : " · +15 XP bonus") + "</small><b>" + ch.icon + " " + ch.name + "</b><em>" + ch.desc + '</em></span><span class="cta-go">🎯</span></a>';
@@ -275,7 +278,8 @@
 
   /* ---------- learn (plan) ---------- */
   function learnSeg(which) {
-    return '<nav class="seg"><a class="' + (which === "cb" ? "active" : "") + '" href="#/learn">C&amp;B lessons</a><a class="' + (which === "core" ? "active" : "") + '" href="#/learn/core">HSK 4 Core</a><a class="' + (which === "mine" ? "active" : "") + '" href="#/learn/mine">My words</a></nav>';
+    var t = [["cb", "#/learn", "C&amp;B"], ["core", "#/learn/core", "HSK 4 Core"], ["grammar", "#/grammar", "Grammar"], ["mine", "#/learn/mine", "My words"]];
+    return '<nav class="seg seg4">' + t.map(function (x) { return '<a class="' + (which === x[0] ? "active" : "") + '" href="' + x[1] + '">' + x[2] + "</a>"; }).join("") + "</nav>";
   }
   function viewCoreList() {
     var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("core") +
@@ -434,16 +438,29 @@
     if (ex.fill && ex.fill.length) setupFill(document.getElementById("fill"), ex.fill, d);
     if (ex.translate && ex.translate.length) setupTranslate(document.getElementById("trans"), ex.translate);
   }
+  /* Matching: up to 5 pairs on the board plus one decoy meaning from another lesson.
+     After each correct match the pair leaves, the next word from the day slides in, and both columns
+     reshuffle — so there are always at least two choices and no answer can be found by elimination. */
   function setupMatching(el, words, d) {
-    var pick, sel = null, matched = 0, awarded = false;
-    function draw() {
-      pick = shuffle(words).slice(0, Math.min(6, words.length)); matched = 0; sel = null;
+    var BOARD = 5, queue, board, decoy, total, matched, sel, awarded = false;
+    function pickDecoy() {
+      var ids = {}; words.forEach(function (w) { ids[w.id] = 1; });
+      var pool = WORDS.filter(function (w) { return !ids[w.id] && w.vi && w.en && !w._mine; });
+      return pool[Math.floor(Math.random() * pool.length)] || null;
+    }
+    function start() {
+      queue = shuffle(words); total = queue.length; matched = 0; sel = null;
+      board = queue.splice(0, Math.min(BOARD, queue.length)); decoy = pickDecoy();
+      draw();
+    }
+    function draw(fresh) {
+      var L = shuffle(board), R = shuffle(board.concat(decoy ? [decoy] : []));
       el.innerHTML = '<div class="match"><div class="mcol" data-side="L">' +
-        shuffle(pick).map(function (w) { return '<button class="mbtn zh" data-id="' + esc(w.id) + '">' + esc(w.hanzi) + "</button>"; }).join("") +
+        L.map(function (w) { return '<button class="mbtn zh' + (fresh && w.id === fresh ? " pop-in" : "") + '" data-id="' + esc(w.id) + '">' + esc(w.hanzi) + "</button>"; }).join("") +
         '</div><div class="mcol" data-side="R">' +
-        shuffle(pick).map(function (w) { return '<button class="mbtn" data-id="' + esc(w.id) + '">' + M(w) + "</button>"; }).join("") +
-        '</div></div><div class="mfoot"><span id="mstat">0/' + pick.length + '</span><button class="btn small" id="mreset">↻ New set</button></div>';
-      el.querySelector("#mreset").onclick = draw;
+        R.map(function (w) { return '<button class="mbtn" data-id="' + esc(w.id) + '">' + M(w) + "</button>"; }).join("") +
+        '</div></div><div class="mfoot"><span id="mstat">' + matched + "/" + total + '</span><span class="muted">1 meaning is a decoy</span><button class="btn small" id="mreset">↻ New set</button></div>';
+      el.querySelector("#mreset").onclick = start;
     }
     el.onclick = function (e) {
       var b = e.target.closest(".mbtn");
@@ -453,22 +470,26 @@
         if (sel) sel.el.classList.remove("sel");
         sel = { el: b, side: side }; b.classList.add("sel"); Audio2.sfx.tap(); return;
       }
-      if (sel.el.getAttribute("data-id") === b.getAttribute("data-id")) {
+      var id = b.getAttribute("data-id");
+      if (sel.el.getAttribute("data-id") === id) {
         [sel.el, b].forEach(function (x) { x.classList.remove("sel"); x.classList.add("done"); x.disabled = true; });
-        matched++; Audio2.sfx.good();
-        el.querySelector("#mstat").textContent = matched + "/" + pick.length;
-        if (matched === pick.length) {
+        matched++; Audio2.sfx.good(); sel = null;
+        el.querySelector("#mstat").textContent = matched + "/" + total;
+        var nw = queue.shift();
+        board = board.filter(function (w) { return w.id !== id; });
+        if (nw) board.push(nw);
+        if (matched === total) {
           Store.day(d.day).practice.match = true;
           if (!awarded) { awarded = true; Game.award(5, rect(el)); } else Store.save();
           UI.confetti(50);
-        }
+          setTimeout(function () { if (el.isConnected) { el.querySelector(".match").innerHTML = '<p class="ok-text center">✓ All ' + total + " words matched</p>"; } }, 450);
+        } else setTimeout(function () { if (el.isConnected) draw(nw && nw.id); }, 350); // brief ✓, then reshuffle
       } else {
-        var a = sel.el; a.classList.add("bad"); b.classList.add("bad"); Audio2.sfx.bad();
+        var a = sel.el; a.classList.add("bad"); b.classList.add("bad"); Audio2.sfx.bad(); sel = null;
         setTimeout(function () { a.classList.remove("bad", "sel"); b.classList.remove("bad"); }, 450);
       }
-      sel = null;
     };
-    draw();
+    start();
   }
   function setupFill(el, items, d) {
     var answers = items.map(function (it) { return it.answer; });
@@ -749,6 +770,7 @@
       '<div class="card stat"><b>' + done + '/30</b><span>days done</span></div>' +
       '<div class="card stat"><b>' + (s.streak.best || 0) + '</b><span>best streak</span></div></section>' +
       '<a class="cta card g-teal" href="#/progress"><span class="cta-l"><b>📈 Progress charts</b><em>Mock scores, words learned, daily XP</em></span><span class="cta-go">▶</span></a>' +
+      '<a class="cta card g-blue" href="#/official"><span class="cta-l"><b>📄 Official practice</b><em>Log official past-paper scores · score forecast</em></span><span class="cta-go">▶</span></a>' +
       '<a class="cta card g-sun" href="#/plan"><span class="cta-l"><b>🗓️ Study plan</b><em>Your path to the exam date</em></span><span class="cta-go">▶</span></a>' +
       '<a class="cta card g-boss" href="#/mock"><span class="cta-l"><b>📝 Mock HSK 4 exams</b><em>' + (Object.keys(s.mocks).length ? "Best: " + Math.max.apply(null, Object.keys(s.mocks).map(function (k) { return num(s.mocks[k].best); })) + "/300" : "Not attempted yet") + '</em></span><span class="cta-go">▶</span></a>' +
       '<section class="card"><div class="sec-h"><h2>Badges</h2><span class="muted">' + Object.keys(s.badges).length + "/" + Game.BADGES.length + '</span></div><div class="badge-grid">' +
@@ -869,8 +891,9 @@
       html += '<a class="cta card' + (rec && rec.best >= 180 ? " g-teal" : " g-blue") + '" href="#/mock/' + m.id + '">' +
         '<span class="cta-l"><b>' + esc(m.title) + '</b><em>' + (rec ? "Best " + num(rec.best) + "/300 (" + num(rec.plays) + " attempt" + (rec.plays > 1 ? "s" : "") + ")" + (rec.best >= 180 ? " · Pass ✓" : "") : "Not attempted yet") + "</em></span><span class=\"cta-go\">▶</span></a>";
     });
+    html += '<a class="cta card g-blue" href="#/official"><span class="cta-l"><small>Done an official paper?</small><b>📄 Log your official score</b><em>Improves your score forecast</em></span><span class="cta-go">▶</span></a>';
     html += '<section class="card"><h2>More practice</h2><p class="sub">Want the real official questions too? These are legitimate free resources:</p>' +
-      RESOURCES.map(function (r) { return '<a class="cta card" href="' + esc(r.url) + '" target="_blank" rel="noopener"><span class="cta-l"><b>' + esc(r.name) + "</b></span><span class=\"cta-go\">↗</span></a>"; }).join("") + "</section>";
+      RESOURCES.map(function (r) { return '<a class="res-link" href="' + esc(r.url) + '" target="_blank" rel="noopener"><span class="cta-l"><b>' + esc(r.name) + "</b></span><span class=\"cta-go\">↗</span></a>"; }).join("") + "</section>";
     render(html, "mock");
   }
 
@@ -1278,6 +1301,13 @@
       var parts = shuffle(e.parts.map(function (_, k) { return k; }));
       return orderQ(e.parts, parts, e.core, e.end || "", e, (e.py ? PY(e.py) : "") + '<div class="tr">' + M(e) + "</div>");
     }
+    if (e.kind === "gram") {
+      var gp = GRAMMAP()[e.g], gq = gp && gp.quiz[e.i]; if (!gq) return null;
+      var gord = shuffle([0, 1, 2, 3]);
+      return { html: '<div class="card qcard" id="qcard"><p class="sub">📐 ' + esc(gp.title.zh) + " · " + M(gp.title) + '</p><p class="q zh">' + esc(gq.q) + '</p><div class="opts">' +
+          gord.map(function (k, n) { return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[n] + '</span><span class="zh">' + esc(gq.options[k]) + "</span></button>"; }).join("") + '</div><div id="qfb"></div></div>',
+        wire: function (done) { wireMC(gq.answer, function (ok) { Learn.record(e.key, e, ok); return M(gq.explain); }, done); } };
+    }
     if (e.kind === "type") {
       var tcb = null, tc = Games._typeCard(e, function (ok) { tcb(ok); });
       return { html: tc.html, wire: function (done) { tcb = done; tc.wire(); } };
@@ -1384,7 +1414,7 @@
       }
       var e = items[i], q = mistakeQ(e);
       if (!q) {
-        var loaded = e.kind === "mock" ? mocksReady : (e.kind === "quiz" ? fullReady : true);
+        var loaded = e.kind === "mock" ? mocksReady : (e.kind === "quiz" || e.kind === "gram" ? fullReady : true);
         if (loaded) { delete Store.state.mistakes[e.key]; Store.save(); } // its source really is gone
         skipped++; i++; return draw();
       }
@@ -1548,7 +1578,7 @@
     for (var i = 0; i < 30; i++) { var d = Store.addDays(from, i); cum += added[d] || 0; words.push({ x: d.slice(5), y: cum }); }
     var xp = []; for (var j = 13; j >= 0; j--) { var dd = Store.addDays(t, -j); xp.push({ x: dd.slice(8), y: s.log[dd] || 0 }); }
     var sec = function (k) { return s.mockHistory.slice(-12).map(function (h, i) { return { x: String(i + 1), y: num((h.sections || {})[k]) }; }); };
-    var html = '<section class="card"><div class="sec-h"><h2>📝 Mock exam scores</h2><span class="muted">' + (best ? "best " + best + "/300" : "") + "</span></div>" +
+    var html = forecastCard(false) + '<section class="card"><div class="sec-h"><h2>📝 Mock exam scores</h2><span class="muted">' + (best ? "best " + best + "/300" : "") + "</span></div>" +
       lineChart(mh, { max: 300, ref: 180, refLabel: "pass 180", empty: "Take a mock exam to start your score chart." }) + "</section>";
     if (s.mockHistory.length) {
       html += '<section class="card"><h2>By section</h2><div class="spark3">' + ["listening", "reading", "writing"].map(function (k) {
@@ -1578,7 +1608,7 @@
   function inActivity() {
     var p = location.hash.replace(/^#\/?/, "").split("/"), v = p[0];
     var active = v === "game" || v === "cards" || v === "session" || (v === "day" && p[2] === "quiz") ||
-      (v === "mock" && p[2] && p[2] !== "result") || (v === "mistakes" && p[1]);
+      (v === "mock" && p[2] && p[2] !== "result") || (v === "mistakes" && p[1]) || (v === "grammar" && p[2] === "practice");
     return active && workDone && !app.querySelector(".result, .score-big");
   }
   document.addEventListener("click", function (e) {
@@ -1884,6 +1914,143 @@
       '</div><button class="btn primary big" id="ss-go">▶ Start</button></div>', "home");
     document.getElementById("ss-go").onclick = function () { next(); };
   }
+
+  /* ---------- grammar checklist (HSK 4 grammar points) ---------- */
+  var _gm = null;
+  function GRAMMAP() { if (!_gm || _gm.n !== (window.CB_GRAMMAR || []).length) { _gm = { n: (window.CB_GRAMMAR || []).length }; (window.CB_GRAMMAR || []).forEach(function (g) { _gm[g.id] = g; }); } return _gm; }
+  function gState(id) { var g = Store.state.grammar; return g[id] || (g[id] = { best: 0, passes: 0, mastered: false }); }
+  function gStatus(id) {
+    var st = Store.state.grammar[id];
+    if (!st) return ["new", "Not started"];
+    if (st.mastered) return ["done", "✓ Mastered"];
+    return st.best ? ["prog", "Best " + st.best + "/5"] : ["new", "Not started"];
+  }
+  function viewGrammarList() {
+    var G = window.CB_GRAMMAR || [], mastered = G.filter(function (g) { return (Store.state.grammar[g.id] || {}).mastered; }).length;
+    var html = learnSeg("grammar") + '<section class="card g-teal"><h2>📐 HSK 4 grammar checklist</h2><p class="sub">The grammar points tested at HSK 4. Read the pattern, do 5 questions; get 5/5 (or 4/5 twice) to master it.</p>' +
+      '<div class="xpbar"><span style="width:' + Math.round(mastered / Math.max(1, G.length) * 100) + '%"></span></div><p class="xp-t">' + mastered + " / " + G.length + " mastered</p></section>";
+    html += '<div class="glist">' + G.map(function (g, i) {
+      var s = gStatus(g.id);
+      return '<a class="gitem card ' + s[0] + '" href="#/grammar/' + g.id + '"><span class="gnum">' + (i + 1) + '</span><span class="gtxt"><b class="zh">' + esc(g.title.zh) + "</b><small>" + M(g.title) + '</small></span><span class="gst">' + s[1] + "</span></a>";
+    }).join("") + "</div>";
+    render(html, "learn");
+  }
+  function viewGrammarPoint(id, sub) {
+    var g = GRAMMAP()[id];
+    if (!g) { render('<p class="empty">Grammar point not found. <a href="#/grammar">Back</a></p>', "learn"); return; }
+    if (sub === "practice") return grammarQuiz(g);
+    var st = Store.state.grammar[id] || {}, G = window.CB_GRAMMAR || [], i = G.indexOf(g);
+    var html = '<header class="dayhead card g-teal"><div class="dh-nav">' + (G[i - 1] ? '<a class="pill" href="#/grammar/' + G[i - 1].id + '">‹</a>' : '<a class="pill" href="#/grammar">‹ All</a>') +
+      '<span class="dh-day">Grammar ' + (i + 1) + "/" + G.length + "</span>" + (G[i + 1] ? '<a class="pill" href="#/grammar/' + G[i + 1].id + '">›</a>' : "<span></span>") + "</div>" +
+      '<h1 class="zh">' + esc(g.title.zh) + '</h1><p class="sub">' + M(g.title) + "</p></header>" +
+      '<section class="card"><p class="gpat zh">' + esc(g.pattern) + '</p><div class="tr show">' + M(g.explain) + "</div></section>" +
+      '<h3 class="sec">Examples</h3>' + g.examples.map(function (e) {
+        return '<div class="card w-ex"><div class="ex-zh"><span class="zh">' + linkWords(e.zh) + "</span>" + SAY(e.zh) + "</div>" + PY(e.py) + '<div class="tr">' + M(e) + "</div></div>";
+      }).join("") +
+      '<div class="actions center"><a class="btn primary big" href="#/grammar/' + id + '/practice">✍️ Practice 5 questions</a></div>' +
+      '<p class="sub center">' + (st.mastered ? "✓ Mastered" : st.best ? "Best so far: " + st.best + "/5" : "Not practised yet") +
+      ' · <button class="linklike" id="g-toggle">' + (st.mastered ? "Unmark mastered" : "Mark as mastered") + "</button></p>";
+    render(html, "learn");
+    document.getElementById("g-toggle").onclick = function () { var x = gState(id); x.mastered = !x.mastered; Store.save(); viewGrammarPoint(id); };
+  }
+  function grammarQuiz(g) {
+    var order = shuffle(g.quiz.map(function (_, k) { return k; })), i = 0, right = 0;
+    (function draw() {
+      if (i >= order.length) {
+        var st = gState(g.id), before = st.mastered;
+        st.best = Math.max(st.best || 0, right); if (right >= 4) st.passes = (st.passes || 0) + 1;
+        if (right === 5 || st.passes >= 2) st.mastered = true;
+        Store.save(); Game.award(right * 2);
+        render('<div class="card result">' + UI.mascot(right >= 4 ? "cheer" : "happy", 88) + "<h2>" + right + " / 5</h2>" +
+          '<p class="sub">' + (st.mastered && !before ? "Mastered: " + esc(g.title.zh) + " ✓" : st.mastered ? "Still mastered ✓" : right >= 4 ? "One more 4/5+ round to master it." : "Re-read the pattern and try again.") + "</p>" +
+          '<div class="actions center"><a class="btn primary" href="#/grammar/' + g.id + '/practice" id="g-again">↻ Again</a><a class="btn" href="#/grammar">Checklist</a></div></div>', "learn");
+        document.getElementById("g-again").onclick = function (ev) { ev.preventDefault(); workDone = false; grammarQuiz(g); };
+        if (st.mastered && !before) UI.confetti(90);
+        return;
+      }
+      var k = order[i], q = g.quiz[k], ord = shuffle([0, 1, 2, 3]);
+      render('<div class="ghead"><a class="pill" href="#/grammar/' + g.id + '">✕</a><b class="zh">📐 ' + esc(g.title.zh) + '</b><span class="ghr">' + (i + 1) + '/5</span></div>' +
+        '<div class="bar"><span style="width:' + (i / 5 * 100) + '%"></span></div>' +
+        '<div class="card qcard" id="qcard"><p class="q zh">' + esc(q.q) + '</p><div class="opts">' +
+        ord.map(function (o, n) { return '<button class="opt" data-k="' + o + '"><span class="opt-n">' + "ABCD"[n] + '</span><span class="zh">' + esc(q.options[o]) + "</span></button>"; }).join("") +
+        '</div><div id="qfb"></div></div>', "learn");
+      wireMC(q.answer, function (ok) {
+        if (ok) right++; markWork();
+        Learn.record("gr:" + g.id + ":" + k, { kind: "gram", skill: "grammar", g: g.id, i: k }, ok);
+        return M(q.explain);
+      }, function () { i++; draw(); });
+    })();
+  }
+
+  /* ---------- official practice log + score forecast ---------- */
+  var OFFICIAL_LINKS = [
+    { name: "Official HSK site (Chinese Testing International)", url: "https://www.chinesetest.cn/" },
+    { name: "Study4 · HSK 4 practice tests", url: "https://study4.com/tests/hsk-4/" }
+  ];
+  function viewOfficial() {
+    var list = Store.state.official || [];
+    var html = '<section class="card g-blue"><h2>📄 Official practice</h2><p class="sub">Practise with official HSK 4 papers — the most accurate preparation — then log your section scores here. They weigh most in your score forecast.</p></section>' +
+      forecastCard(false) +
+      '<section class="card"><h2>Where to get official papers</h2><p class="sub"><b>Best:</b> the official book <span class="zh">《HSK真题集 四级》</span> (Official Examination Papers of HSK Level 4, Chinese Testing International) with its audio — bookshops such as Fahasa or Tiki, or a Chinese centre. Your 14 Nov exam uses the HSK 2.0 format, so use HSK 2.0 papers (codes like H41xxx), not HSK 3.0 samples.</p>' +
+      OFFICIAL_LINKS.map(function (r) { return '<a class="res-link" href="' + esc(r.url) + '" target="_blank" rel="noopener"><span class="cta-l"><b>' + esc(r.name) + '</b></span><span class="cta-go">↗</span></a>'; }).join("") + "</section>" +
+      '<section class="card"><h2>Log a paper</h2><form id="of-form" class="mw-form" autocomplete="off">' +
+      '<label for="of-name">Paper</label><input id="of-name" maxlength="60" placeholder="e.g. H41003 / 真题集 Test 3">' +
+      '<label for="of-date">Date</label><input id="of-date" type="date" value="' + esc(Store.today()) + '">' +
+      '<div class="of-row"><div><label for="of-l">Listening</label><input id="of-l" type="number" inputmode="numeric" min="0" max="100" placeholder="/100"></div>' +
+      '<div><label for="of-r">Reading</label><input id="of-r" type="number" inputmode="numeric" min="0" max="100" placeholder="/100"></div>' +
+      '<div><label for="of-w">Writing</label><input id="of-w" type="number" inputmode="numeric" min="0" max="100" placeholder="/100"></div></div>' +
+      '<p class="sub">Tip: section score = correct ÷ questions × 100 (e.g. 36 of 45 listening = 80).</p>' +
+      '<p class="mw-err" id="of-err" hidden></p><button class="btn primary wide" type="submit">＋ Save result</button></form></section>';
+    if (list.length) {
+      html += '<section class="card"><h2>Your official results</h2>' + lineChart(list.slice(-12).map(function (o) { return { x: o.date.slice(5), y: o.l + o.r + o.w }; }), { max: 300, ref: 180, refLabel: "pass 180" }) +
+        list.slice().reverse().map(function (o) {
+          var t = o.l + o.r + o.w;
+          return '<div class="of-item"><div><b>' + esc(o.name) + '</b><small>' + esc(o.date) + " · L " + o.l + " · R " + o.r + " · W " + o.w + '</small></div><span class="tag ' + (t >= 180 ? "t-hsk" : "t-warn") + '">' + t + '/300</span><button class="btn small bad-btn" data-odel="' + esc(o.id) + '" aria-label="Delete">✕</button></div>';
+        }).join("") + "</section>";
+    }
+    render(html, "me");
+    document.getElementById("of-form").onsubmit = function (e) {
+      e.preventDefault();
+      var g = function (id) { return document.getElementById(id).value.trim(); }, err = document.getElementById("of-err");
+      var nums = ["of-l", "of-r", "of-w"].map(function (id) { return g(id) === "" ? NaN : +g(id); });
+      if (nums.some(function (x) { return !isFinite(x) || x < 0 || x > 100; })) { err.textContent = "Enter each section score from 0 to 100."; err.hidden = false; return; }
+      Store.state.official.push({ id: Date.now().toString(36), date: /^\d{4}-\d{2}-\d{2}$/.test(g("of-date")) ? g("of-date") : Store.today(), name: g("of-name") || "Official paper", l: Math.round(nums[0]), r: Math.round(nums[1]), w: Math.round(nums[2]) });
+      Store.save(); Game.award(10); UI.toast("Official result saved", "📄"); viewOfficial();
+    };
+    app.querySelectorAll("[data-odel]").forEach(function (b) {
+      b.onclick = function () {
+        if (!window.confirm("Delete this result?")) return;
+        var id = b.getAttribute("data-odel"); Store.state.official = Store.state.official.filter(function (o) { return o.id !== id; }); Store.save(); viewOfficial();
+      };
+    });
+  }
+  /* Forecast: recency-weighted average per section. Official papers count 2.5×, app mocks in exam mode 1×,
+     practice mode 0.6×. The range widens when there's little data or scores vary a lot. */
+  function forecast() {
+    var s = Store.state, pts = [];
+    (s.official || []).slice(-6).reverse().forEach(function (o, k) { pts.push({ w: 2.5 * Math.pow(0.8, k), l: o.l, r: o.r, wr: o.w, src: "official" }); });
+    (s.mockHistory || []).slice(-6).reverse().forEach(function (h, k) { pts.push({ w: (h.mode === "practice" ? 0.6 : 1) * Math.pow(0.8, k), l: num(h.sections.listening), r: num(h.sections.reading), wr: num(h.sections.writing), src: "app" }); });
+    if (!pts.length) return null;
+    var W = pts.reduce(function (a, p) { return a + p.w; }, 0);
+    var avg = function (f) { return pts.reduce(function (a, p) { return a + p.w * p[f]; }, 0) / W; };
+    var L = avg("l"), R = avg("r"), Wr = avg("wr"), T = L + R + Wr;
+    var sd = Math.sqrt(pts.reduce(function (a, p) { var t = p.l + p.r + p.wr; return a + p.w * (t - T) * (t - T); }, 0) / W);
+    var spread = Math.round(Math.max(pts.length === 1 ? 25 : 12, sd * 1.2));
+    var weakest = [["Listening", L], ["Reading", R], ["Writing", Wr]].sort(function (a, b) { return a[1] - b[1]; })[0];
+    return { total: Math.round(T), lo: Math.max(0, Math.round(T - spread)), hi: Math.min(300, Math.round(T + spread)), L: Math.round(L), R: Math.round(R), W: Math.round(Wr), weakest: weakest[0],
+      nOff: (s.official || []).length, nApp: (s.mockHistory || []).length };
+  }
+  function forecastCard(compact) {
+    var f = forecast();
+    if (!f) return compact ? "" : '<section class="card"><h2>🔮 Score forecast</h2><p class="sub">Take a mock exam or log an official paper to see your forecast.</p></section>';
+    var verdict = f.lo >= 180 ? ["t-hsk", "Likely pass"] : f.hi < 180 ? ["t-warn", "Needs work"] : ["t-dom", "Borderline"];
+    var basis = (f.nOff ? f.nOff + " official" : "") + (f.nOff && f.nApp ? " + " : "") + (f.nApp ? f.nApp + " app mock" + (f.nApp > 1 ? "s" : "") : "");
+    if (compact) return '<a class="cta card g-teal fc-mini" href="#/official"><span class="cta-l"><small>Score forecast · ' + esc(basis) + "</small><b>🔮 ~" + f.total + '/300</b><em>' + f.lo + "–" + f.hi + " · focus: " + f.weakest + '</em></span><span class="tag ' + verdict[0] + '">' + verdict[1] + "</span></a>";
+    return '<section class="card"><div class="sec-h"><h2>🔮 Score forecast</h2><span class="tag ' + verdict[0] + '">' + verdict[1] + '</span></div>' +
+      '<p class="score-big">~' + f.total + ' <small>/300 · likely ' + f.lo + "–" + f.hi + "</small></p>" +
+      secBar("Listening", f.L) + secBar("Reading", f.R) + secBar("Writing", f.W) +
+      '<p class="sub">Based on ' + esc(basis) + ". Official papers count most. Focus next: <b>" + f.weakest + "</b>." + (f.nOff ? "" : " Log an official paper for a more reliable forecast.") + "</p></section>";
+  }
   /* ---------- global events & boot ---------- */
   document.addEventListener("click", function (e) {
     var wl = e.target.closest(".wlink");
@@ -1904,7 +2071,7 @@
     };
     if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addListener(applySettings);
     if (!BUNDLED && !window.CB_MANIFEST) { render('<p class="warn">data/manifest.js is missing.</p>'); return; }
-    (BUNDLED ? Promise.resolve() : loadAll(window.CB_MANIFEST.concat(window.CB_CORE_FILES || []))).then(function () {
+    (BUNDLED ? Promise.resolve() : loadAll(window.CB_MANIFEST.concat(window.CB_CORE_FILES || []).concat(window.CB_EXTRA_FILES || []))).then(function () {
       buildIndex();
       window.addEventListener("hashchange", route);
       route();

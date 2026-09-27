@@ -179,6 +179,21 @@ core.forEach(set => (set.words || []).forEach(w => {
 }));
 scanPinyin(core, "Core");
 
+// ---- grammar checklist ----
+(sandbox.window.CB_EXTRA_FILES || []).forEach(run);
+const grammar = sandbox.window.CB_GRAMMAR || [];
+grammar.forEach(g => {
+  const where = `Grammar ${g.id}`;
+  has(g, ["id", "title", "pattern", "explain", "examples", "quiz"], where);
+  (g.examples || []).forEach((e, i) => has(e, ["zh", "py", "vi", "en"], `${where} example ${i + 1}`));
+  (g.quiz || []).forEach((q, i) => {
+    if (!Array.isArray(q.options) || q.options.length !== 4) err(where, `quiz ${i + 1} needs 4 options`);
+    else if (new Set(q.options).size !== 4) err(where, `quiz ${i + 1} has duplicate options`);
+    if (typeof q.answer !== "number" || q.answer < 0 || q.answer > 3) err(where, `quiz ${i + 1} answer index out of range`);
+  });
+});
+scanPinyin(grammar, "Grammar");
+
 // ---- mock exams ----
 run("mock-manifest.js");
 const mockFiles = sandbox.window.CB_MOCK_FILES || [];
@@ -232,6 +247,7 @@ const checks = [
 ];
 console.log(`Mock exams        : ${mocks.length}`);
 console.log(`HSK 4 Core        : ${core.length} sets, ${coreWords} words`);
+console.log(`Grammar points    : ${grammar.length} (${grammar.reduce((s, g) => s + (g.quiz || []).length, 0)} questions)`);
 checks.forEach(([name, ok]) => console.log(`${ok ? "PASS" : "FAIL"}  ${name}`));
 console.log("");
 if (warnings.length) { console.log(`Warnings (${warnings.length}):`); warnings.forEach(w => console.log("  ⚠ " + w)); console.log(""); }

@@ -15,6 +15,7 @@ load("manifest.js");
 sb.window.CB_MANIFEST.forEach(load);
 load("core-manifest.js");
 sb.window.CB_CORE_FILES.forEach(load);
+(sb.window.CB_EXTRA_FILES || []).forEach(load);
 load("mock-manifest.js");
 sb.window.CB_MOCK_FILES.forEach(load);
 
@@ -37,6 +38,8 @@ for (const d of sb.window.CB_DAYS) {
   (ex.translate || []).forEach(t => add(t.zh));
 }
 for (const set of sb.window.CB_CORE || []) for (const w of set.words) { add(w.hanzi); if (w.example) add(w.example.zh); }
+
+for (const g of sb.window.CB_GRAMMAR || []) g.examples.forEach(e => add(e.zh));
 
 for (const m of sb.window.CB_MOCK || []) {
   for (const it of m.listening.p1) add(it.audio.text, it.audio.voice);

@@ -50,6 +50,7 @@ load("manifest.js");
 sb.window.CB_MANIFEST.forEach(load);
 load("core-manifest.js");
 sb.window.CB_CORE_FILES.forEach(load);
+(sb.window.CB_EXTRA_FILES || []).forEach(load);
 load("mock-manifest.js");
 sb.window.CB_MOCK_FILES.forEach(load);
 // HSK 4 Core: word basics start up with the app; example sentences go with the lazy data
@@ -76,7 +77,7 @@ const J = x => JSON.stringify(x);
 const sizes = {};
 sizes["data/index.js"] = write("data/index.js", minifyJS(
   "window.CB_BUNDLED=true;window.CB_PLAN=" + J(sb.window.CB_PLAN || []) + ";window.CB_DAYS=" + J(light) + ";window.CB_CORE=" + J(coreLight) + ";"));
-sizes["data/full.js"] = write("data/full.js", minifyJS("window.CB_FULL=" + J(full) + ";window.CB_CORE_EX=" + J(coreEx) + ";"));
+sizes["data/full.js"] = write("data/full.js", minifyJS("window.CB_FULL=" + J(full) + ";window.CB_CORE_EX=" + J(coreEx) + ";window.CB_GRAMMAR=" + J(sb.window.CB_GRAMMAR || []) + ";"));
 sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(sb.window.CB_MOCK) + ";"));
 
 // ---- 3. app bundle (same order as index.html; data/audio manifests stay separate) ----

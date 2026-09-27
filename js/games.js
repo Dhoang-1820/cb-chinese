@@ -274,8 +274,9 @@
         Audio2.sfx.combo(combo); UI.hearts(null, null, 5);
         UI.pop("+" + pts + (combo > 1 ? " ×" + Math.min(combo, 5) : ""), App.rect(b).x, App.rect(b).y, "good");
         var nw = take(); left[li] = nw; right[ri] = nw;
+        right = App.shuffle(right); // reshuffle meanings so the new pair isn't sitting side by side
         drawBoard();
-        [board.querySelector('[data-side=L] [data-i="' + li + '"]'), board.querySelector('[data-side=R] [data-i="' + ri + '"]')].forEach(function (x) { x.classList.add("pop-in"); });
+        var nl = board.querySelector('[data-side=L] [data-i="' + li + '"]'); if (nl) nl.classList.add("pop-in"); // only the new Chinese word animates
       } else {
         combo = 0; timeLeft = Math.max(0, timeLeft - 3); Audio2.sfx.bad();
         var a = sel.el; a.classList.add("bad"); b.classList.add("bad"); UI.shake(board);

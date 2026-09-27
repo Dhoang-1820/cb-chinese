@@ -442,7 +442,7 @@
      After each correct match the pair leaves, the next word from the day slides in, and both columns
      reshuffle — so there are always at least two choices and no answer can be found by elimination. */
   function setupMatching(el, words, d) {
-    var BOARD = 5, queue, board, decoy, total, matched, sel, awarded = false;
+    var BOARD = 5, queue, board, decoy, total, matched, sel, awarded = !!Store.day(d.day).practice.match; // XP only the first time
     function pickDecoy() {
       var ids = {}; words.forEach(function (w) { ids[w.id] = 1; });
       var pool = WORDS.filter(function (w) { return !ids[w.id] && w.vi && w.en && !w._mine; });
@@ -454,6 +454,7 @@
       draw();
     }
     function draw(fresh) {
+      sel = null; // a tap during the reshuffle pause must not leave an invisible selection
       var L = shuffle(board), R = shuffle(board.concat(decoy ? [decoy] : []));
       el.innerHTML = '<div class="match"><div class="mcol" data-side="L">' +
         L.map(function (w) { return '<button class="mbtn zh' + (fresh && w.id === fresh ? " pop-in" : "") + '" data-id="' + esc(w.id) + '">' + esc(w.hanzi) + "</button>"; }).join("") +
@@ -830,11 +831,11 @@
     document.getElementById("s-imp").onchange = function () {
       var f = this.files[0]; if (!f) return;
       var r = new FileReader();
-      r.onload = function () { try { Store.importJSON(r.result); applySettings(); UI.toast("Progress imported", "✅"); route(); } catch (e) { UI.toast("Import failed: " + e.message, "⚠️"); } };
+      r.onload = function () { try { Store.importJSON(r.result); buildIndex(); applySettings(); UI.toast("Progress imported", "✅"); route(); } catch (e) { UI.toast("Import failed: " + e.message, "⚠️"); } };
       r.readAsText(f);
     };
     document.getElementById("s-reset").onclick = function () {
-      if (confirm("Delete all progress, XP, badges and streak? Export first if you want a backup.")) { Store.reset(); applySettings(); UI.toast("Progress reset"); route(); }
+      if (confirm("Delete all progress, XP, badges and streak? Export first if you want a backup.")) { Store.reset(); buildIndex(); applySettings(); UI.toast("Progress reset"); route(); }
     };
     function row(label, ctl) { return '<div class="row"><span>' + label + "</span>" + ctl + "</div>"; }
     function sel(id, opts, cur) { return '<select id="' + id + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select>"; }
@@ -1617,6 +1618,15 @@
     if (!window.confirm("Leave now? Your progress in this activity won't be saved.")) { e.preventDefault(); e.stopPropagation(); }
   }, true);
 
+  /* A link to the page you're already on fires no hashchange (e.g. ✕/Done in a Review deck, or the current tab):
+     re-render so it still does what it says. Runs after the leave prompt and element handlers. */
+  document.addEventListener("click", function (e) {
+    if (e.defaultPrevented) return;
+    var a = e.target.closest("a[href^='#']"); if (!a) return;
+    var h = a.getAttribute("href"), cur = location.hash || "#/";
+    if (h === cur || (h === "#/" && cur === "#")) { e.preventDefault(); route(); }
+  });
+
   /* ---------- first-run guide ---------- */
   var GUIDE = [
     { icon: "📚", t: "Learn", d: "30 days of C&B lessons, plus <b>HSK 4 Core</b>: 505 general exam words in 25 sets. Tap any word in a dialogue for its meaning." },
@@ -1951,7 +1961,7 @@
       '<p class="sub center">' + (st.mastered ? "✓ Mastered" : st.best ? "Best so far: " + st.best + "/5" : "Not practised yet") +
       ' · <button class="linklike" id="g-toggle">' + (st.mastered ? "Unmark mastered" : "Mark as mastered") + "</button></p>";
     render(html, "learn");
-    document.getElementById("g-toggle").onclick = function () { var x = gState(id); x.mastered = !x.mastered; Store.save(); viewGrammarPoint(id); };
+    document.getElementById("g-toggle").onclick = function () { var x = gState(id); x.mastered = !x.mastered; if (!x.mastered) x.passes = 0; Store.save(); viewGrammarPoint(id); };
   }
   function grammarQuiz(g) {
     var order = shuffle(g.quiz.map(function (_, k) { return k; })), i = 0, right = 0;
@@ -1959,7 +1969,7 @@
       if (i >= order.length) {
         var st = gState(g.id), before = st.mastered;
         st.best = Math.max(st.best || 0, right); if (right >= 4) st.passes = (st.passes || 0) + 1;
-        if (right === 5 || st.passes >= 2) st.mastered = true;
+        if (right === 5 || (right >= 4 && st.passes >= 2)) st.mastered = true;
         Store.save(); Game.award(right * 2);
         render('<div class="card result">' + UI.mascot(right >= 4 ? "cheer" : "happy", 88) + "<h2>" + right + " / 5</h2>" +
           '<p class="sub">' + (st.mastered && !before ? "Mastered: " + esc(g.title.zh) + " ✓" : st.mastered ? "Still mastered ✓" : right >= 4 ? "One more 4/5+ round to master it." : "Re-read the pattern and try again.") + "</p>" +
@@ -1988,7 +1998,7 @@
     { name: "Study4 · HSK 4 practice tests", url: "https://study4.com/tests/hsk-4/" }
   ];
   function viewOfficial() {
-    var list = Store.state.official || [];
+    var list = byDate(Store.state.official || []);
     var html = '<section class="card g-blue"><h2>📄 Official practice</h2><p class="sub">Practise with official HSK 4 papers — the most accurate preparation — then log your section scores here. They weigh most in your score forecast.</p></section>' +
       forecastCard(false) +
       '<section class="card"><h2>Where to get official papers</h2><p class="sub"><b>Best:</b> the official book <span class="zh">《HSK真题集 四级》</span> (Official Examination Papers of HSK Level 4, Chinese Testing International) with its audio — bookshops such as Fahasa or Tiki, or a Chinese centre. Your 14 Nov exam uses the HSK 2.0 format, so use HSK 2.0 papers (codes like H41xxx), not HSK 3.0 samples.</p>' +
@@ -2028,8 +2038,8 @@
      practice mode 0.6×. The range widens when there's little data or scores vary a lot. */
   function forecast() {
     var s = Store.state, pts = [];
-    (s.official || []).slice(-6).reverse().forEach(function (o, k) { pts.push({ w: 2.5 * Math.pow(0.8, k), l: o.l, r: o.r, wr: o.w, src: "official" }); });
-    (s.mockHistory || []).slice(-6).reverse().forEach(function (h, k) { pts.push({ w: (h.mode === "practice" ? 0.6 : 1) * Math.pow(0.8, k), l: num(h.sections.listening), r: num(h.sections.reading), wr: num(h.sections.writing), src: "app" }); });
+    byDate(s.official || []).slice(-6).reverse().forEach(function (o, k) { pts.push({ w: 2.5 * Math.pow(0.8, k), l: o.l, r: o.r, wr: o.w, src: "official" }); });
+    byDate(s.mockHistory || []).slice(-6).reverse().forEach(function (h, k) { pts.push({ w: (h.mode === "practice" ? 0.6 : 1) * Math.pow(0.8, k), l: num(h.sections.listening), r: num(h.sections.reading), wr: num(h.sections.writing), src: "app" }); });
     if (!pts.length) return null;
     var W = pts.reduce(function (a, p) { return a + p.w; }, 0);
     var avg = function (f) { return pts.reduce(function (a, p) { return a + p.w * p[f]; }, 0) / W; };
@@ -2038,8 +2048,9 @@
     var spread = Math.round(Math.max(pts.length === 1 ? 25 : 12, sd * 1.2));
     var weakest = [["Listening", L], ["Reading", R], ["Writing", Wr]].sort(function (a, b) { return a[1] - b[1]; })[0];
     return { total: Math.round(T), lo: Math.max(0, Math.round(T - spread)), hi: Math.min(300, Math.round(T + spread)), L: Math.round(L), R: Math.round(R), W: Math.round(Wr), weakest: weakest[0],
-      nOff: (s.official || []).length, nApp: (s.mockHistory || []).length };
+      nOff: Math.min(6, (s.official || []).length), nApp: Math.min(6, (s.mockHistory || []).length) };
   }
+  function byDate(a) { return a.map(function (x, i) { return [x, i]; }).sort(function (p, q) { return p[0].date < q[0].date ? -1 : p[0].date > q[0].date ? 1 : p[1] - q[1]; }).map(function (p) { return p[0]; }); }
   function forecastCard(compact) {
     var f = forecast();
     if (!f) return compact ? "" : '<section class="card"><h2>🔮 Score forecast</h2><p class="sub">Take a mock exam or log an official paper to see your forecast.</p></section>';

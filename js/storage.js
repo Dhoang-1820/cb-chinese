@@ -29,6 +29,7 @@
       sessions: {},   // date -> true when Today's session was completed
       official: [],   // official past-paper results: [{ id, date, name, l, r, w }] (each section /100)
       grammar: {},    // grammar point id -> { best, passes, mastered }
+      weekly: {},     // { cur: snapshot at the start of this week, last: summary of last week } (see weekly report in app.js)
       custom: [],     // learner's own words: [{ id: "u…", hanzi, pinyin, vi, en, example? }]
       challenges: {}, // date -> true when the daily challenge was completed
       stats: { cards: 0, correct: 0, perfectQuizzes: 0, bossWins: 0, nightOwl: 0, hearts: 0 }
@@ -85,6 +86,19 @@
         name: String(o.name || "Official paper").slice(0, 60), l: c(o.l), r: c(o.r), w: c(o.w) };
     });
     Object.keys(d.grammar).forEach(function (k) { var g = d.grammar[k]; if (!/^g\d\d$/.test(k) || !g || typeof g !== "object") delete d.grammar[k]; else { g.best = n(g.best); g.passes = n(g.passes); g.mastered = !!g.mastered; } });
+    var sts = d.stats; ["cards", "correct", "perfectQuizzes", "bossWins", "nightOwl", "hearts", "ladderRun", "ladderMiss"].forEach(function (k) { if (sts[k] != null) sts[k] = n(sts[k]); });
+    if (sts.ladder != null) sts.ladder = Math.max(0, Math.min(3, Math.round(n(sts.ladder)))); // stays unset until the first drill picks a start speed
+    if (!d.weekly || typeof d.weekly !== "object" || Array.isArray(d.weekly)) d.weekly = {};
+    ["cur", "last"].forEach(function (k) {
+      var x = d.weekly[k];
+      if (!x || typeof x !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(x.start)) { delete d.weekly[k]; return; }
+      if (k === "cur") { var sk = {}; Object.keys(x.skills || {}).forEach(function (s) { var v = x.skills[s]; if (v && typeof v === "object") sk[s] = { r: n(v.r), w: n(v.w) }; }); x.skills = sk; x.cards = n(x.cards); x.fc = x.fc == null ? null : n(x.fc); }
+      else {
+        ["xp", "active", "words", "cards", "mocks"].forEach(function (f) { x[f] = n(x[f]); });
+        x.end = /^\d{4}-\d{2}-\d{2}$/.test(x.end) ? x.end : x.start; x.fc0 = x.fc0 == null ? null : n(x.fc0); x.fc1 = x.fc1 == null ? null : n(x.fc1);
+        x.skills = (Array.isArray(x.skills) ? x.skills : []).filter(function (y) { return y && typeof y.k === "string"; }).map(function (y) { return { k: y.k, acc: Math.max(0, Math.min(1, +y.acc || 0)), n: n(y.n) }; });
+      }
+    });
     Object.keys(d.skills).forEach(function (k) { var v = d.skills[k]; if (!v || typeof v !== "object") delete d.skills[k]; else { v.r = n(v.r); v.w = n(v.w); } });
     d.custom = (Array.isArray(d.custom) ? d.custom : []).filter(function (w) {
       return w && typeof w.id === "string" && /^u[0-9a-z]+$/.test(w.id) && typeof w.hanzi === "string" && /[\u3400-\u9fff]/.test(w.hanzi);

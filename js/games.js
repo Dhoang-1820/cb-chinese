@@ -12,8 +12,13 @@
     { id: "quick", icon: "❓", name: "Quick Quiz", desc: "10 mixed questions", cls: "g-blue" },
     { id: "drill", icon: "🎙️", name: "Listening Drill", desc: "Hear a sentence, then reveal · 0.75× slow mode", cls: "g-teal" },
     { id: "write", icon: "✍️", name: "Stroke Writing", desc: "Watch stroke order, then trace it", cls: "g-violet" },
-    { id: "type", icon: "⌨️", name: "Type the Sentence", desc: "Computer-based HSK writing · pinyin keyboard", cls: "g-coral" }
+    { id: "type", icon: "⌨️", name: "Type the Sentence", desc: "Computer-based HSK writing · pinyin keyboard", cls: "g-coral" },
+    { id: "confuse", icon: "⚖️", name: "Confusable Words", desc: "以为 or 认为? 10 questions", cls: "g-sun" },
+    { id: "order", icon: "🔀", name: "Sentence Order", desc: "Put A B C in order · Reading part 2", cls: "g-blue" },
+    { id: "picture", icon: "🖼️", name: "Picture Writing", desc: "One word + a picture → a sentence · Writing part 2", cls: "g-teal" },
+    { id: "measure", icon: "📏", name: "Measure Words", desc: "一份合同 · 办手续 · 提出意见", cls: "g-violet" }
   ];
+  var DRILL_SKILL = { confuse: "confusable", order: "ordering", picture: "writing", measure: "measure" };
   var BY = {}; LIST.forEach(function (g) { BY[g.id] = g; });
 
   function challenge() {
@@ -37,7 +42,8 @@
     if (!g) { location.hash = "#/games"; return; }
     RUN = opts || {};
     if (!RUN.onDone && A().resetWork) A().resetWork(); // "Play again" starts a new round
-    ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick, drill: drill, write: write, type: typeGame })[id](arg);
+    ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick, drill: drill, write: write, type: typeGame,
+       confuse: drillGame, order: drillGame, picture: drillGame, measure: drillGame })[id](arg, id);
   }
 
   /* ---------- shared ---------- */
@@ -423,16 +429,16 @@
     App.WORDS.forEach(function (w) { if (w._set && w.example && SRS.has(w.id) && !seen[w.example.zh] && Audio2.has(w.example.zh)) { seen[w.example.zh] = 1; out.push({ zh: w.example.zh, py: w.example.py, vi: w.example.vi, en: w.example.en, voice: "F" }); } });
     return out;
   }
-  function drillCard(it, onDone, autoplay) {
+  function drillCard(it, onDone, autoplay, rate) {
     var App = A();
     var html = '<div class="card qcard" id="qcard"><p class="sub">Listen first. Reveal the text only when you\'re ready.</p>' +
-      '<div class="drill-btns"><button class="btn primary" id="d-play">▶ Play</button><button class="btn" id="d-slow">🐢 0.75×</button></div>' +
+      '<div class="drill-btns"><button class="btn primary" id="d-play">▶ Play' + (rate ? " " + rate + "×" : "") + '</button><button class="btn" id="d-slow">🐢 0.75×</button></div>' +
       '<div id="d-text" class="drill-text" hidden><div class="ex-zh"><span class="zh">' + App.esc(it.zh) + "</span></div>" + (it.py ? App.PY(it.py) : "") + '<div class="tr">' + App.M(it) + "</div></div>" +
       '<button class="btn wide" id="d-rev">👁 Reveal text</button>' +
       '<div class="tf-btns" id="d-grade" hidden><button class="btn good-btn" id="d-ok">Understood ✔</button><button class="btn bad-btn" id="d-no">Missed ✘</button></div></div>';
     return { html: html, wire: function () {
-      var play = function (rate) { Audio2.play(it.zh, it.voice, null, rate); };
-      document.getElementById("d-play").onclick = function () { play(); };
+      var play = function (r) { Audio2.play(it.zh, it.voice, null, r); };
+      document.getElementById("d-play").onclick = function () { play(rate); };
       document.getElementById("d-slow").onclick = function () { play(0.75); };
       document.getElementById("d-rev").onclick = function () {
         document.getElementById("d-text").hidden = false; document.getElementById("d-grade").hidden = false; this.hidden = true;
@@ -444,7 +450,7 @@
       }
       document.getElementById("d-ok").onclick = function () { grade(true); };
       document.getElementById("d-no").onclick = function () { grade(false); };
-      if (autoplay) play();
+      if (autoplay) play(rate);
     } };
   }
   function drill() {
@@ -454,12 +460,95 @@
       App.render(header(g) + '<p class="empty">' + (Audio2.available() ? "Study a day first to unlock sentences." : "Audio isn't generated yet — it's created when you deploy.") + "</p>", "game");
       return;
     }
+    /* Speed ladder: 4 "understood" in a row moves the playback speed up a step, 2 misses in a row move it down. */
+    var st = Store.state.stats;
+    if (st.ladder == null) { /* first run: start at the speed the user already chose in Settings */
+      var ar = +Store.state.settings.audioRate || 1; st.ladder = ar >= 1.15 ? 2 : ar >= 1 ? 1 : 0;
+    }
+    var lad = function () { return LADDER[Math.max(0, Math.min(LADDER.length - 1, st.ladder || 0))]; };
     (function draw() {
-      if (i >= pool.length) return finish("drill", score, score * 2, { title: score + " / " + pool.length + " understood", mood: score >= 6 ? "cheer" : score >= 4 ? "happy" : "sad" });
-      var c = drillCard(pool[i], function (ok) { if (ok) score++; i++; draw(); }, i > 0);
+      if (i >= pool.length) return finish("drill", score, score * 2, { title: score + " / " + pool.length + " understood", sub: "Speed now " + lad() + "×", mood: score >= 6 ? "cheer" : score >= 4 ? "happy" : "sad" });
+      var c = drillCard(pool[i], function (ok) {
+        if (ok) score++; i++;
+        if (!RUN.onDone) {
+          if (ok) { st.ladderRun = Math.max(0, st.ladderRun || 0) + 1; st.ladderMiss = 0; } else { st.ladderMiss = (st.ladderMiss || 0) + 1; st.ladderRun = 0; }
+          if (st.ladderRun >= 4 && (st.ladder || 0) < LADDER.length - 1) { st.ladder = (st.ladder || 0) + 1; st.ladderRun = 0; UI.toast("Speed up! Now " + lad() + "×", "🎚️"); }
+          else if (st.ladderMiss >= 2 && (st.ladder || 0) > 0) { st.ladder--; st.ladderMiss = 0; UI.toast("Slowing to " + lad() + "× for now", "🎚️"); }
+          Store.save();
+        }
+        draw();
+      }, i > 0, RUN.onDone ? null : lad());
       if (pool[i + 1]) Audio2.prefetch(pool[i + 1].zh, pool[i + 1].voice);
-      App.render(header(g, (i + 1) + "/" + pool.length) + bar(i, pool.length) + c.html, "game");
+      App.render(header(g, (RUN.onDone ? "" : "🎚️ " + lad() + "× · ") + (i + 1) + "/" + pool.length) + bar(i, pool.length) + c.html, "game");
       c.wire();
+    })();
+  }
+
+  var LADDER = [0.9, 1, 1.15, 1.3];
+
+  /* ---------- 10. HSK 4 drills: confusable words, sentence order, picture writing, measure words ---------- */
+  function drillItems(type) { return ((window.CB_DRILLS || {})[type] || []); }
+  /* One drill question → { html, wire(done) }. Used by the drill games and by the mistake notebook. */
+  function drillQ(type, it) {
+    var App = A(), esc = App.esc, key = "dr:" + type + ":" + it.id, meta = { kind: "drill", skill: DRILL_SKILL[type], d: type, id: it.id };
+    function rec(ok) { if (window.Learn) Learn.record(key, meta, ok); }
+    function mc(prompt, opts, answer, explain) { // opts: [[value, labelHTML]]
+      return { html: '<div class="card qcard" id="qcard">' + prompt + '<div class="opts">' + opts.map(function (o) { return '<button class="opt" data-k="' + esc(o[0]) + '">' + o[1] + "</button>"; }).join("") + '</div><div id="qfb"></div></div>',
+        wire: function (done) {
+          var answered = false;
+          document.querySelector(".opts").onclick = function (e) {
+            var b = e.target.closest(".opt"); if (!b || answered) return; answered = true;
+            var ok = b.getAttribute("data-k") === String(answer);
+            document.querySelectorAll(".opts .opt").forEach(function (o) { o.disabled = true; if (o.getAttribute("data-k") === String(answer)) o.classList.add("right"); else if (o === b) o.classList.add("wrong"); });
+            (ok ? Audio2.sfx.good : Audio2.sfx.bad)(); if (!ok) UI.shake(document.getElementById("qcard"));
+            if (App.markWork) App.markWork(); rec(ok);
+            document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Not quite.") + " " + (explain || "") + '</div><button class="btn primary wide" id="qnext">Next ›</button>';
+            document.getElementById("qnext").onclick = function () { done(ok); };
+          };
+        } };
+    }
+    if (type === "confuse") {
+      return mc('<p class="sub">⚖️ Which word fits? · ' + it.words.map(esc).join(" / ") + '</p><p class="q zh">' + esc(it.q) + "</p>",
+        App.shuffle(it.words).map(function (w) { return [w, '<span class="zh">' + esc(w) + "</span>"]; }), it.answer,
+        '<span class="zh">' + esc(it.q.replace("____", it.answer)) + "</span><br>" + App.M(it.explain));
+    }
+    if (type === "measure") {
+      return mc('<p class="sub">📏 Fill the blank</p><p class="q zh">' + esc(it.q) + "</p>",
+        App.shuffle(it.options.map(function (o, k) { return k; })).map(function (k) { return [String(k), '<span class="zh">' + esc(it.options[k]) + "</span>"]; }), it.answer,
+        '<span class="zh">' + esc(it.q.replace("____", it.options[it.answer])) + "</span><br>" + App.M(it.explain));
+    }
+    if (type === "order") {
+      var ORD = ["ABC", "ACB", "BAC", "BCA", "CAB", "CBA"];
+      return mc('<p class="sub">🔀 Put A, B, C in the right order</p><div class="abc">' + ["A", "B", "C"].map(function (k) { return "<p><b>" + k + '</b> <span class="zh">' + esc(it.parts[k]) + "</span></p>"; }).join("") + "</div>",
+        ORD.map(function (o) { return [o, o.split("").join(" → ")]; }), it.answer,
+        '<span class="zh">' + it.answer.split("").map(function (k) { return esc(it.parts[k]); }).join("") + "</span><br>" + App.M(it) + (it.clue ? '<br><b>Clue:</b> ' + App.M(it.clue) : ""));
+    }
+    // picture writing: write a sentence, automatic checks, then compare with model answers and self-grade
+    return { html: '<div class="card qcard" id="qcard"><p class="sub">🖼️ Write one sentence about the picture using the word</p><p class="w2-scene">' + esc(it.emoji) + ' <b class="zh">' + esc(it.word) + "</b></p>" +
+        '<textarea class="w2-input" id="pw" rows="2" placeholder="写一个句子…" lang="zh"></textarea><button class="btn primary wide" id="pw-check">Check</button><div id="qfb"></div></div>',
+      wire: function (done) {
+        document.getElementById("pw-check").onclick = function () {
+          var v = document.getElementById("pw").value.trim();
+          if (!v) { UI.toast("Write a sentence first", "✍️"); return; }
+          this.hidden = true; if (App.markWork) App.markWork();
+          var n = (v.match(/[㐀-鿿]/g) || []).length;
+          var checks = [[v.indexOf(it.word) >= 0, "Uses 「" + esc(it.word) + "」"], [n >= 7, "At least 7 characters (" + n + ")"], [/[。！？!?]$/.test(v), "Ends with 。/！/？"]];
+          document.getElementById("qfb").innerHTML = '<div class="pw-checks">' + checks.map(function (c) { return '<p class="' + (c[0] ? "good-t" : "bad-t") + '">' + (c[0] ? "✔ " : "✘ ") + c[1] + "</p>"; }).join("") + "</div>" +
+            '<p class="sub">' + App.M(it.scene) + "</p>" + it.samples.map(function (x) { return '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(x.zh) + "</span>" + App.SAY(x.zh) + "</div>" + App.PY(x.py) + '<div class="tr">' + App.M(x) + "</div></div>"; }).join("") +
+            '<p class="sub">Is your sentence correct and natural, like the models?</p><div class="tf-btns"><button class="btn good-btn" id="pw-ok">Correct ✔</button><button class="btn bad-btn" id="pw-no">Not quite ✘</button></div>';
+          document.getElementById("pw-ok").onclick = function () { rec(true); Audio2.sfx.good(); done(true); };
+          document.getElementById("pw-no").onclick = function () { rec(false); done(false); };
+        };
+      } };
+  }
+  function drillGame(arg, type) {
+    var App = A(), g = BY[type], items = App.shuffle(drillItems(type)).slice(0, RUN.count || (type === "picture" ? 5 : 10)), i = 0, score = 0;
+    if (!items.length) { if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; cb(0); return; } App.render(header(g) + '<p class="empty">No drill content loaded.</p>', "game"); return; }
+    (function draw() {
+      if (i >= items.length) return finish(type, score, score * 2, { title: score + " / " + items.length + " correct", mood: score >= items.length * 0.8 ? "cheer" : score >= items.length / 2 ? "happy" : "sad" });
+      var q = drillQ(type, items[i]);
+      App.render(header(g, (i + 1) + "/" + items.length) + bar(i, items.length) + q.html, "game");
+      q.wire(function (ok) { if (ok) score++; i++; draw(); });
     })();
   }
 
@@ -617,5 +706,5 @@
       c.wire();
     })();
   }
-  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
+  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _drillQ: drillQ, _drillItem: function (type, id) { return drillItems(type).filter(function (x) { return x.id === id; })[0] || null; }, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
 })();

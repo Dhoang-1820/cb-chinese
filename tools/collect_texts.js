@@ -40,11 +40,12 @@ for (const d of sb.window.CB_DAYS) {
 for (const set of sb.window.CB_CORE || []) for (const w of set.words) { add(w.hanzi); if (w.example) add(w.example.zh); }
 
 for (const g of sb.window.CB_GRAMMAR || []) g.examples.forEach(e => add(e.zh));
+for (const it of (sb.window.CB_DRILLS || {}).picture || []) it.samples.forEach(x => add(x.zh));
 
 for (const m of sb.window.CB_MOCK || []) {
   for (const it of m.listening.p1) add(it.audio.text, it.audio.voice);
   for (const it of m.listening.p2) it.dialogue.forEach(l => add(l.text, l.voice));
-  for (const it of m.listening.p3) add(it.audio.text, it.audio.voice);
+  for (const it of m.listening.p3) { if (it.dialogue) it.dialogue.forEach(l => add(l.text, l.voice)); else add(it.audio.text, it.audio.voice); }
 }
 
 add("你好，这是薪酬福利中文。");

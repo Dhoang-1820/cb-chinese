@@ -209,8 +209,16 @@ mocks.forEach(m => {
   };
   (m.listening.p1 || []).forEach(it => { has(it, ["audio", "statement"], where); if (typeof it.answer !== "boolean") err(where, `${it.id} answer must be true/false`); });
   (m.listening.p2 || []).forEach(it => { if (!Array.isArray(it.dialogue) || !it.dialogue.length) err(where, `${it.id} missing dialogue`); checkMC(it, it.id, 4); });
-  (m.listening.p3 || []).forEach(it => { has(it, ["audio", "question"], where); checkMC(it, it.id, 4); });
-  (m.reading.p1 || []).concat(m.reading.p2 || []).forEach(it => { if (!it.sentence.includes("____")) err(where, `${it.id} sentence needs a ____ blank`); checkMC(it, it.id, 4); });
+  (m.listening.p3 || []).forEach(it => { if (!it.audio && !(Array.isArray(it.dialogue) && it.dialogue.length)) err(where, `${it.id} needs audio or dialogue`); has(it, ["question"], where); checkMC(it, it.id, 4); });
+  (m.reading.p1 || []).concat(m.reading.p2 || []).forEach(it => {
+    if (it.parts) { // sentence-ordering item (full-length format)
+      const ks = Object.keys(it.parts).sort().join("");
+      if (ks !== "ABC") err(where, `${it.id} parts must be A, B, C`);
+      if (typeof it.answer !== "string" || it.answer.split("").sort().join("") !== "ABC") err(where, `${it.id} answer must be an order of ABC`);
+      return;
+    }
+    if (!it.sentence || !it.sentence.includes("____")) err(where, `${it.id} sentence needs a ____ blank`); checkMC(it, it.id, 4);
+  });
   (m.reading.p3 || []).forEach((pg, i) => (pg.questions || []).forEach(q => checkMC(q, `passage ${i + 1} · ${q.id}`, 4)));
   (m.writing.p1 || []).forEach(it => {
     if (!Array.isArray(it.tokens) || it.tokens.length < 3) err(where, `${it.id} needs 3+ tokens`);
@@ -227,6 +235,23 @@ mocks.forEach(m => {
 });
 
 // report
+// ---- drills ----
+const D = sandbox.window.CB_DRILLS || {};
+const dIds = {};
+const did = (id, w) => { if (!id || dIds[id]) err(w, `missing/duplicate id ${id}`); dIds[id] = 1; };
+(D.confuse || []).forEach(it => { const w = "Drill " + it.id; did(it.id, w);
+  if (!Array.isArray(it.words) || it.words.length < 2 || !it.words.includes(it.answer)) err(w, "answer must be one of words");
+  if ((it.q || "").split("____").length !== 2) err(w, "q needs exactly one ____"); has(it.explain || {}, ["vi", "en"], w); });
+(D.order || []).forEach(it => { const w = "Drill " + it.id; did(it.id, w);
+  if (Object.keys(it.parts || {}).sort().join("") !== "ABC" || (it.answer || "").split("").sort().join("") !== "ABC") err(w, "parts/answer must be A, B, C"); });
+(D.picture || []).forEach(it => { const w = "Drill " + it.id; did(it.id, w);
+  if (!it.word || !it.emoji || !(it.samples || []).length) err(w, "needs word, emoji, samples");
+  (it.samples || []).forEach(x => { has(x, ["zh", "py", "vi", "en"], w); if (!(x.zh || "").includes(it.word)) err(w, `sample doesn't contain ${it.word}`); }); });
+(D.measure || []).forEach(it => { const w = "Drill " + it.id; did(it.id, w);
+  if (!Array.isArray(it.options) || it.options.length !== 4 || new Set(it.options).size !== 4) err(w, "needs 4 unique options");
+  if (typeof it.answer !== "number" || it.answer < 0 || it.answer > 3) err(w, "answer index out of range"); });
+scanPinyin(D, "Drills");
+
 const lessons = days.filter(d => d.type === "lesson").length;
 const reviews = days.filter(d => d.type === "review").length;
 console.log("C&B Chinese — content validation");
@@ -246,7 +271,8 @@ const checks = [
   ["Mock exams well-formed", !errors.some(e => /^Mock \d/.test(e))]
 ];
 console.log(`Mock exams        : ${mocks.length}`);
-console.log(`HSK 4 Core        : ${core.length} sets, ${coreWords} words`);
+console.log(`HSK 4 Core        : ${core.filter(x => x.track !== "found").length} sets · HSK 1–3 Foundation: ${core.filter(x => x.track === "found").length} sets · ${coreWords} words in total`);
+console.log(`Drills            : ${Object.keys(D).map(k => k + " " + D[k].length).join(" · ")}`);
 console.log(`Grammar points    : ${grammar.length} (${grammar.reduce((s, g) => s + (g.quiz || []).length, 0)} questions)`);
 checks.forEach(([name, ok]) => console.log(`${ok ? "PASS" : "FAIL"}  ${name}`));
 console.log("");

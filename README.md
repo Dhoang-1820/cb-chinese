@@ -1,6 +1,6 @@
 # C&B Chinese · HSK 4 (iPhone-first)
 
-30-day Compensation & Benefits Chinese course (240 words) as a colourful, installable web app.
+60-day Compensation & Benefits Chinese course (480 words, plus 1,093 HSK 1–4 words) as a colourful, installable web app.
 Built for **iPhone 14 + Chrome**, works offline after the first visit.
 
 ## Deploy free on GitHub Pages (≈5 min)
@@ -20,7 +20,7 @@ Open the site → **Share (⬆) → Add to Home Screen**. Then in the app: **Me 
 Tip: iOS may clear data of sites unused for weeks — use **Me → Export** now and then.
 
 ## Features
-- **Learn**: 30 days (review days 5/10/15/20/25/30) — words (vi + en), chat-style dialogue with audio, grammar, practice (matching with 5 pairs at a time, a decoy meaning and reshuffling after every match; tap-to-fill; translation), 10-question quiz.
+- **Learn**: 60 days in two parts. Part 1 (days 1–30, review days 5/10/15/20/25/30) is planned to finish before your exam. Part 2 (days 31–60, "Beyond HSK 4" advanced C&B; review days 35/40/45/50/55/60) is paced over the 6 weeks after the exam, and you can start it earlier. Each day has — words (vi + en), chat-style dialogue with audio, grammar, practice (matching with 5 pairs at a time, a decoy meaning and reshuffling after every match; tap-to-fill; translation), 10-question quiz.
 - **Review**: flashcards with swipe (→ know / ← again), Leitner SRS (1/2/4/8/16 days). Smarter scheduling: words with 2+ lapses come back at half the interval; a slip on a box 4–5 word drops it to box 2; mistakes in games bring a word back today.
 - **Today's session**: one tap on Home runs ~15 minutes in order — due reviews, 8 new HSK 4 Core words, up to 5 mistakes, 3 typed sentences, 3 listening sentences — then a summary (+10 XP once a day).
 - **Hands-free listen mode** (Review tab): each word plays twice, then its example, and moves on by itself; keeps the screen awake; headphone/lock-screen controls.
@@ -29,14 +29,17 @@ Tip: iOS may clear data of sites unused for weeks — use **Me → Export** now 
 - **Cloud backup** (Me): private GitHub Gist backup/restore with a fine-grained token (Gists read/write). The token stays on the device; automatic backup pauses after connecting to an existing backup until you restore or back up explicitly.
 - **Comfort**: first-run guide (Me → App guide), "Leave now?" prompt mid-activity, text size setting, loading placeholders.
 - **HSK 4 Core**: 505 general HSK 2.0 level-4 words (the rest of the official list is already in the C&B lessons), in 25 sets of ~20 — each with vi/en meanings, an original example sentence, audio, flashcards, set quiz and stroke writing. Word list: official HSK 2.0 syllabus; meanings and examples written for this app.
+- **HSK 1–3 Foundation** (Learn → HSK words → Foundation): 588 HSK 1–3 words in 30 sets (shown as F1–F30) with the same flashcards, quiz and writing as the Core sets. **Quick check** (#/check/N) lets you mark sets you already know (goes to review box 4, due in 8 days) and learn only the rest (box 1).
 - **Type the Sentence**: practice for the computer-based HSK writing section — type full sentences with the iPhone pinyin keyboard, see a character-by-character diff, plus free sentences with a given word.
-- **Mock exams**: 3 original tests in the real HSK 4 format (listening, reading, writing), shortened to ~30 min. Practice mode (instant feedback) or exam mode (timed per section). Scored /300, pass 180. Links to Study4 and official sample papers.
+- **Mock exams**: 4 original tests in the real HSK 4 format. Mocks 1–3 are shortened (~30 min); mock 4 is full length (listening 45, reading 40, writing 15 questions, ~95 min, with sentence-ordering and dialogue items). Practice mode (instant feedback) or exam mode (timed per section). Scored /300, pass 180. Links to Study4 and official sample papers.
 - **HSK 4 grammar checklist** (Learn → Grammar): 25 grammar points (把/被, 连…都, 不管…都, complements, 是…的, comparisons…) — pattern, vi/en explanation, 2 examples with audio, 5 practice questions each. Mastered at 5/5, or 4/5 twice; wrong answers go to the mistake notebook.
 - **Official practice log + score forecast** (Me → Official practice): log section scores from official HSK 2.0 papers (e.g. the book 《HSK真题集 四级》). The forecast blends official papers (weighted most) with recent in-app mocks and shows an estimate, a likely range, pass verdict and the weakest section — on Home, Progress and the log page.
 - **Mistake notebook**: wrong answers from quizzes, games, drills and mock exams are collected automatically; each clears after 2 right answers in a row. Targeted drills per skill.
 - **Weak-area report**: accuracy per skill (13 skills: word meaning, pinyin, listening types, connectors, word order, reading passages, handwriting…), with tips and a "Practice" button. Shown after each mock exam too.
-- **Games**: Sentence Builder, Listen & Pick, Speed Match (60 s), Pinyin Race (90 s), Boss Battle (review days), Quick Quiz, Type the Sentence, Listening Drill (reveal after listening, 0.75× slow mode), Stroke Writing (stroke-order animation + tracing). Daily challenge +15 XP.
-- **Study plan**: today's checklist on Home, ahead/on-track/behind status, pace needed and a week-by-week plan to the exam date (last 14 days kept for mocks and review).
+- **Games**: Sentence Builder, Listen & Pick, Speed Match (60 s), Pinyin Race (90 s), Boss Battle (review days), Quick Quiz, Type the Sentence, Listening Drill (reveal after listening; **speed ladder**: 4 understood in a row raises the speed 0.9× → 1× → 1.15× → 1.3×, 2 misses lower it), Stroke Writing (stroke-order animation + tracing). Daily challenge +15 XP.
+- **Exam-format drills** (Learn → Games): **Confusable words** (60), **Sentence order** (40, the ABC ordering format), **Picture writing** (40 prompts with automatic checks — uses the word, length, punctuation — then model sentences to self-grade) and **Measure words** (40). Wrong answers go to the mistake notebook.
+- **Study plan**: today's checklist on Home, ahead/on-track/behind status, pace needed per track and a week-by-week plan to the exam date, plus a Part 2 timeline. **Final 2 weeks mode**: the last 14 days switch to mock exams (including full-length mock 4), mistakes, your weakest skill and the next grammar point. If the exam date has passed, the plan moves on to Part 2.
+- **Weekly report** (Home teaser, Progress): active days, XP, new words, cards reviewed, mocks, forecast change and the weakest skill for the week, with last week kept for comparison (Monday to Sunday).
 - **Progress charts**: mock scores vs the 180 pass line, section trends, words in review, daily XP.
 - **Tap any word** in a dialogue or reading passage for pinyin, meaning, audio and "Add to review".
 - **Motivation**: XP & 8 levels, streak + streak freezes (1 per 7 days, max 2), 19 badges, daily XP goal ring, 12-week heatmap, HSK exam countdown.
@@ -61,7 +64,7 @@ npm i --no-save esbuild && node tools/build.js _site && python3 -m http.server 8
 index.html  sw.js  manifest.webmanifest  icons/
 css/style.css
 js/storage.js  srs.js  audio.js  gamify.js  learn.js  games.js  app.js
-data/day01.js … day30.js, manifest.js, core01–25.js, core-manifest.js, grammar.js, mock1–3.js, mock-manifest.js
+data/day01.js … day60.js, manifest.js, core01–25.js, found.js (HSK 1–3), core-manifest.js, grammar.js, drills.js, mock1–4.js, mock-manifest.js
 fonts/ Nunito subsets (SIL OFL 1.1, from @fontsource-variable/nunito) · icons/icon-64.png for the top bar
 vendor/hanzi-writer.min.js (MIT) + vendor/hanzi/*.json stroke data (Arphic PL — see vendor/README.md)
 audio/manifest.js (+ mp3s generated in CI)
@@ -71,7 +74,7 @@ lighthouserc.json
 ```
 
 ## Editing content
-Edit `data/dayNN.js` or `data/mockN.js`, then `node tools/validate.js` (must show "No errors"). Push → audio updates automatically.
+Edit `data/dayNN.js`, `data/mockN.js` or `data/drills.js`, then `node tools/validate.js` (must show "No errors"). Push → audio updates automatically.
 Adding words with new characters? Copy their stroke files from the `hanzi-writer-data` npm package into `vendor/hanzi/`.
 
 ## Notes

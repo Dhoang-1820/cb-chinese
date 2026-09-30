@@ -742,3 +742,30 @@ body:has(#session-bar) .container { padding-bottom: calc(var(--tabbar-h) + var(-
 .res-link b { font-weight: 800; font-size: .95rem; }
 .res-link .cta-go { width: 34px; height: 34px; background: var(--primary); color: #fff; font-size: 1rem; }
 .fc-mini .tag { background: rgba(255,255,255,.9); }
+
+/* ---------- 3-month course: HSK word tracks, quick check, part 2 ---------- */
+.track-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
+.track-tabs a { text-align: center; padding: 10px 8px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); font-weight: 800; font-size: .9rem; color: var(--text); text-decoration: none; }
+.track-tabs a.on { background: var(--primary); color: #fff; }
+.qc .hz.big { margin-top: 6px; }
+.qc #qc-ans { margin: 8px 0 4px; }
+.qc .tf-btns { margin-top: 14px; }
+.part2 { border: 2px dashed var(--border); background: transparent; box-shadow: none; }
+.final-mode h2 { margin-bottom: 4px; }
+/* ---------- drills & full-length mock ---------- */
+.abc { display: grid; gap: 8px; margin: 10px 0 4px; text-align: left; }
+.abc p { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); line-height: 1.6; }
+.abc p b { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: var(--primary); color: #fff; margin-right: 6px; font-size: .85rem; }
+.opts .opt[data-k*="A"], .ord-opts .opt { font-variant-numeric: tabular-nums; }
+.ord-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ord-opts .opt { justify-content: center; text-align: center; padding: 10px 4px; font-weight: 800; }
+.qcard .opts:has(> .opt[data-k="ABC"]) { grid-template-columns: repeat(3, 1fr); }
+.qcard .opts:has(> .opt[data-k="ABC"]) .opt { justify-content: center; text-align: center; font-weight: 800; padding: 12px 4px; }
+.pw-checks p { margin: 4px 0; font-weight: 700; }
+/* ---------- weekly report ---------- */
+.wk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 12px; }
+.wk-grid div { background: var(--surface-2); border-radius: 12px; padding: 8px; text-align: center; display: grid; }
+.wk-grid b { font-size: 1.05rem; }
+.wk-grid small { font-size: .72rem; opacity: .75; }
+.exam-head { flex-wrap: wrap; row-gap: 4px; }
+.exam-head b { flex: 1 1 60%; }

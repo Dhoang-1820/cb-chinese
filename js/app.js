@@ -173,11 +173,15 @@
   /* ---------- router ---------- */
   var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice" };
   function route() {
-    Audio2.stop(); setKeys(null); workDone = false; if (LM) { LM.stop(); LM = null; }
+    Audio2.stop(); Audio2.noise(0); setKeys(null); workDone = false; if (LM) { LM.stop(); LM = null; }
     try { weekTick(); } catch (e) { /* the weekly report must never block navigation */ }
     if (location.hash.indexOf("#/session") !== 0) sessionBar(null);
     var parts = location.hash.replace(/^#\/?/, "").split("/");
     var v = parts[0] || "";
+    document.body.classList.remove("sim");
+    if (EXAM && EXAM.strict && !EXAM.finished && !(v === "mock" && parseInt(parts[1], 10) === EXAM.id && /^(listening|reading|writing|result)$/.test(parts[2] || ""))) { // simulator: leaving (or going back to the intro) ends the attempt
+      clearExamTimer(); EXAM = null; UI.toast("Simulator attempt ended", "🎯");
+    }
     if (!(v === "mock" && parts[2] && parts[2] !== "result")) clearExamTimer(); // leaving an exam pauses its clock
     var pending = needs(v, parts);
     if (pending.length) {
@@ -201,10 +205,11 @@
     else if (v === "core") viewCoreSet(parseInt(parts[1], 10));
     else if (v === "check") viewQuickCheck(parseInt(parts[1], 10));
     else if (v === "listen-mode") viewListenMode();
-    else if (v === "session") viewSession();
+    else if (v === "session") viewSession(parts[1]);
     else if (v === "grammar") parts[1] ? viewGrammarPoint(parts[1], parts[2]) : viewGrammarList();
     else if (v === "official") viewOfficial();
     else if (v === "me" || v === "settings") viewMe();
+    else if (v === "reports") viewReports();
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "plan") viewPlan();
     else if (v === "progress") viewProgress();
@@ -215,7 +220,7 @@
       else viewMockSection(parts[1], parts[2]);
     }
     else viewHome();
-    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", "listen-mode": "review", session: "home", grammar: "learn", official: "me" }[v] || "home";
+    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", "listen-mode": "review", session: "home", grammar: "learn", official: "me" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     document.getElementById("page-title").textContent = TITLES[v] || "C&B 中文";
     refreshChrome();
@@ -255,11 +260,12 @@
       '<div><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + '</p><p class="lv"><span class="zh">' + lv.zh + "</span> · " + lv.en + '</p><p class="lv-n">Level ' + lv.n + "</p></div></div>" +
       '<div class="xpbar"><span style="width:' + Math.round(lv.pct * 100) + '%"></span></div>' +
       '<p class="xp-t">' + s.xp + " XP" + (lv.next ? " · " + (lv.next - s.xp) + " to next level" : " · max level") + "</p></section>";
-    html += sessionCTA();
+    html += rescueCard() + sessionCTA();
     html += '<section class="stats3">' +
       '<div class="card stat"><div class="big-ico flame">🔥</div><b>' + Store.streak() + '</b><span>day streak</span><small>🧊 ' + s.freezes + " freeze" + (s.freezes === 1 ? "" : "s") + "</small></div>" +
       '<div class="card stat">' + ring(todayXP / goal, todayXP, "/ " + goal + " XP") + "<span>daily goal</span></div>" +
       '<div class="card stat"><div class="big-ico">📅</div><b>' + (exam >= 0 ? exam : "✓") + "</b><span>" + (exam >= 0 ? "days to HSK 4" : "exam done") + "</span></div></section>";
+    html += focusCard();
     html += todayCard();
     html += forecastCard(true);
     html += weeklyTeaser();
@@ -829,9 +835,13 @@
       row("Theme", sel("s-theme", [["auto", "System"], ["light", "Light"], ["dark", "Dark"]], set.theme)) +
       row("Sound effects", '<label class="switch"><input type="checkbox" id="s-sfx"' + (set.sfx !== false ? " checked" : "") + "><i></i></label>") +
       row("Voice speed", sel("s-rate", [["0.75", "0.75×"], ["0.9", "0.9×"], ["1", "1×"], ["1.15", "1.15×"]], String(set.audioRate || 1))) +
+      row("Background noise in listening", sel("s-noise", [["0", "Off"], ["1", "Light café"], ["2", "Busy room"]], String(set.noise || 0))) +
+      row("Mock listening speed", sel("s-mrate", [["0", "Same as voice speed"], ["1", "1× (normal)"], ["1.15", "1.15× faster"], ["1.3", "1.3× fast"]], String(set.mockRate || 0))) +
+      row("Today's session length", sel("s-smode", [["quick", "Quick · ~7 min"], ["std", "Standard · ~15 min"], ["long", "Long · ~30 min"]], set.sessionMode || "std")) +
       row("Text size", sel("s-ts", [["m", "Normal"], ["l", "Large"], ["xl", "Larger"]], set.textSize || "m")) +
       row("Daily goal", sel("s-goal", [["20", "20 XP · chill"], ["30", "30 XP · steady"], ["50", "50 XP · serious"], ["80", "80 XP · intense"]], String(set.dailyGoal || 30))) +
       row("Exam date", '<input type="date" id="s-exam" value="' + esc(set.examDate || "2026-11-14") + '">') +
+      row("Problem reports", '<a class="btn small" href="#/reports">' + (s.reports || []).length + " saved</a>") +
       row("App guide", '<button class="btn small" id="s-guide">Show again</button>') +
       row("Test voice", '<button class="btn small" id="s-test">🔊 Play</button>') + "</section>" +
       '<section class="card settings"><h2>Study reminder</h2><p class="sub">A daily calendar event until your exam, with an alert. Pick a time, then add it to your calendar once.</p>' +
@@ -855,6 +865,9 @@
     document.getElementById("s-sfx").onchange = function () { sv("sfx", this.checked); if (this.checked) Audio2.sfx.good({ quiet: true }); };
     document.getElementById("s-rate").onchange = function () { sv("audioRate", parseFloat(this.value)); };
     document.getElementById("s-goal").onchange = function () { sv("dailyGoal", parseInt(this.value, 10)); };
+    document.getElementById("s-noise").onchange = function () { sv("noise", parseInt(this.value, 10)); Audio2.noise(set.noise); if (set.noise) { UI.toast("Noise plays while a recording plays", "🎧"); Audio2.play("你好，这是薪酬福利中文。", "F"); } else Audio2.stop(); };
+    document.getElementById("s-mrate").onchange = function () { sv("mockRate", parseFloat(this.value)); };
+    document.getElementById("s-smode").onchange = function () { sv("sessionMode", this.value); };
     document.getElementById("s-ts").onchange = function () { sv("textSize", this.value); };
     var rt = document.getElementById("s-rtime"), gcal = document.getElementById("s-gcal");
     function syncCal() { gcal.href = googleCalURL(rt.value || "20:00", set.examDate); }
@@ -868,7 +881,7 @@
     wireBackup();
     var sg = document.getElementById("s-guide"); if (sg) sg.onclick = function () { showGuide(); };
     document.getElementById("s-exam").onchange = function () { if (this.value) sv("examDate", this.value); };
-    document.getElementById("s-test").onclick = function () { Audio2.play("你好，这是薪酬福利中文。", "F"); };
+    document.getElementById("s-test").onclick = function () { Audio2.noise(0); Audio2.play("你好，这是薪酬福利中文。", "F"); };
     var dl = document.getElementById("s-dl");
     if (dl) dl.onclick = function () { downloadAudio(dl); };
     document.getElementById("s-exp").onclick = function () { Store.exportJSON(); };
@@ -883,6 +896,55 @@
     };
     function row(label, ctl) { return '<div class="row"><span>' + label + "</span>" + ctl + "</div>"; }
     function sel(id, opts, cur) { return '<select id="' + id + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select>"; }
+  }
+  /* ---------- report a problem ----------
+     The ⚑ button in the top bar saves a note with the screen's route and a snippet of what was on screen,
+     so wrong answers, bad audio or typos can be reviewed (Me → Problem reports) and copied out later. */
+  function openReport() {
+    if (document.querySelector(".modal-wrap.report")) return;
+    var ctx = (app.innerText || "").replace(/\s+/g, " ").trim().slice(0, 300), route = location.hash || "#/";
+    var wrap = document.createElement("div");
+    wrap.className = "modal-wrap report";
+    wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><h3>⚑ Report a problem</h3><p class="sub">Saved on this phone with the screen you are on (' + esc(route) + '). Review it under Me → Problem reports.</p>' +
+      '<textarea id="rp-text" rows="4" maxlength="500" placeholder="What is wrong? e.g. wrong answer, bad audio, typo, confusing English"></textarea>' +
+      '<div class="actions center"><button class="btn primary" id="rp-save">Save</button><button class="btn" data-close>Cancel</button></div></div>';
+    document.body.appendChild(wrap);
+    requestAnimationFrame(function () { wrap.classList.add("show"); });
+    function close() { wrap.classList.remove("show"); setTimeout(function () { wrap.remove(); }, 250); }
+    wrap.addEventListener("click", function (e) { if (e.target === wrap || e.target.closest("[data-close]")) close(); });
+    document.getElementById("rp-save").onclick = function () {
+      var text = document.getElementById("rp-text").value.trim();
+      if (!text) { UI.toast("Write a short note first", "✍️"); return; }
+      this.onclick = null; this.disabled = true; // a double tap must not save twice
+      var s = Store.state; s.reports = s.reports || [];
+      s.reports.push({ id: Date.now().toString(36), date: Store.today(), route: route, text: text.slice(0, 500), ctx: ctx });
+      if (s.reports.length > 100) s.reports.shift();
+      Store.save(); close(); UI.toast("Saved. See Me → Problem reports", "⚑");
+    };
+  }
+  function reportsText() {
+    return (Store.state.reports || []).map(function (r, i) { return (i + 1) + ". [" + r.date + "] " + r.route + "\n   " + r.text + "\n   screen: " + r.ctx; }).join("\n\n");
+  }
+  function viewReports() {
+    var list = Store.state.reports || [];
+    var html = '<section class="card"><h2>⚑ Problem reports</h2><p class="sub">Notes you saved with the ⚑ button at the top. Copy them to share or to fix content later.</p>' +
+      (list.length ? '<div class="actions"><button class="btn small primary" id="rp-copy">Copy all</button><button class="btn small bad" id="rp-clear">Clear all</button></div>' : '<p class="empty">No reports yet. Tap ⚑ in the top bar on any screen.</p>') + "</section>" +
+      list.slice().reverse().map(function (r) {
+        return '<section class="card report-item"><div class="sec-h"><span class="muted">' + esc(r.date) + '</span><a href="' + (/^#\/[\w\/-]*$/.test(r.route) ? esc(r.route) : "#/") + '">Open screen ›</a></div><p>' + esc(r.text) +
+          '</p><p class="sub rp-ctx">' + esc(r.ctx) + '</p><button class="btn small" data-rdel="' + esc(r.id) + '">Delete</button></section>';
+      }).join("");
+    render(html, "me");
+    var cp = document.getElementById("rp-copy");
+    if (cp) cp.onclick = function () {
+      var t = reportsText();
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { UI.toast("Copied", "📋"); }, function () { UI.toast("Copy failed", "⚠️"); });
+      else { var ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); UI.toast("Copied", "📋"); } catch (e) { UI.toast("Copy failed", "⚠️"); } ta.remove(); }
+    };
+    var cl = document.getElementById("rp-clear");
+    if (cl) cl.onclick = function () { if (confirm("Delete all problem reports?")) { Store.state.reports = []; Store.save(); viewReports(); } };
+    document.querySelectorAll("[data-rdel]").forEach(function (b) {
+      b.onclick = function () { Store.state.reports = Store.state.reports.filter(function (r) { return r.id !== b.getAttribute("data-rdel"); }); Store.save(); viewReports(); };
+    });
   }
   function strokeFiles() {
     var seen = {}, out = [];
@@ -932,6 +994,15 @@
   function sentHTML(it) { return it.parts ? '<p class="sub">Put A, B, C in the right order</p>' + partsHTML(it) : '<p class="statement">' + esc(it.sentence) + "</p>"; }
   function isDlg(it) { return Array.isArray(it.dialogue); }
   function listenHTML(it) { return isDlg(it) ? '<button type="button" class="btn small dlg-play" data-dlg="' + esc(it.id) + '">▶ Play dialogue</button>' : SAY(it.audio.text, it.audio.voice, true); }
+  /* Listening conditions: speed and background noise for mock listening (Me → Listening practice); the simulator also plays each recording once. */
+  function inMockListening() { return /^#\/mock\/\d+\/listening/.test(location.hash); }
+  function mockRate() { return inMockListening() ? (Store.state.settings.mockRate || undefined) : undefined; }
+  function playOnceOk(key) {
+    if (!EXAM || !EXAM.strict) return true;
+    if (!EXAM.played) EXAM.played = {};
+    if (EXAM.played[key]) { UI.toast("Simulator: each recording plays once", "🎯"); return false; }
+    EXAM.played[key] = 1; return true;
+  }
   function clearExamTimer() { if (EXAM && EXAM.timer) { clearInterval(EXAM.timer); EXAM.timer = null; } }
   var SEC_ORDER = ["listening", "reading", "writing"];
   var SEC_LABEL = { listening: "Listening · 听力", reading: "Reading · 阅读", writing: "Writing · 书写" };
@@ -967,14 +1038,29 @@
       '<div class="exam-sec"><b>✍️ Writing</b><span>' + wc + ' questions · ~' + Math.round(m.writing.time / 60) + ' min</span></div></div>' +
       '<p class="sub">' + (m.full ? "Full length: the same number of questions, parts and timing as the real HSK 4 (100 questions, ~100 minutes). Tip: do it in one sitting, in exam mode." : "Real HSK 4 has 100 questions over ~105 minutes, scored /300 (pass 180). This shortened mock keeps the same format, item types and proportions.") + "</p></section>" +
       '<button class="btn primary big" id="m-practice">📝 Practice mode</button><p class="sub center">Instant feedback after each answer, no timer.</p>' +
-      '<button class="btn big" id="m-exam" style="margin-top:10px">⏱ Exam mode</button><p class="sub center">Timed per section, no feedback until the end — like the real test.</p>';
+      '<button class="btn big" id="m-exam" style="margin-top:10px">⏱ Exam mode</button><p class="sub center">Timed per section, no feedback until the end — like the real test. You can leave and come back.</p>' +
+      '<button class="btn big sim-btn" id="m-sim" style="margin-top:10px">🎯 Exam simulator</button><p class="sub center">Strict: no pause, leaving ends the attempt, each recording plays once. Use it for your final rehearsals.</p>';
     render(html, "mock");
     document.getElementById("m-practice").onclick = function () { startExam(id, "practice"); };
     document.getElementById("m-exam").onclick = function () { startExam(id, "exam"); };
+    document.getElementById("m-sim").onclick = function () { viewSimPreflight(id, m); };
   }
 
-  function startExam(id, mode) {
-    EXAM = { id: id, test: MOCKMAP[id], mode: mode, section: "listening", answers: {}, timer: null, finished: false, result: null };
+  /* Exam simulator: exam mode plus the pressure of the real thing. Pre-flight screen, no pausing, a recording plays once,
+     leaving the exam ends the attempt (see route()), and the tab bar is hidden while it runs. */
+  function viewSimPreflight(id, m) {
+    var mins = Math.round((m.listening.time + m.reading.time + m.writing.time) / 60);
+    render('<section class="card g-blue"><h2>🎯 Exam simulator</h2><p class="sub">' + esc(m.title) + " · about " + mins + " minutes</p>" +
+      '<div class="tasks sim-rules"><div class="task"><span class="tk-ico">🎧</span><span>Headphones in, quiet place. Each recording plays <b>once</b>.</span></div>' +
+      '<div class="task"><span class="tk-ico">⏱</span><span>Each section has its own timer. <b>No pause</b>; when time is up you move on.</span></div>' +
+      '<div class="task"><span class="tk-ico">🚫</span><span>No feedback until the end. <b>Leaving ends the attempt</b> (swipe-back too).</span></div>' +
+      '<div class="task"><span class="tk-ico">📵</span><span>Silence notifications. Do not look anything up.</span></div></div></section>' +
+      '<button class="btn primary big" id="sim-go">▶ I\'m ready — start</button><a class="btn big" href="#/mock/' + id + '" style="margin-top:10px">Back</a>', "mock");
+    document.getElementById("sim-go").onclick = function () { startExam(id, "exam", true); };
+  }
+
+  function startExam(id, mode, strict) {
+    EXAM = { id: id, test: MOCKMAP[id], mode: mode, strict: !!strict, section: "listening", answers: {}, timer: null, finished: false, result: null };
     location.hash = "#/mock/" + id + "/listening";
   }
 
@@ -1070,7 +1156,11 @@
     });
     m.listening.p2.concat(m.listening.p3).filter(isDlg).forEach(function (it) {
       var btn = document.querySelector('[data-dlg="' + CSS.escape(it.id) + '"]');
-      if (btn) btn.onclick = function () { Audio2.playAll(it.dialogue); };
+      if (btn) btn.onclick = function () {
+        if (!playOnceOk("dlg:" + it.id)) { btn.classList.add("used"); return; }
+        if (EXAM && EXAM.strict) btn.classList.add("used");
+        Audio2.playAll(it.dialogue, mockRate());
+      };
     });
   }
 
@@ -1166,6 +1256,8 @@
     if (SEC_ORDER.indexOf(section) < SEC_ORDER.indexOf(EXAM.section)) { location.replace("#/mock/" + id + "/" + EXAM.section); return; } // finished sections stay closed
     if (EXAM.mode === "exam" && EXAM.left && EXAM.left[section] === 0) { advanceSection(); return; }
     EXAM.section = section;
+    if (EXAM.strict) document.body.classList.add("sim");
+    if (section === "listening") Audio2.noise(Store.state.settings.noise);
     var m = EXAM.test, mode = EXAM.mode;
     var body = section === "listening" ? renderListeningHTML(m, mode) : section === "reading" ? renderReadingHTML(m, mode) : renderWritingHTML(m, mode);
     var isLast = section === SEC_ORDER[SEC_ORDER.length - 1];
@@ -1246,7 +1338,7 @@
     var result = scoreExam();
     result.skills = recordMock();
     EXAM.result = result; EXAM.finished = true;
-    Store.state.mockHistory.push({ id: EXAM.id, date: Store.today(), mode: EXAM.mode, total: result.total,
+    Store.state.mockHistory.push({ id: EXAM.id, date: Store.today(), mode: EXAM.mode, strict: !!EXAM.strict, total: result.total,
       sections: { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score } });
     var s = Store.state, rec = s.mocks[EXAM.id] || { best: 0, plays: 0 };
     rec.plays = (rec.plays || 0) + 1; rec.lastScore = result.total;
@@ -1275,9 +1367,9 @@
     var xp = Math.round(r.total / 300 * 40);
     if (!EXAM.awarded) { EXAM.awarded = true; Game.award(xp, { silent: true }); if (pass) UI.confetti(150); }
     var html = '<section class="card ' + (pass ? "g-teal" : "g-coral") + '">' + UI.mascot(pass ? "cheer" : "wow", 64) +
-      '<h2>' + (pass ? "Pass! 🎉" : "Keep practicing") + '</h2><p class="score-big">' + r.total + "/300</p>" +
+      '<h2>' + (pass ? "Pass! 🎉" : "Keep practicing") + '</h2>' + (EXAM.strict ? '<p><span class="tag t-hsk">🎯 Exam simulator</span></p>' : "") + '<p class="score-big">' + r.total + "/300</p>" +
       "<p>" + secBar("Listening", r.listening.score) + secBar("Reading", r.reading.score) + secBar("Writing", r.writing.score) + "</p>" +
-      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p></section>" + weakHTML(r.skills) +
+      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p></section>" + weakHTML(r.skills) + focusCard() +
       '<a class="btn primary big" href="#/mock/' + id + '">Try again</a><a class="btn big" href="#/mock" style="margin-top:10px">All mock exams</a>';
     render(html, "mock");
   }
@@ -1578,6 +1670,39 @@
     tasks.push({ ico: "🎯", txt: "Daily goal · " + xp + "/" + goal + " XP", href: "#/games", done: xp >= goal });
     return tasks;
   }
+  /* ---------- weak-spot plan: three concrete things to do today, from your own results ----------
+     1) your weakest skill  2) the weakest skill from a different exam section  3) the next exam-prep action
+     (a mock exam when one is due, else due reviews, else the next grammar point or lesson). */
+  function focusActions() {
+    var s = Store.state, t = Store.today(), p = planInfo(), out = [], used = {}, lang = s.settings.lang === "vi" ? "vi" : "en";
+    var weak = Learn.report(5).filter(function (x) { return x.acc < 0.85; });
+    function skillAct(x) {
+      used[x.skill] = 1; used["sec:" + x.info.sec] = 1;
+      return { ico: x.info.icon, txt: x.info[lang] + " · " + Math.round(x.acc * 100) + "%" + (x.open ? " · " + x.open + " to fix" : ""), why: x.info.tip, href: x.open ? "#/mistakes/" + x.skill : SKILL_LINK[x.skill] || "#/mistakes" };
+    }
+    if (weak[0]) out.push(skillAct(weak[0]));
+    var other = weak.filter(function (x) { return !used["sec:" + x.info.sec]; })[0] || weak.filter(function (x) { return !used[x.skill]; })[0];
+    if (other) out.push(skillAct(other));
+    function add(a) { if (out.length < 3) out.push(a); }
+    var lastMock = s.mockHistory.length ? s.mockHistory[s.mockHistory.length - 1].date : null, gap = lastMock ? Store.daysBetween(lastMock, t) : 99;
+    if (out.length < 3 && (!lastMock || gap >= (p.inBuffer ? 3 : 7)) && !p.afterExam && (p.done >= 5 || p.inBuffer || lastMock)) {
+      var tried = MOCK.slice().sort(function (a, b) { return ((s.mocks[a.id] || {}).plays || 0) - ((s.mocks[b.id] || {}).plays || 0) || (p.inBuffer && (b.full ? 1 : 0) - (a.full ? 1 : 0)); })[0];
+      add({ ico: "📝", txt: lastMock ? "Take a mock exam (last one " + gap + " days ago)" : "Take a mock exam to find your weak spots", why: "Mocks show which of the 13 skills to train next.", href: tried ? "#/mock/" + tried.id : "#/mock" });
+    }
+    var due = SRS.dueIds(WORDMAP).length;
+    if (out.length < 3 && due) add({ ico: "🔁", txt: "Review " + plural(due, "due word"), why: "Words you review on time are the ones you keep.", href: "#/review" });
+    var nMis = Learn.count();
+    if (out.length < 3 && nMis) add({ ico: "📒", txt: "Clear " + nMis + " mistake" + (nMis === 1 ? "" : "s"), why: "Get each right twice in a row to clear it.", href: "#/mistakes/all" });
+    var g = (window.CB_GRAMMAR || []).filter(function (x) { return !(s.grammar[x.id] || {}).mastered; })[0];
+    if (out.length < 3 && g) add({ ico: "📐", txt: "Grammar: " + g.title.zh, why: "5 questions; 4/5 twice masters it.", href: "#/grammar/" + g.id });
+    if (out.length < 3) add({ ico: "▶", txt: "Run Today's session", why: sessionCfg().label + " of mixed practice.", href: "#/session" });
+    return out;
+  }
+  function focusCard() {
+    var acts = focusActions(); if (!acts.length) return "";
+    return '<section class="card focus-plan"><div class="sec-h"><h2>🎯 Your 3 focus actions</h2><span class="muted">from your results</span></div><div class="tasks">' +
+      acts.map(function (a, i) { return '<a class="task" href="' + a.href + '"><span class="tk-box">' + (i + 1) + '</span><span class="tk-ico">' + a.ico + '</span><span><b>' + esc(a.txt) + '</b><small class="sub fp-why">' + esc(a.why) + "</small></span></a>"; }).join("") + "</div></section>";
+  }
   function finalModeCard() {
     var p = planInfo();
     return '<section class="card g-coral final-mode"><h2>🏁 Final ' + BUFFER_DAYS + ' days</h2><p class="sub">' + p.daysLeft + " day" + (p.daysLeft === 1 ? "" : "s") + " to the exam. No new words now — the plan below is mock exams (the full-length one every few days), your mistakes, your weakest skill and grammar. Keep reviewing due words daily.</p></section>";
@@ -1774,12 +1899,14 @@
     var p = location.hash.replace(/^#\/?/, "").split("/"), v = p[0];
     var active = v === "game" || v === "cards" || v === "session" || (v === "day" && p[2] === "quiz") ||
       (v === "mock" && p[2] && p[2] !== "result") || (v === "mistakes" && p[1]) || (v === "grammar" && p[2] === "practice") || v === "check";
-    return active && workDone && !app.querySelector(".result, .score-big");
+    return active && (workDone || simRunning()) && !app.querySelector(".result, .score-big");
   }
+  function simRunning() { return !!(EXAM && EXAM.strict && !EXAM.finished && /^#\/mock\/\d+\/(listening|reading|writing)/.test(location.hash)); }
   document.addEventListener("click", function (e) {
     var a = e.target.closest(".tabbar a, .appbar .brand");
     if (!a || !inActivity()) return;
-    if (!window.confirm("Leave now? Your progress in this activity won't be saved.")) { e.preventDefault(); e.stopPropagation(); }
+    var msg = simRunning() ? "Leave the exam simulator? The attempt will end and your answers will be lost." : "Leave now? Your progress in this activity won't be saved.";
+    if (!window.confirm(msg)) { e.preventDefault(); e.stopPropagation(); }
   }, true);
 
   /* A link to the page you're already on fires no hashchange (e.g. ✕/Done in a Review deck, or the current tab):
@@ -2038,20 +2165,42 @@
 
   /* ---------- Today's session: one tap, about 15 minutes ----------
      Steps (each skipped when empty): due reviews → new HSK 4 Core words → mistakes → typing → listening. */
-  function sessionPlan() {
-    var due = SRS.dueIds(WORDMAP).slice(0, 20), cs = nextCoreSet() || nextCoreSet("found"), fresh = cs ? cs.words.filter(function (w) { return !SRS.has(w.id); }).slice(0, 8) : [];
+  /* Session length (Me → Today's session length): how much of each step Today's session runs. */
+  var SESSION_MODES = {
+    quick: { due: 10, fresh: 4, mis: 3, type: 1, listen: 2, label: "about 7 minutes" },
+    std:   { due: 20, fresh: 8, mis: 5, type: 3, listen: 3, label: "about 15 minutes" },
+    long:  { due: 40, fresh: 16, mis: 10, type: 6, listen: 6, label: "about 30 minutes" }
+  };
+  function sessionCfg() { return SESSION_MODES[Store.state.settings.sessionMode] || SESSION_MODES.std; }
+  function plural(n, w) { return n + " " + w + (n === 1 ? "" : "s"); }
+  function sessionPlan(rescue) {
+    var cfg = sessionCfg(), cs = nextCoreSet() || nextCoreSet("found");
+    var due = SRS.dueIds(WORDMAP).slice(0, rescue ? 5 : cfg.due), fresh = cs ? cs.words.filter(function (w) { return !SRS.has(w.id); }).slice(0, rescue ? 5 : cfg.fresh) : [];
     var steps = [];
-    if (due.length) steps.push({ id: "review", icon: "🔁", name: "Review " + due.length + " due word" + (due.length > 1 ? "s" : ""), ids: due });
+    if (rescue) { // 2 minutes: five cards (due ones, otherwise five new words), then one short listening or typing step
+      if (due.length) steps.push({ id: "review", icon: "🔁", name: "Review " + plural(due.length, "due word"), ids: due });
+      else if (fresh.length) steps.push({ id: "new", icon: "📘", name: plural(fresh.length, "new word"), words: fresh });
+      if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: "Listen to 2 sentences", n: 2 });
+      else steps.push({ id: "type", icon: "⌨️", name: "Type 1 sentence", n: 1 });
+      return steps;
+    }
+    if (due.length) steps.push({ id: "review", icon: "🔁", name: "Review " + plural(due.length, "due word"), ids: due });
     if (fresh.length) steps.push({ id: "new", icon: "📘", name: fresh.length + " new " + (isFound(cs) ? "HSK 1–3 Foundation" : "HSK 4 Core") + " words", words: fresh });
-    if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: "Fix up to 5 mistakes" });
-    steps.push({ id: "type", icon: "⌨️", name: "Type 3 sentences" });
-    if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: "Listen to 3 sentences" });
+    if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: "Fix up to " + cfg.mis + " mistakes", n: cfg.mis });
+    steps.push({ id: "type", icon: "⌨️", name: "Type " + plural(cfg.type, "sentence"), n: cfg.type });
+    if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: "Listen to " + plural(cfg.listen, "sentence"), n: cfg.listen });
     return steps;
   }
   function sessionCTA() {
     var s = Store.state, done = (s.sessions || {})[Store.today()], steps = sessionPlan();
-    return '<a class="cta card g-violet session-cta' + (done ? " done" : "") + '" href="#/session"><span class="cta-l"><small>' + (done ? "Done today ✓ · run again anytime" : "One tap · about 15 minutes") + "</small><b>▶ Today's session</b><em>" +
+    return '<a class="cta card g-violet session-cta' + (done ? " done" : "") + '" href="#/session"><span class="cta-l"><small>' + (done ? "Done today ✓ · run again anytime" : "One tap · " + sessionCfg().label) + "</small><b>▶ Today's session</b><em>" +
       esc(steps.map(function (x) { return x.icon; }).join(" ")) + " " + steps.length + " steps</em></span><span class=\"cta-go\">▶</span></a>";
+  }
+  /* After 18:00 with a streak running and nothing studied yet: offer the 2-minute rescue. */
+  function rescueCard() {
+    var s = Store.state, t = Store.today(), hour = new Date().getHours();
+    if (Store.streak() < 1 || (s.log[t] || 0) > 0 || hour < 18) return "";
+    return '<a class="cta card g-coral" href="#/session/rescue"><span class="cta-l"><small>🔥 ' + Store.streak() + '-day streak at risk</small><b>⏱ 2-minute rescue</b><em>Five cards and a short listening — keeps your streak alive</em></span><span class="cta-go">▶</span></a>';
   }
   function sessionBar(st) {
     var el = document.getElementById("session-bar");
@@ -2059,32 +2208,36 @@
     if (!el) { el = document.createElement("div"); el.id = "session-bar"; el.className = "session-bar"; document.body.appendChild(el); }
     el.innerHTML = '<span>' + st.icon + " Step " + st.n + "/" + st.of + " · " + esc(st.name) + '</span><i style="width:' + Math.round((st.n - 1) / st.of * 100) + '%"></i>';
   }
-  function viewSession() {
-    var steps = sessionPlan(), k = 0, s = Store.state, start = { xp: s.xp, hearts: s.stats.hearts || 0, srs: Object.keys(s.srs).length, mis: Learn.count() };
+  function viewSession(arg) {
+    var rescue = arg === "rescue", myHash = rescue ? "#/session/rescue" : "#/session";
+    var steps = sessionPlan(rescue), k = 0, s = Store.state, start = { xp: s.xp, hearts: s.stats.hearts || 0, srs: Object.keys(s.srs).length, mis: Learn.count() };
     var log = [];
     function next(result) {
+      Audio2.noise(0); // the listening step switches it on again; nothing else should play over noise
       if (k > 0) log.push({ step: steps[k - 1], result: result });
-      if (location.hash !== "#/session") return; // learner left the session
+      if (location.hash !== myHash) return; // learner left the session
       if (k >= steps.length) return summary();
       var st = steps[k++]; sessionBar({ n: k, of: steps.length, icon: st.icon, name: st.name });
       if (st.id === "review") runDeck({ title: "Review", words: st.ids.map(function (id) { return WORDMAP[id]; }).filter(Boolean), mode: "review", back: "#/", onDone: next });
       else if (st.id === "new") { SRS.addMany(st.words.map(function (w) { return w.id; })); runDeck({ title: "New words", words: st.words, mode: "learn", back: "#/", onDone: next }); }
-      else if (st.id === "mistakes") runMistakeDrill("all", { limit: 5, onDone: next, exit: "#/" });
-      else if (st.id === "type") Games.run("type", "", { count: 3, onDone: next, exit: "#/" });
-      else if (st.id === "listen") Games.run("drill", "", { count: 3, onDone: next, exit: "#/" });
+      else if (st.id === "mistakes") runMistakeDrill("all", { limit: st.n || 5, onDone: next, exit: "#/" });
+      else if (st.id === "type") Games.run("type", "", { count: st.n || 3, onDone: next, exit: "#/" });
+      else if (st.id === "listen") Games.run("drill", "", { count: st.n || 3, onDone: next, exit: "#/" });
     }
     function summary() {
       sessionBar(null);
-      s.sessions = s.sessions || {}; var first = !s.sessions[Store.today()]; s.sessions[Store.today()] = true; Store.save();
+      s.sessions = s.sessions || {}; var first = !rescue && !s.sessions[Store.today()];
+      if (!rescue) s.sessions[Store.today()] = true; // a rescue keeps the streak but does not count as Today's session
+      Store.save();
       if (first) Game.award(10, { silent: true });
       var xp = s.xp - start.xp, hearts = (s.stats.hearts || 0) - start.hearts, added = Object.keys(s.srs).length - start.srs, cleared = Math.max(0, start.mis - Learn.count());
-      render('<div class="card result">' + UI.mascot("cheer", 96) + "<h2>Session complete! 🎉</h2>" +
+      render('<div class="card result">' + UI.mascot("cheer", 96) + "<h2>" + (rescue ? "Streak saved! 🔥" : "Session complete! 🎉") + "</h2>" +
         '<div class="sum-grid"><div><b>+' + xp + '</b><span>XP' + (first ? " (incl. +10 bonus)" : "") + '</span></div><div><b>' + hearts + '</b><span>❤️ hearts</span></div><div><b>' + added + '</b><span>new words</span></div><div><b>' + cleared + '</b><span>mistakes cleared</span></div></div>' +
-        '<p class="sub">🔥 Streak: ' + Store.streak() + " day" + (Store.streak() === 1 ? "" : "s") + '</p><div class="actions center"><a class="btn primary" href="#/">Home</a><a class="btn" href="#/listen-mode">🎧 Keep listening</a></div></div>', "home");
+        '<p class="sub">🔥 Streak: ' + Store.streak() + " day" + (Store.streak() === 1 ? "" : "s") + '</p><div class="actions center"><a class="btn primary" href="#/">Home</a>' + (rescue ? '<a class="btn" href="#/session">▶ Full session</a>' : '<a class="btn" href="#/listen-mode">🎧 Keep listening</a>') + "</div></div>", "home");
       UI.confetti(140);
     }
     if (!steps.length) { render('<div class="card result"><h2>Nothing to do right now</h2><a class="btn primary" href="#/learn">Learn</a></div>', "home"); return; }
-    render('<div class="card result"><h2>Today\'s session</h2><div class="tasks">' + steps.map(function (x) { return '<div class="task"><span class="tk-ico">' + x.icon + "</span><span>" + esc(x.name) + "</span></div>"; }).join("") +
+    render('<div class="card result"><h2>' + (rescue ? "2-minute rescue" : "Today\'s session") + '</h2><div class="tasks">' + steps.map(function (x) { return '<div class="task"><span class="tk-ico">' + x.icon + "</span><span>" + esc(x.name) + "</span></div>"; }).join("") +
       '</div><button class="btn primary big" id="ss-go">▶ Start</button></div>', "home");
     document.getElementById("ss-go").onclick = function () { next(); };
   }
@@ -2233,13 +2386,18 @@
     var b = e.target.closest("[data-say]");
     if (b) {
       e.preventDefault(); e.stopPropagation();
+      var say = b.getAttribute("data-say");
+      var qbox = b.closest(".q"), qkey = qbox && qbox.querySelector(".qn") ? "q:" + qbox.querySelector(".qn").textContent : "say:" + say;
+      if (inMockListening() && !playOnceOk(qkey)) { b.classList.add("used"); return; }
       b.classList.add("playing"); setTimeout(function () { b.classList.remove("playing"); }, 900);
-      Audio2.play(b.getAttribute("data-say"), b.getAttribute("data-voice") || "F");
+      if (inMockListening() && EXAM && EXAM.strict) b.classList.add("used");
+      Audio2.play(say, b.getAttribute("data-voice") || "F", null, mockRate());
     }
   }, true);
 
   function boot() {
     applySettings();
+    document.getElementById("btn-flag").onclick = openReport;
     document.getElementById("btn-py").onclick = function () {
       Store.state.settings.showPinyin = !Store.state.settings.showPinyin; Store.save(); applySettings();
       UI.toast(Store.state.settings.showPinyin ? "Pinyin on" : "Pinyin off", "拼");

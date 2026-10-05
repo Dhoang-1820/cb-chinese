@@ -35,9 +35,9 @@
     if (p && p.catch) p.catch(function () { finish(); });
     return true;
   }
-  function playAll(items) {
+  function playAll(items, rate) {
     var i = 0;
-    (function next() { if (i < items.length) { var it = items[i++]; play(it.text, it.voice, next); } })();
+    (function next() { if (i < items.length) { var it = items[i++]; play(it.text, it.voice, next, rate); } })();
   }
   /* Warm the next clip so it starts instantly: the service worker keeps audio cache-first. */
   var warmed = {};
@@ -47,7 +47,42 @@
     warmed[f] = 1;
     fetch("audio/" + f).catch(function () { delete warmed[f]; });
   }
-  function stop() { onEnd = null; try { player.pause(); } catch (e) {} }
+  function stop() { onEnd = null; try { player.pause(); } catch (e) {} stopNoise(); }
+
+  /* ---- background noise for listening practice (synthesised, no files) ----
+     Level 0 off · 1 light café hum · 2 busy room. Only runs while a clip plays, and only on screens that turn it on
+     (Listening Drill, mock listening) — App.route() resets it to 0 on every navigation. */
+  var noiseLevel = 0, noiseBuf = null, noiseRun = null;
+  function makeNoise(c) {
+    var len = c.sampleRate * 3, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0), last = 0, peak = 0, i;
+    for (i = 0; i < len; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last; if (Math.abs(last) > peak) peak = Math.abs(last); }
+    for (i = 0; i < len; i++) d[i] /= peak || 1;
+    return buf;
+  }
+  function startNoise() {
+    if (!noiseLevel || noiseRun) return;
+    var c = ac(); if (!c || !c.createBiquadFilter) return;
+    try {
+      var src = c.createBufferSource(); src.buffer = noiseBuf || (noiseBuf = makeNoise(c)); src.loop = true;
+      var lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = noiseLevel === 2 ? 2200 : 1300;
+      var g = c.createGain(), base = noiseLevel === 2 ? 0.34 : 0.14; g.gain.value = base;
+      var lfo = null;
+      if (noiseLevel === 2) { // slow swell, like voices rising and falling
+        lfo = c.createOscillator(); lfo.frequency.value = 0.35; var lg = c.createGain(); lg.gain.value = 0.1; lfo.connect(lg); lg.connect(g.gain); lfo.start();
+      }
+      src.connect(lp); lp.connect(g); g.connect(c.destination); src.start();
+      noiseRun = { src: src, lfo: lfo, g: g };
+    } catch (e) { noiseRun = null; }
+  }
+  function stopNoise() {
+    var r = noiseRun; noiseRun = null; if (!r) return;
+    try { r.g.gain.value = 0; r.src.stop(); if (r.lfo) r.lfo.stop(); } catch (e) {}
+  }
+  function setNoise(level) { noiseLevel = level === 2 ? 2 : level === 1 ? 1 : 0; if (!noiseLevel) stopNoise(); }
+  player.addEventListener("playing", startNoise);
+  player.addEventListener("pause", stopNoise);
+  player.addEventListener("ended", stopNoise);
+  player.addEventListener("error", stopNoise);
   function voiceFor(speaker) { return MALE_SPEAKERS.indexOf(speaker) >= 0 ? "M" : "F"; }
   function allFiles() {
     var m = manifest(), seen = {}, out = [];
@@ -92,5 +127,5 @@
   // Unlock WebAudio on the first touch (iOS requirement).
   document.addEventListener("touchstart", function unlock() { ac(); document.removeEventListener("touchstart", unlock); }, { passive: true });
 
-  window.Audio2 = { play: play, playAll: playAll, stop: stop, prefetch: prefetch, has: function (t, v) { return !!file(t, v); }, available: available, voiceFor: voiceFor, allFiles: allFiles, sfx: sfx };
+  window.Audio2 = { play: play, playAll: playAll, stop: stop, prefetch: prefetch, noise: setNoise, has: function (t, v) { return !!file(t, v); }, available: available, voiceFor: voiceFor, allFiles: allFiles, sfx: sfx };
 })();

@@ -13,7 +13,7 @@
   function defaults() {
     return {
       version: 2,
-      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00" },
+      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", noise: 0, mockRate: 0, sessionMode: "std" },
       srs: {},        // wordId -> { box, due, right, wrong, added, last }
       days: {},       // dayNo -> { quizBest, practice: {}, completed }
       streak: { count: 0, last: null, best: 0 },
@@ -29,6 +29,7 @@
       sessions: {},   // date -> true when Today's session was completed
       official: [],   // official past-paper results: [{ id, date, name, l, r, w }] (each section /100)
       grammar: {},    // grammar point id -> { best, passes, mastered }
+      reports: [],    // "Report a problem" notes: [{ id, date, route, text, ctx }]
       weekly: {},     // { cur: snapshot at the start of this week, last: summary of last week } (see weekly report in app.js)
       custom: [],     // learner's own words: [{ id: "u…", hanzi, pinyin, vi, en, example? }]
       challenges: {}, // date -> true when the daily challenge was completed
@@ -70,6 +71,13 @@
     if (["m", "l", "xl"].indexOf(st.textSize) < 0) st.textSize = dflt.textSize;
     st.dailyGoal = [20, 30, 50, 80].indexOf(+st.dailyGoal) >= 0 ? +st.dailyGoal : dflt.dailyGoal;
     st.audioRate = [0.75, 0.9, 1, 1.15].indexOf(+st.audioRate) >= 0 ? +st.audioRate : dflt.audioRate;
+    st.noise = [0, 1, 2].indexOf(+st.noise) >= 0 ? +st.noise : 0;
+    st.mockRate = [0, 1, 1.15, 1.3].indexOf(+st.mockRate) >= 0 ? +st.mockRate : 0; // 0 = same as "Voice speed"
+    if (["quick", "std", "long"].indexOf(st.sessionMode) < 0) st.sessionMode = dflt.sessionMode;
+    d.reports = (Array.isArray(d.reports) ? d.reports : []).filter(function (r) { return r && typeof r === "object" && typeof r.text === "string"; }).slice(-100).map(function (r, i) {
+      return { id: (String(r.id || Date.now()).replace(/[^0-9a-z]/gi, "").slice(0, 16) || String(Date.now())) + "x" + i, date: /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : today(),
+        route: /^#\/[\w\/-]{0,78}$/.test(String(r.route || "")) ? String(r.route) : "#/", text: String(r.text).slice(0, 500), ctx: String(r.ctx || "").slice(0, 400) };
+    });
     Object.keys(d.mocks).forEach(function (k) {
       var r = d.mocks[k]; if (!r || typeof r !== "object") { delete d.mocks[k]; return; }
       r.best = n(r.best); r.plays = n(r.plays); r.lastScore = n(r.lastScore);
@@ -77,7 +85,7 @@
     });
     d.mockHistory = (Array.isArray(d.mockHistory) ? d.mockHistory : []).filter(function (h) { return h && typeof h === "object"; }).map(function (h) {
       var sec = h.sections || {};
-      return { id: n(h.id), date: /^\d{4}-\d{2}-\d{2}$/.test(h.date) ? h.date : today(), mode: h.mode === "practice" ? "practice" : "exam", total: n(h.total),
+      return { id: n(h.id), date: /^\d{4}-\d{2}-\d{2}$/.test(h.date) ? h.date : today(), mode: h.mode === "practice" ? "practice" : "exam", strict: !!h.strict, total: n(h.total),
         sections: { listening: n(sec.listening), reading: n(sec.reading), writing: n(sec.writing) } };
     });
     d.official = (Array.isArray(d.official) ? d.official : []).filter(function (o) { return o && typeof o === "object"; }).map(function (o) {

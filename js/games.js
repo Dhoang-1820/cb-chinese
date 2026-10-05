@@ -462,12 +462,13 @@
     }
     /* Speed ladder: 4 "understood" in a row moves the playback speed up a step, 2 misses in a row move it down. */
     var st = Store.state.stats;
+    Audio2.noise(Store.state.settings.noise); // optional background noise (Me → Listening practice)
     if (st.ladder == null) { /* first run: start at the speed the user already chose in Settings */
       var ar = +Store.state.settings.audioRate || 1; st.ladder = ar >= 1.15 ? 2 : ar >= 1 ? 1 : 0;
     }
     var lad = function () { return LADDER[Math.max(0, Math.min(LADDER.length - 1, st.ladder || 0))]; };
     (function draw() {
-      if (i >= pool.length) return finish("drill", score, score * 2, { title: score + " / " + pool.length + " understood", sub: "Speed now " + lad() + "×", mood: score >= 6 ? "cheer" : score >= 4 ? "happy" : "sad" });
+      if (i >= pool.length) { Audio2.noise(0); return finish("drill", score, score * 2, { title: score + " / " + pool.length + " understood", sub: "Speed now " + lad() + "×", mood: score >= 6 ? "cheer" : score >= 4 ? "happy" : "sad" }); }
       var c = drillCard(pool[i], function (ok) {
         if (ok) score++; i++;
         if (!RUN.onDone) {

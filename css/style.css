@@ -769,3 +769,21 @@ body:has(#session-bar) .container { padding-bottom: calc(var(--tabbar-h) + var(-
 .wk-grid small { font-size: .72rem; opacity: .75; }
 .exam-head { flex-wrap: wrap; row-gap: 4px; }
 .exam-head b { flex: 1 1 60%; }
+
+/* ---- Phase 1: report button, exam simulator, listening conditions ---- */
+.chip-flag { padding: 0 9px; }
+.report .modal { text-align: left; }
+.report .modal h3 { margin: 0 0 6px; }
+.report textarea, .report-item .rp-ctx { width: 100%; }
+.report textarea { box-sizing: border-box; margin: 10px 0 12px; padding: 10px 12px; border: 2px solid var(--border); border-radius: 14px; background: var(--bg, var(--surface)); color: var(--text); font: inherit; resize: vertical; }
+.report-item p { margin: 6px 0; overflow-wrap: anywhere; }
+.rp-ctx { opacity: .7; font-size: .8rem; max-height: 3.6em; overflow: hidden; }
+body.sim .tabbar { display: none; }
+body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
+.sim-btn { border: 2px solid var(--primary); color: var(--primary); }
+.sim-rules .task { cursor: default; align-items: flex-start; }
+.say.used, .dlg-play.used, .btn.used { opacity: .4; filter: grayscale(1); }
+.focus-plan .task { align-items: flex-start; }
+.focus-plan .tk-box { font-weight: 800; font-size: .8rem; }
+.fp-why { display: block; font-weight: 600; opacity: .75; margin-top: 2px; }
+.sim-rules .task { color: var(--text); }

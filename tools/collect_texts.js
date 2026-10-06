@@ -18,6 +18,8 @@ sb.window.CB_CORE_FILES.forEach(load);
 (sb.window.CB_EXTRA_FILES || []).forEach(load);
 load("mock-manifest.js");
 sb.window.CB_MOCK_FILES.forEach(load);
+load("track-manifest.js");
+sb.window.CB_TRACK_FILES.forEach(load);
 
 const out = new Map();
 const add = (t, v = "F") => { if (t && /[㐀-鿿]/.test(t)) out.set(v + "|" + t, { v, t }); };
@@ -46,6 +48,16 @@ for (const m of sb.window.CB_MOCK || []) {
   for (const it of m.listening.p1) add(it.audio.text, it.audio.voice);
   for (const it of m.listening.p2) it.dialogue.forEach(l => add(l.text, l.voice));
   for (const it of m.listening.p3) { if (it.dialogue) it.dialogue.forEach(l => add(l.text, l.voice)); else add(it.audio.text, it.audio.voice); }
+}
+
+/* 6-month track: every Chinese line that has a play button */
+const trackT = t => t && t.zh && add(t.zh);
+for (const wk of sb.window.CB_TRACK || []) for (const ss of wk.sessions || []) {
+  (ss.text || []).forEach(trackT); (ss.phrases || []).forEach(trackT); (ss.sample || []).forEach(trackT); trackT(ss.opener);
+  (ss.items || []).forEach(i => i.zh && add(i.zh.replace("___", i.answer)));
+  (ss.turns || []).forEach(u => { trackT(u.other); (u.choices || []).forEach(c => trackT(c.t)); });
+  (ss.cards || []).forEach(c => { c.cn && c.cn.zh && add(c.cn.zh); trackT(c.ex); });
+  (ss.words || []).forEach(w => { add(w.hanzi); trackT(w.ex); }); (ss.lines || []).forEach(trackT);
 }
 
 add("你好，这是薪酬福利中文。");

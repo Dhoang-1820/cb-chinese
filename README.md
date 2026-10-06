@@ -86,3 +86,9 @@ Adding words with new characters? Copy their stroke files from the `hanzi-writer
 ## Notes
 - edge-tts is an unofficial free API; if it ever breaks, the app still works (audio buttons show a notice).
 - iOS doesn't support vibration, so there are no haptics.
+
+## Days 61–90, mocks 5–6 and the 6-month track
+- **Part 3 · Exam year (days 61–90):** recruitment, Vietnam vs China terms, pay analytics, hard conversations, total rewards, HSK 4 skills week. Same format as days 1–60.
+- **Mock exams 5 and 6:** two more full-length HSK 4 (2.0) mocks.
+- **Learn → 🎓 C&B Professional Chinese:** 24 weeks x 3 sessions, mixed in and never locked: writing templates, role-plays, Vietnam vs China cards, HSK 5 reading. Data: `data/track_w*.js`; with AI on, writing and role-play replies can be checked.
+- `docs/legal-review.md` lists every legal or policy statement for a Vietnamese reviewer.

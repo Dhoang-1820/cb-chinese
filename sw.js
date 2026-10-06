@@ -6,8 +6,8 @@ var AUDIO = "cb-audio";
 var STROKES = "cb-strokes"; // handwriting data: never changes, kept across app versions
 /* PRECACHE:START — tools/build.js replaces this block with the built file list */
 var DAYS = [];
-for (var i = 1; i <= 60; i++) DAYS.push("data/day" + (i < 10 ? "0" + i : i) + ".js");
-var MOCKS = ["data/mock-manifest.js", "data/mock1.js", "data/mock2.js", "data/mock3.js", "data/mock4.js", "data/core-manifest.js", "data/grammar.js", "data/drills.js", "data/found.js"];
+for (var i = 1; i <= 90; i++) DAYS.push("data/day" + (i < 10 ? "0" + i : i) + ".js");
+var MOCKS = ["data/mock-manifest.js", "data/track-manifest.js", "data/track_w01-06.js", "data/track_w07-12.js", "data/track_w13-18.js", "data/track_w19-24.js", "data/mock1.js", "data/mock2.js", "data/mock3.js", "data/mock4.js", "data/mock5.js", "data/mock6.js", "data/core-manifest.js", "data/grammar.js", "data/drills.js", "data/found.js"];
 for (var j = 1; j <= 25; j++) MOCKS.push("data/core" + (j < 10 ? "0" + j : j) + ".js");
 var PRECACHE = [
   "./", "index.html", "css/style.css", "manifest.webmanifest",

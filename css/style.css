@@ -826,3 +826,13 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .fx-row { display: grid; grid-template-columns: 1fr 1.6fr; gap: 6px; margin: 6px 0; }
 .fx-row small { grid-column: 1 / -1; }
 .fx-row input, #fx-code { box-sizing: border-box; width: 100%; padding: 8px; border-radius: 10px; border: 2px solid var(--border); background: var(--surface); color: inherit; font: inherit; }
+
+/* 6-month track */
+.tline { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.tline:last-child { border-bottom: 0; }
+.tline .zh { font-size: 1.15rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tk-word, .tk-card { margin: 10px 0; }
+.tk-vn, .tk-cn { margin-bottom: 8px; }
+.tk-diff { background: var(--surface-2); border-radius: 12px; padding: 8px 10px; }
+.back { display: inline-block; margin: 4px 0 10px; color: var(--primary); font-weight: 800; }
+#tk-text { width: 100%; box-sizing: border-box; }

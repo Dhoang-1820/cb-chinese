@@ -13,7 +13,7 @@
   function defaults() {
     return {
       version: 2,
-      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", noise: 0, mockRate: 0, sessionMode: "std" },
+      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", noise: 0, mockRate: 0, sessionMode: "std" },
       srs: {},        // wordId -> { box, due, right, wrong, added, last }
       days: {},       // dayNo -> { quizBest, practice: {}, completed }
       streak: { count: 0, last: null, best: 0 },
@@ -32,6 +32,7 @@
       reports: [],    // "Report a problem" notes: [{ id, date, route, text, ctx }]
       weekly: {},     // { cur: snapshot at the start of this week, last: summary of last week } (see weekly report in app.js)
       custom: [],     // learner's own words: [{ id: "u…", hanzi, pinyin, vi, en, example? }]
+      track: {},      // "w<week>s<session>" -> true when a 6-month track session was finished
       challenges: {}, // date -> true when the daily challenge was completed
       stats: { cards: 0, correct: 0, perfectQuizzes: 0, bossWins: 0, nightOwl: 0, hearts: 0 }
     };
@@ -74,6 +75,7 @@
     st.noise = [0, 1, 2].indexOf(+st.noise) >= 0 ? +st.noise : 0;
     st.mockRate = [0, 1, 1.15, 1.3].indexOf(+st.mockRate) >= 0 ? +st.mockRate : 0; // 0 = same as "Voice speed"
     if (["quick", "std", "long"].indexOf(st.sessionMode) < 0) st.sessionMode = dflt.sessionMode;
+    st.coreTarget = Math.max(1, Math.min(365, parseInt(st.coreTarget, 10) || dflt.coreTarget));
     d.reports = (Array.isArray(d.reports) ? d.reports : []).filter(function (r) { return r && typeof r === "object" && typeof r.text === "string"; }).slice(-100).map(function (r, i) {
       return { id: (String(r.id || Date.now()).replace(/[^0-9a-z]/gi, "").slice(0, 16) || String(Date.now())) + "x" + i, date: /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : today(),
         route: /^#\/[\w\/-]{0,78}$/.test(String(r.route || "")) ? String(r.route) : "#/", text: String(r.text).slice(0, 500), ctx: String(r.ctx || "").slice(0, 400) };

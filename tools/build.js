@@ -53,6 +53,8 @@ sb.window.CB_CORE_FILES.forEach(load);
 (sb.window.CB_EXTRA_FILES || []).forEach(load);
 load("mock-manifest.js");
 sb.window.CB_MOCK_FILES.forEach(load);
+load("track-manifest.js");
+sb.window.CB_TRACK_FILES.forEach(load);
 // HSK 4 Core: word basics start up with the app; example sentences go with the lazy data
 const coreLight = [], coreEx = {};
 (sb.window.CB_CORE || []).forEach(set => coreLight.push({ set: set.set, track: set.track, words: set.words.map(w => {
@@ -78,6 +80,7 @@ const sizes = {};
 sizes["data/index.js"] = write("data/index.js", minifyJS(
   "window.CB_BUNDLED=true;window.CB_PLAN=" + J(sb.window.CB_PLAN || []) + ";window.CB_DAYS=" + J(light) + ";window.CB_CORE=" + J(coreLight) + ";"));
 sizes["data/full.js"] = write("data/full.js", minifyJS("window.CB_FULL=" + J(full) + ";window.CB_CORE_EX=" + J(coreEx) + ";window.CB_GRAMMAR=" + J(sb.window.CB_GRAMMAR || []) + ";window.CB_DRILLS=" + J(sb.window.CB_DRILLS || {}) + ";"));
+sizes["data/track.js"] = write("data/track.js", minifyJS("window.CB_TRACK=" + J((sb.window.CB_TRACK || []).slice().sort((a, b) => a.week - b.week)) + ";"));
 sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(sb.window.CB_MOCK) + ";"));
 
 // ---- 3. app bundle (same order as index.html; data/audio manifests stay separate) ----
@@ -110,7 +113,7 @@ let sw = read("sw.js").replace('var VERSION = "dev";', 'var VERSION = "' + VERSI
 const p0 = sw.indexOf("/* PRECACHE:START"), p1 = sw.indexOf("/* PRECACHE:END */");
 if (p0 < 0 || p1 < 0) throw new Error("PRECACHE markers missing in sw.js");
 const precache = ["./", "index.html", cssName, appName, "manifest.webmanifest", "audio/manifest.js",
-  "data/index.js", "data/full.js", "data/mocks.js", "vendor/hanzi-writer.min.js",
+  "data/index.js", "data/full.js", "data/mocks.js", "data/track.js", "vendor/hanzi-writer.min.js",
   "icons/icon-64.png", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
   "fonts/nunito-latin-wght-normal.woff2", "fonts/nunito-latin-ext-wght-normal.woff2", "fonts/nunito-vietnamese-wght-normal.woff2"];
 precache.forEach(f => { if (f !== "./" && !fs.existsSync(path.join(OUT, f))) throw new Error("precache file missing: " + f); });

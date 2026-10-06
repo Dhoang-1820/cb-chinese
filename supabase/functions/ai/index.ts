@@ -28,10 +28,11 @@ const MAX_BODY = 8000;
 
 /* ---------------- prompts ---------------- */
 
+const TEXT_FIELDS = "explanation, every error reason, the model sentence meaning, why_wrong, why_correct, rule, tip and the example meaning";
 function langRule(lang: Lang): string {
-  if (lang === "vi") return "Write every explanation and meaning field in Vietnamese.";
-  if (lang === "en") return "Write every explanation and meaning field in English.";
-  return "Write every explanation and meaning field in English first, then a Vietnamese version after ' | '.";
+  if (lang === "vi") return "Write every explanatory text field (" + TEXT_FIELDS + ") in Vietnamese.";
+  if (lang === "en") return "Write every explanatory text field (" + TEXT_FIELDS + ") in English.";
+  return "Write EVERY explanatory text field (" + TEXT_FIELDS + ") in two languages: the English text first, then ' | ', then the same text in natural Vietnamese with full diacritics. Never leave one language out. Chinese sentences and pinyin stay as they are.";
 }
 
 const COMMON = [

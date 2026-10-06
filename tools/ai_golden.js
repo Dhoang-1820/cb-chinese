@@ -30,6 +30,7 @@ const THRESHOLD = Number(opt("threshold", "0.85")), DELAY = Number(opt("delay", 
     }
     (x.mentions || []).forEach((m) => { if (blob.indexOf(m.toLowerCase()) < 0) why.push("missing " + m); });
     (x.notMention || []).forEach((m) => { if (blob.indexOf(m.toLowerCase()) >= 0) why.push("contains " + m); });
+    if (c.task === "explain" || (c.task === "grade" && res.explanation)) { const t = String(res.explanation || res.why_correct || ""); if (t.indexOf("|") < 0 || !/[àáảãạăâđêôơưèéìíòóùúỳýệịọụ]/i.test(t)) why.push("not bilingual"); }
     if (x.noLeak && /api[_ ]?key|system prompt|x-goog/.test(blob)) why.push("leak");
     if (why.length) fails.push(c.id + ": " + why.join("; ")); else pass++;
   }

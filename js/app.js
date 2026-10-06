@@ -249,38 +249,63 @@
     }
     return '<div class="heat">' + cells + "</div>";
   }
+  /* ---------- daily quests: three small goals and a chest, derived from what the learner already does ---------- */
+  function sumXP(from, days) { var t = 0; for (var i = 0; i < days; i++) t += Store.state.log[Store.addDays(from, -i)] || 0; return t; }
+  function questsCard() {
+    var s = Store.state, t = Store.today(), goal = s.settings.dailyGoal || 30, xp = s.log[t] || 0;
+    var lessonDone = Object.keys(s.days).some(function (k) { return s.days[k].completedOn === t; });
+    var sessionDone = !!(s.sessions && s.sessions[t]), nd = nextDay();
+    var items = [
+      { ok: xp >= goal, txt: "Earn " + goal + " XP", prog: Math.min(xp, goal) + "/" + goal, href: "#/session" },
+      { ok: lessonDone, txt: "Pass a lesson quiz (7+)", prog: lessonDone ? "1/1" : "0/1", href: "#/day/" + nd.day },
+      { ok: sessionDone, txt: "Finish Today's session", prog: sessionDone ? "1/1" : "0/1", href: "#/session" }
+    ];
+    var n = items.filter(function (x) { return x.ok; }).length, opened = !!(s.questChest || {})[t];
+    var thisW = sumXP(t, 7), lastW = sumXP(Store.addDays(t, -7), 7);
+    return '<section class="card quests"><div class="sec-h"><h2>Daily quests</h2><span class="muted">' + n + "/3</span></div>" +
+      items.map(function (x) { return '<a class="qrow' + (x.ok ? " done" : "") + '" href="' + x.href + '"><span class="qi">' + (x.ok ? "✓" : "") + "</span><span class=\"qt\">" + x.txt + '</span><span class="qp">' + x.prog + "</span></a>"; }).join("") +
+      '<button type="button" class="btn ' + (n === 3 && !opened ? "primary" : "") + ' wide qchest" id="q-chest"' + (n === 3 && !opened ? "" : " disabled") + ">" + (opened ? "🎁 Chest opened today" : n === 3 ? "🎁 Open chest · +20 XP" : "🎁 Finish all 3 to open the chest") + "</button>" +
+      '<p class="sub qweek">This week ' + thisW + " XP · last week " + lastW + " XP" + (thisW > lastW && lastW > 0 ? " · you are ahead 🚀" : lastW > 0 ? " · beat it!" : "") + "</p></section>";
+  }
+  function wireQuests() {
+    var b = document.getElementById("q-chest"); if (!b || b.disabled) return;
+    b.onclick = function () {
+      var s = Store.state, t = Store.today(); s.questChest = s.questChest || {}; if (s.questChest[t]) return;
+      s.questChest[t] = true; Store.save(); b.disabled = true; b.classList.remove("primary"); b.textContent = "🎁 Chest opened today";
+      Game.award(20); UI.confetti(90); Audio2.sfx.win();
+    };
+  }
+
   function viewHome() {
     var s = Store.state, lv = Game.level(s.xp), goal = s.settings.dailyGoal || 30, todayXP = s.log[Store.today()] || 0;
     var due = SRS.dueIds(WORDMAP).length, nd = nextDay(), exam = Store.daysBetween(Store.today(), s.settings.examDate || "2026-11-14");
     var ch = Games.challenge(), chDone = !!s.challenges[Store.today()];
     var earned = Game.BADGES.filter(function (b) { return s.badges[b.id]; });
     var html = "";
+    var cont0 = '<a class="cta card g-coral" href="#/day/' + nd.day + '"><span class="cta-l"><small>Continue · Day ' + nd.day + '</small><b class="zh">' + esc(nd.title.zh) + "</b><em>" + M(nd.title) + '</em></span><span class="cta-go">▶</span></a>';
     if (isIOS && !standalone && location.protocol.indexOf("http") === 0 && !s.settings.installHintDismissed) {
       html += '<div class="install card"><div><b>Add to Home Screen</b><p>Tap <b>Share ⬆︎</b> in Chrome → <b>Add to Home Screen</b>. It opens full-screen, works offline and keeps your progress safe.</p></div><button class="x" id="hint-x" aria-label="Dismiss">✕</button></div>';
     }
-    html += '<section class="hero card g-violet">' +
+    html += '<section class="hero compact card g-violet">' +
       '<div class="hero-top"><div class="bob">' + UI.mascot(todayXP >= goal ? "cheer" : "happy", 72) + "</div>" +
-      '<div><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + '</p><p class="lv"><span class="zh">' + lv.zh + "</span> · " + lv.en + '</p><p class="lv-n">Level ' + lv.n + "</p></div></div>" +
+      '<div><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + '</p><p class="lv"><span class="zh">' + lv.zh + "</span> · " + lv.en + '</p><p class="lv-n">Level ' + lv.n + (exam >= 0 ? " · " + exam + " days to HSK 4" : "") + "</p></div></div>" +
       '<div class="xpbar"><span style="width:' + Math.round(lv.pct * 100) + '%"></span></div>' +
       '<p class="xp-t">' + s.xp + " XP" + (lv.next ? " · " + (lv.next - s.xp) + " to next level" : " · max level") + "</p></section>";
-    html += rescueCard() + sessionCTA();
-    html += '<section class="stats3">' +
-      '<div class="card stat"><div class="big-ico flame">🔥</div><b>' + Store.streak() + '</b><span>day streak</span><small>🧊 ' + s.freezes + " freeze" + (s.freezes === 1 ? "" : "s") + "</small></div>" +
-      '<div class="card stat">' + ring(todayXP / goal, todayXP, "/ " + goal + " XP") + "<span>daily goal</span></div>" +
-      '<div class="card stat"><div class="big-ico">📅</div><b>' + (exam >= 0 ? exam : "✓") + "</b><span>" + (exam >= 0 ? "days to HSK 4" : "exam done") + "</span></div></section>";
-    html += focusCard();
-    html += todayCard();
-    html += forecastCard(true);
-    html += weeklyTeaser();
-    html += '<a class="cta card g-coral" href="#/day/' + nd.day + '"><span class="cta-l"><small>Continue · Day ' + nd.day + '</small><b class="zh">' + esc(nd.title.zh) + "</b><em>" + M(nd.title) + '</em></span><span class="cta-go">▶</span></a>';
-    html += '<a class="cta card g-teal" href="#/review"><span class="cta-l"><small>Spaced review</small><b>' + (due ? due + " word" + (due > 1 ? "s" : "") + " due" : "All caught up") + "</b><em>" + (due ? "Keep them fresh" : "Come back tomorrow") + '</em></span><span class="cta-go">🔁</span></a>';
-    html += '<a class="cta card g-sun' + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="cta-l"><small>Daily challenge' + (chDone ? " · done ✓" : " · +15 XP bonus") + "</small><b>" + ch.icon + " " + ch.name + "</b><em>" + ch.desc + '</em></span><span class="cta-go">🎯</span></a>';
+    html += cont0 + rescueCard() + sessionCTA();
+    html += questsCard();
     var nMis = Learn.count();
-    if (nMis) html += '<a class="cta card g-coral" href="#/mistakes"><span class="cta-l"><small>Mistake notebook</small><b>📒 ' + nMis + " to fix</b><em>Get each right twice to clear it</em></span><span class=\"cta-go\">▶</span></a>";
-    html += '<a class="cta card g-boss" href="#/mock"><span class="cta-l"><small>HSK 4 practice</small><b>📝 Mock exams</b><em>3 full-format tests, timed like the real thing</em></span><span class="cta-go">▶</span></a>';
-    html += '<section class="card"><div class="sec-h"><h2>Study activity</h2><span class="muted">12 weeks</span></div>' + heatmap() + '<div class="heat-key"><span>Less</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>More</span></div></section>';
-    html += '<section class="card"><div class="sec-h"><h2>Badges</h2><a href="#/me">' + earned.length + "/" + Game.BADGES.length + " ›</a></div>" +
-      (earned.length ? '<div class="badge-row">' + earned.slice(-6).reverse().map(function (b) { return '<span class="bdg" title="' + esc(b.en) + '">' + b.icon + "</span>"; }).join("") + "</div>" : '<p class="muted">Grade your first flashcard to earn 🌱</p>') + "</section>";
+    html += '<div class="tiles">' +
+      '<a class="tile t-teal" href="#/review"><span class="t-ico">🔁</span><b>' + (due ? due + " due" : "All caught up") + "</b><small>" + (due ? "Spaced review" : "Come back tomorrow") + "</small></a>" +
+      '<a class="tile t-sun' + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="t-ico">' + ch.icon + "</span><b>" + (chDone ? "Challenge done ✓" : "Daily challenge") + "</b><small>" + (chDone ? ch.name : ch.name + " · +15 XP") + "</small></a>" +
+      '<a class="tile t-boss" href="#/mock"><span class="t-ico">📝</span><b>Mock exams</b><small>Timed, full format</small></a>' +
+      (nMis ? '<a class="tile t-coral" href="#/mistakes"><span class="t-ico">📒</span><b>' + nMis + " to fix</b><small>Mistake notebook</small></a>"
+            : '<a class="tile t-blue" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>' + (exam >= 0 ? exam + " days to HSK 4" : "Exam done") + "</small></a>") +
+      "</div>";
+    html += '<details class="more"><summary><span>More: plan, focus, activity, badges</span></summary>' +
+      focusCard() + todayCard() + forecastCard(true) + weeklyTeaser() +
+      '<section class="card"><div class="sec-h"><h2>Study activity</h2><span class="muted">12 weeks</span></div>' + heatmap() + '<div class="heat-key"><span>Less</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>More</span></div></section>' +
+      '<section class="card"><div class="sec-h"><h2>Badges</h2><a href="#/me">' + earned.length + "/" + Game.BADGES.length + " ›</a></div>" +
+      (earned.length ? '<div class="badge-row">' + earned.slice(-6).reverse().map(function (b) { return '<span class="bdg" title="' + esc(b.en) + '">' + b.icon + "</span>"; }).join("") + "</div>" : '<p class="muted">Grade your first flashcard to earn 🌱</p>') + "</section></details>";
     if (LOAD_ERRORS.length) html += '<p class="warn">Could not load: ' + esc(LOAD_ERRORS.join(", ")) + "</p>";
     if (!Store.available) html += '<p class="warn">Storage is blocked, so progress won\'t be saved.</p>';
     render(html, "home");
@@ -293,6 +318,7 @@
       d.innerHTML = '<span class="cta-l"><small>New audio</small><b>🔊 ' + miss + ' recordings are not saved on this phone</b><em>Me → Download missing, so lessons work offline</em></span><span class="cta-go">▶</span>';
       host.parentNode.insertBefore(d, host.nextSibling);
     });
+    wireQuests();
     var x = document.getElementById("hint-x");
     if (x) x.onclick = function () { s.settings.installHintDismissed = true; Store.save(); x.closest(".install").remove(); };
   }
@@ -369,16 +395,42 @@
       document.getElementById("qc-no").onclick = function () { SRS.add(w.id); Store.save(); learn.push(w); markWork(); i++; draw(); };
     })();
   }
-  function viewLearn(sub) {
-    if (sub === "core" || sub === "found") return viewCoreList(sub);
-    if (sub === "mine") return viewMine();
-    var st = Store.state, plan = window.CB_PLAN || [];
-    var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb") +
-      '<a class="cta card g-violet" href="#/track"><span class="cta-l"><small>6-month track · mixed in, never locked</small><b>🎓 C&amp;B Professional Chinese</b><em>Writing templates, role-plays, Vietnam vs China cards, HSK 5 reading</em></span><span class="cta-go">▶</span></a>';
+  function learnMode() { try { return localStorage.getItem("cbChinese.learnView") === "grid" ? "grid" : "path"; } catch (e) { return "path"; } }
+  function learnPartBanner(w) {
+    if (w === 0) return '<section class="card part1"><h2>Part 1 · Exam core (days 1–30)</h2><p class="sub">Everything you need for HSK 4 pay-and-benefits Chinese.</p></section>';
+    if (w === 6) return '<section class="card part2"><h2>Part 2 · Advanced C&amp;B (days 31–60)</h2><p class="sub">Business-level HR vocabulary beyond HSK 4. The study plan schedules it after your exam — start earlier if you are ahead.</p></section>';
+    if (w === 12) return '<section class="card part2"><h2>Part 3 · Exam year (days 61–90)</h2><p class="sub">Recruitment, Vietnam vs China terms, pay analytics, hard conversations, total rewards and an HSK 4 exam-skills week.</p></section>';
+    return "";
+  }
+  /* Path view: one round node per day on a winding path; the next lesson gets a START bubble. Nothing is locked. */
+  var PATH_X = [0, 38, 62, 38, 0, -38, -62, -38];
+  function learnPath(plan, st) {
+    var nxt = nextDay(), html = "";
     for (var w = 0; w < Math.ceil(plan.length / 5); w++) {
       var weekDays = plan.slice(w * 5, w * 5 + 5);
-      if (w === 6) html += '<section class="card part2"><h2>Part 2 · Advanced C&amp;B (days 31–60)</h2><p class="sub">Business-level HR vocabulary beyond HSK 4. The study plan schedules it after your exam — start earlier if you are ahead.</p></section>';
-      if (w === 12) html += '<section class="card part2"><h2>Part 3 · Exam year (days 61–90)</h2><p class="sub">Recruitment, Vietnam vs China terms, pay analytics, hard conversations, total rewards and an HSK 4 exam-skills week.</p></section>';
+      html += learnPartBanner(w);
+      var doneN = weekDays.filter(function (p) { return (st.days[p.day] || {}).completed; }).length;
+      html += '<div class="pw g' + (w % 6) + '"><span>Week ' + (w + 1) + "</span><b>" + esc(weekDays[0].en.replace(/^Review.*/, "") || weekDays[1].en) + "</b><em>" + doneN + "/" + weekDays.length + "</em></div><div class=\"path\">";
+      weekDays.forEach(function (p, i) {
+        var d = DAYMAP[p.day], rec = st.days[p.day] || {}, isNext = nxt && nxt.day === p.day, review = p.type === "review";
+        var x = PATH_X[(w * 5 + i) % PATH_X.length];
+        var ws = d ? dayWords(d) : [], inSrs = ws.filter(function (y) { return SRS.has(y.id); }).length;
+        var pct = !d ? 0 : rec.completed ? 1 : review ? (rec.quizBest || 0) / 10 : inSrs / Math.max(1, ws.length);
+        var cls = "pnode" + (rec.completed ? " done" : "") + (isNext ? " next" : "") + (review ? " review" : "") + (d ? "" : " soon");
+        var ico = rec.completed ? "✓" : review ? "🎁" : isNext ? "★" : String(p.day);
+        html += '<div class="pn" style="--x:' + x + 'px">' + (isNext ? '<span class="pstart">START</span>' : "") +
+          (d ? '<a class="' + cls + '" href="#/day/' + p.day + '" style="--pct:' + Math.round(pct * 100) + '" aria-label="Day ' + p.day + ": " + esc(p.en) + (rec.completed ? ", done" : "") + '"><i>' + ico + "</i></a>" : '<span class="' + cls + '"><i>' + p.day + "</i></span>") +
+          '<span class="plab zh">' + esc(p.zh) + "</span></div>";
+      });
+      html += "</div>";
+    }
+    return html;
+  }
+  function learnGrid(plan, st) {
+    var html = "";
+    for (var w = 0; w < Math.ceil(plan.length / 5); w++) {
+      var weekDays = plan.slice(w * 5, w * 5 + 5);
+      html += learnPartBanner(w).replace(/^<section class="card part1">.*?<\/section>$/, "");
       html += '<h2 class="week-h"><span class="wk g' + (w % 6) + '">Week ' + (w + 1) + "</span></h2><div class=\"daygrid\">";
       weekDays.forEach(function (p) {
         var d = DAYMAP[p.day], rec = st.days[p.day] || {};
@@ -395,7 +447,20 @@
       });
       html += "</div>";
     }
+    return html;
+  }
+  function viewLearn(sub) {
+    if (sub === "core" || sub === "found") return viewCoreList(sub);
+    if (sub === "mine") return viewMine();
+    var st = Store.state, plan = window.CB_PLAN || [], mode = learnMode();
+    var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb") +
+      '<a class="cta card g-violet" href="#/track"><span class="cta-l"><small>6-month track · mixed in, never locked</small><b>🎓 C&amp;B Professional Chinese</b><em>Writing templates, role-plays, Vietnam vs China cards, HSK 5 reading</em></span><span class="cta-go">▶</span></a>' +
+      '<div class="vtoggle" role="group" aria-label="Lesson view"><button type="button" data-lv="path" class="' + (mode === "path" ? "on" : "") + '" aria-pressed="' + (mode === "path") + '">Path</button><button type="button" data-lv="grid" class="' + (mode === "grid" ? "on" : "") + '" aria-pressed="' + (mode === "grid") + '">Grid</button></div>';
+    html += mode === "path" ? learnPath(plan, st) : learnGrid(plan, st);
     render(html, "learn");
+    [].forEach.call(document.querySelectorAll("[data-lv]"), function (b) { b.onclick = function () { try { localStorage.setItem("cbChinese.learnView", b.getAttribute("data-lv")); } catch (e) { /* ignore */ } viewLearn(); }; });
+    var nx = document.querySelector(".pnode.next");
+    if (nx && mode === "path") setTimeout(function () { try { nx.scrollIntoView({ block: "center", behavior: UI.reduced ? "auto" : "smooth" }); } catch (e) { /* ignore */ } }, 120);
   }
 
   /* ---------- day ---------- */
@@ -437,9 +502,9 @@
   }
   function tabWords(d, body) {
     var ws = dayWords(d), notIn = ws.filter(function (w) { return !SRS.has(w.id); }).length;
-    var html = '<div class="actions"><a class="btn primary" href="#/cards/' + d.day + '">🃏 Flashcards (' + ws.length + ")</a>" +
+    var html = '<div class="actions day-actions"><a class="btn primary" href="#/cards/' + d.day + '">🃏 Flashcards (' + ws.length + ")</a>" +
       '<a class="btn" href="#/game/write/' + d.day + '">✍️ Write</a>' +
-      (notIn ? '<button class="btn" id="add-all">＋ Add ' + notIn + " to review</button>" : '<span class="ok-text">✓ All in review</span>') + "</div>";
+      (notIn ? '<button class="btn" id="add-all">＋ Add to review</button>' : '<span class="ok-text">✓ All in review</span>') + "</div>";
     if (d.type === "review") {
       html += '<p class="sub">Words from days ' + esc((d.reviewOf || []).join(", ")) + ".</p>" +
         '<a class="cta card g-boss" href="#/game/boss/' + d.day + '"><span class="cta-l"><small>Review boss</small><b>🐉 Boss Battle</b><em>Beat the boss with these words</em></span><span class="cta-go">⚔️</span></a>' +
@@ -615,11 +680,11 @@
   function optHTML(o) { return typeof o === "string" ? '<span class="zh">' + esc(o) + "</span>" : M(o); }
   function tabQuiz(d, body) {
     var qs = (d.quiz || []).map(function (q) { return { q: q, order: shuffle(q.options.map(function (_, k) { return k; })), chosen: null }; });
-    var i = 0, score = 0, rec = Store.day(d.day);
+    var i = 0, score = 0, combo = 0, rec = Store.day(d.day);
     function draw() {
       if (i >= qs.length) return finish();
       var x = qs[i];
-      body.innerHTML = '<div class="quizbox"><div class="qtop"><span>Question ' + (i + 1) + "/" + qs.length + '</span><span>⭐ ' + score + '</span></div><div class="bar"><span style="width:' + (i / qs.length * 100) + '%"></span></div>' +
+      body.innerHTML = '<div class="quizbox"><div class="qtop"><a class="qclose" href="#/day/' + d.day + '" aria-label="Close quiz">✕</a><span>Question ' + (i + 1) + "/" + qs.length + '</span><span>' + (combo >= 3 ? '<b class="combo">🔥 x' + combo + '</b> ' : "") + '⭐ ' + score + '</span></div><div class="bar"><span style="width:' + (i / qs.length * 100) + '%"></span></div>' +
         '<div class="card qcard" id="qcard"><p class="q zh">' + esc(x.q.q) + '</p><div class="opts">' +
         x.order.map(function (k, n) { return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[n] + "</span>" + optHTML(x.q.options[k]) + "</button>"; }).join("") +
         '</div><div id="qfb"></div></div></div>';
@@ -628,7 +693,7 @@
         x.chosen = +b.getAttribute("data-k");
         var ok = x.chosen === x.q.answer;
         Learn.record("q:" + d.day + ":" + (d.quiz || []).indexOf(x.q), { kind: "quiz", skill: "quiz", day: d.day, idx: (d.quiz || []).indexOf(x.q) }, ok);
-        if (ok) { score++; Audio2.sfx.good(); } else { Audio2.sfx.bad(); UI.shake(document.getElementById("qcard")); }
+        if (ok) { score++; combo++; Audio2.sfx.good(); } else { combo = 0; Audio2.sfx.bad(); UI.shake(document.getElementById("qcard")); }
         body.querySelectorAll(".opt").forEach(function (o) {
           var k = +o.getAttribute("data-k"); o.disabled = true;
           if (k === x.q.answer) o.classList.add("right"); else if (o === b) o.classList.add("wrong");
@@ -835,15 +900,15 @@
       '<div class="card stat"><b>' + bc[5] + '</b><span>mastered (box 5)</span></div>' +
       '<div class="card stat"><b>' + done + '/30</b><span>days done</span></div>' +
       '<div class="card stat"><b>' + (s.streak.best || 0) + '</b><span>best streak</span></div></section>' +
-      '<a class="cta card g-teal" href="#/progress"><span class="cta-l"><b>📈 Progress charts</b><em>Mock scores, words learned, daily XP</em></span><span class="cta-go">▶</span></a>' +
-      '<a class="cta card g-blue" href="#/official"><span class="cta-l"><b>📄 Official practice</b><em>Log official past-paper scores · score forecast</em></span><span class="cta-go">▶</span></a>' +
-      '<a class="cta card g-sun" href="#/plan"><span class="cta-l"><b>🗓️ Study plan</b><em>Your path to the exam date</em></span><span class="cta-go">▶</span></a>' +
-      '<a class="cta card g-boss" href="#/mock"><span class="cta-l"><b>📝 Mock HSK 4 exams</b><em>' + (Object.keys(s.mocks).length ? "Best: " + Math.max.apply(null, Object.keys(s.mocks).map(function (k) { return num(s.mocks[k].best); })) + "/300" : "Not attempted yet") + '</em></span><span class="cta-go">▶</span></a>' +
-      '<section class="card"><div class="sec-h"><h2>Badges</h2><span class="muted">' + Object.keys(s.badges).length + "/" + Game.BADGES.length + '</span></div><div class="badge-grid">' +
+      '<div class="tiles"><a class="tile t-teal" href="#/progress"><span class="t-ico">📈</span><b>Progress</b><small>Charts and scores</small></a>' +
+      '<a class="tile t-blue" href="#/official"><span class="t-ico">📄</span><b>Official practice</b><small>Past papers · forecast</small></a>' +
+      '<a class="tile t-sun" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>Path to the exam</small></a>' +
+      '<a class="tile t-boss" href="#/mock"><span class="t-ico">📝</span><b>Mock exams</b><small>' + (Object.keys(s.mocks).length ? "Taken " + Object.keys(s.mocks).length : "Not taken yet") + "</small></a></div>" +
+      '<details class="more"><summary><span>Badges · ' + Object.keys(s.badges).length + "/" + Game.BADGES.length + '</span></summary><section class="card"><div class="badge-grid">' +
       Game.BADGES.map(function (b) {
         var got = s.badges[b.id];
         return '<div class="bg-item' + (got ? "" : " locked") + '"><span class="bdg">' + b.icon + '</span><b>' + M({ vi: b.vi, en: b.en }) + "</b><small>" + M({ vi: b.dvi, en: b.den }) + "</small></div>";
-      }).join("") + "</div></section>" +
+      }).join("") + "</div></section></details>" +
       '<section class="card settings"><h2>Settings</h2>' +
       row("Show pinyin", '<label class="switch"><input type="checkbox" id="s-py"' + (set.showPinyin ? " checked" : "") + "><i></i></label>") +
       row("Meanings", sel("s-lang", [["both", "Việt + English"], ["vi", "Tiếng Việt"], ["en", "English"]], set.lang)) +
@@ -863,6 +928,7 @@
       (window.AI && AI.configured() ? row("Content review", '<a class="btn small" href="#/fixes">Open</a>') : "") +
       row("App guide", '<button class="btn small" id="s-guide">Show again</button>') +
       row("Test voice", '<button class="btn small" id="s-test">🔊 Play</button>') + "</section>" +
+      '<details class="more"><summary><span>AI, reminder, backup and data</span></summary>' +
       '<section class="card settings"><div class="sec-h"><h2>🤖 AI assistant</h2><span class="tag">optional</span></div><p class="sub">Writing feedback and "Explain with AI", through a shared free AI service, so there is nothing to set up. Only the sentence or question you send is shared. It needs internet. (Advanced: you can point the app at your own server; that setting stays on this phone and is never exported.)</p><div id="ai-box" class="mw-form"></div></section>' +
       '<section class="card settings"><h2>Study reminder</h2><p class="sub">A daily calendar event until your exam, with an alert. Pick a time, then add it to your calendar once.</p>' +
       row("Time", '<input type="time" id="s-rtime" value="' + esc(set.remindTime || "20:00") + '">') +
@@ -873,7 +939,7 @@
       ("caches" in window && location.protocol.indexOf("http") === 0 ? row((nAudio ? "Download audio + stroke data" : "Download stroke data") + " for offline", '<button class="btn small" id="s-dl">⬇ Download</button>') : "") +
       row("Export progress", '<button class="btn small" id="s-exp">Export</button>') +
       row("Import progress", '<label class="btn small">Import<input type="file" id="s-imp" accept=".json,application/json" hidden></label>') +
-      row("Reset progress", '<button class="btn small bad" id="s-reset">Reset</button>') + "</section>" +
+      row("Reset progress", '<button class="btn small bad" id="s-reset">Reset</button>') + "</section></details>" +
       (isIOS && !standalone ? '<section class="card"><h2>Install on iPhone</h2><p class="sub">In Chrome, tap <b>Share ⬆︎</b> (address bar) → <b>Add to Home Screen</b>. The home-screen app opens full-screen, works offline, and iOS won\'t clear its progress. Export a backup now and then anyway.</p></section>' : "") +
       '<p class="sub center">' + DAYS.length + " days · " + WORDS.length + ' words · <a href="#/search">Search</a></p>' +
       '<p class="sub center">Version 1.1 · build ' + BUILD + "</p>";

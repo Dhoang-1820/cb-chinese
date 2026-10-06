@@ -29,13 +29,23 @@
   }
 
   /* ---------- hub ---------- */
+  var GROUPS = [
+    ["Words", ["speed", "race", "quick", "listen", "boss"]],
+    ["Listening and writing", ["drill", "write", "type", "picture", "coach"]],
+    ["Grammar and exam skills", ["builder", "order", "confuse", "measure"]]
+  ];
   function hub() {
-    var App = A(), ch = challenge(), s = Store.state;
-    App.render('<p class="sub">Words come from the days you\'ve studied. Every game earns XP.</p><div class="gamegrid">' + LIST.map(function (g) {
+    var App = A(), ch = challenge(), s = Store.state, chDone = !!s.challenges[Store.today()];
+    function row(g) {
       var st = s.games[g.id] || {};
-      return '<a class="gcard card ' + g.cls + '" href="#/game/' + g.id + '">' + (g.id === ch.id ? '<span class="ribbon">' + (s.challenges[Store.today()] ? "✓ Done" : "🎯 Today") + "</span>" : "") +
-        '<span class="g-ico">' + g.icon + '</span><b>' + g.name + '</b><small>' + g.desc + '</small><span class="g-best">' + (st.plays ? "Best " + st.best + " · " + st.plays + " play" + (st.plays > 1 ? "s" : "") : "New!") + "</span></a>";
-    }).join("") + "</div>", "games");
+      return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + g.name + "</b><small>" + g.desc + "</small></span>" +
+        (st.plays ? '<span class="g-best">Best ' + st.best + "</span>" : '<span class="g-go">▶</span>') + "</a>";
+    }
+    var html = '<a class="gfeat ' + ch.cls + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="g-ico">' + ch.icon + '</span><span class="g-txt"><small>' + (chDone ? "Daily challenge · done ✓" : "Daily challenge · +15 XP") + "</small><b>" + ch.name + "</b><em>" + ch.desc + '</em></span><span class="g-go">▶</span></a>';
+    GROUPS.forEach(function (gr) {
+      html += '<h2 class="gh">' + gr[0] + '</h2><div class="glist">' + gr[1].map(function (id) { return row(BY[id]); }).join("") + "</div>";
+    });
+    App.render(html, "games");
   }
 
   function run(id, arg, opts) {

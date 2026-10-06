@@ -32,6 +32,7 @@
       reports: [],    // "Report a problem" notes: [{ id, date, route, text, ctx }]
       weekly: {},     // { cur: snapshot at the start of this week, last: summary of last week } (see weekly report in app.js)
       custom: [],     // learner's own words: [{ id: "u…", hanzi, pinyin, vi, en, example? }]
+      questChest: {}, // date -> true when that day's quest chest was opened
       track: {},      // "w<week>s<session>" -> true when a 6-month track session was finished
       challenges: {}, // date -> true when the daily challenge was completed
       stats: { cards: 0, correct: 0, perfectQuizzes: 0, bossWins: 0, nightOwl: 0, hearts: 0 }

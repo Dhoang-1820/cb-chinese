@@ -86,7 +86,7 @@
     var py = document.getElementById("btn-py");
     if (py) py.setAttribute("aria-pressed", s.showPinyin ? "true" : "false");
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", effectiveDark() ? "#15112a" : "#f6f3ff");
+    if (meta) meta.setAttribute("content", effectiveDark() ? "#17161f" : "#f6f3ff");
   }
   function effectiveDark() {
     var t = Store.state.settings.theme;

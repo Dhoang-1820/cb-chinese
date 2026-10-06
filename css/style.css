@@ -787,3 +787,24 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .focus-plan .tk-box { font-weight: 800; font-size: .8rem; }
 .fp-why { display: block; font-weight: 600; opacity: .75; margin-top: 2px; }
 .sim-rules .task { color: var(--text); }
+
+/* ---- Phase 2: AI assistant ---- */
+.ai-card { margin: 12px 0; padding: 14px; border-radius: 18px; background: var(--surface); border: 2px solid var(--border); text-align: left; }
+.ai-card.ai-wait { opacity: .75; }
+.ai-card.ai-bad { border-color: var(--bad, #e5484d); }
+.ai-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.ai-score { font-weight: 800; letter-spacing: 1px; }
+.ai-conf.ai-low { background: #fde8e8; color: #9b1c1c; }
+.ai-conf.ai-medium { background: #fff4d6; color: #7a5800; }
+.ai-conf.ai-high { background: #def7ec; color: #0e6b44; }
+.ai-line, .ai-fix, .ai-exp { margin: 6px 0; }
+.ai-errs { margin: 6px 0; padding-left: 18px; }
+.ai-errs li { margin: 6px 0; }
+.ai-model { margin: 6px 0; padding: 10px 12px; border-radius: 14px; background: var(--bg, #f6f3ff); }
+.ai-model .py { opacity: .75; font-size: .9rem; }
+.ai-odd { color: var(--muted); }
+.ai-vote { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.ai-foot { margin: 6px 0 0; font-size: .8rem; opacity: .7; }
+.ai-ask { margin-top: 10px; }
+.ai-btn { margin-top: 4px; }
+#ai-box input { width: 100%; box-sizing: border-box; }

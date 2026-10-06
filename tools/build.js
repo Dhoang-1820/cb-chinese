@@ -81,7 +81,7 @@ sizes["data/full.js"] = write("data/full.js", minifyJS("window.CB_FULL=" + J(ful
 sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(sb.window.CB_MOCK) + ";"));
 
 // ---- 3. app bundle (same order as index.html; data/audio manifests stay separate) ----
-const APP_FILES = ["js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/games.js", "js/app.js"];
+const APP_FILES = ["js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/games.js", "js/app.js"];
 let app = APP_FILES.map(read).join("\n;\n").replace('var BUILD = "dev";', 'var BUILD = "' + VERSION + '";');
 if (!app.includes('var BUILD = "' + VERSION + '"')) throw new Error("BUILD marker not found in js/app.js");
 app = minifyJS(app);

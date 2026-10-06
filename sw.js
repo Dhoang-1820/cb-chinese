@@ -11,7 +11,7 @@ var MOCKS = ["data/mock-manifest.js", "data/mock1.js", "data/mock2.js", "data/mo
 for (var j = 1; j <= 25; j++) MOCKS.push("data/core" + (j < 10 ? "0" + j : j) + ".js");
 var PRECACHE = [
   "./", "index.html", "css/style.css", "manifest.webmanifest",
-  "js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/games.js", "js/app.js",
+  "js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/games.js", "js/app.js",
   "audio/manifest.js", "data/manifest.js", "vendor/hanzi-writer.min.js",
   "icons/icon-64.png", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
   "fonts/nunito-latin-wght-normal.woff2", "fonts/nunito-latin-ext-wght-normal.woff2", "fonts/nunito-vietnamese-wght-normal.woff2"

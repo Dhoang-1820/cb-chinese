@@ -504,6 +504,7 @@
             (ok ? Audio2.sfx.good : Audio2.sfx.bad)(); if (!ok) UI.shake(document.getElementById("qcard"));
             if (App.markWork) App.markWork(); rec(ok);
             document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Not quite.") + " " + (explain || "") + '</div><button class="btn primary wide" id="qnext">Next ›</button>';
+            if (!ok && window.AI) AI.attachExplain(document.getElementById("qfb"));
             document.getElementById("qnext").onclick = function () { done(ok); };
           };
         } };
@@ -536,7 +537,10 @@
           var checks = [[v.indexOf(it.word) >= 0, "Uses 「" + esc(it.word) + "」"], [n >= 7, "At least 7 characters (" + n + ")"], [/[。！？!?]$/.test(v), "Ends with 。/！/？"]];
           document.getElementById("qfb").innerHTML = '<div class="pw-checks">' + checks.map(function (c) { return '<p class="' + (c[0] ? "good-t" : "bad-t") + '">' + (c[0] ? "✔ " : "✘ ") + c[1] + "</p>"; }).join("") + "</div>" +
             '<p class="sub">' + App.M(it.scene) + "</p>" + it.samples.map(function (x) { return '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(x.zh) + "</span>" + App.SAY(x.zh) + "</div>" + App.PY(x.py) + '<div class="tr">' + App.M(x) + "</div></div>"; }).join("") +
+            (window.AI && AI.configured() ? '<button class="btn wide" id="pw-ai">🤖 Get AI feedback on my sentence</button><div id="pw-ai-out"></div>' : "") +
             '<p class="sub">Is your sentence correct and natural, like the models?</p><div class="tf-btns"><button class="btn good-btn" id="pw-ok">Correct ✔</button><button class="btn bad-btn" id="pw-no">Not quite ✘</button></div>';
+          var aib = document.getElementById("pw-ai");
+          if (aib) aib.onclick = function () { aib.disabled = true; AI.grade(document.getElementById("pw-ai-out"), it, v).then(function () { aib.disabled = false; aib.textContent = "🤖 Check again"; }); };
           document.getElementById("pw-ok").onclick = function () { rec(true); Audio2.sfx.good(); done(true); };
           document.getElementById("pw-no").onclick = function () { rec(false); done(false); };
         };

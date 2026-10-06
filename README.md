@@ -47,6 +47,7 @@ Tip: iOS may clear data of sites unused for weeks — use **Me → Export** now 
 - **Progress charts**: mock scores vs the 180 pass line, section trends, words in review, daily XP.
 - **Tap any word** in a dialogue or reading passage for pinyin, meaning, audio and "Add to review".
 - **Motivation**: XP & 8 levels, streak + streak freezes (1 per 7 days, max 2), 19 badges, daily XP goal ring, 12-week heatmap, HSK exam countdown.
+- **Optional AI assistant** (off until you set it up): *Get AI feedback* on picture-writing sentences (score /5, corrections, model sentence) and *Explain with AI* after a wrong answer. It runs through your own free Supabase Edge Function that holds the Gemini key — see [supabase/SETUP.md](supabase/SETUP.md). The app works fully offline without it.
 - Search, pinyin toggle, vi/en/both, dark mode, sound effects, voice speed, export/import JSON.
 
 ## Run locally
@@ -67,12 +68,13 @@ npm i --no-save esbuild && node tools/build.js _site && python3 -m http.server 8
 ```
 index.html  sw.js  manifest.webmanifest  icons/
 css/style.css
-js/storage.js  srs.js  audio.js  gamify.js  learn.js  games.js  app.js
+js/storage.js  srs.js  audio.js  gamify.js  learn.js  ai.js  games.js  app.js
+supabase/  setup.sql, SETUP.md, functions/ai/index.ts (Edge Function)
 data/day01.js … day60.js, manifest.js, core01–25.js, found.js (HSK 1–3), core-manifest.js, grammar.js, drills.js, mock1–4.js, mock-manifest.js
 fonts/ Nunito subsets (SIL OFL 1.1, from @fontsource-variable/nunito) · icons/icon-64.png for the top bar
 vendor/hanzi-writer.min.js (MIT) + vendor/hanzi/*.json stroke data (Arphic PL — see vendor/README.md)
 audio/manifest.js (+ mp3s generated in CI)
-tools/validate.js  collect_texts.js  gen_audio.py  build.js
+tools/validate.js  collect_texts.js  gen_audio.py  build.js  ai_function_test.mjs  ai_golden.js + ai_golden_cases.json
 lighthouserc.json
 .github/workflows/deploy.yml
 ```

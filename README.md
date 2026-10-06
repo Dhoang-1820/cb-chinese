@@ -47,7 +47,7 @@ Tip: iOS may clear data of sites unused for weeks — use **Me → Export** now 
 - **Progress charts**: mock scores vs the 180 pass line, section trends, words in review, daily XP.
 - **Tap any word** in a dialogue or reading passage for pinyin, meaning, audio and "Add to review".
 - **Motivation**: XP & 8 levels, streak + streak freezes (1 per 7 days, max 2), 19 badges, daily XP goal ring, 12-week heatmap, HSK exam countdown.
-- **Optional AI assistant** (off until you set it up): *Get AI feedback* on picture-writing sentences (score /5, corrections, model sentence) *Explain with AI* after a wrong answer, *Ask AI* on any tapped word (preset or your own question), the **Paragraph Coach** game (write 2–4 sentences, get corrections and recurring-mistake tracking) and a weekly **AI coach** on Progress that turns your numbers into 3 actions. Answers are in English and Vietnamese. It runs through one shared free Supabase Edge Function that holds the Gemini key, so users enter nothing — see [supabase/SETUP.md](supabase/SETUP.md). The app works fully offline without it.
+- **Optional AI assistant** (off until you set it up): *Get AI feedback* on picture-writing sentences (score /5, corrections, model sentence) *Explain with AI* after a wrong answer, *Ask AI* on any tapped word (preset or your own question), the **Paragraph Coach** game (write 2–4 sentences, get corrections and recurring-mistake tracking) and a weekly **AI coach** on Progress that turns your numbers into 3 actions. Answers are in English and Vietnamese. **Content feedback loop:** ⚑ reports on a drill, grammar quiz, mock question or word are checked twice by the AI; agreed fixes appear in **Me → Content review** where a person accepts, edits or rejects them (see SETUP.md). It runs through one shared free Supabase Edge Function that holds the Gemini key, so users enter nothing — see [supabase/SETUP.md](supabase/SETUP.md). The app works fully offline without it.
 - Search, pinyin toggle, vi/en/both, dark mode, sound effects, voice speed, export/import JSON.
 
 ## Run locally
@@ -68,7 +68,7 @@ npm i --no-save esbuild && node tools/build.js _site && python3 -m http.server 8
 ```
 index.html  sw.js  manifest.webmanifest  icons/
 css/style.css
-js/storage.js  srs.js  audio.js  gamify.js  learn.js  ai.js  games.js  app.js
+js/storage.js  srs.js  audio.js  gamify.js  learn.js  ai.js  content.js  games.js  app.js
 supabase/  setup.sql, SETUP.md, functions/ai/index.ts (Edge Function)
 data/day01.js … day60.js, manifest.js, core01–25.js, found.js (HSK 1–3), core-manifest.js, grammar.js, drills.js, mock1–4.js, mock-manifest.js
 fonts/ Nunito subsets (SIL OFL 1.1, from @fontsource-variable/nunito) · icons/icon-64.png for the top bar

@@ -171,7 +171,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review" };
   function route() {
     Audio2.stop(); Audio2.noise(0); setKeys(null); workDone = false; if (LM) { LM.stop(); LM = null; }
     try { weekTick(); } catch (e) { /* the weekly report must never block navigation */ }
@@ -194,6 +194,7 @@
       });
       return;
     }
+    if (window.Content) { try { Content.apply(); } catch (e) { /* fixes must never block navigation */ } }
     if (v === "day") viewDay(parseInt(parts[1], 10), parts[2] || "words");
     else if (v === "cards") viewCards(parts[1]);
     else if (v === "review") viewReview();
@@ -210,6 +211,7 @@
     else if (v === "official") viewOfficial();
     else if (v === "me" || v === "settings") viewMe();
     else if (v === "reports") viewReports();
+    else if (v === "fixes") viewFixes();
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "plan") viewPlan();
     else if (v === "progress") viewProgress();
@@ -842,7 +844,11 @@
       row("Text size", sel("s-ts", [["m", "Normal"], ["l", "Large"], ["xl", "Larger"]], set.textSize || "m")) +
       row("Daily goal", sel("s-goal", [["20", "20 XP · chill"], ["30", "30 XP · steady"], ["50", "50 XP · serious"], ["80", "80 XP · intense"]], String(set.dailyGoal || 30))) +
       row("Exam date", '<input type="date" id="s-exam" value="' + esc(set.examDate || "2026-11-14") + '">') +
+      '<p class="sub" id="s-exam-note">' + (examNote(set.examDate || "2026-11-14")) + "</p>" +
+      row("Lessons before the exam", sel("s-core", coreOptions().map(function (n) { return [String(n), n + " lessons"]; }), String(coreCut()))) +
+      '<p class="sub">About ' + suggestCore() + " lessons fit before your exam at 5 a week. The rest are planned for after it.</p>" +
       row("Problem reports", '<a class="btn small" href="#/reports">' + (s.reports || []).length + " saved</a>") +
+      (window.AI && AI.configured() ? row("Content review", '<a class="btn small" href="#/fixes">Open</a>') : "") +
       row("App guide", '<button class="btn small" id="s-guide">Show again</button>') +
       row("Test voice", '<button class="btn small" id="s-test">🔊 Play</button>') + "</section>" +
       '<section class="card settings"><div class="sec-h"><h2>🤖 AI assistant</h2><span class="tag">optional</span></div><p class="sub">Writing feedback and "Explain with AI", through a shared free AI service, so there is nothing to set up. Only the sentence or question you send is shared. It needs internet. (Advanced: you can point the app at your own server; that setting stays on this phone and is never exported.)</p><div id="ai-box" class="mw-form"></div></section>' +
@@ -882,7 +888,8 @@
     };
     wireBackup(); wireAI();
     var sg = document.getElementById("s-guide"); if (sg) sg.onclick = function () { showGuide(); };
-    document.getElementById("s-exam").onchange = function () { if (this.value) sv("examDate", this.value); };
+    document.getElementById("s-exam").onchange = function () { if (this.value) { sv("examDate", this.value); document.getElementById("s-exam-note").textContent = examNote(this.value); UI.toast("Plan updated for " + this.value, "📅"); } };
+    document.getElementById("s-core").onchange = function () { sv("coreTarget", parseInt(this.value, 10)); UI.toast("Plan updated", "📅"); };
     document.getElementById("s-test").onclick = function () { Audio2.noise(0); Audio2.play("你好，这是薪酬福利中文。", "F"); };
     var dl = document.getElementById("s-dl");
     if (dl) dl.onclick = function () { downloadAudio(dl); };
@@ -899,6 +906,8 @@
     function row(label, ctl) { return '<div class="row"><span>' + label + "</span>" + ctl + "</div>"; }
     function sel(id, opts, cur) { return '<select id="' + id + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select>"; }
   }
+  /* HSK 3.0 replaces the HSK 2.0 test format from 13 Dec 2026; this app's drills and mock exams follow the 2.0 format. */
+  function examNote(d) { return d >= "2026-12-13" ? "⚠ This date is after 13 Dec 2026, when HSK 3.0 starts. The mocks and drills here follow the HSK 2.0 format, so check which format your test centre will use." : "Your whole plan (pace, final 2 weeks, mocks) follows this date. Change it any time."; }
   /* ---------- AI assistant settings (Me) ---------- */
   function wireAI() {
     var box = document.getElementById("ai-box"); if (!box || !window.AI) return;
@@ -933,14 +942,21 @@
   /* ---------- report a problem ----------
      The ⚑ button in the top bar saves a note with the screen's route and a snippet of what was on screen,
      so wrong answers, bad audio or typos can be reviewed (Me → Problem reports) and copied out later. */
-  function openReport() {
+  function openReport(preset) {
     if (document.querySelector(".modal-wrap.report")) return;
     var ctx = (app.innerText || "").replace(/\s+/g, " ").trim().slice(0, 300), route = location.hash || "#/";
+    var cands = [];
+    if (preset && typeof preset === "object" && preset.ref) cands = [{ ref: preset.ref, label: preset.label || preset.ref }];
+    else if (window.Content) { try { cands = Content.locate(app.innerText || ""); } catch (e) { cands = []; } }
+    var canAI = !!(window.AI && AI.configured() && window.Content && cands.length);
     var wrap = document.createElement("div");
     wrap.className = "modal-wrap report";
-    wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><h3>⚑ Report a problem</h3><p class="sub">Saved on this phone with the screen you are on (' + esc(route) + '). Review it under Me → Problem reports.</p>' +
+    var pick = !canAI ? "" : cands.length === 1 ? '<p class="sub rp-item">Item: <b>' + esc(cands[0].label) + "</b></p>" :
+      '<label class="sub" for="rp-ref">Which item?</label><select id="rp-ref">' + cands.map(function (c) { return '<option value="' + esc(c.ref) + '">' + esc(c.label) + "</option>"; }).join("") + "</select>";
+    wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><h3>⚑ Report a problem</h3><p class="sub">Saved on this phone with the screen you are on (' + esc(route) + "). If the AI agrees, you can fix the lesson yourself.</p>" + pick +
       '<textarea id="rp-text" rows="4" maxlength="500" placeholder="What is wrong? e.g. wrong answer, bad audio, typo, confusing English"></textarea>' +
-      '<div class="actions center"><button class="btn primary" id="rp-save">Save</button><button class="btn" data-close>Cancel</button></div></div>';
+      (canAI ? '<label class="rp-ai"><input type="checkbox" id="rp-ask" checked> Ask the AI to check this item</label>' : "") +
+      '<div id="rp-out"></div><div class="actions center"><button class="btn primary" id="rp-save">Save</button><button class="btn" data-close>Cancel</button></div></div>';
     document.body.appendChild(wrap);
     requestAnimationFrame(function () { wrap.classList.add("show"); });
     function close() { wrap.classList.remove("show"); setTimeout(function () { wrap.remove(); }, 250); }
@@ -948,12 +964,116 @@
     document.getElementById("rp-save").onclick = function () {
       var text = document.getElementById("rp-text").value.trim();
       if (!text) { UI.toast("Write a short note first", "✍️"); return; }
-      this.onclick = null; this.disabled = true; // a double tap must not save twice
+      var btn = this; btn.onclick = null; btn.disabled = true; // a double tap must not save twice
+      var refEl = document.getElementById("rp-ref"), ref = canAI ? (refEl ? refEl.value : cands[0].ref) : "", ask = canAI && document.getElementById("rp-ask").checked;
       var s = Store.state; s.reports = s.reports || [];
-      s.reports.push({ id: Date.now().toString(36), date: Store.today(), route: route, text: text.slice(0, 500), ctx: ctx });
+      var rec = { id: Date.now().toString(36), date: Store.today(), route: route, text: text.slice(0, 500), ctx: ctx };
+      if (ref) rec.ref = ref;
+      s.reports.push(rec);
       if (s.reports.length > 100) s.reports.shift();
-      Store.save(); close(); UI.toast("Saved. See Me → Problem reports", "⚑");
+      Store.save();
+      if (!ask) { close(); UI.toast("Saved. See Me → Problem reports", "⚑"); return; }
+      var out = document.getElementById("rp-out");
+      out.innerHTML = '<div class="ai-card ai-wait">🤖 Checking this item twice… (about 10 seconds)</div>';
+      document.querySelector(".modal-wrap.report .actions").innerHTML = '<button class="btn" data-close>Close</button>';
+      var LABEL = { ok: "✓ The AI thinks this item is correct", key_wrong: "⚠ The AI thinks the answer is wrong", typo: "⚠ The AI found a typo", translation: "⚠ The AI found a translation problem", ambiguous: "⚠ The AI thinks it is ambiguous", other: "⚠ The AI found a problem" };
+      function show(r) {
+        rec.verdict = r.verdict || ""; Store.save();
+        var note = r.status === "proposed" ? "The AI suggests a fix. Accept it and the lesson changes right away (for everyone). Not convinced? Discuss it with the AI first." :
+          r.status === "needs_review" ? "The two AI checks did not agree. Discuss it with the AI to reach a final answer." :
+          r.status === "dismissed" ? "The AI would not change this item. If you disagree, tell the AI why and it will check again." : "Saved.";
+        out.innerHTML = '<div class="ai-card"><div class="ai-head"><b>🤖 ' + esc(LABEL[r.verdict] || "The AI could not decide") + "</b></div>" + (r.reasoning ? '<p class="ai-exp">' + esc(r.reasoning) + "</p>" : "") +
+          '<p class="sub">' + esc(note) + "</p>" +
+          (r.status === "proposed" ? '<div class="actions"><button class="btn small primary" id="rp-accept">✓ Accept this fix</button></div>' : "") +
+          (r.canDiscuss ? '<textarea id="rp-chat" rows="2" maxlength="500" placeholder="Reply to the AI: your reasoning or evidence"></textarea><div class="actions"><button class="btn small" id="rp-send">💬 Discuss with the AI</button></div>' : (r.token && r.turns >= 5 ? '<p class="sub">Discussion limit reached. Your note is saved.</p>' : "")) + "</div>";
+        var acc = document.getElementById("rp-accept"), snd = document.getElementById("rp-send");
+        if (acc) acc.onclick = function () {
+          acc.disabled = true; acc.textContent = "Applying…";
+          Content.accept(r.token).then(function (a) {
+            if (!a.ok) { acc.disabled = false; acc.textContent = "✓ Accept this fix"; UI.toast(AI.errMsg(a.error), "⚠️"); return; }
+            rec.accepted = true; Store.save();
+            out.innerHTML = '<div class="ai-card"><b>✅ Fix accepted</b><p class="sub">' + (a.applied ? "This lesson is updated now. Reload the screen to see it." : "Saved. It will show once the lesson is loaded again.") + "</p></div>";
+            try { route(); } catch (e) { /* the screen reloads itself */ }
+          });
+        };
+        if (snd) snd.onclick = function () {
+          var m = document.getElementById("rp-chat").value.trim(); if (!m) { UI.toast("Write your reply first", "✍️"); return; }
+          snd.disabled = true; out.insertAdjacentHTML("beforeend", '<div class="ai-card ai-wait">🤖 Checking again… (about 10 seconds)</div>');
+          Content.discuss(r.token, m).then(function (d) {
+            if (!d.ok) { show(r); UI.toast(AI.errMsg(d.error), "⚠️"); return; }
+            show(d.result);
+          });
+        };
+      }
+      Content.report(ref, text, route).then(function (res) {
+        if (!res.ok) { out.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + "<br><small>Your note is saved on this phone.</small></div>"; return; }
+        show(res.result);
+      });
     };
+  }
+
+  /* ---------- content review (Me → Content review): accept or reject proposed fixes ---------- */
+  var FIX_TAB = "proposed";
+  function viewFixes(msg) {
+    var html0 = '<section class="card"><h2>🛠 Content review</h2><p class="sub">Readers accept AI-checked fixes themselves when they report a problem. Use this screen only to look at them and undo a bad one. Reviewer code = the ADMIN_CODE secret on the server.</p>';
+    if (!window.AI || !AI.configured()) { render(html0 + '<p class="empty">Turn on the AI assistant first (Me → AI assistant).</p></section>', "me"); return; }
+    if (!Content.adminCode()) {
+      render(html0 + '<label for="fx-code">Reviewer code</label><input id="fx-code" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" placeholder="ADMIN_CODE"><div class="actions"><button class="btn small primary" id="fx-save">Save on this phone</button></div><p class="sub bad-t" id="fx-msg">' + esc(msg || "") + '</p></section>', "me");
+      document.getElementById("fx-save").onclick = function () { var v = document.getElementById("fx-code").value.trim(); if (v.length < 12) { document.getElementById("fx-msg").textContent = "At least 12 characters."; return; } Content.setAdminCode(v); viewFixes(); };
+      return;
+    }
+    var tabs = [["proposed", "Proposed"], ["needs_review", "Needs a look"], ["dismissed", "AI disagreed"], ["accepted", "Accepted"]];
+    render(html0 + '<div class="fx-tabs">' + tabs.map(function (t) { return '<button class="btn small' + (t[0] === FIX_TAB ? " primary" : "") + '" data-fxtab="' + t[0] + '">' + t[1] + "</button>"; }).join("") + '</div><div id="fx-list"><p class="empty">Loading…</p></div><div class="actions"><button class="btn small" id="fx-forget">Forget reviewer code</button></div></section>', "me");
+    [].forEach.call(document.querySelectorAll("[data-fxtab]"), function (b) { b.onclick = function () { FIX_TAB = b.getAttribute("data-fxtab"); viewFixes(); }; });
+    document.getElementById("fx-forget").onclick = function () { Content.setAdminCode(""); viewFixes(); };
+    var list = document.getElementById("fx-list");
+    Content.admin("review_list", { status: FIX_TAB }).then(function (r) {
+      if (!r.ok) { list.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(r.error)) + "</div>"; if (r.error === "bad_admin") { Content.setAdminCode(""); viewFixes(AI.errMsg("bad_admin")); } return; }
+      var rows = r.result.rows || [];
+      if (!rows.length) { list.innerHTML = '<p class="empty">Nothing here.</p>'; return; }
+      list.innerHTML = rows.map(fixCard).join("");
+      rows.forEach(wireFix);
+    });
+  }
+  function fixCard(r) {
+    var v = r.verdict || {}, set = (r.patch && r.patch.set) || [], snap = r.snapshot || {};
+    var passes = (v.passes || []).map(function (p, i) { return "<li><b>" + esc(p.verdict) + "</b> · " + esc(p.model) + "<br><small>" + esc(p.reasoning) + "</small></li>"; }).join("");
+    var liveObj = Content.resolve(r.ref), rowsHTML = set.map(function (x) { return fixRow(x.path, x.value, Content.getPath(liveObj || snap, x.path)); }).join("");
+    var acc = FIX_TAB === "accepted";
+    return '<div class="card fx" data-fx="' + r.id + '"><div class="sec-h"><b>' + esc(r.ref) + '</b><span class="muted">#' + r.id + (r.quarantine ? " · hidden" : "") + "</span></div>" +
+      '<p class="sub">Note: ' + esc(r.note || "") + "</p>" + liveItemHTML(r.ref, snap) +
+      (passes ? '<p class="sub">AI checks:</p><ul class="fx-pass">' + passes + "</ul>" : "") +
+      '<div class="fx-rows">' + rowsHTML + "</div>" +
+      (acc ? '<div class="actions"><button class="btn small bad" data-fxact="revoke">Undo this fix</button></div>' :
+        '<div class="actions"><button class="btn small" data-fxadd>＋ field</button><button class="btn small primary" data-fxact="accept">Accept</button><button class="btn small bad" data-fxact="reject">Reject</button><button class="btn small" data-fxact="' + (r.quarantine ? "unhide" : "hide") + '">' + (r.quarantine ? "Show again" : "Hide item") + "</button></div>") + "</div>";
+  }
+  /* the reviewer must see the item as the app really has it; a report's own snapshot can be wrong or forged */
+  function liveItemHTML(ref, snap) {
+    var live = Content.resolve(ref), liveS = live ? JSON.stringify(live, function (k, v) { return k && k.charAt(0) === "_" ? undefined : v; }) : "";
+    var same = live && liveS === JSON.stringify(snap);
+    return (live ? '<p class="sub">' + (same ? "✓ The report matches the item in the app now:" : "⚠ The report does NOT match the item in the app. Trust this version:") + '</p><pre class="fx-item">' + esc(JSON.stringify(JSON.parse(liveS), null, 1).slice(0, 700)) + "</pre>" :
+      '<p class="sub bad-t">⚠ This item is not loaded here, so it can\'t be compared. Report copy:</p><pre class="fx-item">' + esc(JSON.stringify(snap, null, 1).slice(0, 700)) + "</pre>");
+  }
+  function fixRow(path, value, old) {
+    return '<div class="fx-row"><input class="fx-path" value="' + esc(path) + '" placeholder="field e.g. answer"><input class="fx-val" value="' + esc(value) + '" placeholder="new value">' + (old !== undefined ? '<small class="muted">was: ' + esc(typeof old === "object" ? JSON.stringify(old) : old) + "</small>" : "") + "</div>";
+  }
+  function wireFix(r) {
+    var el = document.querySelector('[data-fx="' + r.id + '"]'); if (!el) return;
+    var add = el.querySelector("[data-fxadd]"); if (add) add.onclick = function () { el.querySelector(".fx-rows").insertAdjacentHTML("beforeend", fixRow("", "")); };
+    [].forEach.call(el.querySelectorAll("[data-fxact]"), function (b) {
+      b.onclick = function () {
+        var act = b.getAttribute("data-fxact"), set = [].map.call(el.querySelectorAll(".fx-row"), function (x) { return { path: x.querySelector(".fx-path").value.trim(), value: x.querySelector(".fx-val").value.trim() }; }).filter(function (x) { return x.path && x.value !== ""; });
+        if (act === "accept" && !set.length) { UI.toast("Add at least one change", "✍️"); return; }
+        if (act === "reject" && !confirm("Reject this report?")) return;
+        if (act === "hide" && !confirm("Hide this item from quizzes until someone shows it again?")) return;
+        [].forEach.call(el.querySelectorAll("button"), function (x) { x.disabled = true; });
+        Content.admin("review_decide", { id: r.id, decision: act, patch: { set: set } }).then(function (res) {
+          if (!res.ok) { UI.toast(AI.errMsg(res.error), "⚠️"); [].forEach.call(el.querySelectorAll("button"), function (x) { x.disabled = false; }); return; }
+          UI.toast({ accept: "Fix accepted", reject: "Rejected", revoke: "Fix undone", hide: "Item hidden", unhide: "Item shown again" }[act] || "Done", "🛠");
+          Content.sync(true).then(function () { Content.apply(); viewFixes(); });
+        });
+      };
+    });
   }
   function reportsText() {
     return (Store.state.reports || []).map(function (r, i) { return (i + 1) + ". [" + r.date + "] " + r.route + "\n   " + r.text + "\n   screen: " + r.ctx; }).join("\n\n");
@@ -1634,7 +1754,10 @@
       (w.example ? '<div class="ws-ex"><span class="zh">' + esc(w.example.zh) + "</span>" + SAY(w.example.zh) + '<div class="dim">' + M(w.example) + "</div></div>" : "") +
       '<div class="actions center">' + (c ? '<span class="tag t-box">In review · Box ' + c.box + (SRS.hard(id) ? " · hard" : "") + "</span>" : '<button class="btn primary" id="ws-add">➕ Add to review</button>') +
       '<a class="btn" href="' + wordHome(w) + '" id="ws-day">📖 ' + wordPlace(w) + "</a></div>" +
-      (window.AI && AI.configured() ? '<div class="ws-ask" id="ws-ask"><button class="btn small ai-btn" id="ws-askbtn">🤖 Ask AI about this word</button></div>' : "") + "</div>");
+      (window.AI && AI.configured() ? '<div class="ws-ask" id="ws-ask"><button class="btn small ai-btn" id="ws-askbtn">🤖 Ask AI about this word</button></div>' : "") +
+      '<div class="ws-ask"><button class="btn small" id="ws-report">⚑ Report a problem with this word</button></div></div>');
+    var wrb = document.getElementById("ws-report");
+    if (wrb) wrb.onclick = function () { openReport({ ref: "word:" + id, label: w.hanzi + " · " + w.pinyin }); };
     var ab = document.getElementById("ws-askbtn");
     if (ab) ab.onclick = function () { AI.askBox(document.getElementById("ws-ask"), w.hanzi, context || (w.example && w.example.zh) || ""); };
     var add = document.getElementById("ws-add");
@@ -1645,11 +1768,18 @@
 
   /* ---------- study plan ---------- */
   var BUFFER_DAYS = 14; // last two weeks before the exam: mocks + review
-  var PART2_WEEKS = 6; // part 2 (days 31–60) is paced to finish 6 weeks after the exam
+  var PART2_WEEKS = 6; // the lessons after your core target are paced to finish at least 6 weeks after the exam
+  /* How many lessons you plan to finish before the exam (Me → Settings). Everything after that is planned for after the exam. */
+  function coreCut() { var n = parseInt(Store.state.settings.coreTarget, 10); return Math.max(1, Math.min(DAYS.length, n > 0 ? n : 30)); }
+  function coreOptions() { var o = [30, 45, 60, 75, 90, 120, 150].filter(function (n) { return n <= DAYS.length; }); [DAYS.length, coreCut()].forEach(function (n) { if (o.indexOf(n) < 0) o.push(n); }); return o.sort(function (a, b) { return a - b; }); }
+  function suggestCore() {
+    var left = Store.daysBetween(Store.today(), Store.state.settings.examDate || "2026-11-14") - BUFFER_DAYS;
+    return Math.max(10, Math.min(DAYS.length, Math.floor(Math.max(0, left) / 7 * 5)));
+  }
   function planInfo() {
     var s = Store.state, t = Store.today(), exam = s.settings.examDate || "2026-11-14";
     var daysLeft = Store.daysBetween(t, exam);
-    var p1 = DAYS.filter(function (d) { return d.day <= 30; }), p2 = DAYS.filter(function (d) { return d.day > 30; });
+    var p1 = DAYS.filter(function (d) { return d.day <= coreCut(); }), p2 = DAYS.filter(function (d) { return d.day > coreCut(); });
     var isDone = function (d) { return (s.days[d.day] || {}).completed; };
     var done = p1.filter(isDone).length, total = p1.length, remaining = total - done;
     var dates = Object.keys(s.log).filter(function (k) { return s.log[k] > 0; }).sort();
@@ -1659,17 +1789,17 @@
     var span = Math.max(1, Store.daysBetween(start, finishBy) + 1), elapsed = Store.daysBetween(start, t) + 1;
     var expected = Math.min(total, Math.round(total * elapsed / span));
     var status = !dates.length ? "new" : done >= total ? "done" : done - expected >= 2 ? "ahead" : expected - done >= 2 ? "behind" : "on";
-    var courseEnd = Store.addDays(exam, PART2_WEEKS * 7), p2done = p2.filter(isDone).length;
+    var p2weeks = Math.max(PART2_WEEKS, Math.ceil(p2.length / 5)), courseEnd = Store.addDays(exam, p2weeks * 7), p2done = p2.filter(isDone).length;
     var p2from = daysLeft >= 0 ? Store.addDays(exam, 1) : t, p2left = Math.max(1, Store.daysBetween(p2from, courseEnd) + 1);
     return { exam: exam, daysLeft: daysLeft, done: done, total: total, remaining: remaining, finishBy: finishBy, studyLeft: studyLeft, perDay: remaining / studyLeft, expected: expected, status: status,
       inBuffer: Store.daysBetween(t, finishBy) < 0 && daysLeft >= 0, afterExam: daysLeft < 0,
-      p2: { done: p2done, total: p2.length, remaining: p2.length - p2done, end: courseEnd, perDay: (p2.length - p2done) / p2left, next: p2.filter(function (d) { return !isDone(d); })[0] || null } };
+      p2: { weeks: p2weeks, done: p2done, total: p2.length, remaining: p2.length - p2done, end: courseEnd, perDay: (p2.length - p2done) / p2left, next: p2.filter(function (d) { return !isDone(d); })[0] || null } };
   }
   var STATUS = { new: ["🌱", "Let's start", "t-box"], ahead: ["🚀", "Ahead of plan", "t-hsk"], on: ["✅", "On track", "t-hsk"], behind: ["⏳", "Behind plan", "t-warn"], done: ["🎓", "All lessons done", "t-hsk"] };
   function firstOpen(list) { return list.filter(function (d) { return !(Store.state.days[d.day] || {}).completed; })[0] || null; }
   function todayTasks() {
     var s = Store.state, t = Store.today(), p = planInfo(), due = SRS.dueIds(WORDMAP).length;
-    var nd = firstOpen(DAYS.filter(function (d) { return d.day <= 30; }));
+    var nd = firstOpen(DAYS.filter(function (d) { return d.day <= coreCut(); }));
     var tasks = [];
     tasks.push({ ico: "🔁", txt: due ? "Review " + due + " due word" + (due > 1 ? "s" : "") : "Review · all caught up", href: "#/review", done: !due });
     var nMis = Learn.count(), lastMock = s.mockHistory.length ? s.mockHistory[s.mockHistory.length - 1].date : null;
@@ -1773,9 +1903,9 @@
     if (p.inBuffer) html += finalModeCard();
     html += '<section class="card"><h2>Today</h2>' + taskList(todayTasks()) + "</section>";
     // week-by-week timeline
-    var t = Store.today(), weeks = [], cursor = t, lesson = DAYS.filter(function (d) { return d.day <= 30 && !(s.days[d.day] || {}).completed; }).map(function (d) { return d.day; });
+    var t = Store.today(), weeks = [], cursor = t, lesson = DAYS.filter(function (d) { return d.day <= coreCut() && !(s.days[d.day] || {}).completed; }).map(function (d) { return d.day; });
     var perWeek = Math.max(1, Math.ceil(p.perDay * 7)), w = 0;
-    while (Store.daysBetween(cursor, p.exam) >= 0 && w < 12) {
+    while (Store.daysBetween(cursor, p.exam) >= 0 && w < 40) {
       var end = Store.addDays(cursor, 6), inBuf = Store.daysBetween(cursor, p.finishBy) < 0;
       var take = inBuf ? [] : lesson.splice(0, perWeek);
       weeks.push({ from: cursor, to: Store.daysBetween(end, p.exam) < 0 ? p.exam : end, days: take, buf: inBuf || !take.length });
@@ -1788,10 +1918,10 @@
     }).join("") + '<div class="pw exam"><span class="pw-d">' + esc(p.exam.slice(5)) + "</span><b>🎓 HSK 4 exam</b></div></section>";
     // part 2: advanced C&B after the exam
     if (p.p2.total) {
-      var p2days = DAYS.filter(function (d) { return d.day > 30 && !(s.days[d.day] || {}).completed; }).map(function (d) { return d.day; });
+      var p2days = DAYS.filter(function (d) { return d.day > coreCut() && !(s.days[d.day] || {}).completed; }).map(function (d) { return d.day; });
       var from = p.afterExam ? t : Store.addDays(p.exam, 1), wk = Math.max(1, Math.ceil(Store.daysBetween(from, p.p2.end) / 7)), per2 = Math.max(1, Math.ceil(p2days.length / wk)), rows = [];
       for (var k = 0; k < wk && p2days.length; k++) { var ds = p2days.splice(0, per2), f = Store.addDays(from, k * 7); rows.push({ from: f, to: Store.addDays(f, 6), days: ds }); }
-      html += '<section class="card"><h2>Part 2 · Advanced C&amp;B</h2><p class="sub">' + p.p2.done + "/" + p.p2.total + " days done · planned for the " + PART2_WEEKS + " weeks after your exam, finishing by " + esc(p.p2.end) + ". Ahead of plan? You can start earlier.</p>" +
+      html += '<section class="card"><h2>Part 2 · Advanced C&amp;B</h2><p class="sub">' + p.p2.done + "/" + p.p2.total + " days done · planned for the " + p.p2.weeks + " weeks after your exam, finishing by " + esc(p.p2.end) + ". Ahead of plan? You can start earlier.</p>" +
         '<div class="xpbar"><span style="width:' + Math.round(p.p2.done / p.p2.total * 100) + '%"></span></div>' +
         rows.map(function (x) { return '<div class="pw"><span class="pw-d">' + esc(x.from.slice(5)) + " → " + esc(x.to.slice(5)) + "</span><b>Days " + x.days[0] + (x.days.length > 1 ? "–" + x.days[x.days.length - 1] : "") + '</b><span class="muted">' + x.days.length + " lessons</span></div>"; }).join("") +
         '<div class="pw exam"><span class="pw-d">' + esc(p.p2.end.slice(5)) + "</span><b>🏁 Course complete</b></div></section>";
@@ -2460,7 +2590,7 @@
 
   function boot() {
     applySettings();
-    document.getElementById("btn-flag").onclick = openReport;
+    document.getElementById("btn-flag").onclick = function () { openReport(); };
     document.getElementById("btn-py").onclick = function () {
       Store.state.settings.showPinyin = !Store.state.settings.showPinyin; Store.save(); applySettings();
       UI.toast(Store.state.settings.showPinyin ? "Pinyin on" : "Pinyin off", "拼");
@@ -2473,7 +2603,7 @@
       window.addEventListener("hashchange", route);
       route();
       // warm up the rest in the background so it's ready (and cached for offline) before it's needed
-      setTimeout(function () { ensureFull(); ensureMocks(); }, 1500);
+      setTimeout(function () { ensureFull().then(function () { return ensureMocks(); }).then(function () { if (window.Content) { Content.apply(); Content.sync(false).then(function () { Content.apply(); }); } }, function () {}); }, 1500);
       if (!Store.state.settings.onboarded) setTimeout(showGuide, 600);
     });
     if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {

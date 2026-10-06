@@ -36,6 +36,20 @@
     bad_model: "The Gemini model name was not found. Set GEMINI_MODEL / GEMINI_FALLBACK to a current model from AI Studio.",
     upstream_400: "Google rejected the Gemini key. Check GEMINI_API_KEY in Supabase secrets.",
     upstream_401: "Google rejected the Gemini key. Check GEMINI_API_KEY in Supabase secrets.",
+    bad_admin: "That reviewer code was not accepted (or review is not enabled on the server).",
+    report_cap: "Too many reports today. Your note is saved on this phone; try again tomorrow.",
+    ref_busy: "This item already has several open reports. Try again later.",
+    not_found: "That report is no longer on the server.",
+    not_proposed: "This fix is no longer available to accept.",
+    empty_patch: "There is nothing to change.",
+    closed: "This report is already closed.",
+    discuss_cap: "The discussion limit for this report is reached. Your note is saved.",
+    bad_token: "That report cannot be found.",
+    db_error: "The server could not reach its database. Did you run supabase/setup.sql?",
+    bad_ref: "This item can't be sent for checking.",
+    bad_snapshot: "This item is too large to send.",
+    empty_note: "Write a short note first.",
+    empty_patch: "Add at least one change before accepting.",
     upstream_403: "Google rejected the Gemini key. Check GEMINI_API_KEY in Supabase secrets.",
     upstream_unreachable: "The AI service couldn't reach Google. Try again.",
     bad_output: "The AI gave an unusable answer. Try again.",
@@ -46,14 +60,14 @@
   function errMsg(code) { return MSG[code] || (/^upstream_/.test(code || "") ? "Google's AI returned an error (" + code.slice(9) + "). Try again later." : "AI error" + (code ? " (" + code + ")" : "") + "."); }
 
   /* One request. Always resolves: { ok: true, result, model, used, cap } or { ok: false, error }. */
-  function call(task, payload) {
+  function call(task, payload, extra) {
     var c = cfg();
     if (!configured()) return Promise.resolve({ ok: false, error: "not_set" });
     if (navigator.onLine === false) return Promise.resolve({ ok: false, error: "offline" });
     var ctl = window.AbortController ? new AbortController() : null, timer = setTimeout(function () { if (ctl) ctl.abort(); }, 60000);
     var lang = window.Store && Store.state.settings.lang || "both";
     return fetch(c.url, { method: "POST", cache: "no-store", signal: ctl ? ctl.signal : undefined,
-      headers: c.code ? { "content-type": "application/json", "x-app-code": c.code } : { "content-type": "application/json" }, body: JSON.stringify({ task: task, lang: lang, payload: payload }) })
+      headers: Object.assign({ "content-type": "application/json" }, c.code ? { "x-app-code": c.code } : {}, extra || {}), body: JSON.stringify({ task: task, lang: lang, payload: payload }) })
       .then(function (r) {
         return r.json().catch(function () { return null; }).then(function (j) {
           clearTimeout(timer);

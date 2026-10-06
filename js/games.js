@@ -489,7 +489,7 @@
   var LADDER = [0.9, 1, 1.15, 1.3];
 
   /* ---------- 10. HSK 4 drills: confusable words, sentence order, picture writing, measure words ---------- */
-  function drillItems(type) { return ((window.CB_DRILLS || {})[type] || []); }
+  function drillItems(type) { return ((window.CB_DRILLS || {})[type] || []).filter(function (it) { return !(window.Content && Content.isHidden("drill:" + it.id)); }); }
   /* One drill question → { html, wire(done) }. Used by the drill games and by the mistake notebook. */
   function drillQ(type, it) {
     var App = A(), esc = App.esc, key = "dr:" + type + ":" + it.id, meta = { kind: "drill", skill: DRILL_SKILL[type], d: type, id: it.id };

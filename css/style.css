@@ -817,3 +817,12 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .ai-acts li { margin-bottom: 8px; }
 .ws-ask { margin-top: 10px; text-align: center; }
 .ai-weekly #wk-ai-out { margin-top: 6px; }
+.rp-ai { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: .9rem; text-align: left; }
+.modal.report select, #rp-ref { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 12px; border: 2px solid var(--border); background: var(--surface); color: inherit; font: inherit; }
+.fx-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.fx { margin: 10px 0; text-align: left; }
+.fx-item { white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow: auto; font-size: .78rem; background: var(--surface-2, rgba(120,100,200,.08)); padding: 8px; border-radius: 10px; }
+.fx-pass { margin: 4px 0; padding-left: 18px; }
+.fx-row { display: grid; grid-template-columns: 1fr 1.6fr; gap: 6px; margin: 6px 0; }
+.fx-row small { grid-column: 1 / -1; }
+.fx-row input, #fx-code { box-sizing: border-box; width: 100%; padding: 8px; border-radius: 10px; border: 2px solid var(--border); background: var(--surface); color: inherit; font: inherit; }

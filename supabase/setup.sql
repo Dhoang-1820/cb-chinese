@@ -32,3 +32,23 @@ $$;
 -- Only the Edge Function (service role) may call it.
 revoke all on function public.bump_ai_usage(integer) from public, anon, authenticated;
 grant execute on function public.bump_ai_usage(integer) to service_role;
+
+-- Content feedback: learner reports, the AI check, and fixes waiting for a human decision.
+create table if not exists public.content_reports (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  ref text not null,                       -- e.g. drill:c01, mock:R1-1, gq:g01:2, word:d01-01
+  route text,
+  note text,
+  snapshot jsonb,                          -- the item as the app had it
+  status text not null default 'new',      -- proposed | needs_review | dismissed | accepted | rejected | revoked
+  verdict jsonb,                           -- the AI check(s)
+  patch jsonb,                             -- {"set":[{"path":"answer","value":"认为"}]}
+  quarantine boolean not null default false,
+  decided_at timestamptz,
+  decision_note text
+);
+alter table public.content_reports enable row level security;   -- no policies: only the service role (the function) can touch it
+revoke all on public.content_reports from public, anon, authenticated;
+grant all on public.content_reports to service_role;
+create index if not exists content_reports_status_idx on public.content_reports (status, id desc);

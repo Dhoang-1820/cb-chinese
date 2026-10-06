@@ -37,7 +37,7 @@ Dashboard → Edge Functions → **Secrets** (or `npx supabase secrets set NAME=
 | Name | Value |
 |---|---|
 | `GEMINI_API_KEY` | the key from step 1 (required) |
-| `APP_CODE` | a random access code you invent, at least 6 characters, for example 4 random words (required) |
+| `APP_CODE` | **leave unset for the shared/public setup** (everyone using the site gets AI with no setup). Set a code of 12+ random characters only for a private setup, and then each device must enter it |
 | `GEMINI_MODEL` | optional, default `gemini-3.8-flash` |
 | `GEMINI_FALLBACK` | optional, default `gemini-3.5-flash-lite` |
 | `AI_DAILY_CAP` | optional, default `150` calls per day |
@@ -46,6 +46,10 @@ Dashboard → Edge Functions → **Secrets** (or `npx supabase secrets set NAME=
 If the app says the model name was not found, check the current names in AI Studio and set `GEMINI_MODEL` / `GEMINI_FALLBACK`.
 
 ## 6. Connect the app
+**Shared setup (recommended, no per-user steps):** put the function URL into `BUILT_IN_URL` at the top of `js/ai.js` and push. Every user then gets AI with nothing to enter. The URL is public by design; the Gemini key never leaves Supabase. Without `APP_CODE` the function only accepts browsers from `ALLOWED_ORIGINS`, allows 12 requests a minute per address, and stops at `AI_DAILY_CAP` calls a day for everyone.
+
+**Private setup:** set `APP_CODE`, leave `BUILT_IN_URL` empty, and enter the URL and code on each device as below.
+
 1. Function URL: `https://<your-project-ref>.supabase.co/functions/v1/ai`
 2. On the phone: **Me → AI assistant**, paste the URL and your `APP_CODE`, tap **Save**, then **Test**.
    You should see "Works. Model … · 1/150 AI calls used today".
@@ -54,9 +58,9 @@ If the app says the model name was not found, check the current names in AI Stud
 ## Troubleshooting
 | Test message | Meaning |
 |---|---|
-| access code was not accepted | `APP_CODE` secret differs from what you typed |
+| access code was not accepted | `APP_CODE` is set on the server but the app sent none or a different one |
 | Google rejected the Gemini key | wrong or missing `GEMINI_API_KEY` (Google may answer 400 for an invalid key) |
-| not configured | `APP_CODE` or `GEMINI_API_KEY` secret missing; redeploy after adding |
+| not configured | `GEMINI_API_KEY` missing (or `APP_CODE` shorter than 6); redeploy after adding |
 | AI is busy / daily limit | free quota or your `AI_DAILY_CAP` reached; wait or raise the cap |
 | model name was not found | `GEMINI_MODEL` and `GEMINI_FALLBACK` are not valid model names |
 | origin error | `ALLOWED_ORIGINS` does not include the site address |

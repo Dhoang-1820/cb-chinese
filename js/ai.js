@@ -5,17 +5,22 @@
    - AI answers are advice. Cards say so, show a confidence level, and the 👎 button saves the case under Me → Problem reports. */
 (function () {
   "use strict";
+  /* The shared AI service every user of this site gets with no setup. It is a public address, not a secret:
+     the Gemini key stays in Supabase, and the service limits calls per day and per address. Empty = no built-in AI. */
+  var BUILT_IN_URL = "https://kztzcwhbfdzanqvecoxi.supabase.co/functions/v1/ai";
   var KEY = "cbChinese.ai", FB = "cbChinese.ai.fb";
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function read(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
   function write(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked: AI just stays unconfigured */ } }
 
-  function cfg() { var c = read(KEY); return { url: typeof c.url === "string" ? c.url : "", code: typeof c.code === "string" ? c.code : "" }; }
+  function own() { var c = read(KEY); return { url: typeof c.url === "string" ? c.url : "", code: typeof c.code === "string" ? c.code : "" }; }
+  function cfg() { var c = own(); return c.url ? c : { url: BUILT_IN_URL, code: "" }; }
+  function usingBuiltIn() { return !own().url && !!BUILT_IN_URL; }
   function validUrl(u) { return /^https:\/\/[^\s/]+\/\S+$/.test(u) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/\S*$/.test(u); }
   function save(url, code) { write(KEY, { url: String(url || "").trim(), code: String(code || "").trim() }); }
   function clear() { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } }
-  function configured() { var c = cfg(); return validUrl(c.url) && c.code.length >= 6; }
+  function configured() { return validUrl(cfg().url); }
   function available() { return configured() && navigator.onLine !== false; }
 
   var MSG = {
@@ -27,7 +32,7 @@
     timeout: "The AI took too long. Try again.",
     network: "Couldn't reach the AI service.",
     origin: "This site is not allowed by the AI service (check ALLOWED_ORIGINS).",
-    not_configured: "The AI service is missing its secrets (APP_CODE or GEMINI_API_KEY).",
+    not_configured: "The AI service is missing its secrets (GEMINI_API_KEY).",
     bad_model: "The Gemini model name was not found. Set GEMINI_MODEL / GEMINI_FALLBACK to a current model from AI Studio.",
     upstream_400: "Google rejected the Gemini key. Check GEMINI_API_KEY in Supabase secrets.",
     upstream_401: "Google rejected the Gemini key. Check GEMINI_API_KEY in Supabase secrets.",
@@ -48,7 +53,7 @@
     var ctl = window.AbortController ? new AbortController() : null, timer = setTimeout(function () { if (ctl) ctl.abort(); }, 60000);
     var lang = window.Store && Store.state.settings.lang || "both";
     return fetch(c.url, { method: "POST", cache: "no-store", signal: ctl ? ctl.signal : undefined,
-      headers: { "content-type": "application/json", "x-app-code": c.code }, body: JSON.stringify({ task: task, lang: lang, payload: payload }) })
+      headers: c.code ? { "content-type": "application/json", "x-app-code": c.code } : { "content-type": "application/json" }, body: JSON.stringify({ task: task, lang: lang, payload: payload }) })
       .then(function (r) {
         return r.json().catch(function () { return null; }).then(function (j) {
           clearTimeout(timer);
@@ -163,6 +168,6 @@
     };
   }
 
-  window.AI = { cfg: cfg, save: save, clear: clear, configured: configured, available: available, validUrl: validUrl, call: call, errMsg: errMsg,
+  window.AI = { cfg: cfg, own: own, usingBuiltIn: usingBuiltIn, hasBuiltIn: function () { return !!BUILT_IN_URL; }, save: save, clear: clear, configured: configured, available: available, validUrl: validUrl, call: call, errMsg: errMsg,
     grade: grade, attachExplain: attachExplain, unknownChars: unknownChars, counts: counts, _gradeCard: gradeCard, _explainCard: explainCard };
 })();

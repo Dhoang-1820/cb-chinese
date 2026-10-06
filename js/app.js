@@ -845,7 +845,7 @@
       row("Problem reports", '<a class="btn small" href="#/reports">' + (s.reports || []).length + " saved</a>") +
       row("App guide", '<button class="btn small" id="s-guide">Show again</button>') +
       row("Test voice", '<button class="btn small" id="s-test">🔊 Play</button>') + "</section>" +
-      '<section class="card settings"><div class="sec-h"><h2>🤖 AI assistant</h2><span class="tag">optional</span></div><p class="sub">Writing feedback and "Explain with AI", through your own free Supabase + Gemini setup (steps: supabase/SETUP.md in the GitHub repo). The URL and access code stay on this phone only and are never exported or backed up.</p><div id="ai-box" class="mw-form"></div></section>' +
+      '<section class="card settings"><div class="sec-h"><h2>🤖 AI assistant</h2><span class="tag">optional</span></div><p class="sub">Writing feedback and "Explain with AI", through a shared free AI service, so there is nothing to set up. Only the sentence or question you send is shared. It needs internet. (Advanced: you can point the app at your own server; that setting stays on this phone and is never exported.)</p><div id="ai-box" class="mw-form"></div></section>' +
       '<section class="card settings"><h2>Study reminder</h2><p class="sub">A daily calendar event until your exam, with an alert. Pick a time, then add it to your calendar once.</p>' +
       row("Time", '<input type="time" id="s-rtime" value="' + esc(set.remindTime || "20:00") + '">') +
       '<div class="actions"><button class="btn small primary" id="s-ics">📅 iPhone Calendar</button><a class="btn small" id="s-gcal" target="_blank" rel="noopener" href="#">Google Calendar</a></div></section>' +
@@ -903,26 +903,29 @@
   function wireAI() {
     var box = document.getElementById("ai-box"); if (!box || !window.AI) return;
     function draw(msg) {
-      var c = AI.cfg(), fb = AI.counts(), on = AI.configured();
-      box.innerHTML = '<label for="ai-url">Function URL</label><input id="ai-url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://your-project.supabase.co/functions/v1/ai" value="' + esc(c.url) + '">' +
-        '<label for="ai-code">Access code</label><input id="ai-code" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" placeholder="' + (c.code ? "saved · type to replace" : "the APP_CODE you chose") + '">' +
-        '<div class="actions"><button class="btn small primary" id="ai-save">Save</button><button class="btn small" id="ai-test"' + (on ? "" : " disabled") + '>Test</button>' + (on ? '<button class="btn small bad" id="ai-off">Remove</button>' : "") + "</div>" +
-        '<p class="sub" id="ai-status">' + esc(msg || (on ? "✓ Saved. Your feedback so far: 👍 " + fb.up + " · 👎 " + fb.down : "Not set up yet. Everything else works without it.")) + "</p>";
+      var c = AI.own(), fb = AI.counts(), on = AI.configured(), bi = AI.usingBuiltIn();
+      var form = '<label for="ai-url">Function URL</label><input id="ai-url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://your-project.supabase.co/functions/v1/ai" value="' + esc(c.url) + '">' +
+        '<label for="ai-code">Access code (only if your server uses one)</label><input id="ai-code" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" placeholder="' + (c.code ? "saved · type to replace" : "optional") + '">' +
+        '<div class="actions"><button class="btn small primary" id="ai-save">Save</button>' + (c.url ? '<button class="btn small bad" id="ai-off">' + (AI.hasBuiltIn() ? "Use built-in AI" : "Remove") + "</button>" : "") + "</div>";
+      var hint = on ? (bi ? "✓ Built-in AI is on. Nothing to set up. " : "✓ Using your own server. ") + "Your feedback so far: 👍 " + fb.up + " · 👎 " + fb.down : "Not set up yet. Everything else works without it.";
+      box.innerHTML = (on ? '<div class="actions"><button class="btn small" id="ai-test">Test AI</button></div>' : "") +
+        '<p class="sub" id="ai-status">' + esc(msg || hint) + "</p>" +
+        (AI.hasBuiltIn() ? '<details' + (c.url ? " open" : "") + '><summary class="sub">Use my own server (advanced)</summary>' + form + "</details>" : form);
       document.getElementById("ai-save").onclick = function () {
         var url = document.getElementById("ai-url").value.trim(), code = document.getElementById("ai-code").value.trim() || c.code;
         if (!AI.validUrl(url)) return draw("The URL should look like https://your-project.supabase.co/functions/v1/ai");
-        if (code.length < 6) return draw("The access code needs at least 6 characters.");
-        AI.save(url, code); draw("✓ Saved on this phone. Tap Test to check it.");
+        if (code && code.length < 6) return draw("The access code needs at least 6 characters (or leave it empty).");
+        AI.save(url, code); draw("✓ Saved on this phone. Tap Test AI to check it.");
       };
       var t = document.getElementById("ai-test");
-      t.onclick = function () {
+      if (t) t.onclick = function () {
         t.disabled = true; document.getElementById("ai-status").textContent = "Testing…";
         AI.call("grade", { word: "地铁", scene: "A man takes the subway to work", sentence: "我每天坐地铁去公司。" }).then(function (r) {
           draw(r.ok ? "✓ Works. Model " + r.model + " · " + r.used + "/" + r.cap + " AI calls used today." : "✗ " + AI.errMsg(r.error));
         });
       };
       var off = document.getElementById("ai-off");
-      if (off) off.onclick = function () { if (confirm("Remove the AI setup from this phone?")) { AI.clear(); draw("Removed."); } };
+      if (off) off.onclick = function () { if (confirm(AI.hasBuiltIn() ? "Go back to the built-in AI?" : "Remove the AI setup from this phone?")) { AI.clear(); draw(AI.hasBuiltIn() ? "Using the built-in AI again." : "Removed."); } };
     }
     draw();
   }

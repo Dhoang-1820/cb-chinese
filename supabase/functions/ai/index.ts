@@ -226,14 +226,30 @@ export async function runTask(c: Clean, env: Record<string, string | undefined>,
   return { ok: false, error: lastStatus === 429 ? "busy" : lastStatus === 0 ? "upstream_unreachable" : "bad_output", status: lastStatus === 429 ? 429 : 502 };
 }
 
+const hits = new Map<string, number[]>();
+/** at most 12 requests per minute per address (per server instance) */
+function tooFast(ip: string): boolean {
+  const now = Date.now(), list = (hits.get(ip) || []).filter((t) => now - t < 60000);
+  list.push(now); hits.set(ip, list);
+  if (hits.size > 500) for (const k of hits.keys()) { const l = hits.get(k)!; if (!l.length || now - l[l.length - 1] > 60000) hits.delete(k); }
+  return list.length > 12;
+}
+
 export async function handle(req: Request, env: Record<string, string | undefined>, deps: Deps): Promise<Response> {
   const allowed = parseOrigins(env), origin = req.headers.get("origin"), h = cors(origin, allowed);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: h });
   if (req.method !== "POST") return reply(405, { ok: false, error: "method" }, h);
   if (origin && allowed.indexOf(origin) < 0) return reply(403, { ok: false, error: "origin" }, h);
-  if (!env.APP_CODE || env.APP_CODE.length < 6 || !env.GEMINI_API_KEY) return reply(500, { ok: false, error: "not_configured" }, h);
-  const code = req.headers.get("x-app-code") || "";
-  if (!code || !(await sameSecret(code, env.APP_CODE))) return reply(401, { ok: false, error: "bad_code" }, h);
+  if (!env.GEMINI_API_KEY || (env.APP_CODE && env.APP_CODE.length < 6)) return reply(500, { ok: false, error: "not_configured" }, h);
+  if (env.APP_CODE) {
+    const code = req.headers.get("x-app-code") || "";
+    if (!code || !(await sameSecret(code, env.APP_CODE))) return reply(401, { ok: false, error: "bad_code" }, h);
+  } else {
+    // Public mode (no APP_CODE): only browsers on an allowed origin are accepted, and each address is rate limited.
+    if (!origin) return reply(403, { ok: false, error: "origin" }, h);
+    const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+    if (ip && tooFast(ip)) return reply(429, { ok: false, error: "busy" }, h);
+  }
   let text = "";
   try { text = await req.text(); } catch (_e) { return reply(400, { ok: false, error: "bad_request" }, h); }
   if (text.length > MAX_BODY) return reply(413, { ok: false, error: "too_big" }, h);

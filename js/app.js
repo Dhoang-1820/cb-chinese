@@ -423,7 +423,7 @@
       var weekDays = plan.slice(w * 5, w * 5 + 5);
       html += learnPartBanner(w);
       var doneN = weekDays.filter(function (p) { return (st.days[p.day] || {}).completed; }).length;
-      html += '<div class="pw g' + (w % 6) + '"><span>Week ' + (w + 1) + "</span><b>" + esc(weekDays[0].en.replace(/^Review.*/, "") || weekDays[1].en) + "</b><em>" + doneN + "/" + weekDays.length + "</em></div><div class=\"path\">";
+      html += '<div class="wk-band g' + (w % 6) + '"><span>Week ' + (w + 1) + "</span><b>" + esc(weekDays[0].en.replace(/^Review.*/, "") || weekDays[1].en) + "</b><em>" + doneN + "/" + weekDays.length + "</em></div><div class=\"path\">";
       weekDays.forEach(function (p, i) {
         var d = DAYMAP[p.day], rec = st.days[p.day] || {}, isNext = nxt && nxt.day === p.day, review = p.type === "review";
         var x = PATH_X[(w * 5 + i) % PATH_X.length];
@@ -2142,8 +2142,8 @@
       cursor = Store.addDays(end, 1); w++;
     }
     if (!p.afterExam) html += '<section class="card"><h2>Week by week</h2>' + weeks.map(function (x, i) {
-      var lbl = x.days.length ? "Days " + x.days[0] + (x.days.length > 1 ? "–" + x.days[x.days.length - 1] : "") : "Mock exams + review";
-      return '<div class="pw' + (i === 0 ? " now" : "") + '"><span class="pw-d">' + esc(x.from.slice(5)) + " → " + esc(x.to.slice(5)) + "</span><b>" + lbl + "</b>" +
+      var lbl = x.days.length ? "Days " + x.days[0] + (x.days.length > 1 ? "–" + x.days[x.days.length - 1] : "") : "Mocks + review";
+      return '<div class="pw' + (i === 0 ? " now" : "") + '"><span class="pw-d">' + esc(x.from.slice(5)) + " → " + esc(x.to.slice(5)) + "</span><b>" + lbl + (i === 0 ? ' <small class="muted">· now</small>' : "") + "</b>" +
         (x.buf ? '<span class="tag t-hsk">📝 Mocks</span>' : x.days.length ? '<span class="muted">' + x.days.length + " lessons</span>" : "") + "</div>";
     }).join("") + '<div class="pw exam"><span class="pw-d">' + esc(p.exam.slice(5)) + "</span><b>🎓 HSK 4 exam</b></div></section>";
     // part 2: advanced C&B after the exam

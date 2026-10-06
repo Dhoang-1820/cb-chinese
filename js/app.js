@@ -171,7 +171,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", track: "Pro track", talk: "Role-play" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader" };
   function route() {
     Audio2.stop(); Audio2.noise(0); setKeys(null); workDone = false; if (LM) { LM.stop(); LM = null; }
     try { weekTick(); } catch (e) { /* the weekly report must never block navigation */ }
@@ -216,6 +216,8 @@
     else if (v === "track") viewTrack(parseInt(parts[1], 10) || 0, parseInt(parts[2], 10) || 0);
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "plan") viewPlan();
+    else if (v === "ready") viewReady();
+    else if (v === "read") viewRead();
     else if (v === "progress") viewProgress();
     else if (v === "mock") {
       if (!parts[1]) viewMockList();
@@ -224,7 +226,7 @@
       else viewMockSection(parts[1], parts[2]);
     }
     else viewHome();
-    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
+    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     document.getElementById("page-title").textContent = TITLES[v] || "C&B 中文";
     refreshChrome();
@@ -344,6 +346,231 @@
     return Math.min(22.5, Math.max(17, h));
   }
 
+  /* ---------- Reader: paste real Chinese, tap a word ----------
+     Works straight away with the course words (Vietnamese + English). The full dictionary (CC-CEDICT, English only,
+     about 2 MB) is an optional one-time download kept on the phone. Pasted text never leaves the phone unless you
+     tap the AI button on a sentence. */
+  var DICT = null, DICT_P = null, DICT_URL = "vendor/dict/cedict.v1.js", DICT_KEY = "cbChinese.dict", READ_KEY = "cbChinese.readText";
+  var READ_SAMPLE = "各位同事：本月工资将于10号发放。请大家核对工资条上的个人所得税和社会保险扣除项目。如有问题，请在周五之前联系人力资源部。谢谢！";
+  function dictWanted() { try { return localStorage.getItem(DICT_KEY) === "1"; } catch (e) { return false; } }
+  function loadDict() {
+    if (DICT) return Promise.resolve(DICT);
+    return DICT_P || (DICT_P = new Promise(function (res, rej) {
+      var sc = document.createElement("script"); sc.src = DICT_URL;
+      sc.onload = function () {
+        var raw = window.CB_DICT_RAW; if (!raw) { DICT_P = null; return rej(new Error("empty")); }
+        var m = Object.create(null), lines = raw.split("\n");
+        for (var i = 0; i < lines.length; i++) { var t = lines[i].indexOf("\t"); if (t > 0) m[lines[i].slice(0, t)] = lines[i].slice(t + 1); }
+        window.CB_DICT_RAW = null; DICT = m; try { localStorage.setItem(DICT_KEY, "1"); } catch (e) { /* ignore */ }
+        res(DICT);
+      };
+      sc.onerror = function () { DICT_P = null; sc.remove(); rej(new Error("network")); };
+      document.head.appendChild(sc);
+    }));
+  }
+  function dictGet(w) { var v = DICT && DICT[w]; if (!v) return null; var a = v.split("\t"), out = []; for (var i = 0; i + 1 < a.length; i += 2) out.push({ py: tonePy(a[i]), en: a[i + 1] }); return out; }
+  /* "gong1 zi1" -> "gōng zī" */
+  var TONES = { a: "āáǎà", e: "ēéěè", i: "īíǐì", o: "ōóǒò", u: "ūúǔù", "ü": "ǖǘǚǜ" };
+  function tonePy(num) {
+    return String(num).split(" ").map(function (sy) {
+      var m = /^([a-zü:v]+)([1-5])$/i.exec(sy); if (!m) return sy;
+      var b = m[1].replace(/v|u:/g, "ü"), t = +m[2]; if (t === 5) return b;
+      var at = b.indexOf("a") >= 0 ? b.indexOf("a") : b.indexOf("e") >= 0 ? b.indexOf("e") : b.indexOf("ou") >= 0 ? b.indexOf("o") : -1;
+      if (at < 0) for (var i = b.length - 1; i >= 0; i--) if (TONES[b.charAt(i)]) { at = i; break; }
+      return at < 0 ? b : b.slice(0, at) + TONES[b.charAt(at)].charAt(t - 1) + b.slice(at + 1);
+    }).join(" ");
+  }
+  /* Split each run of Chinese twice — longest match from the left and from the right — and keep the split with
+     fewer leftover single characters (then fewer pieces). This fixes most greedy mistakes, e.g. 联系人|力|资源|部. */
+  function segment(text) {
+    var byHz = {}, maxLen = 5; WORDS.forEach(function (w) { if (w.hanzi && !byHz[w.hanzi]) { byHz[w.hanzi] = w; if (w.hanzi.length > maxLen) maxLen = Math.min(8, w.hanzi.length); } });
+    function look(c) { return byHz[c] ? { t: c, w: byHz[c] } : DICT && DICT[c] ? { t: c, d: 1 } : null; }
+    function one(c) { return look(c) || { t: c, x: 1 }; }
+    function fwd(run) { var o = [], i = 0; while (i < run.length) { var h = null; for (var L = Math.min(maxLen, run.length - i); L >= 2 && !h; L--) h = look(run.substr(i, L)); h = h || one(run.charAt(i)); o.push(h); i += h.t.length; } return o; }
+    function bwd(run) { var o = [], j = run.length; while (j > 0) { var h = null; for (var L = Math.min(maxLen, j); L >= 2 && !h; L--) h = look(run.substr(j - L, L)); h = h || one(run.charAt(j - 1)); o.unshift(h); j -= h.t.length; } return o; }
+    function cost(o) { return o.reduce(function (a, k) { return a + (k.t.length === 1 ? (k.x ? 3 : 1) : 0); }, 0) * 100 + o.length; }
+    var out = [];
+    String(text).split(/([㐀-鿿]+)/).forEach(function (part, i) {
+      if (!part) return;
+      if (i % 2 === 0) { out.push({ t: part }); return; }
+      var f = fwd(part), b = bwd(part);
+      Array.prototype.push.apply(out, cost(b) < cost(f) ? b : f);
+    });
+    return out;
+  }
+  function speakZh(t) { try { var u = new SpeechSynthesisUtterance(t); u.lang = "zh-CN"; u.rate = 0.85; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { /* no voice on this device */ } }
+  function viewRead() {
+    var saved = ""; try { saved = sessionStorage.getItem(READ_KEY) || ""; } catch (e) { /* ignore */ }
+    var showPy = !!Store.state.settings.showPinyin;
+    render('<a class="back" href="#/games">‹ Games</a><section class="card reader"><div class="sec-h"><h2>📖 Reader</h2><span class="tag">real text</span></div>' +
+      '<p class="sub">Paste a Chinese email or message, then tap any word. The text stays on this phone.</p>' +
+      '<textarea id="rd-in" rows="4" maxlength="3000" placeholder="粘贴中文… Paste Chinese text here" aria-label="Chinese text">' + esc(saved) + "</textarea>" +
+      '<div class="actions"><button type="button" class="btn primary" id="rd-go">Read ▶</button><button type="button" class="btn" id="rd-paste">📋 Paste</button><button type="button" class="btn" id="rd-sample">Try a sample</button></div></section>' +
+      '<div id="rd-dict"></div><div id="rd-out"></div>', "games");
+    var inp = document.getElementById("rd-in"), out = document.getElementById("rd-out"), dbox = document.getElementById("rd-dict"), toks = [];
+    function dictCard() {
+      if (DICT) { dbox.innerHTML = ""; return; }
+      dbox.innerHTML = '<section class="card rd-dl"><p><b>📚 Full dictionary</b> <span class="muted">· optional</span></p><p class="sub">Right now only the course words are recognised. Download the dictionary once (about 2 MB, English meanings) to look up any word, also offline.</p>' +
+        '<div class="actions"><button type="button" class="btn small primary" id="rd-dl">Download dictionary</button></div><p class="sub" id="rd-dlmsg" hidden></p></section>';
+      document.getElementById("rd-dl").onclick = getDict;
+    }
+    function getDict() {
+      var b = document.getElementById("rd-dl"), msg = document.getElementById("rd-dlmsg");
+      if (b) { b.disabled = true; b.textContent = "Downloading…"; }
+      loadDict().then(function () { dictCard(); if (inp.value.trim()) run(); UI.toast("Dictionary ready", "📚"); },
+        function () { if (b) { b.disabled = false; b.textContent = "Download dictionary"; } if (msg) { msg.hidden = false; msg.textContent = navigator.onLine === false ? "You are offline. Connect once to download it." : "Could not download it. Try again."; } });
+    }
+    function run() {
+      var text = inp.value.replace(/\r/g, "").trim();
+      try { sessionStorage.setItem(READ_KEY, text); } catch (e) { /* ignore */ }
+      if (!/[㐀-鿿]/.test(text)) { out.innerHTML = '<p class="empty">Paste some Chinese text first.</p>'; return; }
+      toks = segment(text);
+      var seen = {}, nCourse = 0, nDict = 0, nUnk = 0;
+      toks.forEach(function (k) { if (k.w || k.d || k.x) { if (seen[k.t]) return; seen[k.t] = 1; if (k.w) nCourse++; else if (k.d) nDict++; else nUnk++; } });
+      var html = "", sent = "", sents = [];
+      function endSent() { if (/[㐀-鿿]/.test(sent)) { sents.push(sent.trim()); html += (window.AI && AI.configured() ? '<button type="button" class="rd-ai" data-s="' + (sents.length - 1) + '" aria-label="Translate this sentence with AI">🤖</button>' : ""); } sent = ""; }
+      toks.forEach(function (k, i) {
+        if (k.w || k.d || k.x) {
+          var py = showPy ? (k.w ? k.w.pinyin : k.d ? String((dictGet(k.t) || [{}])[0].py || "").replace(/ /g, "") : "") : "";
+          html += '<span class="rw ' + (k.w ? "c" : k.d ? "d" : "x") + '" data-i="' + i + '" role="button" tabindex="0">' + (py ? "<ruby>" + esc(k.t) + "<rt>" + esc(py) + "</rt></ruby>" : esc(k.t)) + "</span>";
+          sent += k.t;
+        } else {
+          k.t.split(/(\n+|[。！？!?；;]+)/).forEach(function (part) {
+            if (!part) return;
+            if (/^\n+$/.test(part)) { endSent(); html += "<br>"; }
+            else if (/^[。！？!?；;]+$/.test(part)) { sent += part; html += esc(part); endSent(); }
+            else { sent += part; html += esc(part); }
+          });
+        }
+      });
+      endSent();
+      out.innerHTML = '<section class="card"><div class="rd-stats"><span class="rd-k c">' + nCourse + " from your course</span>" + (DICT ? '<span class="rd-k d">' + nDict + " other words</span>" : "") + (nUnk ? '<span class="rd-k x">' + nUnk + " not recognised</span>" : "") +
+        '<label class="rd-py"><input type="checkbox" id="rd-pyt"' + (showPy ? " checked" : "") + "> Pinyin</label></div>" +
+        '<div class="rd-text zh" id="rd-text">' + html + '</div><div id="rd-aiout"></div></section>' +
+        (DICT ? '<p class="sub center">Dictionary: <a href="https://www.mdbg.net/chinese/dictionary?page=cc-cedict" target="_blank" rel="noopener">CC-CEDICT</a>, CC BY-SA 4.0. Word splitting is automatic and can be wrong.</p>' : "");
+      document.getElementById("rd-pyt").onchange = function () { showPy = this.checked; run(); };
+      var box = document.getElementById("rd-text");
+      box.onclick = function (e) {
+        var ai = e.target.closest(".rd-ai");
+        if (ai) { askSentence(sents[+ai.getAttribute("data-s")], ai); return; }
+        var el = e.target.closest(".rw"); if (el) openTok(toks[+el.getAttribute("data-i")], sentenceOf(+el.getAttribute("data-i")));
+      };
+      box.onkeydown = function (e) { if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("rw")) { e.preventDefault(); e.target.click(); } };
+    }
+    function sentenceOf(i) {
+      var a = i, b = i, stop = /[。！？!?；;\n]/;
+      while (a > 0 && !stop.test(toks[a - 1].t)) a--;
+      while (b < toks.length - 1 && !stop.test(toks[b + 1].t)) b++;
+      return toks.slice(a, b + 1).map(function (k) { return k.t; }).join("").trim().slice(0, 300);
+    }
+    function askSentence(sentence, btn) {
+      var host = document.getElementById("rd-aiout"); btn.disabled = true;
+      host.innerHTML = '<div class="ai-card ai-wait">🤖 Translating…</div>'; host.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      AI.call("ask", { text: sentence.slice(0, 80), context: sentence, preset: "free", question: "Translate this sentence into Vietnamese and English. Then name the one word or pattern most worth learning from it." }).then(function (res) {
+        btn.disabled = false;
+        host.innerHTML = res.ok ? '<p class="sub zh rd-q">' + esc(sentence) + "</p>" + AI._askCard(res) : '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + "</div>";
+      });
+    }
+    function openTok(k, sentence) {
+      if (!k) return;
+      if (k.w) { openWordSheet(k.w.id, sentence); return; }
+      var rs = k.d ? dictGet(k.t) : null, can = "speechSynthesis" in window;
+      UI.modal('<div class="wsheet"><div class="ws-top"><span class="hz big zh">' + esc(k.t) + "</span>" + (can ? '<button type="button" class="btn small" id="rt-say" aria-label="Listen">🔊</button>' : "") + "</div>" +
+        (rs ? rs.map(function (r) { return '<p class="ws-py">' + esc(r.py) + '</p><div class="ws-mean">' + esc(r.en) + "</div>"; }).join("") + '<span class="tag">Dictionary · English only</span>'
+            : '<p class="sub">This is not one of your course words.' + (DICT ? " The dictionary has no entry for it either." : " Download the full dictionary to look it up.") + "</p>") +
+        '<div class="actions center">' + (rs ? '<button type="button" class="btn primary" id="rt-save">➕ Save to My words</button>' : !DICT ? '<button type="button" class="btn primary" id="rt-dl" data-close>Download dictionary</button>' : "") + "</div>" +
+        (window.AI && AI.configured() ? '<div class="ws-ask" id="rt-ask"><button type="button" class="btn small ai-btn" id="rt-askbtn">🤖 Ask AI about this word</button></div>' : "") + "</div>");
+      var say = document.getElementById("rt-say"); if (say) say.onclick = function () { speakZh(k.t); };
+      var dl = document.getElementById("rt-dl"); if (dl) dl.onclick = function () { getDict(); dbox.scrollIntoView({ block: "center" }); };
+      var ab = document.getElementById("rt-askbtn"); if (ab) ab.onclick = function () { AI.askBox(document.getElementById("rt-ask"), k.t, sentence); };
+      var sv = document.getElementById("rt-save");
+      if (sv) sv.onclick = function () {
+        if (WORDS.some(function (w) { return w.hanzi === k.t; })) { UI.toast("Already in the app", "➕"); return; }
+        var w = { id: "u" + Date.now().toString(36), hanzi: k.t, pinyin: rs[0].py, vi: "", en: rs[0].en, pos: "", level: "Mine", added: Store.today() };
+        if (sentence && sentence !== k.t) w.example = { zh: sentence.slice(0, 120), py: "", vi: "", en: "" };
+        Store.state.custom.push(w); SRS.add(w.id); Store.save(); buildIndex(); refreshChrome();
+        sv.outerHTML = '<span class="tag t-box">Saved · in review</span>'; UI.toast(k.t + " saved to My words", "➕"); run();
+      };
+    }
+    document.getElementById("rd-go").onclick = run;
+    document.getElementById("rd-sample").onclick = function () { inp.value = READ_SAMPLE; run(); };
+    document.getElementById("rd-paste").onclick = function () {
+      if (!navigator.clipboard || !navigator.clipboard.readText) { inp.focus(); UI.toast("Press and hold in the box, then tap Paste", "📋"); return; }
+      navigator.clipboard.readText().then(function (t) { if (t) { inp.value = t.slice(0, 3000); run(); } else inp.focus(); }, function () { inp.focus(); UI.toast("Press and hold in the box, then tap Paste", "📋"); });
+    };
+    dictCard();
+    if (dictWanted() && !DICT) loadDict().then(function () { dictCard(); if (inp.value.trim()) run(); }, function () { /* offline and not cached: course words still work */ });
+    if (saved) run();
+  }
+
+  /* ---------- "Am I ready?" : pass mark 180/300 ----------
+     Uses the mock/official forecast when there is one. With no mock yet it falls back to a rough estimate
+     from answer accuracy per section, shown as rough and with a wide range. */
+  var PASS = 180, SEC_OF = { Listening: "L", Reading: "R", Vocabulary: "R", Grammar: "R", Writing: "W" };
+  var SEC_NAME = { L: "Listening", R: "Reading", W: "Writing" }, SEC_GO = { L: "#/game/drill", R: "#/mistakes", W: "#/game/type" };
+  function readiness() {
+    var f = forecast(), out;
+    if (f) out = { src: "mock", total: f.total, lo: f.lo, hi: f.hi, L: f.L, R: f.R, W: f.W,
+      basis: (f.nOff ? f.nOff + " official paper" + (f.nOff > 1 ? "s" : "") : "") + (f.nOff && f.nApp ? " + " : "") + (f.nApp ? f.nApp + " app mock" + (f.nApp > 1 ? "s" : "") : "") };
+    else {
+      var acc = { L: [0, 0], R: [0, 0], W: [0, 0] }, sk = Store.state.skills || {};
+      Object.keys(sk).forEach(function (k) { var info = Learn.SKILLS[k], sec = info && SEC_OF[info.sec]; if (sec) { acc[sec][0] += sk[k].r; acc[sec][1] += sk[k].r + sk[k].w; } });
+      var have = ["L", "R", "W"].filter(function (k) { return acc[k][1] >= 10; });
+      if (!have.length) return null;
+      var all = have.reduce(function (a, k) { return [a[0] + acc[k][0], a[1] + acc[k][1]]; }, [0, 0]), base = all[0] / all[1];
+      /* practice is easier than the exam, so scale down; a section with too few answers borrows the overall rate */
+      var est = function (k) { return Math.round((acc[k][1] >= 10 ? acc[k][0] / acc[k][1] : base) * 85); };
+      out = { src: "practice", L: est("L"), R: est("R"), W: est("W"), basis: all[1] + " practice answers", missing: ["L", "R", "W"].filter(function (k) { return acc[k][1] < 10; }) };
+      out.total = out.L + out.R + out.W; out.lo = Math.max(0, out.total - 40); out.hi = Math.min(300, out.total + 40);
+    }
+    out.margin = out.total - PASS;
+    out.secs = ["L", "R", "W"].map(function (k) { return { k: k, name: SEC_NAME[k], score: out[k], gap: out[k] - PASS / 3 }; });
+    out.weakest = out.secs.slice().sort(function (a, b) { return a.score - b.score; })[0];
+    out.verdict = out.lo >= PASS ? ["t-hsk", "Likely pass"] : out.hi < PASS ? ["t-warn", "Not yet"] : ["t-dom", "Borderline"];
+    return out;
+  }
+  function readyLine(r) {
+    return r.margin === 0 ? "right on the pass mark" : r.margin > 0 ? "+" + r.margin + " over the pass mark" : Math.abs(r.margin) + " short of the pass mark";
+  }
+  function readyCard() {
+    var r = readiness(), exam = Store.daysBetween(Store.today(), Store.state.settings.examDate || "2026-11-14");
+    if (exam < 0) return "";
+    if (!r) return exam <= 45 ? '<a class="card readyc empty" href="#/mock"><span class="rc-t"><small>Am I ready? · ' + exam + ' days left</small><b>Take one mock exam to find out</b><em>You get a score for each section</em></span><span class="rc-go">›</span></a>' : "";
+    return '<a class="card readyc" href="#/ready"><span class="rc-t"><small>Am I ready? · ' + exam + " days left" + (r.src === "practice" ? " · rough" : "") + '</small><b>~' + r.total + "/300 <i class=\"tag " + r.verdict[0] + '">' + r.verdict[1] + "</i></b><em>" + readyLine(r) + " · weakest: " + r.weakest.name + '</em>' +
+      '<span class="rc-bars">' + r.secs.map(function (x) { return '<i title="' + x.name + " " + x.score + '/100"><u style="height:' + Math.max(6, x.score) + '%" class="' + (x.gap < 0 ? "low" : "") + '"></u><s>' + x.k + "</s></i>"; }).join("") + "</span></span><span class=\"rc-go\">›</span></a>";
+  }
+  function viewReady() {
+    var r = readiness(), s = Store.state, exam = Store.daysBetween(Store.today(), s.settings.examDate || "2026-11-14"), p = planInfo();
+    var html = '<a class="back" href="#/">‹ Home</a>';
+    if (!r) {
+      render(html + '<section class="card result">' + UI.mascot("think", 84) + "<h2>No result to judge yet</h2><p class=\"sub\">Answer a few practice questions or take one mock exam. Then this page shows a score for each section and what to fix first.</p>" +
+        '<div class="actions center"><a class="btn primary" href="#/mock">📝 Mock exams</a><a class="btn" href="#/session">▶ Today\'s session</a></div></section>', "home");
+      return;
+    }
+    var need = PASS / 3;
+    html += '<section class="card ready-top"><div class="sec-h"><h2>Am I ready?</h2><span class="tag ' + r.verdict[0] + '">' + r.verdict[1] + "</span></div>" +
+      '<p class="score-big">~' + r.total + " <small>/300 · likely " + r.lo + "–" + r.hi + "</small></p>" +
+      '<p class="rd-line ' + (r.margin >= 0 ? "ok" : "no") + '"><b>' + readyLine(r) + "</b> (pass = " + PASS + ")" + (exam >= 0 ? " · " + exam + " day" + (exam === 1 ? "" : "s") + " left" : "") + "</p>" +
+      r.secs.map(function (x) {
+        return '<div class="rd-sec"><div class="rd-h"><b>' + x.name + '</b><span class="' + (x.gap < 0 ? "bad-t" : "good-t") + '">' + x.score + "/100 · " + (x.gap < 0 ? Math.round(-x.gap) + " below" : "+" + Math.round(x.gap) + " above") + ' the average needed</span></div>' +
+          '<div class="rd-bar"><span class="' + (x.gap < 0 ? "low" : "") + '" style="width:' + Math.max(2, Math.min(100, x.score)) + '%"></span><i style="left:' + need + '%"></i></div></div>';
+      }).join("") +
+      '<p class="sub">Based on ' + esc(r.basis) + ". " + (r.src === "practice"
+        ? "This is a <b>rough estimate</b> from practice answers, which are easier than the exam." + (r.missing.length ? " Too few answers yet for " + r.missing.map(function (k) { return SEC_NAME[k]; }).join(" and ") + "." : "") + " Take a mock exam for a real number."
+        : "The line marks 60, the average you need per section. HSK 4 only requires 180 in total, so a strong section can cover a weak one.") + "</p></section>";
+    /* what is pulling the weakest section down */
+    var weak = Learn.report(5).filter(function (x) { return SEC_OF[x.info.sec] === r.weakest.k && x.acc < 0.8; }).slice(0, 3);
+    html += '<section class="card"><div class="sec-h"><h2>Fix first: ' + r.weakest.name + '</h2><span class="muted">' + r.weakest.score + "/100</span></div>" +
+      (weak.length ? weak.map(function (x) {
+        return '<a class="task" href="#/mistakes' + (x.open ? "/" + x.skill : "") + '"><span class="tk-ico">' + x.info.icon + "</span><span><b>" + esc(x.info.en) + " · " + Math.round(x.acc * 100) + '%</b><small class="sub fp-why">' + x.n + " answers" + (x.open ? " · " + x.open + " open mistakes" : "") + " · " + esc(x.info.tip) + "</small></span></a>";
+      }).join("") : '<p class="sub">No single skill stands out yet. Practise this section to find the weak spot.</p>') +
+      '<div class="actions"><a class="btn primary small" href="' + SEC_GO[r.weakest.k] + '">Practise ' + r.weakest.name + ' ▶</a><a class="btn small" href="#/mock">📝 Take a mock</a></div></section>';
+    html += focusCard();
+    if (p.inBuffer) html += todayCard();
+    html += '<p class="sub center"><a href="#/progress">Full progress and score history ›</a></p>';
+    render(html, "home");
+  }
+
   function viewHome() {
     var s = Store.state, lv = Game.level(s.xp), goal = s.settings.dailyGoal || 30, todayXP = s.log[Store.today()] || 0;
     var due = SRS.dueIds(WORDMAP).length, nd = nextDay(), exam = Store.daysBetween(Store.today(), s.settings.examDate || "2026-11-14");
@@ -359,7 +586,10 @@
       '<div><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + '</p><p class="lv"><span class="zh">' + lv.zh + "</span> · " + lv.en + '</p><p class="lv-n">Level ' + lv.n + (exam >= 0 ? " · " + exam + " days to HSK 4" : "") + "</p></div></div>" +
       '<div class="xpbar"><span style="width:' + Math.round(lv.pct * 100) + '%"></span></div>' +
       '<p class="xp-t">' + s.xp + " XP" + (lv.next ? " · " + (lv.next - s.xp) + " to next level" : " · max level") + "</p></section>";
-    html += cont0 + rescueCard() + sessionCTA() + shortLink() + patternCard();
+    var fin = planInfo().inBuffer;
+    /* final 14 days: readiness and the final-days plan come first; new lessons become a small link */
+    if (fin) html += readyCard() + todayCard() + rescueCard() + sessionCTA() + shortLink() + patternCard() + '<a class="mini-link" href="#/day/' + nd.day + '">New lessons are paused · continue Day ' + nd.day + " anyway ›</a>";
+    else html += cont0 + rescueCard() + sessionCTA() + shortLink() + patternCard() + readyCard();
     html += questsCard();
     var nMis = Learn.count();
     html += '<div class="tiles">' +
@@ -370,7 +600,7 @@
             : '<a class="tile t-blue" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>' + (exam >= 0 ? exam + " days to HSK 4" : "Exam done") + "</small></a>") +
       "</div>";
     html += '<details class="more"><summary><span>More: plan, focus, activity, badges</span></summary>' +
-      focusCard() + todayCard() + forecastCard(true) + weeklyTeaser() +
+      focusCard() + (fin ? "" : todayCard()) + weeklyTeaser() +
       '<section class="card"><div class="sec-h"><h2>Study activity</h2><span class="muted">12 weeks</span></div>' + heatmap() + '<div class="heat-key"><span>Less</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>More</span></div></section>' +
       '<section class="card"><div class="sec-h"><h2>Badges</h2><a href="#/me">' + earned.length + "/" + Game.BADGES.length + " ›</a></div>" +
       (earned.length ? '<div class="badge-row">' + earned.slice(-6).reverse().map(function (b) { return '<span class="bdg" title="' + esc(b.en) + '">' + b.icon + "</span>"; }).join("") + "</div>" : '<p class="muted">Grade your first flashcard to earn 🌱</p>') + "</section></details>";
@@ -2172,7 +2402,7 @@
   }
   function finalModeCard() {
     var p = planInfo();
-    return '<section class="card g-coral final-mode"><h2>🏁 Final ' + BUFFER_DAYS + ' days</h2><p class="sub">' + p.daysLeft + " day" + (p.daysLeft === 1 ? "" : "s") + " to the exam. No new words now — the plan below is mock exams (the full-length one every few days), your mistakes, your weakest skill and grammar. Keep reviewing due words daily.</p></section>";
+    return '<section class="card g-coral final-mode"><h2>🏁 Final ' + BUFFER_DAYS + ' days</h2><p class="sub">' + p.daysLeft + " day" + (p.daysLeft === 1 ? "" : "s") + " to the exam. No new words now: mock exams (the full-length one every few days), your mistakes, your weakest skill and grammar. Keep reviewing due words.</p></section>";
   }
   function taskList(tasks) {
     return '<div class="tasks">' + tasks.map(function (k) {

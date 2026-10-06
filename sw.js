@@ -47,6 +47,16 @@ self.addEventListener("fetch", function (e) {
     return;
   }
 
+  // Reader dictionary (optional download): cache-first, kept across app versions. A new edition gets a new file name.
+  if (url.origin === location.origin && /\/vendor\/dict\/[^/]+\.js$/.test(url.pathname)) {
+    e.respondWith(caches.open("cb-dict").then(function (c) {
+      return c.match(req).then(function (hit) {
+        return hit || fetch(req).then(function (r) { if (r.ok) c.put(req, r.clone()); return r; });
+      });
+    }));
+    return;
+  }
+
   // Stroke data for handwriting: cache-first in a cache that survives app updates.
   if (url.origin === location.origin && /\/vendor\/hanzi\/[^/]+\.json$/.test(url.pathname)) {
     e.respondWith(caches.open(STROKES).then(function (c) {

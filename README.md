@@ -73,6 +73,7 @@ supabase/  setup.sql, SETUP.md, functions/ai/index.ts (Edge Function)
 data/day01.js … day60.js, manifest.js, core01–25.js, found.js (HSK 1–3), core-manifest.js, grammar.js, drills.js, mock1–4.js, mock-manifest.js
 fonts/ Nunito subsets (SIL OFL 1.1, from @fontsource-variable/nunito) · icons/icon-64.png for the top bar
 vendor/hanzi-writer.min.js (MIT) + vendor/hanzi/*.json stroke data (Arphic PL — see vendor/README.md)
+vendor/dict/cedict.v1.js     Reader dictionary, trimmed from CC-CEDICT (CC BY-SA 4.0 — see vendor/README.md); optional download in the app
 audio/manifest.js (+ mp3s generated in CI)
 tools/validate.js  collect_texts.js  gen_audio.py  build.js  ai_function_test.mjs  ai_golden.js + ai_golden_cases.json
 lighthouserc.json

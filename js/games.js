@@ -43,6 +43,7 @@
     }
     var html = '<a class="gfeat ' + ch.cls + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="g-ico">' + ch.icon + '</span><span class="g-txt"><small>' + (chDone ? "Daily challenge · done ✓" : "Daily challenge · +15 XP") + "</small><b>" + ch.name + "</b><em>" + ch.desc + '</em></span><span class="g-go">▶</span></a>';
     html += '<a class="gfeat g-violet" href="#/talk"><span class="g-ico">🗣️</span><span class="g-txt"><small>New · AI role-play</small><b>Talk it through</b><em>Practise HR conversations. Type or speak.</em></span><span class="g-go">▶</span></a>';
+    html += '<a class="gfeat g-teal" href="#/read"><span class="g-ico">📖</span><span class="g-txt"><small>Real-world text</small><b>Reader</b><em>Paste a Chinese email. Tap any word.</em></span><span class="g-go">▶</span></a>';
     GROUPS.forEach(function (gr) {
       html += '<h2 class="gh">' + gr[0] + '</h2><div class="glist">' + gr[1].map(function (id) { return row(BY[id]); }).join("") + "</div>";
     });

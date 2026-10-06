@@ -284,6 +284,15 @@
     if (LOAD_ERRORS.length) html += '<p class="warn">Could not load: ' + esc(LOAD_ERRORS.join(", ")) + "</p>";
     if (!Store.available) html += '<p class="warn">Storage is blocked, so progress won\'t be saved.</p>';
     render(html, "home");
+    /* offline users: tell them when new audio is not on the phone yet */
+    var optedIn = false; try { optedIn = localStorage.getItem("cbChinese.audioDl") === "1"; } catch (e) { /* ignore */ }
+    if (optedIn) audioStatus(function (st) {
+      var miss = st.total - st.have, host = document.querySelector(".hero");
+      if (miss < 1 || !host || !document.getElementById("app").contains(host)) return;
+      var d = document.createElement("a"); d.className = "card cta g-violet"; d.href = "#/me";
+      d.innerHTML = '<span class="cta-l"><small>New audio</small><b>🔊 ' + miss + ' recordings are not saved on this phone</b><em>Me → Download missing, so lessons work offline</em></span><span class="cta-go">▶</span>';
+      host.parentNode.insertBefore(d, host.nextSibling);
+    });
     var x = document.getElementById("hint-x");
     if (x) x.onclick = function () { s.settings.installHintDismissed = true; Store.save(); x.closest(".install").remove(); };
   }
@@ -860,7 +869,7 @@
       '<div class="actions"><button class="btn small primary" id="s-ics">📅 iPhone Calendar</button><a class="btn small" id="s-gcal" target="_blank" rel="noopener" href="#">Google Calendar</a></div></section>' +
       '<section class="card settings"><h2>Cloud backup</h2><div id="gist-box"></div></section>' +
       '<section class="card settings"><h2>Offline & data</h2>' +
-      row("Audio recordings", '<span class="muted">' + (nAudio ? nAudio + " files" : "not generated yet") + "</span>") +
+      row("Audio recordings", '<span class="muted" id="s-audio-n">' + (nAudio ? nAudio + " files" : "not generated yet") + "</span>") +
       ("caches" in window && location.protocol.indexOf("http") === 0 ? row((nAudio ? "Download audio + stroke data" : "Download stroke data") + " for offline", '<button class="btn small" id="s-dl">⬇ Download</button>') : "") +
       row("Export progress", '<button class="btn small" id="s-exp">Export</button>') +
       row("Import progress", '<label class="btn small">Import<input type="file" id="s-imp" accept=".json,application/json" hidden></label>') +
@@ -896,6 +905,11 @@
     document.getElementById("s-test").onclick = function () { Audio2.noise(0); Audio2.play("你好，这是薪酬福利中文。", "F"); };
     var dl = document.getElementById("s-dl");
     if (dl) dl.onclick = function () { downloadAudio(dl); };
+    if (dl) audioStatus(function (st) {
+      var n = document.getElementById("s-audio-n"); if (!n) return;
+      n.textContent = st.have + " of " + st.total + " saved on this phone";
+      if (st.total > st.have) dl.textContent = "⬇ Download missing (" + (st.total - st.have) + ")"; else if (st.total) dl.textContent = "✓ All saved";
+    });
     document.getElementById("s-exp").onclick = function () { Store.exportJSON(); };
     document.getElementById("s-imp").onchange = function () {
       var f = this.files[0]; if (!f) return;
@@ -1108,6 +1122,7 @@
     return out;
   }
   /* Save audio + handwriting stroke data for offline use. */
+  function audioStatus(cb) { try { Audio2.saved(function (st) { if (st.ok) cb(st); }); } catch (e) { /* status is optional */ } }
   function downloadAudio(btn) {
     var jobs = Audio2.allFiles().map(function (f) { return ["cb-audio", f]; })
       .concat(strokeFiles().map(function (f) { return ["cb-strokes", f]; }))
@@ -1116,7 +1131,7 @@
     btn.disabled = true;
     function next() {
       if (i >= total) {
-        if (active === 0) { btn.textContent = "✓ " + done + " saved"; UI.toast("Saved for offline" + (fail ? " (" + fail + " failed)" : ""), "⬇"); }
+        if (active === 0) { btn.textContent = "✓ " + done + " saved"; try { localStorage.setItem("cbChinese.audioDl", "1"); } catch (e) { /* ignore */ } UI.toast("Saved for offline" + (fail ? " (" + fail + " failed)" : ""), "⬇"); }
         return;
       }
       var job = jobs[i++]; active++;

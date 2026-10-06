@@ -14,9 +14,22 @@
     var m = manifest();
     return m[(voice || "F") + "|" + text] || m["F|" + text] || m["M|" + text] || null;
   }
+  /* How much of the audio is stored on this phone (the service worker keeps every played clip in the "cb-audio" cache). */
+  function saved(cb) {
+    var files = allFiles(), total = files.length;
+    if (!total || !window.caches || location.protocol.indexOf("http") !== 0) { cb({ have: 0, total: total, ok: false }); return; }
+    caches.open("cb-audio").then(function (c) { return c.keys(); }).then(function (keys) {
+      var set = {}; keys.forEach(function (r) { try { set[new URL(r.url).pathname.replace(/^.*\/audio\//, "audio/")] = 1; } catch (e) { /* ignore */ } });
+      var have = 0; files.forEach(function (f) { if (set[f]) have++; });
+      cb({ have: have, total: total, ok: true });
+    }).catch(function () { cb({ have: 0, total: total, ok: false }); });
+  }
   function finish() { if (onEnd) { var cb = onEnd; onEnd = null; cb(); } }
   player.addEventListener("ended", finish);
-  player.addEventListener("error", finish);
+  player.addEventListener("error", function () {
+    if (navigator.onLine === false && window.UI) UI.toast("This audio isn't saved on the phone yet. Connect, then tap Download in Me.", "🔊");
+    finish();
+  });
 
   function play(text, voice, cb, rate) {
     var f = file(text, voice);
@@ -127,5 +140,5 @@
   // Unlock WebAudio on the first touch (iOS requirement).
   document.addEventListener("touchstart", function unlock() { ac(); document.removeEventListener("touchstart", unlock); }, { passive: true });
 
-  window.Audio2 = { play: play, playAll: playAll, stop: stop, prefetch: prefetch, noise: setNoise, has: function (t, v) { return !!file(t, v); }, available: available, voiceFor: voiceFor, allFiles: allFiles, sfx: sfx };
+  window.Audio2 = { play: play, playAll: playAll, stop: stop, prefetch: prefetch, noise: setNoise, has: function (t, v) { return !!file(t, v); }, available: available, voiceFor: voiceFor, allFiles: allFiles, saved: saved, sfx: sfx };
 })();

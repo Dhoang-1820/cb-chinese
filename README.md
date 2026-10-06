@@ -47,7 +47,7 @@ Tip: iOS may clear data of sites unused for weeks — use **Me → Export** now 
 - **Progress charts**: mock scores vs the 180 pass line, section trends, words in review, daily XP.
 - **Tap any word** in a dialogue or reading passage for pinyin, meaning, audio and "Add to review".
 - **Motivation**: XP & 8 levels, streak + streak freezes (1 per 7 days, max 2), 19 badges, daily XP goal ring, 12-week heatmap, HSK exam countdown.
-- **Optional AI assistant** (off until you set it up): *Get AI feedback* on picture-writing sentences (score /5, corrections, model sentence) and *Explain with AI* after a wrong answer. It runs through one shared free Supabase Edge Function that holds the Gemini key, so users enter nothing — see [supabase/SETUP.md](supabase/SETUP.md). The app works fully offline without it.
+- **Optional AI assistant** (off until you set it up): *Get AI feedback* on picture-writing sentences (score /5, corrections, model sentence) *Explain with AI* after a wrong answer, *Ask AI* on any tapped word (preset or your own question), the **Paragraph Coach** game (write 2–4 sentences, get corrections and recurring-mistake tracking) and a weekly **AI coach** on Progress that turns your numbers into 3 actions. Answers are in English and Vietnamese. It runs through one shared free Supabase Edge Function that holds the Gemini key, so users enter nothing — see [supabase/SETUP.md](supabase/SETUP.md). The app works fully offline without it.
 - Search, pinyin toggle, vi/en/both, dark mode, sound effects, voice speed, export/import JSON.
 
 ## Run locally

@@ -15,13 +15,18 @@ const THRESHOLD = Number(opt("threshold", "0.85")), DELAY = Number(opt("delay", 
   const deps = { fetch: (u, i) => fetch(u, i), bump: async () => 1 };
   let pass = 0; const fails = [];
   for (const c of cases) {
-    const payload = c.task === "grade" ? { word: c.word, scene: c.scene, sentence: c.sentence } : { question: c.question, options: c.options, chosen: c.chosen, correct: c.correct, extra: c.extra };
+    const payload = c.task === "ask" ? { text: c.text, context: c.context, preset: c.preset, question: c.question } : c.task === "coach" ? { prompt: c.prompt, words: c.words, text: c.text } : c.task === "grade" ? { word: c.word, scene: c.scene, sentence: c.sentence } : { question: c.question, options: c.options, chosen: c.chosen, correct: c.correct, extra: c.extra };
     const cl = fn.cleanInput({ task: c.task, lang: "both", payload });
     if (typeof cl === "string") { fails.push(c.id + ": input rejected " + cl); continue; }
     const r = await fn.runTask(cl, env, deps);
     await new Promise((ok) => setTimeout(ok, DELAY));
     if (!r.ok) { fails.push(c.id + ": " + r.error); continue; }
     const x = c.expect || {}, res = r.result, why = [], blob = JSON.stringify(res).toLowerCase();
+    if (c.task === "coach") {
+      if (x.minScore !== undefined && res.score < x.minScore) why.push("score " + res.score + " < " + x.minScore);
+      if (x.maxScore !== undefined && res.score > x.maxScore) why.push("score " + res.score + " > " + x.maxScore);
+      if (x.hasErrors && !res.sentences.some((q) => q.original !== q.corrected)) why.push("no corrections");
+    }
     if (c.task === "grade") {
       if (x.uses_word !== undefined && res.uses_word !== x.uses_word) why.push("uses_word=" + res.uses_word);
       if (x.minScore !== undefined && res.total < x.minScore) why.push("score " + res.total + " < " + x.minScore);
@@ -30,7 +35,7 @@ const THRESHOLD = Number(opt("threshold", "0.85")), DELAY = Number(opt("delay", 
     }
     (x.mentions || []).forEach((m) => { if (blob.indexOf(m.toLowerCase()) < 0) why.push("missing " + m); });
     (x.notMention || []).forEach((m) => { if (blob.indexOf(m.toLowerCase()) >= 0) why.push("contains " + m); });
-    if (c.task === "explain" || (c.task === "grade" && res.explanation)) { const t = String(res.explanation || res.why_correct || ""); if (t.indexOf("|") < 0 || !/[àáảãạăâđêôơưèéìíòóùúỳýệịọụ]/i.test(t)) why.push("not bilingual"); }
+    if (c.task === "explain" || c.task === "ask" || (c.task === "grade" && res.explanation)) { const t = String(res.explanation || res.why_correct || res.answer || ""); if (t.indexOf("|") < 0 || !/[àáảãạăâđêôơưèéìíòóùúỳýệịọụ]/i.test(t)) why.push("not bilingual"); }
     if (x.noLeak && /api[_ ]?key|system prompt|x-goog/.test(blob)) why.push("leak");
     if (why.length) fails.push(c.id + ": " + why.join("; ")); else pass++;
   }

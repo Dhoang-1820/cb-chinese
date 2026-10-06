@@ -1626,14 +1626,17 @@
       return i % 2 && byHz[part] ? '<span class="wlink" data-w="' + esc(byHz[part].id) + '">' + esc(part) + "</span>" : esc(part);
     }).join("");
   }
-  function openWordSheet(id) {
+  function openWordSheet(id, context) {
     var w = WORDMAP[id]; if (!w) return;
     var c = SRS.get(id);
     UI.modal('<div class="wsheet"><div class="ws-top"><span class="hz big zh">' + esc(w.hanzi) + "</span>" + SAY(w.hanzi, null, true) + "</div>" +
       '<p class="ws-py">' + esc(w.pinyin) + '</p><div class="ws-mean">' + M(w) + "</div>" + levelBadge(w.level) +
       (w.example ? '<div class="ws-ex"><span class="zh">' + esc(w.example.zh) + "</span>" + SAY(w.example.zh) + '<div class="dim">' + M(w.example) + "</div></div>" : "") +
       '<div class="actions center">' + (c ? '<span class="tag t-box">In review · Box ' + c.box + (SRS.hard(id) ? " · hard" : "") + "</span>" : '<button class="btn primary" id="ws-add">➕ Add to review</button>') +
-      '<a class="btn" href="' + wordHome(w) + '" id="ws-day">📖 ' + wordPlace(w) + "</a></div></div>");
+      '<a class="btn" href="' + wordHome(w) + '" id="ws-day">📖 ' + wordPlace(w) + "</a></div>" +
+      (window.AI && AI.configured() ? '<div class="ws-ask" id="ws-ask"><button class="btn small ai-btn" id="ws-askbtn">🤖 Ask AI about this word</button></div>' : "") + "</div>");
+    var ab = document.getElementById("ws-askbtn");
+    if (ab) ab.onclick = function () { AI.askBox(document.getElementById("ws-ask"), w.hanzi, context || (w.example && w.example.zh) || ""); };
     var add = document.getElementById("ws-add");
     if (add) add.onclick = function () { SRS.addMany([id]); add.outerHTML = '<span class="tag t-box">In review · Box 1</span>'; UI.toast("Added to review", "➕"); refreshChrome(); };
     var day = document.getElementById("ws-day");
@@ -1902,7 +1905,7 @@
     for (var i = 0; i < 30; i++) { var d = Store.addDays(from, i); cum += added[d] || 0; words.push({ x: d.slice(5), y: cum }); }
     var xp = []; for (var j = 13; j >= 0; j--) { var dd = Store.addDays(t, -j); xp.push({ x: dd.slice(8), y: s.log[dd] || 0 }); }
     var sec = function (k) { return s.mockHistory.slice(-12).map(function (h, i) { return { x: String(i + 1), y: num((h.sections || {})[k]) }; }); };
-    var html = weeklyCard() + forecastCard(false) + '<section class="card"><div class="sec-h"><h2>📝 Mock exam scores</h2><span class="muted">' + (best ? "best " + best + "/300" : "") + "</span></div>" +
+    var html = weeklyCard() + coachBox() + forecastCard(false) + '<section class="card"><div class="sec-h"><h2>📝 Mock exam scores</h2><span class="muted">' + (best ? "best " + best + "/300" : "") + "</span></div>" +
       lineChart(mh, { max: 300, ref: 180, refLabel: "pass 180", empty: "Take a mock exam to start your score chart." }) + "</section>";
     if (s.mockHistory.length) {
       html += '<section class="card"><h2>By section</h2><div class="spark3">' + ["listening", "reading", "writing"].map(function (k) {
@@ -1916,6 +1919,32 @@
     if (rep.length) html += '<section class="card"><div class="sec-h"><h2>🎯 Skills</h2><a href="#/mistakes">Details ›</a></div>' + rep.map(function (x) {
       return '<div class="sk-row"><span class="sk-n">' + skillName(x.skill) + "</span>" + accBar(x.acc) + "</div>"; }).join("") + "</section>";
     render(html, "me");
+    wireCoachBox();
+  }
+
+  /* ---------- AI weekly coach (Progress) ---------- */
+  function coachReport() {
+    var w = Store.state.weekly || {}, cur = w.cur ? weekSummary(w.cur, Store.today()) : null, r = cur && cur.active > 0 ? cur : (w.last || cur);
+    if (!r) return null;
+    var isCur = r === cur, f = forecast();
+    return { key: r.start + "/" + (isCur ? Store.today() : r.end) + "/" + (Store.state.settings.lang || "both"), report: { daysLeft: Store.daysBetween(Store.today(), Store.state.settings.examDate || "2026-11-14"), active: r.active, xp: r.xp, words: r.words, cards: Math.max(0, r.cards),
+      mocks: r.mocks, forecast: f ? f.total : null, skills: r.skills.slice(0, 8).map(function (x) { return { skill: (AI.SKILL_NAMES[x.k] || x.k), acc: Math.round(x.acc * 100), n: x.n }; }),
+      tags: AI.topTags(5).map(function (t) { return { tag: t.tag, n: t.n }; }) } };
+  }
+  function coachBox() {
+    if (!window.AI || !AI.configured()) return "";
+    var tags = AI.topTags(3);
+    return '<section class="card ai-weekly"><div class="sec-h"><h2>🤖 AI coach</h2><span class="tag">optional</span></div><p class="sub">Turns your numbers into 3 things to do next. Only these counts are sent, no personal details.</p>' +
+      (tags.length ? '<p class="sub">Recurring mistakes from the paragraph coach: ' + tags.map(function (t) { return '<a href="' + t.link + '">' + esc(t.name) + " ×" + t.n + "</a>"; }).join(" · ") + "</p>" : "") +
+      '<button class="btn small primary" id="wk-ai">Coach me for next week</button><div id="wk-ai-out"></div></section>';
+  }
+  function wireCoachBox() {
+    var b = document.getElementById("wk-ai"); if (!b) return;
+    b.onclick = function () {
+      var r = coachReport(); if (!r) { UI.toast("Study a little first, then ask", "📊"); return; }
+      b.disabled = true;
+      AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, false).then(function () { b.disabled = false; b.textContent = "Refresh"; b.onclick = function () { b.disabled = true; AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, true).then(function () { b.disabled = false; }); }; });
+    };
   }
 
 
@@ -2416,7 +2445,7 @@
   /* ---------- global events & boot ---------- */
   document.addEventListener("click", function (e) {
     var wl = e.target.closest(".wlink");
-    if (wl) { e.preventDefault(); e.stopPropagation(); openWordSheet(wl.getAttribute("data-w")); return; }
+    if (wl) { e.preventDefault(); e.stopPropagation(); var host = wl.closest(".zh, p, li, .line, .bubble") || wl.parentNode; openWordSheet(wl.getAttribute("data-w"), host ? host.textContent.replace(/\s+/g, " ").trim().slice(0, 300) : ""); return; }
     var b = e.target.closest("[data-say]");
     if (b) {
       e.preventDefault(); e.stopPropagation();

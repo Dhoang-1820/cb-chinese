@@ -69,4 +69,4 @@ If the app says the model name was not found, check the current names in AI Stud
 Notes: every request counts toward `AI_DAILY_CAP`, including ones that fail. `APP_CODE` must be at least 6 characters (use 12+ random characters). If you skip step 3, the daily cap still works but only per server instance, so run `setup.sql`.
 
 ## Checking accuracy (optional)
-`GEMINI_API_KEY=... node tools/ai_golden.js` runs 24 reference cases directly against Gemini and prints the pass rate (needs Node 22.18+). Run it after changing a prompt or model.
+`GEMINI_API_KEY=... node tools/ai_golden.js` runs 30 reference cases directly against Gemini and prints the pass rate (needs Node 22.18+). Run it after changing a prompt or model.

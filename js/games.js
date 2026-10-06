@@ -16,6 +16,7 @@
     { id: "confuse", icon: "⚖️", name: "Confusable Words", desc: "以为 or 认为? 10 questions", cls: "g-sun" },
     { id: "order", icon: "🔀", name: "Sentence Order", desc: "Put A B C in order · Reading part 2", cls: "g-blue" },
     { id: "picture", icon: "🖼️", name: "Picture Writing", desc: "One word + a picture → a sentence · Writing part 2", cls: "g-teal" },
+    { id: "coach", icon: "🧑‍🏫", name: "Paragraph Coach", desc: "Write 2-4 sentences · AI feedback & recurring mistakes · Writing practice", cls: "g-coral" },
     { id: "measure", icon: "📏", name: "Measure Words", desc: "一份合同 · 办手续 · 提出意见", cls: "g-violet" }
   ];
   var DRILL_SKILL = { confuse: "confusable", order: "ordering", picture: "writing", measure: "measure" };
@@ -43,7 +44,7 @@
     RUN = opts || {};
     if (!RUN.onDone && A().resetWork) A().resetWork(); // "Play again" starts a new round
     ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick, drill: drill, write: write, type: typeGame,
-       confuse: drillGame, order: drillGame, picture: drillGame, measure: drillGame })[id](arg, id);
+       confuse: drillGame, order: drillGame, picture: drillGame, measure: drillGame, coach: coachGame })[id](arg, id);
   }
 
   /* ---------- shared ---------- */
@@ -545,6 +546,46 @@
           document.getElementById("pw-no").onclick = function () { rec(false); done(false); };
         };
       } };
+  }
+
+  /* ---------- Paragraph Coach (needs the AI): write 2-4 sentences, get feedback, track recurring mistakes ---------- */
+  var COACH = [
+    { p: { en: "Tell a colleague about your salary and when it is paid.", vi: "Kể với đồng nghiệp về lương và ngày nhận lương." }, w: ["工资", "每个月"] },
+    { p: { en: "Explain why you worked overtime last week.", vi: "Giải thích vì sao tuần trước bạn tăng ca." }, w: ["加班", "因为"] },
+    { p: { en: "Ask your manager for a day off.", vi: "Xin quản lý cho nghỉ một ngày." }, w: ["请假", "希望"] },
+    { p: { en: "Describe a bonus your company gave you.", vi: "Mô tả khoản thưởng công ty đã trao cho bạn." }, w: ["奖金", "已经"] },
+    { p: { en: "Describe your way to work.", vi: "Mô tả đường đi làm của bạn." }, w: ["地铁", "公司"] },
+    { p: { en: "Say what you like and dislike about your job.", vi: "Nói bạn thích và không thích gì ở công việc." }, w: ["虽然", "但是"] },
+    { p: { en: "Tell a friend about a job interview.", vi: "Kể với bạn về một buổi phỏng vấn." }, w: ["面试", "紧张"] },
+    { p: { en: "Compare two companies you know.", vi: "So sánh hai công ty mà bạn biết." }, w: ["比", "更"] },
+    { p: { en: "Explain your plan for the weekend.", vi: "Giải thích kế hoạch cuối tuần của bạn." }, w: ["打算", "如果"] },
+    { p: { en: "Talk about insurance or benefits at work.", vi: "Nói về bảo hiểm hoặc phúc lợi ở công ty." }, w: ["保险", "福利"] },
+    { p: { en: "Describe a colleague who helped you.", vi: "Mô tả một đồng nghiệp đã giúp bạn." }, w: ["同事", "帮助"] },
+    { p: { en: "Say how you study Chinese every day.", vi: "Nói cách bạn học tiếng Trung mỗi ngày." }, w: ["练习", "总是"] }
+  ];
+  function coachGame() {
+    var App = A(), g = BY.coach, n = Store.game("coach").plays % COACH.length, it = COACH[n];
+    if (!window.AI || !AI.configured()) { App.render(header(g) + '<p class="empty">The AI helper is not available. Open Me → AI assistant.</p>', "game"); return; }
+    App.render(header(g) + '<div class="card qcard" id="qcard"><p class="sub">✍️ Write 2-4 sentences in Chinese</p><p class="w2-scene">' + App.M(it.p) + "</p>" +
+      '<p class="sub">Use: ' + it.w.map(function (w) { return '<b class="zh">' + App.esc(w) + "</b>"; }).join("、") + "</p>" +
+      '<textarea class="w2-input" id="pc" rows="5" lang="zh" placeholder="写几个句子…" maxlength="400"></textarea>' +
+      '<button class="btn primary wide" id="pc-go">🤖 Get coach feedback</button><div id="pc-out"></div>' +
+      '<div class="actions center"><button class="btn" id="pc-next" hidden>Next prompt ›</button></div></div>', "game");
+    var go = document.getElementById("pc-go"), out = document.getElementById("pc-out");
+    go.onclick = function () {
+      var v = document.getElementById("pc").value.trim();
+      if (!/[㐀-鿿]/.test(v)) { UI.toast("Write in Chinese first", "✍️"); return; }
+      go.disabled = true; if (App.markWork) App.markWork();
+      AI.coach(out, App.M(it.p).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(), it.w, v).then(function (res) {
+        if (!go.isConnected) return;
+        go.disabled = false; go.textContent = "🤖 Check again";
+        var nx = document.getElementById("pc-next");
+        if (res && res.ok && nx) {
+          nx.hidden = false; nx.onclick = function () { coachGame(); };
+          if (!go.dataset.done) { go.dataset.done = "1"; var st = Store.game("coach"); st.plays++; Store.save(); Game.award(8); }
+        }
+      });
+    };
   }
   function drillGame(arg, type) {
     var App = A(), g = BY[type], items = App.shuffle(drillItems(type)).slice(0, RUN.count || (type === "picture" ? 5 : 10)), i = 0, score = 0;

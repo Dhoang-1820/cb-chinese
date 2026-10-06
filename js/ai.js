@@ -11,7 +11,7 @@
   var KEY = "cbChinese.ai", FB = "cbChinese.ai.fb";
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
-  function read(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
+  function read(k) { try { var v = JSON.parse(localStorage.getItem(k)); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch (e) { return {}; } }
   function write(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked: AI just stays unconfigured */ } }
 
   function own() { var c = read(KEY); return { url: typeof c.url === "string" ? c.url : "", code: typeof c.code === "string" ? c.code : "" }; }
@@ -168,6 +168,95 @@
     };
   }
 
+
+  /* ---------- recurring mistake types (from the paragraph coach), kept on this phone ---------- */
+  var TK = "cbChinese.ai.tags";
+  var TAGINFO = { ba_bei: ["把 / 被 sentences", "#/grammar"], le_guo_zhe: ["了 / 过 / 着", "#/grammar"], de_particle: ["的 / 得 / 地", "#/grammar"], measure: ["Measure words", "#/game/measure"],
+    word_order: ["Word order", "#/game/order"], question_particle: ["吗 / 呢 / 吧", "#/grammar"], comparison: ["Comparisons (比)", "#/grammar"], conjunction: ["Linking words", "#/game/confuse"],
+    time_place: ["Time and place order", "#/game/order"], word_choice: ["Choosing the right word", "#/game/confuse"], character: ["Characters", "#/game/write"], other: ["Other", "#/grammar"] };
+  function addTags(list) { try { var t = read(TK), seen = {}; (list || []).forEach(function (k) { if (TAGINFO[k] && !seen[k]) { seen[k] = 1; t[k] = (+t[k] || 0) + 1; } }); write(TK, t); } catch (e) { /* tags are optional */ } }
+  function topTags(n) { var t = read(TK); return Object.keys(t).filter(function (k) { return TAGINFO[k] && t[k] > 0; }).sort(function (a, b) { return t[b] - t[a]; }).slice(0, n || 3).map(function (k) { return { tag: k, n: t[k], name: TAGINFO[k][0], link: TAGINFO[k][1] }; }); }
+
+  function waiting(host, txt) { host.innerHTML = '<div class="ai-card ai-wait">🤖 ' + esc(txt) + "</div>"; }
+  function failed(host, res) { host.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(errMsg(res.error)) + "</div>"; }
+
+  /* ---------- Ask AI about a word or sentence ---------- */
+  var PRESETS = [["why", "Why this word?"], ["example", "Another example"], ["similar", "Similar words"], ["usage", "At work (C&B)"]];
+  function askCard(res) {
+    var r = res.result;
+    return '<div class="ai-card"><div class="ai-head"><b>🤖 Answer</b>' + conf(r.confidence) + '</div><p class="ai-exp">' + esc(r.answer) + "</p>" + (r.example ? exampleHTML(r.example) : "") + voteRow() + "</div>";
+  }
+  function askBox(host, subject, context) {
+    if (!host || !configured()) return;
+    host.innerHTML = '<div class="ai-ask-box"><div class="ai-chips">' + PRESETS.map(function (p) { return '<button type="button" class="btn small" data-preset="' + p[0] + '">' + p[1] + "</button>"; }).join("") + "</div>" +
+      '<div class="ai-q"><input type="text" maxlength="200" placeholder="Ask your own question (English or Vietnamese)" aria-label="Your question"><button type="button" class="btn small primary" data-send>Ask</button></div><div class="ai-out"></div></div>';
+    var out = host.querySelector(".ai-out"), input = host.querySelector("input"), busy = false;
+    function run(preset, q) {
+      if (busy) return; busy = true; waiting(out, "Thinking…");
+      call("ask", { text: subject, context: context || "", preset: preset, question: q || "" }).then(function (res) {
+        busy = false;
+        if (!res.ok) return failed(out, res);
+        out.innerHTML = askCard(res); wireVote(out, subject + " | " + (q || preset) + " | " + res.result.answer.slice(0, 120), "ask · " + (res.model || ""));
+      });
+    }
+    [].forEach.call(host.querySelectorAll("[data-preset]"), function (b) { b.onclick = function () { run(b.getAttribute("data-preset"), ""); }; });
+    host.querySelector("[data-send]").onclick = function () { var q = input.value.trim(); if (q) run("free", q); else UI_toast("Type a question first"); };
+    input.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); host.querySelector("[data-send]").click(); } };
+  }
+  function UI_toast(m) { if (window.UI) UI.toast(m, "✍️"); }
+
+  /* ---------- paragraph coach ---------- */
+  function coachCard(res) {
+    var r = res.result;
+    return '<div class="ai-card"><div class="ai-head"><b>🤖 Coach</b><span class="ai-score">' + dots(+r.score || 0, 5) + " " + (+r.score || 0) + "/5</span>" + conf(r.confidence) + "</div>" +
+      ((r.missing || []).length ? '<p class="ai-line bad-t">✘ Missing required word' + (r.missing.length > 1 ? "s" : "") + ": <span class=\"zh\">" + esc(r.missing.join("、")) + "</span></p>" : '<p class="ai-line good-t">✔ Used all the required words</p>') +
+      '<ol class="ai-sents">' + r.sentences.map(function (x) {
+        var same = x.original === x.corrected;
+        return "<li>" + (same ? '<span class="zh good-t">' + esc(x.original) + "</span> ✓" : '<span class="zh bad-t">' + esc(x.original) + '</span><br>→ <span class="zh good-t">' + esc(x.corrected) + "</span>") + (x.note ? "<br><small>" + esc(x.note) + "</small>" : "") + "</li>";
+      }).join("") + "</ol>" +
+      '<p class="sub">Corrected paragraph:</p><p class="zh ai-fix">' + esc(r.corrected_text) + "</p>" + oddChars(r.corrected_text) +
+      '<p class="ai-exp">' + esc(r.summary) + "</p>" + voteRow() + "</div>";
+  }
+  var lastCounted = "";
+  function coach(host, prompt, words, text) {
+    waiting(host, "Reading your paragraph…");
+    return call("coach", { prompt: prompt, words: words, text: text }).then(function (res) {
+      if (!res.ok) { failed(host, res); return res; }
+      if (lastCounted !== text) { lastCounted = text; addTags(res.result.tags); }
+      host.innerHTML = coachCard(res);
+      wireVote(host, text.slice(0, 140) + " → " + res.result.corrected_text.slice(0, 140), "coach · " + (res.model || ""));
+      return res;
+    });
+  }
+
+  /* ---------- weekly coach: one summary per week, kept so it is not re-asked ---------- */
+  var WK = "cbChinese.ai.weekly";
+  var SKILL_NAMES = { confusable: "Confusable words", ordering: "Sentence order", measure: "Measure words", writing: "Picture writing", grammar: "Grammar", typing: "Typing", vocab: "Vocabulary", pinyin: "Pinyin", "listen-word": "Listening (words)", "listen-sentence": "Listening (sentences)", "word-order": "Word order", mock: "Mock exam", review: "Review cards" };
+  var SKILL_ROUTE = { confusable: "#/game/confuse", ordering: "#/game/order", measure: "#/game/measure", writing: "#/game/picture", grammar: "#/grammar", typing: "#/game/type", vocab: "#/review", pinyin: "#/game/race", "listen-word": "#/game/listen", "listen-sentence": "#/game/drill", "word-order": "#/game/builder", mock: "#/mock", review: "#/review" };
+  function hasOwn(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+  function weeklyCard(res) {
+    var r = res.result;
+    return '<div class="ai-card"><div class="ai-head"><b>🤖 Your coach</b>' + conf(r.confidence) + '</div><p class="ai-exp"><b>' + esc(r.headline) + "</b></p>" +
+      (r.wins.length ? "<ul>" + r.wins.map(function (w) { return "<li>🌟 " + esc(w) + "</li>"; }).join("") + "</ul>" : "") +
+      '<p class="sub">Next week:</p><ol class="ai-acts">' + r.actions.map(function (a) { return "<li>" + esc(a.text) + ' <a class="btn small" href="' + (hasOwn(SKILL_ROUTE, a.skill) ? SKILL_ROUTE[a.skill] : "#/review") + '">' + esc(hasOwn(SKILL_NAMES, a.skill) ? SKILL_NAMES[a.skill] : "Go") + " · " + (+a.minutes || 10) + " min</a></li>"; }).join("") + "</ol>" +
+      (r.note ? '<p class="ai-exp">' + esc(r.note) + "</p>" : "") + voteRow() + "</div>";
+  }
+  function validWeekly(x) { var r = x && x.result; return !!(r && typeof r.headline === "string" && Array.isArray(r.actions) && Array.isArray(r.wins)); }
+  function weekly(host, key, report, force) {
+    try {
+      var saved = read(WK);
+      if (!force && saved.key === key && validWeekly(saved.res)) { host.innerHTML = weeklyCard(saved.res); wireVote(host, "weekly coach " + key, "weekly"); return Promise.resolve(saved.res); }
+      waiting(host, "Reading your week…");
+      return call("weekly", report).then(function (res) {
+        if (!res.ok || !validWeekly(res)) { failed(host, res.ok ? { error: "bad_output" } : res); return res; }
+        write(WK, { key: key, res: { result: res.result, model: res.model } });
+        host.innerHTML = weeklyCard(res); wireVote(host, "weekly coach " + key, "weekly · " + (res.model || ""));
+        return res;
+      }).catch(function () { failed(host, { error: "bad_output" }); return { ok: false }; });
+    } catch (e) { failed(host, { error: "bad_output" }); return Promise.resolve({ ok: false }); }
+  }
+
   window.AI = { cfg: cfg, own: own, usingBuiltIn: usingBuiltIn, hasBuiltIn: function () { return !!BUILT_IN_URL; }, save: save, clear: clear, configured: configured, available: available, validUrl: validUrl, call: call, errMsg: errMsg,
-    grade: grade, attachExplain: attachExplain, unknownChars: unknownChars, counts: counts, _gradeCard: gradeCard, _explainCard: explainCard };
+    askBox: askBox, coach: coach, weekly: weekly, topTags: topTags, addTags: addTags, SKILL_NAMES: SKILL_NAMES,
+    grade: grade, attachExplain: attachExplain, unknownChars: unknownChars, counts: counts, _gradeCard: gradeCard, _explainCard: explainCard, _askCard: askCard, _coachCard: coachCard, _weeklyCard: weeklyCard };
 })();

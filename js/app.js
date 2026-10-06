@@ -171,7 +171,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", track: "Pro track" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", track: "Pro track", talk: "Role-play" };
   function route() {
     Audio2.stop(); Audio2.noise(0); setKeys(null); workDone = false; if (LM) { LM.stop(); LM = null; }
     try { weekTick(); } catch (e) { /* the weekly report must never block navigation */ }
@@ -206,6 +206,7 @@
     else if (v === "core") viewCoreSet(parseInt(parts[1], 10));
     else if (v === "check") viewQuickCheck(parseInt(parts[1], 10));
     else if (v === "listen-mode") viewListenMode();
+    else if (v === "talk") viewTalk(parts[1]);
     else if (v === "session") viewSession(parts[1]);
     else if (v === "grammar") parts[1] ? viewGrammarPoint(parts[1], parts[2]) : viewGrammarList();
     else if (v === "official") viewOfficial();
@@ -223,7 +224,7 @@
       else viewMockSection(parts[1], parts[2]);
     }
     else viewHome();
-    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", "listen-mode": "review", session: "home", grammar: "learn", official: "me" }[v] || "home";
+    var tab = { "": "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     document.getElementById("page-title").textContent = TITLES[v] || "C&B 中文";
     refreshChrome();
@@ -287,7 +288,7 @@
       html += '<div class="install card"><div><b>Add to Home Screen</b><p>Tap <b>Share ⬆︎</b> in Chrome → <b>Add to Home Screen</b>. It opens full-screen, works offline and keeps your progress safe.</p></div><button class="x" id="hint-x" aria-label="Dismiss">✕</button></div>';
     }
     html += '<section class="hero compact card g-violet">' +
-      '<div class="hero-top"><div class="bob">' + UI.mascot(todayXP >= goal ? "cheer" : "happy", 72) + "</div>" +
+      '<div class="hero-top"><div class="bob">' + UI.mascot(todayXP >= goal ? "proud" : todayXP === 0 ? "wave" : "happy", 72) + "</div>" +
       '<div><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + '</p><p class="lv"><span class="zh">' + lv.zh + "</span> · " + lv.en + '</p><p class="lv-n">Level ' + lv.n + (exam >= 0 ? " · " + exam + " days to HSK 4" : "") + "</p></div></div>" +
       '<div class="xpbar"><span style="width:' + Math.round(lv.pct * 100) + '%"></span></div>' +
       '<p class="xp-t">' + s.xp + " XP" + (lv.next ? " · " + (lv.next - s.xp) + " to next level" : " · max level") + "</p></section>";
@@ -319,6 +320,18 @@
       host.parentNode.insertBefore(d, host.nextSibling);
     });
     wireQuests();
+    /* C&B track: show the next unfinished session (data loads in the background) */
+    ensureTrack().then(function () {
+      var T = window.CB_TRACK || [], host = document.querySelector(".tiles");
+      if (!T.length || !host || !document.getElementById("app").contains(host) || document.querySelector(".trackrow")) return;
+      for (var a = 0; a < T.length; a++) for (var b = 1; b <= 3; b++) {
+        if (tkDone(T[a].week, b)) continue;
+        var ss = T[a].sessions[b - 1], n = T.reduce(function (c, w) { return c + tkWeekDone(w); }, 0);
+        var r = document.createElement("a"); r.className = "trackrow"; r.href = "#/track/" + T[a].week + "/" + b;
+        r.innerHTML = '<span class="t-ico">💼</span><span class="tr-t"><small>C&amp;B track · Week ' + T[a].week + " · " + n + "/" + T.length * 3 + ' done</small><b>' + esc(T[a].title.zh) + " · " + esc(TK_KIND[ss.kind] || ss.kind) + '</b></span><span class="g-go">▶</span>';
+        host.parentNode.insertBefore(r, host); return;
+      }
+    }).catch(function () { /* offline and not cached yet: skip */ });
     var x = document.getElementById("hint-x");
     if (x) x.onclick = function () { s.settings.installHintDismissed = true; Store.save(); x.closest(".install").remove(); };
   }
@@ -852,7 +865,7 @@
     }).join("") + "</div>";
     if (!ids.length) {
       var nd = SRS.nextDue();
-      render('<div class="card result">' + UI.mascot(total ? "cheer" : "wow", 88) + "<h2>" + (total ? "All caught up!" : "Nothing to review yet") + "</h2>" +
+      render('<div class="card result">' + UI.mascot(total ? "think" : "sleepy", 88) + "<h2>" + (total ? "All caught up!" : "Nothing to review yet") + "</h2>" +
         '<p class="sub">' + (total ? (nd ? "Next review: " + esc(nd) : "") : "Study a day's flashcards to fill your deck.") + "</p></div>" + boxes + mistakesCard() +
         '<div class="actions center"><a class="btn primary" href="#/games">🎮 Play a game</a><a class="btn" href="#/learn">📚 Learn</a></div>', "review");
       return;
@@ -2015,6 +2028,8 @@
     var s = Store.state, t = Store.today(), p = planInfo(), due = SRS.dueIds(WORDMAP).length;
     var nd = firstOpen(DAYS.filter(function (d) { return d.day <= coreCut(); }));
     var tasks = [];
+    var tkNext = null;
+    (window.CB_TRACK || []).some(function (w) { for (var b = 1; b <= 3; b++) if (!tkDone(w.week, b)) { tkNext = { w: w.week, b: b, t: w.title.zh }; return true; } return false; });
     tasks.push({ ico: "🔁", txt: due ? "Review " + due + " due word" + (due > 1 ? "s" : "") : "Review · all caught up", href: "#/review", done: !due });
     var nMis = Learn.count(), lastMock = s.mockHistory.length ? s.mockHistory[s.mockHistory.length - 1].date : null;
     var studiedToday = Object.keys(s.days).some(function (k) { return s.days[k].completedOn === t; });
@@ -2047,6 +2062,7 @@
       var mockDue = !p.afterExam && p.done >= 10 && (!lastMock || Store.daysBetween(lastMock, t) >= 7);
       if (mockDue) tasks.push({ ico: "📝", txt: "Take a mock exam", href: "#/mock", done: lastMock === t });
     }
+    if (tkNext && !p.afterExam) tasks.push({ ico: "💼", txt: "C&B track · Week " + tkNext.w + " · " + tkNext.t, href: "#/track/" + tkNext.w + "/" + tkNext.b, done: false });
     var goal = s.settings.dailyGoal || 30, xp = s.log[t] || 0;
     tasks.push({ ico: "🎯", txt: "Daily goal · " + xp + "/" + goal + " XP", href: "#/games", done: xp >= goal });
     return tasks;
@@ -2337,7 +2353,31 @@
     wrap.className = "modal-wrap guide";
     document.body.appendChild(wrap);
     function done() { Store.state.settings.onboarded = true; Store.save(); wrap.classList.remove("show"); setTimeout(function () { wrap.remove(); }, 250); }
+    function setup() {
+      var st = Store.state.settings, ex = st.examDate || "2026-11-14";
+      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-mas">' + UI.mascot("wave", 84) + '</div><h2 id="guide-t">Set up in 20 seconds</h2>' +
+        '<label class="su-l" for="su-exam">When is your HSK 4 exam?</label><input type="date" id="su-exam" value="' + esc(ex) + '">' +
+        '<p class="su-l">How much each day?</p><div class="su-opts" id="su-goal">' +
+        [["20", "Chill", "20 XP"], ["30", "Steady", "30 XP"], ["50", "Serious", "50 XP"]].map(function (g) { return '<button type="button" class="su-o' + (String(st.dailyGoal || 30) === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join("") + "</div>" +
+        '<p class="su-l">Your Chinese so far</p><div class="su-opts" id="su-lv">' +
+        [["new", "Just starting"], ["some", "Know some HSK 1–3"], ["good", "HSK 3 or more"]].map(function (g) { return '<button type="button" class="su-o' + ((st.level || "new") === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b></button>"; }).join("") + "</div>" +
+        '<div class="actions center"><button class="btn" id="g-skip">Skip</button><button class="btn primary" id="su-go">Continue ›</button></div></div>';
+      ["su-goal", "su-lv"].forEach(function (id) {
+        wrap.querySelector("#" + id).onclick = function (e) {
+          var b = e.target.closest(".su-o"); if (!b) return;
+          Array.prototype.forEach.call(this.children, function (c) { c.classList.toggle("on", c === b); });
+        };
+      });
+      function save() {
+        var d = wrap.querySelector("#su-exam").value, g = wrap.querySelector("#su-goal .on"), l = wrap.querySelector("#su-lv .on");
+        if (d) st.examDate = d; if (g) st.dailyGoal = parseInt(g.dataset.v, 10); if (l) st.level = l.dataset.v;
+        st.setupDone = true; Store.save(); applySettings();
+      }
+      wrap.querySelector("#g-skip").onclick = function () { st.setupDone = true; Store.save(); draw(); };
+      wrap.querySelector("#su-go").onclick = function () { save(); draw(); };
+    }
     function draw() {
+      if (!Store.state.settings.setupDone && !(Store.state.settings.onboarded)) { setup(); return; }
       var g = GUIDE[i];
       wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-ico">' + g.icon + '</div><h2 id="guide-t">' + g.t + "</h2><p>" + g.d + "</p>" +
         '<div class="g-dots">' + GUIDE.map(function (_, k) { return '<i class="' + (k === i ? "on" : "") + '"></i>'; }).join("") + "</div>" +
@@ -2347,6 +2387,76 @@
     }
     draw();
     requestAnimationFrame(function () { wrap.classList.add("show"); });
+  }
+
+
+  /* ---------- role-play chat (AI plays the other person; you are HR) ---------- */
+  var TALK = {
+    payslip: { icon: "🧾", t: "Explain a payslip", d: "An employee does not understand a deduction", open: { zh: "你好，我看不懂工资条上的扣除项。你能帮我看看吗？", py: "Nǐ hǎo, wǒ kàn bu dǒng gōngzītiáo shàng de kòuchú xiàng. Nǐ néng bāng wǒ kànkan ma?", vi: "Chào chị, em không hiểu các khoản trừ trên phiếu lương. Chị xem giúp em được không?", en: "Hi, I don't understand the deductions on my payslip. Can you help me look?" }, hint: "当然可以，请把工资条给我。" },
+    leave: { icon: "🏖️", t: "Ask about leave", d: "An employee asks about annual leave", open: { zh: "请问，我今年还有几天年假？", py: "Qǐngwèn, wǒ jīnnián hái yǒu jǐ tiān niánjià?", vi: "Cho em hỏi, năm nay em còn mấy ngày phép năm?", en: "Excuse me, how many days of annual leave do I have left this year?" }, hint: "我帮你查一下。" },
+    offer: { icon: "💼", t: "Job offer questions", d: "A candidate asks about salary and benefits", open: { zh: "谢谢您的邀请。我想问一下，这个职位的月薪和福利是什么？", py: "Xièxie nín de yāoqǐng. Wǒ xiǎng wèn yíxià, zhège zhíwèi de yuèxīn hé fúlì shì shénme?", vi: "Cảm ơn lời mời. Em muốn hỏi lương tháng và phúc lợi của vị trí này là gì ạ?", en: "Thank you for the invitation. What are the monthly salary and benefits for this role?" }, hint: "月薪是……，还有五险一金。" },
+    review: { icon: "📊", t: "Performance review", d: "A manager talks about a rating and bonus", open: { zh: "这次绩效评分我是B，年终奖会受影响吗？", py: "Zhè cì jìxiào píngfēn wǒ shì B, niánzhōngjiǎng huì shòu yǐngxiǎng ma?", vi: "Lần đánh giá này em được B, thưởng cuối năm có bị ảnh hưởng không?", en: "My performance rating this time is B. Will my year-end bonus be affected?" }, hint: "会有一点影响。" },
+    insurance: { icon: "🏥", t: "Social insurance", d: "An employee asks how insurance works", open: { zh: "我想了解一下社保，公司每个月交多少？", py: "Wǒ xiǎng liǎojiě yíxià shèbǎo, gōngsī měi ge yuè jiāo duōshao?", vi: "Em muốn tìm hiểu về bảo hiểm xã hội, mỗi tháng công ty đóng bao nhiêu?", en: "I'd like to know about social insurance. How much does the company pay each month?" }, hint: "公司和个人都要交。" }
+  };
+  function viewTalk(id) {
+    var sc = TALK[id];
+    if (!sc) {
+      var html = '<section class="card"><h2>🗣️ Role-play</h2><p class="sub">You are the HR person. The AI plays the employee or candidate and answers in simple Chinese. It corrects your last sentence each turn. You can type or speak.</p></section><div class="glist">' +
+        Object.keys(TALK).map(function (k) { var t = TALK[k]; return '<a class="grow" href="#/talk/' + k + '"><span class="g-ico">' + t.icon + '</span><span class="g-txt"><b>' + t.t + "</b><small>" + t.d + '</small></span><span class="g-go">▶</span></a>'; }).join("") + "</div>" +
+        (window.AI && AI.configured() ? "" : '<p class="warn">Set up AI first: Me → AI assistant.</p>');
+      render(html, "games"); return;
+    }
+    var hist = [{ role: "ai", zh: sc.open.zh }], turns = 0, busy = false, finished = false, lastHint = sc.hint;
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    function bubbleAI(r) { return '<div class="tb tb-ai"><div class="tb-who">🤖 AI plays the other person</div><div class="zh">' + esc(r.zh) + SAY(r.zh) + "</div>" + PY(r.py || r.pinyin || "") + '<div class="dim">' + (r.meaning ? esc(r.meaning) : M(r)) + "</div></div>"; }
+    function paint() {
+      var el = document.getElementById("talk-log"); if (!el) return;
+      el.scrollTop = el.scrollHeight; window.scrollTo(0, document.body.scrollHeight);
+    }
+    render('<div class="ghead"><a class="pill" href="#/talk">✕</a><b>' + sc.icon + " " + sc.t + '</b><span class="ghr" id="t-n">0</span></div>' +
+      '<div id="talk-log" class="talk-log" aria-live="polite">' + bubbleAI({ zh: sc.open.zh, py: sc.open.py, vi: sc.open.vi, en: sc.open.en }) + "</div>" +
+      '<div class="talk-in"><div class="talk-hint"><button type="button" class="chip" id="t-hint">💡 Hint</button><span id="t-hint-t" class="dim"></span></div>' +
+      '<div class="talk-row"><input id="t-text" class="zh" lang="zh-CN" maxlength="120" autocomplete="off" aria-label="Your reply in Chinese" placeholder="用中文回答…">' +
+      (SR ? '<button type="button" class="btn small" id="t-mic" aria-label="Speak in Chinese">🎤</button>' : "") +
+      '<button type="button" class="btn primary small" id="t-send">Send</button></div>' +
+      (SR ? "" : '<p class="sub">Voice input is not available in this browser. Use your pinyin keyboard.</p>') + "</div>", "games");
+    var log = document.getElementById("talk-log"), inp = document.getElementById("t-text");
+    document.getElementById("t-hint").onclick = function () { document.getElementById("t-hint-t").textContent = lastHint; };
+    function finish() {
+      finished = true; Game.award(15); markWork();
+      log.insertAdjacentHTML("beforeend", '<div class="ai-card"><b>✅ Conversation done · +15 XP</b><p class="sub">' + turns + ' replies. Try another scene tomorrow.</p><div class="actions center"><a class="btn primary" href="#/talk">More scenes</a></div></div>');
+      document.querySelector(".talk-in").hidden = true; paint();
+    }
+    function send() {
+      var text = inp.value.trim(); if (!text || busy || finished) return;
+      if (!/[㐀-鿿]/.test(text)) { UI.toast("Write your reply in Chinese", "✍️"); return; }
+      if (!window.AI || !AI.configured()) { UI.toast("Set up AI first: Me → AI assistant.", "🤖"); return; }
+      busy = true; inp.value = ""; turns++; document.getElementById("t-n").textContent = turns;
+      var my = document.createElement("div"); my.className = "tb tb-me"; my.innerHTML = '<div class="zh">' + esc(text) + "</div>"; log.appendChild(my);
+      var wait = document.createElement("div"); wait.className = "tb tb-ai"; wait.textContent = "…"; log.appendChild(wait); paint();
+      AI.call("roleplay", { scene: id, text: text, history: hist.slice(-8) }).then(function (res) {
+        busy = false; wait.remove();
+        if (!res.ok) { turns--; document.getElementById("t-n").textContent = turns; my.remove(); inp.value = text; UI.toast(AI.errMsg(res.error), "⚠️"); return; }
+        var r = res.result;
+        hist.push({ role: "me", zh: text }); hist.push({ role: "ai", zh: r.reply.zh });
+        if (r.feedback.changed) my.insertAdjacentHTML("beforeend", '<div class="tb-fix"><b>✎ ' + esc(r.feedback.corrected) + "</b>" + (r.feedback.note ? "<br>" + esc(r.feedback.note) : "") + "</div>");
+        else my.insertAdjacentHTML("beforeend", '<div class="tb-ok">✓ Good</div>');
+        log.insertAdjacentHTML("beforeend", bubbleAI(r.reply));
+        lastHint = r.hint ? r.hint + (r.hint_pinyin ? " · " + r.hint_pinyin : "") : lastHint; document.getElementById("t-hint-t").textContent = "";
+        if (r.done || turns >= 8) finish(); else { paint(); inp.focus(); }
+      });
+    }
+    document.getElementById("t-send").onclick = send;
+    inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); send(); } };
+    var mic = document.getElementById("t-mic");
+    if (mic) mic.onclick = function () {
+      var rec = new SR(); rec.lang = "zh-CN"; rec.interimResults = false; rec.maxAlternatives = 1;
+      mic.disabled = true; mic.textContent = "● …";
+      rec.onresult = function (e) { inp.value = e.results[0][0].transcript; };
+      rec.onerror = function () { UI.toast("Could not hear you. Check microphone permission.", "🎤"); };
+      rec.onend = function () { mic.disabled = false; mic.textContent = "🎤"; if (inp.value) inp.focus(); };
+      try { rec.start(); } catch (e) { mic.disabled = false; mic.textContent = "🎤"; }
+    };
   }
 
   /* ---------- my own words ---------- */

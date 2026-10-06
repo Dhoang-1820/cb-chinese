@@ -81,21 +81,35 @@
       happy: '<path d="M44 58q5-6 10 0M66 58q5-6 10 0" stroke="#5a3200" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
       cheer: '<path d="M44 58q5-7 10 0M66 58q5-7 10 0" stroke="#5a3200" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
       wow: '<circle cx="49" cy="57" r="4.5" fill="#5a3200"/><circle cx="71" cy="57" r="4.5" fill="#5a3200"/><circle cx="50.5" cy="55.5" r="1.4" fill="#fff"/><circle cx="72.5" cy="55.5" r="1.4" fill="#fff"/>',
-      sad: '<path d="M44 57q5 4 10 0M66 57q5 4 10 0" stroke="#5a3200" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
-    }[mood];
+      sad: '<path d="M44 57q5 4 10 0M66 57q5 4 10 0" stroke="#5a3200" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
+      wave: '<path d="M44 58q5-6 10 0M66 58q5-6 10 0" stroke="#5a3200" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
+      think: '<circle cx="49" cy="55" r="4.5" fill="#5a3200"/><circle cx="71" cy="55" r="4.5" fill="#5a3200"/><circle cx="50.5" cy="53.5" r="1.4" fill="#fff"/><circle cx="72.5" cy="53.5" r="1.4" fill="#fff"/>',
+      sleepy: '<path d="M44 58h10M66 58h10" stroke="#5a3200" stroke-width="3.5" stroke-linecap="round"/>',
+      proud: '<path d="M44 58q5-7 10 0M66 58q5-7 10 0" stroke="#5a3200" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+    }[mood] || '';
     var mouth = {
       happy: '<path d="M52 70q8 8 16 0" stroke="#5a3200" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
       cheer: '<path d="M50 68q10 14 20 0z" fill="#5a3200"/><path d="M54 72q6 5 12 0" fill="#ff7a7a"/>',
       wow: '<ellipse cx="60" cy="73" rx="5" ry="6" fill="#5a3200"/>',
-      sad: '<path d="M52 75q8-7 16 0" stroke="#5a3200" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
-    }[mood];
+      sad: '<path d="M52 75q8-7 16 0" stroke="#5a3200" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
+      wave: '<path d="M50 68q10 12 20 0z" fill="#5a3200"/><path d="M54 72q6 4 12 0" fill="#ff7a7a"/>',
+      think: '<path d="M54 74h12" stroke="#5a3200" stroke-width="3.5" stroke-linecap="round"/>',
+      sleepy: '<ellipse cx="60" cy="74" rx="4" ry="3" fill="#5a3200"/>',
+      proud: '<path d="M50 68q10 14 20 0z" fill="#5a3200"/><path d="M54 72q6 5 12 0" fill="#ff7a7a"/>'
+    }[mood] || '';
+    var extra = {
+      wave: '<path d="M104 52q8-10 14-2M106 60q10-4 12 4" stroke="#dc8500" stroke-width="5" fill="none" stroke-linecap="round"/>',
+      think: '<circle cx="98" cy="26" r="3" fill="#7b5cff"/><circle cx="106" cy="16" r="4.5" fill="#7b5cff"/><text x="104" y="22" font-size="14" font-weight="900" fill="#fff" text-anchor="middle">?</text>',
+      sleepy: '<text x="96" y="30" font-size="18" font-weight="900" fill="#7b5cff">z</text><text x="106" y="18" font-size="12" font-weight="900" fill="#7b5cff">z</text>',
+      proud: '<path d="M14 24l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#ffb020"/><path d="M104 30l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#ffb020"/>'
+    }[mood] || '';
     return '<svg class="mascot m-' + mood + '" viewBox="0 0 120 120" width="' + (size || 64) + '" height="' + (size || 64) + '" aria-hidden="true">' +
       '<defs><radialGradient id="coinG" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#fff6c2"/><stop offset=".55" stop-color="#ffcb3d"/><stop offset="1" stop-color="#f09a0a"/></radialGradient></defs>' +
       '<path d="M60 18c-2-8 4-14 12-14-1 8-6 12-12 14z" fill="#3ccf8e"/><path d="M60 18c1-7-4-12-10-12 0 7 4 11 10 12z" fill="#2bb67a"/>' +
       '<circle cx="60" cy="64" r="44" fill="url(#coinG)" stroke="#dc8500" stroke-width="4"/>' +
       '<circle cx="60" cy="64" r="35" fill="none" stroke="#eb9d12" stroke-width="2" stroke-dasharray="3 5"/>' +
       '<ellipse cx="41" cy="67" rx="6" ry="3.5" fill="#ff8f8f" opacity=".55"/><ellipse cx="79" cy="67" rx="6" ry="3.5" fill="#ff8f8f" opacity=".55"/>' +
-      eyes + mouth + "</svg>";
+      eyes + mouth + extra + "</svg>";
   }
 
   /* ---------------- Heart burst (correct answers) ----------------

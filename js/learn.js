@@ -34,6 +34,7 @@
     var s = Store.state;
     if (!s.mistakes) s.mistakes = {};
     if (!s.skills) s.skills = {};
+    if (!Array.isArray(s.mlog)) s.mlog = [];
     return s;
   }
 
@@ -45,6 +46,7 @@
       var st = s.skills[sk] || (s.skills[sk] = { r: 0, w: 0 });
       if (ok) st.r++; else st.w++;
     }
+    if (!ok) { s.mlog.push({ d: Store.today(), k: key, s: sk || "" }); if (s.mlog.length > 600) s.mlog.splice(0, s.mlog.length - 600); }
     if (meta && meta.statsOnly) { Store.save(); return false; }
     if (!ok) {
       if (!m) m = s.mistakes[key] = Object.assign({ added: Store.today(), wrong: 0 }, meta);
@@ -75,5 +77,29 @@
     return out.sort(function (a, b) { return a.acc - b.acc; });
   }
 
-  window.Learn = { SKILLS: SKILLS, CLEAR_AFTER: CLEAR_AFTER, record: record, list: list, count: count, report: report };
+  /* Pattern rules (no AI): look at the wrong-answer log and say what keeps going wrong, with the evidence.
+       repeat — the same item missed REPEAT_N+ times in the last 14 days
+       skill  — SKILL_N+ wrong answers in one skill in the last 7 days while its overall accuracy is below 70%
+     Returns the strongest patterns first: [{ type, sig, n, days, key|skill, keys }]. */
+  var REPEAT_N = 3, SKILL_N = 5;
+  function patterns(max) {
+    var s = S(), t = Store.today(), from14 = Store.addDays(t, -13), from7 = Store.addDays(t, -6), out = [];
+    var byKey = {}, bySkill = {};
+    s.mlog.forEach(function (e) {
+      if (e.d >= from14) (byKey[e.k] || (byKey[e.k] = { n: 0, skill: e.s })).n++;
+      if (e.d >= from7 && e.s) (bySkill[e.s] || (bySkill[e.s] = { n: 0 })).n++;
+    });
+    var rep = Object.keys(byKey).filter(function (k) { return byKey[k].n >= REPEAT_N; })
+      .sort(function (a, b) { return byKey[b].n - byKey[a].n; }).slice(0, 5);
+    if (rep.length) out.push({ type: "repeat", sig: "r:" + rep.slice().sort().join(","), n: rep.reduce(function (a, k) { return a + byKey[k].n; }, 0), days: 14, keys: rep, counts: rep.map(function (k) { return byKey[k].n; }) });
+    Object.keys(bySkill).forEach(function (k) {
+      var st = s.skills[k], n = st ? st.r + st.w : 0;
+      if (!SKILLS[k] || bySkill[k].n < SKILL_N || !n || st.r / n >= 0.7) return;
+      out.push({ type: "skill", sig: "s:" + k + ":" + Math.floor(bySkill[k].n / 5), n: bySkill[k].n, days: 7, skill: k, acc: st.r / n });
+    });
+    out.sort(function (a, b) { return (b.type === "repeat" ? 1000 : 0) + b.n - ((a.type === "repeat" ? 1000 : 0) + a.n); });
+    return out.slice(0, max || 2);
+  }
+
+  window.Learn = { SKILLS: SKILLS, CLEAR_AFTER: CLEAR_AFTER, record: record, list: list, count: count, report: report, patterns: patterns };
 })();

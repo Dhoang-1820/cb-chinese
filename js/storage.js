@@ -13,7 +13,7 @@
   function defaults() {
     return {
       version: 2,
-      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", noise: 0, mockRate: 0, sessionMode: "std" },
+      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std" },
       srs: {},        // wordId -> { box, due, right, wrong, added, last }
       days: {},       // dayNo -> { quizBest, practice: {}, completed }
       streak: { count: 0, last: null, best: 0 },
@@ -23,6 +23,10 @@
       badges: {},     // badgeId -> date earned
       games: {},      // gameId -> { best, plays }
       mocks: {},      // mockId -> { best, plays, lastScore, lastSections: {listening, reading, writing} }
+      mlog: [],       // wrong answers, newest last: [{ d: date, k: key, s: skill }] (capped; feeds the pattern rules in js/learn.js)
+      weekGoal: {},   // week-start date -> true once that week's study-days goal was met
+      patternHide: {}, // pattern signature -> date it was dismissed (hidden for the rest of that day)
+      patternAI: {},  // pattern signature -> saved AI explanation
       mistakes: {},   // key -> { kind, skill, wrong, streak, added, last, ...refs }  (see js/learn.js)
       skills: {},     // skillId -> { r: right, w: wrong }
       mockHistory: [], // [{ id, date, total, sections }]

@@ -264,6 +264,7 @@
     var n = items.filter(function (x) { return x.ok; }).length, opened = !!(s.questChest || {})[t];
     var thisW = sumXP(t, 7), lastW = sumXP(Store.addDays(t, -7), 7);
     return '<section class="card quests"><div class="sec-h"><h2>Daily quests</h2><span class="muted">' + n + "/3</span></div>" +
+      weekRow() +
       items.map(function (x) { return '<a class="qrow' + (x.ok ? " done" : "") + '" href="' + x.href + '"><span class="qi">' + (x.ok ? "✓" : "") + "</span><span class=\"qt\">" + x.txt + '</span><span class="qp">' + x.prog + "</span></a>"; }).join("") +
       '<button type="button" class="btn ' + (n === 3 && !opened ? "primary" : "") + ' wide qchest" id="q-chest"' + (n === 3 && !opened ? "" : " disabled") + ">" + (opened ? "🎁 Chest opened today" : n === 3 ? "🎁 Open chest · +20 XP" : "🎁 Finish all 3 to open the chest") + "</button>" +
       '<p class="sub qweek">This week ' + thisW + " XP · last week " + lastW + " XP" + (thisW > lastW && lastW > 0 ? " · you are ahead 🚀" : lastW > 0 ? " · beat it!" : "") + "</p></section>";
@@ -275,6 +276,72 @@
       s.questChest[t] = true; Store.save(); b.disabled = true; b.classList.remove("primary"); b.textContent = "🎁 Chest opened today";
       Game.award(20); UI.confetti(90); Audio2.sfx.win();
     };
+  }
+
+  /* ---------- habit: weekly goal, pattern card, at-risk timing ---------- */
+  function weekStart(t) { var d = new Date(t + "T00:00:00"); return Store.addDays(t, -((d.getDay() + 6) % 7)); }
+  function weekInfo() {
+    var s = Store.state, t = Store.today(), ws = weekStart(t), goal = Math.min(7, Math.max(1, parseInt(s.settings.weeklyDays, 10) || 5)), days = [], n = 0;
+    for (var i = 0; i < 7; i++) { var d = Store.addDays(ws, i), on = (s.log[d] || 0) > 0; if (on) n++; days.push({ d: d, on: on, today: d === t, future: d > t }); }
+    return { ws: ws, goal: goal, n: n, days: days, met: n >= goal };
+  }
+  /* Meeting the weekly goal earns a streak freeze (max 2), once per week. Returns true when it was just earned. */
+  function weekReward() {
+    var s = Store.state, w = weekInfo(); s.weekGoal = s.weekGoal || {};
+    if (!w.met || s.weekGoal[w.ws]) return false;
+    s.weekGoal[w.ws] = true; var got = (s.freezes || 0) < 2; if (got) s.freezes = (s.freezes || 0) + 1; Store.save(); return got ? "freeze" : "met";
+  }
+  function weekRow() {
+    var w = weekInfo(), fr = Store.state.freezes || 0, L = ["M", "T", "W", "T", "F", "S", "S"];
+    return '<div class="wkrow" aria-label="Weekly goal: ' + w.n + " of " + w.goal + ' days"><div class="wk-ring' + (w.met ? " met" : "") + '" style="--p:' + Math.min(100, Math.round(w.n / w.goal * 100)) + '"><b>' + w.n + "</b><small>/" + w.goal + "</small></div>" +
+      '<div class="wk-t"><b>' + (w.met ? "Weekly goal met 🎉" : "Study " + w.goal + " days this week") + '</b><div class="wk-dots">' +
+      w.days.map(function (d, i) { return '<i class="' + (d.on ? "on" : "") + (d.today ? " now" : "") + '" title="' + d.d + '">' + (d.on ? "✓" : L[i]) + "</i>"; }).join("") + "</div>" +
+      '<small class="muted">🧊 ' + fr + " streak freeze" + (fr === 1 ? "" : "s") + " · earn more by hitting the goal</small></div></div>";
+  }
+  function wordLabel(k) { var m = /^w:(.+)$/.exec(k), w = m && WORDMAP[m[1]]; return w ? w : null; }
+  function patternCard() {
+    var s = Store.state, t = Store.today(), ps = Learn.patterns(3).filter(function (p) { return s.patternHide[p.sig] !== t; }), p = ps[0];
+    if (!p) return "";
+    if (p.type === "repeat") {
+      var ws = p.keys.map(function (k, i) { var w = wordLabel(k); return w ? { w: w, n: p.counts[i] } : null; }).filter(Boolean);
+      var ev = ws.length ? ws.map(function (x) { return '<span class="zh">' + esc(x.w.hanzi) + "</span> ×" + x.n; }).join(" · ") : p.keys.length + " items";
+      return '<section class="card pattern" data-sig="' + esc(p.sig) + '"><div class="sec-h"><h2>🔎 Pattern spotted</h2><button type="button" class="x" id="pt-x" aria-label="Hide for today">✕</button></div>' +
+        "<p><b>You keep missing the same " + (ws.length ? "words" : "items") + ".</b></p><p class=\"pt-ev\">" + ev + ' <span class="muted">in the last ' + p.days + " days</span></p>" +
+        '<div class="actions"><button type="button" class="btn primary small" id="pt-go">Practise ' + (ws.length || p.keys.length) + ' ▶</button>' + (ws.length && window.AI && AI.configured() ? '<button type="button" class="btn small" id="pt-ai">🤖 Explain why</button>' : "") + '</div><div class="ai-out" id="pt-out"></div></section>';
+    }
+    var info = Learn.SKILLS[p.skill];
+    return '<section class="card pattern" data-sig="' + esc(p.sig) + '"><div class="sec-h"><h2>🔎 Pattern spotted</h2><button type="button" class="x" id="pt-x" aria-label="Hide for today">✕</button></div>' +
+      "<p><b>" + info.icon + " " + esc(info.en) + " keeps going wrong.</b></p><p class=\"pt-ev\">" + p.n + " wrong in the last " + p.days + " days · " + Math.round(p.acc * 100) + '% overall</p><p class="sub">' + esc(info.tip) + "</p>" +
+      '<div class="actions"><a class="btn primary small" href="#/mistakes' + (Learn.count(p.skill) ? "/" + p.skill : "") + '">Practise ▶</a></div></section>';
+  }
+  function wirePattern() {
+    var el = document.querySelector(".pattern"); if (!el) return;
+    var s = Store.state, sig = el.getAttribute("data-sig"), p = Learn.patterns(3).filter(function (x) { return x.sig === sig; })[0];
+    document.getElementById("pt-x").onclick = function () { s.patternHide[sig] = Store.today(); Store.save(); el.remove(); };
+    var go = document.getElementById("pt-go"); if (!go || !p) return;
+    var words = p.keys.map(wordLabel).filter(Boolean);
+    go.onclick = function () {
+      if (!words.length) { location.hash = "#/mistakes"; return; }
+      SRS.addMany(words.map(function (w) { return w.id; }));
+      runDeck({ title: "Words you keep missing", words: words, mode: "review", back: "#/" });
+    };
+    var ai = document.getElementById("pt-ai"), out = document.getElementById("pt-out");
+    function show(res) { out.innerHTML = AI._askCard(res); }
+    if (ai) ai.onclick = function () {
+      if (s.patternAI[sig]) { show(s.patternAI[sig]); ai.hidden = true; return; }
+      ai.disabled = true; out.innerHTML = '<div class="ai-card ai-wait">🤖 Thinking…</div>';
+      AI.call("ask", { text: words[0].hanzi, context: words.slice(1, 4).map(function (w) { return w.hanzi; }).join(" "), preset: "similar" }).then(function (res) {
+        ai.disabled = false;
+        if (!res.ok) { out.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + "</div>"; return; }
+        var keys = Object.keys(s.patternAI); if (keys.length > 20) delete s.patternAI[keys[0]];
+        s.patternAI[sig] = { ok: true, result: res.result, model: res.model }; Store.save(); ai.hidden = true; show(res);
+      });
+    };
+  }
+  /* "streak at risk" shows 30 min after your study time (never before 17:00, never later than 22:30) */
+  function atRiskHour() {
+    var rt = String(Store.state.settings.remindTime || "20:00").split(":"), h = (parseInt(rt[0], 10) || 20) + (parseInt(rt[1], 10) || 0) / 60 + 0.5;
+    return Math.min(22.5, Math.max(17, h));
   }
 
   function viewHome() {
@@ -292,7 +359,7 @@
       '<div><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + '</p><p class="lv"><span class="zh">' + lv.zh + "</span> · " + lv.en + '</p><p class="lv-n">Level ' + lv.n + (exam >= 0 ? " · " + exam + " days to HSK 4" : "") + "</p></div></div>" +
       '<div class="xpbar"><span style="width:' + Math.round(lv.pct * 100) + '%"></span></div>' +
       '<p class="xp-t">' + s.xp + " XP" + (lv.next ? " · " + (lv.next - s.xp) + " to next level" : " · max level") + "</p></section>";
-    html += cont0 + rescueCard() + sessionCTA();
+    html += cont0 + rescueCard() + sessionCTA() + shortLink() + patternCard();
     html += questsCard();
     var nMis = Learn.count();
     html += '<div class="tiles">' +
@@ -319,7 +386,8 @@
       d.innerHTML = '<span class="cta-l"><small>New audio</small><b>🔊 ' + miss + ' recordings are not saved on this phone</b><em>Me → Download missing, so lessons work offline</em></span><span class="cta-go">▶</span>';
       host.parentNode.insertBefore(d, host.nextSibling);
     });
-    wireQuests();
+    wireQuests(); wirePattern();
+    var wr = weekReward(); if (wr) setTimeout(function () { UI.toast(wr === "freeze" ? "Weekly goal met! +1 streak freeze" : "Weekly goal met!", wr === "freeze" ? "🧊" : "🎉"); UI.confetti(60); }, 600);
     /* C&B track: show the next unfinished session (data loads in the background) */
     ensureTrack().then(function () {
       var T = window.CB_TRACK || [], host = document.querySelector(".tiles");
@@ -945,6 +1013,7 @@
       '<section class="card settings"><div class="sec-h"><h2>🤖 AI assistant</h2><span class="tag">optional</span></div><p class="sub">Writing feedback and "Explain with AI", through a shared free AI service, so there is nothing to set up. Only the sentence or question you send is shared. It needs internet. (Advanced: you can point the app at your own server; that setting stays on this phone and is never exported.)</p><div id="ai-box" class="mw-form"></div></section>' +
       '<section class="card settings"><h2>Study reminder</h2><p class="sub">A daily calendar event until your exam, with an alert. Pick a time, then add it to your calendar once.</p>' +
       row("Time", '<input type="time" id="s-rtime" value="' + esc(set.remindTime || "20:00") + '">') +
+      row("Days per week", '<select id="s-wdays">' + [2, 3, 4, 5, 6, 7].map(function (n) { return '<option value="' + n + '"' + ((set.weeklyDays || 5) === n ? " selected" : "") + ">" + n + "</option>"; }).join("") + "</select>") +
       '<div class="actions"><button class="btn small primary" id="s-ics">📅 iPhone Calendar</button><a class="btn small" id="s-gcal" target="_blank" rel="noopener" href="#">Google Calendar</a></div></section>' +
       '<section class="card settings"><h2>Cloud backup</h2><div id="gist-box"></div></section>' +
       '<section class="card settings"><h2>Offline & data</h2>' +
@@ -968,6 +1037,7 @@
     document.getElementById("s-mrate").onchange = function () { sv("mockRate", parseFloat(this.value)); };
     document.getElementById("s-smode").onchange = function () { sv("sessionMode", this.value); };
     document.getElementById("s-ts").onchange = function () { sv("textSize", this.value); };
+    document.getElementById("s-wdays").onchange = function () { sv("weeklyDays", parseInt(this.value, 10)); };
     var rt = document.getElementById("s-rtime"), gcal = document.getElementById("s-gcal");
     function syncCal() { gcal.href = googleCalURL(rt.value || "20:00", set.examDate); }
     rt.onchange = function () { sv("remindTime", rt.value || "20:00"); syncCal(); }; syncCal();
@@ -2355,22 +2425,26 @@
     function done() { Store.state.settings.onboarded = true; Store.save(); wrap.classList.remove("show"); setTimeout(function () { wrap.remove(); }, 250); }
     function setup() {
       var st = Store.state.settings, ex = st.examDate || "2026-11-14";
-      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-mas">' + UI.mascot("wave", 84) + '</div><h2 id="guide-t">Set up in 20 seconds</h2>' +
+      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-mas">' + UI.mascot("wave", 52) + '</div><h2 id="guide-t">Set up in 20 seconds</h2>' +
         '<label class="su-l" for="su-exam">When is your HSK 4 exam?</label><input type="date" id="su-exam" value="' + esc(ex) + '">' +
         '<p class="su-l">How much each day?</p><div class="su-opts" id="su-goal">' +
         [["20", "Chill", "20 XP"], ["30", "Steady", "30 XP"], ["50", "Serious", "50 XP"]].map(function (g) { return '<button type="button" class="su-o' + (String(st.dailyGoal || 30) === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join("") + "</div>" +
+        '<p class="su-l">When will you study?</p><div class="su-opts su-4" id="su-time">' +
+        [["07:00", "Morning", "7:00"], ["12:30", "Lunch", "12:30"], ["20:00", "Evening", "20:00"], ["21:30", "Late", "21:30"]].map(function (g) { return '<button type="button" class="su-o' + ((st.remindTime || "20:00") === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join("") + "</div>" +
+        '<p class="su-l">Days a week</p><div class="su-opts" id="su-days">' +
+        [["3", "3 days", "light"], ["5", "5 days", "steady"], ["7", "Daily", "fastest"]].map(function (g) { return '<button type="button" class="su-o' + (String(st.weeklyDays || 5) === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join("") + "</div>" +
         '<p class="su-l">Your Chinese so far</p><div class="su-opts" id="su-lv">' +
         [["new", "Just starting"], ["some", "Know some HSK 1–3"], ["good", "HSK 3 or more"]].map(function (g) { return '<button type="button" class="su-o' + ((st.level || "new") === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b></button>"; }).join("") + "</div>" +
         '<div class="actions center"><button class="btn" id="g-skip">Skip</button><button class="btn primary" id="su-go">Continue ›</button></div></div>';
-      ["su-goal", "su-lv"].forEach(function (id) {
+      ["su-goal", "su-lv", "su-time", "su-days"].forEach(function (id) {
         wrap.querySelector("#" + id).onclick = function (e) {
           var b = e.target.closest(".su-o"); if (!b) return;
           Array.prototype.forEach.call(this.children, function (c) { c.classList.toggle("on", c === b); });
         };
       });
       function save() {
-        var d = wrap.querySelector("#su-exam").value, g = wrap.querySelector("#su-goal .on"), l = wrap.querySelector("#su-lv .on");
-        if (d) st.examDate = d; if (g) st.dailyGoal = parseInt(g.dataset.v, 10); if (l) st.level = l.dataset.v;
+        var d = wrap.querySelector("#su-exam").value, g = wrap.querySelector("#su-goal .on"), l = wrap.querySelector("#su-lv .on"), tm = wrap.querySelector("#su-time .on"), wd = wrap.querySelector("#su-days .on");
+        if (d) st.examDate = d; if (g) st.dailyGoal = parseInt(g.dataset.v, 10); if (l) st.level = l.dataset.v; if (tm) st.remindTime = tm.dataset.v; if (wd) st.weeklyDays = parseInt(wd.dataset.v, 10);
         st.setupDone = true; Store.save(); applySettings();
       }
       wrap.querySelector("#g-skip").onclick = function () { st.setupDone = true; Store.save(); draw(); };
@@ -2715,10 +2789,16 @@
     return '<a class="cta card g-violet session-cta' + (done ? " done" : "") + '" href="#/session"><span class="cta-l"><small>' + (done ? "Done today ✓ · run again anytime" : "One tap · " + sessionCfg().label) + "</small><b>▶ Today's session</b><em>" +
       esc(steps.map(function (x) { return x.icon; }).join(" ")) + " " + steps.length + " steps</em></span><span class=\"cta-go\">▶</span></a>";
   }
-  /* After 18:00 with a streak running and nothing studied yet: offer the 2-minute rescue. */
+  /* A tiny version of today that still counts for the streak and the weekly goal. */
+  function shortLink() {
+    var s = Store.state, t = Store.today();
+    if ((s.log[t] || 0) > 0 || (s.sessions || {})[t] || rescueCard()) return "";
+    return '<a class="mini-link" href="#/session/rescue">⏱ Short on time? Do the 2-minute version</a>';
+  }
+  /* After your study time with a streak running and nothing studied yet: offer the 2-minute rescue. */
   function rescueCard() {
-    var s = Store.state, t = Store.today(), hour = new Date().getHours();
-    if (Store.streak() < 1 || (s.log[t] || 0) > 0 || hour < 18) return "";
+    var s = Store.state, t = Store.today(), now = new Date(), hour = now.getHours() + now.getMinutes() / 60;
+    if (Store.streak() < 1 || (s.log[t] || 0) > 0 || hour < atRiskHour()) return "";
     return '<a class="cta card g-coral" href="#/session/rescue"><span class="cta-l"><small>🔥 ' + Store.streak() + '-day streak at risk</small><b>⏱ 2-minute rescue</b><em>Five cards and a short listening — keeps your streak alive</em></span><span class="cta-go">▶</span></a>';
   }
   function sessionBar(st) {

@@ -870,7 +870,8 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 
 /* ---------- UX pass: flat Duolingo-style surfaces, shorter Home, grouped Games ---------- */
 :root {
-  --g-violet: #7b5cff; --g-coral: #ff6b6b; --g-teal: #12b5a0; --g-sun: #ffa51f; --g-blue: #3d8bff; --g-boss: #3a2566;
+  --primary: #6f4fe6; --primary-text: #6247d6; --on-sun: #2b1d00;
+  --g-violet: #6f4fe6; --g-coral: #cc4545; --g-teal: #0f8272; --g-sun: #ffa51f; --g-blue: #2f6fd6; --g-boss: #3a2566;
   --edge: rgba(30, 15, 80, .22);
   --e1: .25rem; --e2: .5rem; --e3: .75rem; --e4: 1rem;
 }
@@ -974,7 +975,7 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
   --primary: #775ceb; --primary-2: #8d75ff; --primary-text: #a897ff; --accent: #e07a8f;
   --good: #3cc48c; --bad: #ff7a8a; --good-soft: #16342a; --bad-soft: #3b202b; --sun: #e0a341;
   --shadow: 0 4px 16px rgba(0, 0, 0, .28); --edge: rgba(0, 0, 0, .38);
-  --g-violet: #775ceb; --g-coral: #b9504f; --g-teal: #108173; --g-sun: #a16914; --g-blue: #2f6fd6; --g-boss: #2a2250;
+  --g-violet: #775ceb; --g-coral: #b9504f; --g-teal: #108173; --g-sun: #a16914; --g-blue: #2f6fd6; --g-boss: #2a2250; --on-sun: #fff;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -983,7 +984,7 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
     --primary: #775ceb; --primary-2: #8d75ff; --primary-text: #a897ff; --accent: #e07a8f;
     --good: #3cc48c; --bad: #ff7a8a; --good-soft: #16342a; --bad-soft: #3b202b; --sun: #e0a341;
     --shadow: 0 4px 16px rgba(0, 0, 0, .28); --edge: rgba(0, 0, 0, .38);
-    --g-violet: #775ceb; --g-coral: #b9504f; --g-teal: #108173; --g-sun: #a16914; --g-blue: #2f6fd6; --g-boss: #2a2250;
+    --g-violet: #775ceb; --g-coral: #b9504f; --g-teal: #108173; --g-sun: #a16914; --g-blue: #2f6fd6; --g-boss: #2a2250; --on-sun: #fff;
     color-scheme: dark;
   }
 }
@@ -995,3 +996,16 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
   :root:not([data-theme="light"]) .btn.good, :root:not([data-theme="light"]) .opt.right .n { color: #0f2219; }
   :root:not([data-theme="light"]) .xpbar span { background: linear-gradient(90deg, #e8c76a, #f1ecd8); }
 }
+
+/* ---------- Mobile pass: contrast on the orange cards, 44px touch areas, scrollable tabs ---------- */
+.g-sun, .t-sun, .gfeat.g-sun, .cta.g-sun { color: var(--on-sun); }
+.g-sun .cta-go, .gfeat.g-sun .g-go { background: rgba(0, 0, 0, .12); }
+/* the visible control stays the same size; an invisible ring brings the tap area to 44px */
+.brand, .chip-btn, .chip-heart, .pill, .switch, .seg a, .say { position: relative; }
+.brand::after, .chip-btn::after, .chip-heart::after { content: ""; position: absolute; inset: -6px -3px; }
+.pill::after { content: ""; position: absolute; inset: -4px -2px; }
+.switch::after { content: ""; position: absolute; inset: -6px -4px; }
+.seg a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.seg { scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.seg a { scroll-snap-align: center; }
+.seg[role="tablist"] a { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; font-size: .82rem; }

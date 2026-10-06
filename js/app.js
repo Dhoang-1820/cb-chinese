@@ -2446,6 +2446,8 @@
         if (r.done || turns >= 8) finish(); else { paint(); inp.focus(); }
       });
     }
+    inp.addEventListener("focus", function () { setTimeout(function () { inp.scrollIntoView({ block: "center", behavior: "smooth" }); }, 300); });
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", function () { if (document.activeElement === inp) setTimeout(function () { inp.scrollIntoView({ block: "center" }); }, 50); });
     document.getElementById("t-send").onclick = send;
     inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); send(); } };
     var mic = document.getElementById("t-mic");
@@ -2915,6 +2917,9 @@
   function boot() {
     applySettings();
     document.getElementById("btn-flag").onclick = function () { openReport(); };
+    var hch = document.getElementById("chip-heart");
+    if (hch) { hch.setAttribute("role", "button"); hch.setAttribute("tabindex", "0"); hch.setAttribute("title", "Hearts earned from correct answers");
+      hch.onclick = function () { var n = Store.state.stats.hearts || 0; UI.toast(n + " hearts earned · one for each correct answer", "❤️"); }; }
     document.getElementById("btn-py").onclick = function () {
       Store.state.settings.showPinyin = !Store.state.settings.showPinyin; Store.save(); applySettings();
       UI.toast(Store.state.settings.showPinyin ? "Pinyin on" : "Pinyin off", "拼");

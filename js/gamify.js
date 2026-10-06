@@ -139,8 +139,8 @@
     chip.innerHTML = heartIcon() + "<b>" + (Store.state.stats.hearts || 0) + "</b>";
     chip.classList.remove("bump"); void chip.offsetWidth; chip.classList.add("bump");
   }
-  /* Collect a heart: every correct answer earns one (saved right away); a heart flies from where
-     the learner tapped to the ❤️ counter in the top bar, which bumps. With Reduce Motion it just counts. */
+  /* Collect a heart: every correct answer earns one (saved right away) with a big heart pop in the middle of
+     the screen; the ❤️ counter in the top bar updates and bumps at the end. With Reduce Motion it just counts. */
   function hearts(x, y) {
     Store.state.stats.hearts = (Store.state.stats.hearts || 0) + 1; Store.save();
     var chip = document.getElementById("chip-heart");
@@ -149,27 +149,29 @@
       if (Date.now() - lastTap.t < 1500) { x = lastTap.x; y = lastTap.y; }
       else { var q = document.getElementById("qcard") || document.getElementById("app"); var r = q.getBoundingClientRect(); x = r.left + r.width / 2; y = Math.min(innerHeight * 0.7, r.top + r.height * 0.6); }
     }
-    var c = chip.getBoundingClientRect(), tx = c.left + 16, ty = c.top + c.height / 2, s = 30;
-    var mx = (x + tx) / 2 + (Math.random() * 2 - 1) * 60, my = Math.min(y, ty) - 70;
-    var h = makeHeart(x, y, s, "#ff4d8d");
+    /* B · one big heart pops in the middle of the screen with a ring, then eight small ones fly out; the counter bumps at the end */
+    var cx = innerWidth / 2, cy = innerHeight * 0.42, L = layer();
+    var big = document.createElement("div"); big.className = "fx-big"; big.style.left = cx + "px"; big.style.top = cy + "px"; big.innerHTML = heartSVG("#ff4d8d", heartSeq++ % 1000); L.appendChild(big);
+    var ring = document.createElement("div"); ring.className = "fx-ring"; ring.style.left = cx + "px"; ring.style.top = cy + "px"; L.appendChild(ring);
     inFlight++;
-    var a = h.animate([
-      { transform: "translate(" + (x - s / 2) + "px," + (y - s / 2) + "px) scale(.4)", opacity: 0 },
-      { transform: "translate(" + (x - s / 2) + "px," + (y - s / 2 - 20) + "px) scale(1.3)", opacity: 1, offset: .15 },
-      { transform: "translate(" + (mx - s / 2) + "px," + (my - s / 2) + "px) scale(1)", opacity: 1, offset: .55 },
-      { transform: "translate(" + (tx - s / 2) + "px," + (ty - s / 2) + "px) scale(.5)", opacity: .9 }
-    ], { duration: 800, easing: "cubic-bezier(.5,0,.3,1)", fill: "both" });
-    a.onfinish = a.oncancel = function () { h.remove(); inFlight = Math.max(0, inFlight - 1); showCount(); };
-    // a few small hearts pop where the answer was tapped
-    for (var k = 0; k < 3; k++) (function (k) {
-      var ss = 14 + Math.random() * 8, hh = makeHeart(x, y, ss, HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)]);
-      var dx = (Math.random() * 2 - 1) * 50, up = 60 + Math.random() * 60;
-      var b = hh.animate([
-        { transform: "translate(" + (x - ss / 2) + "px," + (y - ss / 2) + "px) scale(.3)", opacity: 0 },
-        { transform: "translate(" + (x - ss / 2 + dx * .5) + "px," + (y - ss / 2 - up * .5) + "px) scale(1)", opacity: 1, offset: .4 },
-        { transform: "translate(" + (x - ss / 2 + dx) + "px," + (y - ss / 2 - up) + "px) scale(.7)", opacity: 0 }
-      ], { duration: 700, delay: k * 50, easing: "ease-out", fill: "both" });
-      b.onfinish = b.oncancel = function () { hh.remove(); };
+    var a = big.animate([
+      { transform: "scale(0)", opacity: 0 },
+      { transform: "scale(1.25)", opacity: 1, offset: .35 },
+      { transform: "scale(.95)", offset: .55 },
+      { transform: "scale(1.05)", offset: .7 },
+      { transform: "scale(1.1) translateY(-20px)", opacity: 0 }
+    ], { duration: 900, easing: "ease-out" });
+    a.onfinish = a.oncancel = function () { big.remove(); inFlight = Math.max(0, inFlight - 1); showCount(); };
+    var ra = ring.animate([{ transform: "scale(.4)", opacity: .9 }, { transform: "scale(2.2)", opacity: 0 }], { duration: 700, easing: "ease-out" });
+    ra.onfinish = ra.oncancel = function () { ring.remove(); };
+    for (var k = 0; k < 8; k++) (function (k) {
+      var ang = k / 8 * Math.PI * 2, ss = 14 + Math.random() * 8, dd = 80 + Math.random() * 40, hh = makeHeart(cx, cy, ss, HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)]);
+      var q = hh.animate([
+        { transform: "translate(" + (cx - ss / 2) + "px," + (cy - ss / 2) + "px) scale(.3)", opacity: 0 },
+        { transform: "translate(" + (cx - ss / 2 + Math.cos(ang) * dd) + "px," + (cy - ss / 2 + Math.sin(ang) * dd) + "px) scale(1)", opacity: 1, offset: .6 },
+        { transform: "translate(" + (cx - ss / 2 + Math.cos(ang) * dd * 1.2) + "px," + (cy - ss / 2 + Math.sin(ang) * dd * 1.2 - 20) + "px) scale(.8)", opacity: 0 }
+      ], { duration: 800, delay: 100, easing: "ease-out", fill: "both" });
+      q.onfinish = q.oncancel = function () { hh.remove(); };
     })(k);
   }
 

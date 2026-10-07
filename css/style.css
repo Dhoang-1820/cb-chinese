@@ -1167,3 +1167,11 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .lrn-days i.on { background: var(--good); }
 .lrn-days i.today { outline: 2px solid var(--text); outline-offset: 1px; }
 .lrn-cap { margin-top: 0; font-size: .75rem; }
+
+/* ---------- Home: tip for today (one line, one button) ---------- */
+.tip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; box-shadow: none; border: 2px solid var(--border); }
+.tip .tip-i { font-size: 1.3rem; }
+.tip .tip-t { flex: 1; min-width: 0; margin: 0; font-weight: 800; font-size: .92rem; line-height: 1.35; }
+.tip .tip-t small { display: block; color: var(--muted); font-weight: 800; font-size: .75rem; }
+.tip .btn { flex: none; }
+.su-note { margin: 12px 0 0; text-align: left; }

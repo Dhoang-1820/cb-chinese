@@ -202,15 +202,11 @@
     b.classList.add("lang-" + s.lang);
     var py = document.getElementById("btn-py");
     if (py) py.setAttribute("aria-pressed", s.showPinyin ? "true" : "false");
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", effectiveDark() ? "#17161f" : "#f6f3ff");
+    /* status bar colour: one meta per colour scheme; a manual theme sets both to that theme's background */
+    var metas = document.querySelectorAll('meta[name="theme-color"]');
+    for (var i = 0; i < metas.length; i++) metas[i].setAttribute("content", s.theme === "dark" ? THEME_BG.dark : s.theme === "light" ? THEME_BG.light : (metas[i].getAttribute("data-c") || THEME_BG.light));
   }
-  function effectiveDark() {
-    var t = Store.state.settings.theme;
-    if (t === "dark") return true;
-    if (t === "light") return false;
-    return window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
-  }
+  var THEME_BG = { light: "#ece8fa", dark: "#17161f" }; // --bg in css/style.css
   function refreshChrome() {
     var s = Store.state, lv = Game.level(s.xp);
     var st = document.getElementById("chip-streak"); if (st) st.innerHTML = "🔥 <b>" + Store.streak() + "</b>";
@@ -698,6 +694,86 @@
     render(html, "home");
   }
 
+  /* ---------- coming back from the background ----------
+     iOS keeps a home-screen app frozen for hours. When the learner returns, Home may still show yesterday and the
+     weekly coach (started from viewHome) never ran. Draw Home again when the day changed or 3 hours passed.
+     Only Home: any other screen may be in the middle of an exercise. Never under a dialog or a celebration card. */
+  var homeAt = 0, homeDay = "";
+  function resumeHome() {
+    if (document.visibilityState === "hidden" || !homeAt) return;
+    if (!/^#?\/?$/.test(location.hash)) return;
+    if (document.querySelector(".modal-wrap, .fx-streak")) return;
+    if (Store.today() === homeDay && Date.now() - homeAt < 3 * 3600 * 1000) return;
+    route();
+  }
+  document.addEventListener("visibilitychange", resumeHome);
+  window.addEventListener("pageshow", function (e) { if (e.persisted) resumeHome(); });
+
+  /* ---------- daily tip: the one best thing to do today (rules, no AI) ----------
+     The first rule that applies wins. No tip when the coach's plan on Home already asks for the same skill,
+     or after today's tip was tapped (kept on this phone only: cbChinese.tip = { d: date, r: rule }). */
+  var TIP_KEY = "cbChinese.tip";
+  function tipRoute(skill) {
+    if (Object.prototype.hasOwnProperty.call(AI.SKILL_ROUTE, skill)) return AI.SKILL_ROUTE[skill];
+    return "#/mistakes" + (Learn.count(skill) ? "/" + skill : "");
+  }
+  function tipSkillName(skill) { return Object.prototype.hasOwnProperty.call(AI.SKILL_NAMES, skill) ? AI.SKILL_NAMES[skill] : (Learn.SKILLS[skill] ? Learn.SKILLS[skill].en : skill); }
+  /* Weakest skill of the last 14 days: below 70% with at least 10 answers (the numbers behind studySummary().trend, keyed by skill id). */
+  function tipWeakest() {
+    var L = Store.state.slog || {}, from = Store.addDays(Store.today(), -13), sum = {}, best = null;
+    Object.keys(L).forEach(function (d) {
+      if (d < from) return;
+      Object.keys(L[d].k || {}).forEach(function (k) { var c = sum[k] || (sum[k] = [0, 0]); c[0] += L[d].k[k][0]; c[1] += L[d].k[k][1]; });
+    });
+    Object.keys(sum).forEach(function (k) {
+      var n = sum[k][0] + sum[k][1], acc = n ? Math.round(sum[k][0] / n * 100) : 100;
+      if (!Learn.SKILLS[k] || n < 10 || acc >= 70) return;
+      if (!best || acc < best.acc) best = { skill: k, acc: acc, n: n };
+    });
+    return best;
+  }
+  function pickTip(fin) {
+    var s = Store.state, t = Store.today(), due = SRS.dueIds(WORDMAP).length;
+    if (due >= 20) return { id: "due", skill: "review", icon: "🔁", text: due + " words are due. Clear them first.", btn: "Review", href: "#/review" };
+    var p = Learn.patterns(1)[0];
+    if (p && p.type === "repeat") {
+      var ws = p.keys.map(wordLabel).filter(Boolean);
+      return { id: "repeat", skill: "vocab", icon: "🔎", text: "You keep missing the same " + (ws.length || p.keys.length) + (ws.length ? " words" : " items") + ". Practise them.", btn: "Practise", href: "#/mistakes", words: ws };
+    }
+    if (p) return { id: "pattern", skill: p.skill, icon: "🔎", text: tipSkillName(p.skill) + " keeps going wrong: " + p.n + " misses this week.", btn: "Practise", href: tipRoute(p.skill) };
+    var w = tipWeakest();
+    if (w) return { id: "weak", skill: w.skill, icon: "🎯", text: tipSkillName(w.skill) + " is your weakest skill: " + w.acc + "% in the last 14 days.", btn: "Practise", href: tipRoute(w.skill) };
+    var exam = Store.daysBetween(t, s.settings.examDate || "2026-11-14"), from = Store.addDays(t, -13);
+    var mocked = (s.mockHistory || []).concat(s.official || []).some(function (m) { return m.date >= from; });
+    if (!mocked && exam >= 0 && exam <= 45) return { id: "mock", skill: "mock", icon: "📝", text: "No mock exam in 14 days. The exam is in " + exam + " day" + (exam === 1 ? "" : "s") + ".", btn: "Mock exam", href: "#/mock" };
+    var nd = nextDay(), lessonDone = Object.keys(s.days).some(function (k) { return s.days[k].completedOn === t; });
+    if (!fin && !lessonDone && !(s.days[nd.day] || {}).completed) return { id: "lesson", skill: "", icon: "📚", text: "Today's lesson is not done yet: Day " + nd.day + ".", btn: "Open lesson", href: "#/day/" + nd.day };
+    if (Audio2.available() && new Date(t + "T00:00:00").getDate() % 2 === 0) return { id: "listen", skill: "", icon: "🎧", text: "All caught up. Listen hands-free for a few minutes.", btn: "Listen", href: "#/listen-mode" };
+    return { id: "read", skill: "", icon: "📖", text: "All caught up. Read a real text from work.", btn: "Reader", href: "#/read" };
+  }
+  var tipNow = null;
+  function tipCard(planActions, fin) {
+    tipNow = null;
+    var seen = null; try { seen = JSON.parse(localStorage.getItem(TIP_KEY) || "null"); } catch (e) { /* storage blocked */ }
+    if (seen && seen.d === Store.today()) return "";
+    var tp = pickTip(fin), R = AI.SKILL_ROUTE, own = Object.prototype.hasOwnProperty;
+    if (tp.skill && planActions.some(function (a) { return !a.done && (a.skill === tp.skill || (own.call(R, a.skill) && own.call(R, tp.skill) && R[a.skill] === R[tp.skill])); })) return "";
+    tipNow = tp;
+    return '<section class="card tip" id="tip" data-rule="' + tp.id + '"><span class="tip-i" aria-hidden="true">' + tp.icon + '</span><p class="tip-t"><small>Tip for today</small>' + esc(tp.text) + "</p>" +
+      '<a class="btn small primary" id="tip-go" href="' + tp.href + '">' + esc(tp.btn) + " ›</a></section>";
+  }
+  function wireTip() {
+    var go = document.getElementById("tip-go"), tp = tipNow; if (!go || !tp) return;
+    go.onclick = function (e) {
+      try { localStorage.setItem(TIP_KEY, JSON.stringify({ d: Store.today(), r: tp.id })); } catch (err) { /* storage blocked */ }
+      if (tp.words && tp.words.length) { // the same deck as the "Pattern spotted" card
+        e.preventDefault();
+        SRS.addMany(tp.words.map(function (x) { return x.id; }));
+        runDeck({ title: "Words you keep missing", words: tp.words, mode: "review", back: "#/" });
+      }
+    };
+  }
+
   function viewHome() {
     var s = Store.state, lv = Game.level(s.xp), goal = s.settings.dailyGoal || 30, todayXP = s.log[Store.today()] || 0;
     var due = SRS.dueIds(WORDMAP).length, nd = nextDay(), exam = Store.daysBetween(Store.today(), s.settings.examDate || "2026-11-14");
@@ -715,8 +791,10 @@
       '<p class="xp-t">' + s.xp + " XP" + (lv.next ? " · " + (lv.next - s.xp) + " to next level" : " · max level") + "</p></section>";
     var fin = planInfo().inBuffer;
     /* final 14 days: readiness and the final-days plan come first; new lessons become a small link */
-    if (fin) html += readyCard() + todayCard() + rescueCard() + sessionCTA() + shortLink() + patternCard() + '<a class="mini-link" href="#/day/' + nd.day + '">New lessons are paused · continue Day ' + nd.day + " anyway ›</a>";
-    else html += cont0 + rescueCard() + sessionCTA() + shortLink() + patternCard() + readyCard();
+    var plan = planCard(), tip = tipCard(plan ? coachStatus(coachLast()) : [], fin);
+    homeAt = Date.now(); homeDay = Store.today();
+    if (fin) html += readyCard() + todayCard() + tip + rescueCard() + sessionCTA() + shortLink() + patternCard() + '<a class="mini-link" href="#/day/' + nd.day + '">New lessons are paused · continue Day ' + nd.day + " anyway ›</a>";
+    else html += tip + cont0 + rescueCard() + sessionCTA() + shortLink() + patternCard() + readyCard();
     html += questsCard();
     var nMis = Learn.count();
     html += '<div class="tiles">' +
@@ -727,7 +805,7 @@
             : '<a class="tile t-blue" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>' + (exam >= 0 ? exam + " days to HSK 4" : "Exam done") + "</small></a>") +
       "</div>";
     html += '<a class="trackrow toolrow" href="#/read"><span class="t-ico">📖</span><span class="tr-t"><small>Real text from work</small><b>Reader · tap any word</b></span><span class="tr-go">›</span></a>';
-    html += planCard();
+    html += plan;
     html += '<details class="more"><summary><span>More: plan, focus, activity, badges</span></summary>' +
       focusCard() + (fin ? "" : todayCard()) + weeklyTeaser() +
       '<section class="card"><div class="sec-h"><h2>Study activity</h2><span class="muted">12 weeks</span></div>' + heatmap() + '<div class="heat-key"><span>Less</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>More</span></div></section>' +
@@ -745,7 +823,7 @@
       d.innerHTML = '<span class="cta-l"><small>New audio</small><b>🔊 ' + miss + ' recordings are not saved on this phone</b><em>Me → Download missing, so lessons work offline</em></span><span class="cta-go">▶</span>';
       host.parentNode.insertBefore(d, host.nextSibling);
     });
-    wireQuests(); wirePattern();
+    wireQuests(); wirePattern(); wireTip();
     whenIdle(4000).then(autoCoach);
     var wr = weekReward(); if (wr) setTimeout(function () { UI.toast(wr === "freeze" ? "Weekly goal met! +1 streak freeze" : "Weekly goal met!", wr === "freeze" ? "🧊" : "🎉"); UI.confetti(60); UI.burst("noto-muscle", weekInfo().n + " days", "Weekly goal met", wr === "freeze" ? "+1 streak freeze" : ""); }, 600);
     /* C&B track: show the next unfinished session (data loads in the background) */
@@ -1420,7 +1498,7 @@
       n.textContent = st.have + " of " + st.total + " saved on this phone";
       if (st.total > st.have) dl.textContent = "⬇ Download missing (" + (st.total - st.have) + ")"; else if (st.total) dl.textContent = "✓ All saved";
     });
-    document.getElementById("s-exp").onclick = function () { Store.exportJSON(); };
+    document.getElementById("s-exp").onclick = function () { Store.shareJSON(); };
     document.getElementById("s-imp").onchange = function () {
       var f = this.files[0]; if (!f) return;
       var r = new FileReader();
@@ -2941,32 +3019,31 @@
     wrap.className = "modal-wrap guide";
     document.body.appendChild(wrap);
     function done() { Store.state.settings.onboarded = true; Store.save(); wrap.classList.remove("show"); setTimeout(function () { wrap.remove(); }, 250); }
+    /* First run: one short step with the defaults already chosen, so Continue can be tapped straight away.
+       Daily goal and the rest keep their defaults and can be changed under Me; the guide pages are under Me → App guide. */
     function setup() {
       var st = Store.state.settings, ex = st.examDate || "2026-11-14";
-      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-mas">' + UI.mascot("wave", 52) + '</div><h2 id="guide-t">Set up in 20 seconds</h2>' +
+      function opts(list, cur) { return list.map(function (g) { return '<button type="button" class="su-o' + (cur === g[0] ? " on" : "") + '" aria-pressed="' + (cur === g[0]) + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join(""); }
+      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-mas">' + UI.mascot("wave", 52) + '</div><h2 id="guide-t">Welcome! Two quick choices</h2>' +
         '<label class="su-l" for="su-exam">When is your HSK 4 exam?</label><input type="date" id="su-exam" value="' + esc(ex) + '">' +
-        '<p class="su-l">How much each day?</p><div class="su-opts" id="su-goal">' +
-        [["20", "Chill", "20 XP"], ["30", "Steady", "30 XP"], ["50", "Serious", "50 XP"]].map(function (g) { return '<button type="button" class="su-o' + (String(st.dailyGoal || 30) === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join("") + "</div>" +
         '<p class="su-l">When will you study?</p><div class="su-opts su-4" id="su-time">' +
-        [["07:00", "Morning", "7:00"], ["12:30", "Lunch", "12:30"], ["20:00", "Evening", "20:00"], ["21:30", "Late", "21:30"]].map(function (g) { return '<button type="button" class="su-o' + ((st.remindTime || "20:00") === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join("") + "</div>" +
+        opts([["07:00", "Morning", "7:00"], ["12:30", "Lunch", "12:30"], ["20:00", "Evening", "20:00"], ["21:30", "Late", "21:30"]], st.remindTime || "20:00") + "</div>" +
         '<p class="su-l">Days a week</p><div class="su-opts" id="su-days">' +
-        [["3", "3 days", "light"], ["5", "5 days", "steady"], ["7", "Daily", "fastest"]].map(function (g) { return '<button type="button" class="su-o' + (String(st.weeklyDays || 5) === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join("") + "</div>" +
-        '<p class="su-l">Your Chinese so far</p><div class="su-opts" id="su-lv">' +
-        [["new", "Just starting"], ["some", "Know some HSK 1–3"], ["good", "HSK 3 or more"]].map(function (g) { return '<button type="button" class="su-o' + ((st.level || "new") === g[0] ? " on" : "") + '" data-v="' + g[0] + '"><b>' + g[1] + "</b></button>"; }).join("") + "</div>" +
-        '<div class="actions center"><button class="btn" id="g-skip">Skip</button><button class="btn primary" id="su-go">Continue ›</button></div></div>';
-      ["su-goal", "su-lv", "su-time", "su-days"].forEach(function (id) {
+        opts([["3", "3 days", "light"], ["5", "5 days", "steady"], ["7", "Daily", "fastest"]], String(st.weeklyDays || 5)) + "</div>" +
+        '<p class="sub su-note">You can change these, and your daily goal, under Me.</p>' +
+        '<div class="actions center"><button class="btn primary" id="su-go">Continue ›</button></div></div>';
+      ["su-time", "su-days"].forEach(function (id) {
         wrap.querySelector("#" + id).onclick = function (e) {
           var b = e.target.closest(".su-o"); if (!b) return;
-          Array.prototype.forEach.call(this.children, function (c) { c.classList.toggle("on", c === b); });
+          Array.prototype.forEach.call(this.children, function (c) { c.classList.toggle("on", c === b); c.setAttribute("aria-pressed", c === b ? "true" : "false"); });
         };
       });
-      function save() {
-        var d = wrap.querySelector("#su-exam").value, g = wrap.querySelector("#su-goal .on"), l = wrap.querySelector("#su-lv .on"), tm = wrap.querySelector("#su-time .on"), wd = wrap.querySelector("#su-days .on");
-        if (d) st.examDate = d; if (g) st.dailyGoal = parseInt(g.dataset.v, 10); if (l) st.level = l.dataset.v; if (tm) st.remindTime = tm.dataset.v; if (wd) st.weeklyDays = parseInt(wd.dataset.v, 10);
-        st.setupDone = true; Store.save(); applySettings();
-      }
-      wrap.querySelector("#g-skip").onclick = function () { st.setupDone = true; Store.save(); draw(); };
-      wrap.querySelector("#su-go").onclick = function () { save(); draw(); };
+      wrap.querySelector("#su-go").onclick = function () {
+        var d = wrap.querySelector("#su-exam").value, tm = wrap.querySelector("#su-time .on"), wd = wrap.querySelector("#su-days .on");
+        if (d) st.examDate = d; if (tm) st.remindTime = tm.dataset.v; if (wd) st.weeklyDays = parseInt(wd.dataset.v, 10);
+        st.setupDone = true; applySettings(); done();
+        if (/^#?\/?$/.test(location.hash)) route(); // Home shows the new exam date and weekly goal
+      };
     }
     function draw() {
       if (!Store.state.settings.setupDone && !(Store.state.settings.onboarded)) { setup(); return; }

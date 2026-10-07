@@ -8,3 +8,4 @@ node_modules/
 .lighthouseci/
 audio/.shrunk
 __pycache__/
+_site_test/

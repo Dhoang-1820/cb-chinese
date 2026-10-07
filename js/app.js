@@ -34,6 +34,114 @@
     window.scrollTo(0, 0);
     if (!UI.reduced) { app.classList.remove("enter"); void app.offsetWidth; app.classList.add("enter"); }
   }
+  /* ---------- crash safety net ----------
+     A script error must never leave a blank or frozen screen. The error is saved under Me → Problem reports
+     (on this phone only) and the learner gets a way out: Reload or Home. */
+  var crashN = 0, crashSeen = {};
+  function crashNote(msg, stack) {
+    msg = String(msg || "Unknown error").slice(0, 200);
+    if (/ResizeObserver loop|Script error\.?$/.test(msg) || crashSeen[msg] || crashN >= 5) return false;
+    crashSeen[msg] = 1; crashN++;
+    try {
+      var s = Store.state; s.reports = s.reports || [];
+      s.reports.push({ id: Date.now().toString(36), date: Store.today(), route: /^#\/[\w\/-]*$/.test(location.hash) ? location.hash : "#/",
+        text: "App error: " + msg, ctx: String(stack || "").replace(/https?:\/\/[^\s)]+\//g, "").replace(/\s+/g, " ").slice(0, 300) });
+      if (s.reports.length > 100) s.reports.shift();
+      Store.save();
+    } catch (e) { /* storage blocked: still show the way out */ }
+    return true;
+  }
+  function crashScreen(msg) {
+    var html = '<section class="card result crash" role="alert"><h2>Something broke on this screen</h2>' +
+      '<p class="sub">Your progress is saved. Reload to carry on. The error was noted under Me → Problem reports.</p>' +
+      '<p class="sub crash-msg">' + esc(String(msg || "").slice(0, 160)) + "</p>" +
+      '<div class="actions center"><button type="button" class="btn primary" id="crash-reload">Reload</button>' + (/^#\/?$/.test(location.hash || "#/") ? "" : '<a class="btn" href="#/">Home</a>') + "</div></section>";
+    try { render(html); } catch (e) { app.innerHTML = html; }
+    var b = document.getElementById("crash-reload"); if (b) b.onclick = function () { location.reload(); };
+  }
+  function crashBar() {
+    if (document.getElementById("crash-bar")) return;
+    var d = document.createElement("div"); d.id = "crash-bar"; d.setAttribute("role", "alert");
+    d.innerHTML = '<span>Something went wrong. If this screen is stuck, reload.</span><button type="button" class="btn small" id="cb-reload">Reload</button><button type="button" class="x" id="cb-x" aria-label="Dismiss">✕</button>';
+    document.body.appendChild(d);
+    document.getElementById("cb-reload").onclick = function () { location.reload(); };
+    document.getElementById("cb-x").onclick = function () { d.remove(); };
+  }
+  function onCrash(msg, stack) {
+    if (!crashNote(msg, stack)) return;
+    var blank = !app.children.length || !!app.querySelector(".skel");
+    if (blank) crashScreen(msg); else crashBar();
+  }
+  window.addEventListener("error", function (e) {
+    if (e.target && e.target !== window && e.target.nodeType) return; // a file that failed to load, handled where it is requested
+    onCrash(e.message || (e.error && e.error.message), e.error && e.error.stack);
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    var r = e.reason, m = r && (r.message || String(r));
+    if (!(r instanceof Error) || /Failed to fetch|Load failed|NetworkError|AbortError|NotAllowedError/i.test((r.name || "") + " " + m)) return; // offline and declined permissions are not crashes
+    onCrash(m, r.stack);
+  });
+
+  /* ---------- screen-reader basics ----------
+     The page language is Vietnamese, so Chinese text is tagged as Chinese wherever it appears (a screen reader then
+     switches voice). Dialogs get focus, Escape and a focus trap. Both are done in one observer so new screens,
+     games and dialogs are covered without touching each of them. */
+  var ZH_SEL = ".zh, .hz, .rd-text";
+  function tagZh(root) {
+    if (!root || root.nodeType !== 1) return;
+    if (root.matches(ZH_SEL) && !root.lang) root.lang = "zh-CN";
+    var l = root.querySelectorAll(ZH_SEL);
+    for (var i = 0; i < l.length; i++) if (!l[i].lang) l[i].lang = "zh-CN";
+  }
+  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
+  function topDialog() { var l = document.querySelectorAll(".modal-wrap"); return l.length ? l[l.length - 1] : null; }
+  function trapDialog(wrap) {
+    if (wrap._trap) return; wrap._trap = true;
+    var prev = document.activeElement, n = 0;
+    function box() { return wrap.querySelector(".modal") || wrap; }
+    function label() { // the dialog is re-drawn between steps (guide, setup), so label and focus it each time
+      var b = box(), h = b.querySelector("h2, h3");
+      if (!b.hasAttribute("tabindex")) b.setAttribute("tabindex", "-1");
+      if (h && !b.getAttribute("aria-labelledby") && !b.getAttribute("aria-label")) { if (!h.id) h.id = "dlg-t" + Date.now().toString(36) + (n++); b.setAttribute("aria-labelledby", h.id); }
+      if (!b.contains(document.activeElement)) { try { b.focus({ preventScroll: true }); } catch (e) { /* old browser */ } }
+    }
+    function key(e) {
+      if (!document.body.contains(wrap)) { document.removeEventListener("keydown", key, true); return; }
+      if (topDialog() !== wrap) return;
+      var b = box();
+      if (e.key === "Escape") { var c = b.querySelector("[data-close]"); if (c) { e.preventDefault(); c.click(); } return; }
+      if (e.key !== "Tab") return;
+      var f = [].filter.call(b.querySelectorAll(FOCUSABLE), function (el) { return el.offsetParent !== null; });
+      if (!f.length) { e.preventDefault(); b.focus(); return; }
+      var inside = b.contains(document.activeElement) && document.activeElement !== b;
+      if (e.shiftKey && (!inside || document.activeElement === f[0])) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && (!inside || document.activeElement === f[f.length - 1])) { e.preventDefault(); f[0].focus(); }
+    }
+    document.addEventListener("keydown", key, true);
+    setTimeout(label, 30);
+    wrap._relabel = label;
+    wrap._release = function () {
+      document.removeEventListener("keydown", key, true);
+      if (prev && prev.focus && document.body.contains(prev)) { try { prev.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+    };
+  }
+  function watchDom() {
+    tagZh(document.body);
+    if (!window.MutationObserver) return;
+    new MutationObserver(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        var m = list[i], k, nd;
+        for (k = 0; k < m.addedNodes.length; k++) {
+          nd = m.addedNodes[k]; if (nd.nodeType !== 1) continue;
+          tagZh(nd);
+          if (nd.classList.contains("modal-wrap")) trapDialog(nd);
+          else { var w = nd.closest && nd.closest(".modal-wrap"); if (w && w._relabel) setTimeout(w._relabel, 30); }
+        }
+        for (k = 0; k < m.removedNodes.length; k++) { nd = m.removedNodes[k]; if (nd.nodeType === 1 && nd._release) nd._release(); }
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+
   function levelBadge(l) {
     return l === "HSK4" ? '<span class="tag t-hsk">HSK 4</span>' : l === "Mine" ? '<span class="tag t-mine">My word</span>' : '<span class="tag t-dom">C&amp;B · beyond HSK 4</span>';
   }
@@ -172,7 +280,12 @@
 
   /* ---------- router ---------- */
   var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader" };
+  var routed = 0;
   function route() {
+    try { route0(); }
+    catch (e) { crashNote(e && e.message, e && e.stack); crashScreen(e && e.message); }
+  }
+  function route0() {
     Audio2.stop(); Audio2.noise(0); setKeys(null); workDone = false; if (LM) { LM.stop(); LM = null; }
     try { weekTick(); } catch (e) { /* the weekly report must never block navigation */ }
     if (location.hash.indexOf("#/session") !== 0) sessionBar(null);
@@ -228,7 +341,12 @@
     else viewHome();
     var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
-    document.getElementById("page-title").textContent = TITLES[v] || "C&B 中文";
+    var title = TITLES[v] || "C&B 中文";
+    document.getElementById("page-title").textContent = title;
+    document.title = (TITLES[v] ? title + " · " : "") + "C&B 中文";
+    app.setAttribute("aria-label", title);
+    /* after a navigation (not the first paint) put keyboard and screen-reader focus on the new screen */
+    if (routed++ && !topDialog() && !app.contains(document.activeElement)) { try { app.focus({ preventScroll: true }); } catch (e2) { /* old browser */ } }
     refreshChrome();
     var jump = pendingJump && document.getElementById("w-" + pendingJump);
     pendingJump = null;
@@ -599,6 +717,7 @@
       (nMis ? '<a class="tile t-coral" href="#/mistakes"><span class="t-ico">📒</span><b>' + nMis + " to fix</b><small>Mistake notebook</small></a>"
             : '<a class="tile t-blue" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>' + (exam >= 0 ? exam + " days to HSK 4" : "Exam done") + "</small></a>") +
       "</div>";
+    html += '<a class="trackrow toolrow" href="#/read"><span class="t-ico">📖</span><span class="tr-t"><small>Real text from work</small><b>Reader · tap any word</b></span><span class="tr-go">›</span></a>';
     html += '<details class="more"><summary><span>More: plan, focus, activity, badges</span></summary>' +
       focusCard() + (fin ? "" : todayCard()) + weeklyTeaser() +
       '<section class="card"><div class="sec-h"><h2>Study activity</h2><span class="muted">12 weeks</span></div>' + heatmap() + '<div class="heat-key"><span>Less</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>More</span></div></section>' +
@@ -621,7 +740,7 @@
     /* C&B track: show the next unfinished session (data loads in the background) */
     (trackLoaded() ? Promise.resolve() : whenIdle(2500)).then(ensureTrack).then(function () {
       var T = window.CB_TRACK || [], host = document.querySelector(".tiles");
-      if (!T.length || !host || !document.getElementById("app").contains(host) || document.querySelector(".trackrow")) return;
+      if (!T.length || !host || !document.getElementById("app").contains(host) || document.querySelector('.trackrow[href^="#/track"]')) return;
       for (var a = 0; a < T.length; a++) for (var b = 1; b <= 3; b++) {
         if (tkDone(T[a].week, b)) continue;
         var ss = T[a].sessions[b - 1], n = T.reduce(function (c, w) { return c + tkWeekDone(w); }, 0);
@@ -3233,6 +3352,8 @@
 
   function boot() {
     applySettings();
+    app.setAttribute("tabindex", "-1");
+    watchDom();
     document.getElementById("btn-flag").onclick = function () { openReport(); };
     var hch = document.getElementById("chip-heart");
     if (hch) { hch.setAttribute("role", "button"); hch.setAttribute("tabindex", "0"); hch.setAttribute("title", "Hearts earned from correct answers");

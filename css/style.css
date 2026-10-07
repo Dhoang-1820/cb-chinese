@@ -1112,3 +1112,14 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .rd-py { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--text); }
 .rd-py input { width: 20px; height: 20px; accent-color: var(--primary); }
 .rd-q { margin: 12px 0 4px; } .rd-dl p { margin: 2px 0 6px; }
+
+/* ---------- crash bar, focus targets ---------- */
+#app:focus, .modal:focus { outline: none; }
+#crash-bar { position: fixed; left: 10px; right: 10px; bottom: calc(var(--tabbar-h) + var(--safe-b) + 10px); z-index: 60; display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-radius: 16px; background: var(--surface); color: var(--text); border: 2px solid var(--bad); box-shadow: var(--shadow); font-size: .9rem; font-weight: 700; }
+#crash-bar span { flex: 1; } #crash-bar .x { background: none; border: 0; color: var(--muted); font-size: 1.1rem; min-width: 44px; min-height: 44px; }
+.crash .crash-msg { font-family: ui-monospace, Menlo, monospace; font-size: .78rem; word-break: break-word; }
+.toolrow { margin-top: 0; }
+/* the orange card keeps its bright fill, so its text is dark in the light theme (white on it is 2:1) */
+.card.g-sun, .card.g-sun .sub, .card.g-sun small, .card.g-sun .muted, .card.g-sun h2,
+.card.g-w3, .card.g-w3 .sub, .card.g-w3 small, .card.g-w3 .muted { color: var(--on-sun); }

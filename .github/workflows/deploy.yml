@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - uses: actions/setup-python@v5
         with:
@@ -53,6 +53,13 @@ jobs:
         run: |
           npm install --no-save --no-package-lock esbuild@0.28.2
           node tools/build.js _site "$GITHUB_SHA"
+
+      # Content, the AI service (fake Gemini, no key) and browser tests on a simulated iPhone. A failure stops the deploy.
+      - name: Tests
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          tests/run.sh
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

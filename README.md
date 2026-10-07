@@ -93,3 +93,17 @@ Adding words with new characters? Copy their stroke files from the `hanzi-writer
 - **Mock exams 5 and 6:** two more full-length HSK 4 (2.0) mocks.
 - **Learn → 🎓 C&B Professional Chinese:** 24 weeks x 3 sessions, mixed in and never locked: writing templates, role-plays, Vietnam vs China cards, HSK 5 reading. Data: `data/track_w*.js`; with AI on, writing and role-play replies can be checked.
 - `docs/legal-review.md` lists every legal or policy statement for a Vietnamese reviewer.
+
+## Tests
+
+`tests/run.sh` runs everything: the content validator, the AI service tests (a fake Gemini, so no key is needed) and browser
+tests on a simulated iPhone 14 against a built copy of the site. The deploy workflow runs it and stops the deploy on a failure.
+
+```
+npm install --no-save esbuild
+pip install playwright && python -m playwright install chromium
+tests/run.sh              # everything, about 3 minutes
+tests/run.sh reader a11y  # only these browser-test groups
+```
+
+Needs Node 22.18 or newer. Browser-test groups are listed at the bottom of `tests/e2e.py`.

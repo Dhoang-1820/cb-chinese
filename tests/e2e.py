@@ -38,11 +38,14 @@ def settings(**extra):
     return s
 
 
-async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, **ctx_opts):
+async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, **ctx_opts):
     """A fresh phone with the given saved state (None = first run). Returns (context, page).
-    seed=False adds nothing to storage on later page loads, for tests that check what is left after a reload."""
+    seed=False adds nothing to storage on later page loads, for tests that check what is left after a reload.
+    watch: a list that collects the URL of every request the phone makes, from the very first one."""
     dev = dict(PW.devices["iPhone 14"]); dev.pop("default_browser_type", None)
     ctx = await browser.new_context(**dev, **ctx_opts)
+    if watch is not None:
+        ctx.on("request", lambda r: watch.append(r.url))
     await ctx.route("**/*.supabase.co/**", lambda r: r.abort())  # a test must never reach the real AI service
     init = ""
     if not seed:
@@ -640,7 +643,66 @@ async def t_contrast(b):
         await ctx.close()
 
 
-GROUPS = [("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+def pack_urls(urls):
+    """Requests for the optional content packs (HSK 5, extra HSK 4 words)."""
+    return [u.rsplit("/", 1)[-1] for u in urls if "/data/hsk5" in u or "/data/hsk4x" in u]
+
+
+async def t_hsk5(b):
+    urls = []
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, watch=urls)
+    await pg.wait_for_timeout(9000)  # past the idle loaders (lesson data, mocks, track)
+    check("first load: no HSK 5 or extra-word file is requested", not pack_urls(urls) and any("/data/full.js" in u for u in urls), pack_urls(urls))
+    await go(pg, "#/learn", 900)
+    check("learn: the level switch shows HSK 4 by default", await pg.locator(".lvl-sw [data-level]").count() == 2 and await pg.locator(".lvl-sw [aria-pressed='true']").get_attribute("data-level") == "4" and await pg.locator(".pnode").count() == 90)
+    check("learn (HSK 4): still no pack file requested", not pack_urls(urls), pack_urls(urls))
+    await pg.click(".lvl-sw [data-level='5']"); await pg.wait_for_selector(".daycard", timeout=15000)
+    txt = await pg.inner_text("#app")
+    check("HSK 5: the switch opens 62 word packs and the choice is saved", await pg.locator(".daycard").count() == 62 and await pg.evaluate("Store.state.settings.level") == 5 and await pg.locator(".lvl-sw [aria-pressed='true']").get_attribute("data-level") == "5")
+    check("HSK 5: the honest note is shown", "HSK 5 content is new and not yet checked by a teacher. Use the flag button to report mistakes." in txt, txt[:200])
+    check("HSK 5: its data was fetched only now, as one file", len(pack_urls(urls)) >= 1 and all(u.startswith("hsk5.") for u in pack_urls(urls)), pack_urls(urls))
+    check("HSK 5: focus moved to the new screen", await pg.evaluate("document.activeElement&&document.activeElement.id") == "app")
+    await pg.locator(".daycard").first.click(); await pg.wait_for_selector(".word.card")
+    check("HSK 5 pack: 20 word cards with a report link each", await pg.evaluate("location.hash") == "#/pack/h5/1" and await pg.locator(".word.card").count() == 20 and await pg.locator(".word.card .w-flag").count() == 20)
+    check("HSK 5 pack: Chinese text is tagged as Chinese", await pg.evaluate("(()=>{const l=[...document.querySelectorAll('#app .zh, #app .hz')];return l.length>30&&l.every(e=>e.lang==='zh-CN')})()"))
+    card = await pg.locator(".word.card").first.inner_text()
+    check("HSK 5 pack: a card shows hanzi, pinyin, meaning, level and an example", "哎" in card and "āi" in card and "HSK 5" in card and "哎，你怎么现在才来？" in card, card[:200])
+    await pg.locator(".word.card .w-flag").first.click(); await pg.wait_for_selector(".modal-wrap.report"); await pg.wait_for_timeout(200)
+    check("HSK 5 pack: the report link opens the report dialog with focus inside", await pg.evaluate("document.querySelector('.modal-wrap .modal').contains(document.activeElement)"))
+    await pg.fill("#rp-text", "test note"); await pg.click("#rp-save"); await pg.wait_for_timeout(500)
+    check("HSK 5 pack: the report is saved with the screen", await pg.evaluate("Store.state.reports.length") == 1 and await pg.evaluate("Store.state.reports[0].route") == "#/pack/h5/1")
+    await no_dialogs(pg)
+    await pg.click("#add-all"); await pg.wait_for_timeout(500); await no_dialogs(pg)
+    ids = await pg.evaluate("Object.keys(Store.state.srs)")
+    check("HSK 5 pack: 'Add to review' puts its 20 words in spaced review", len(ids) == 20 and all(i.startswith("h5-") for i in ids) and "All in review" in await pg.inner_text("#app"), ids[:3])
+    check("HSK 5 words count in the due badge", await pg.inner_text("#due-badge") == "20")
+    await go(pg, "#/review", 700)
+    check("review: the HSK 5 words are due", "20 words due" in await pg.inner_text("#app"))
+    await pg.click("#start"); await pg.wait_for_selector("#card")
+    check("review: an HSK 5 card is shown", await pg.evaluate("/^[\u3400-\u9fff]+$/.test(document.querySelector('#card .hz').textContent)"))
+    await go(pg, "#/search", 500); await pg.fill("#q", "爱护"); await pg.wait_for_timeout(400)
+    hit = await pg.locator("#results .wl-row a").first.get_attribute("href")
+    check("search: an HSK 5 word is found and links to its pack", hit == "#/pack/h5/1" and "HSK 5 pack 1" in await pg.inner_text("#results"), hit)
+    await go(pg, "#/read", 600); await pg.fill("#rd-in", "我们要爱护公司的设备。"); await pg.click("#rd-go"); await pg.wait_for_timeout(300)
+    check("reader: an HSK 5 word counts as a course word", await pg.evaluate("[...document.querySelectorAll('.rw.c')].some(e=>e.textContent.indexOf('爱护')>=0)"))
+    await go(pg, "#/pack/h5/1", 600); await pg.click("#pack-quiz"); await pg.wait_for_selector(".opts")
+    for _ in range(10):
+        await pg.locator(".opt").first.click(); await pg.click("#qnext"); await pg.wait_for_timeout(120)
+    await pg.wait_for_selector(".result"); await no_dialogs(pg)
+    rec = await pg.evaluate("Store.state.packs['h5-1']"); sk = await pg.evaluate("Object.keys(Store.state.skills)")
+    check("HSK 5 pack quiz: 10 questions, the result is kept with the pack", bool(rec) and rec.get("p") == 1 and "/ 10" in await pg.inner_text(".result") and await pg.locator(".result a[href='#/pack/h5/1']").count() == 1, rec)
+    check("HSK 5 answers are counted under their own skill", sk == ["h5-vocab"], sk)
+    check("HSK 5 answers do not feed the HSK 4 readiness estimate", await pg.evaluate("Sync.summary().progress.ready") is None)
+    await pg.evaluate("Store.state.packs['h5-1'].b=9;Store.save()")
+    await pg.reload(); await pg.wait_for_selector("#app > *:not(.skel)"); await go(pg, "#/learn", 300); await pg.wait_for_selector(".daycard", timeout=15000)
+    first = await pg.locator(".daycard").first.inner_text()
+    check("after a reload Learn opens HSK 5 again, with the pack's progress", await pg.locator(".daycard").count() == 62 and "20/20 in review" in first and "quiz 9/10" in first and await pg.locator(".daycard.done").count() == 1, first)
+    await pg.click(".lvl-sw [data-level='4']"); await pg.wait_for_selector(".pnode")
+    check("the switch goes back to HSK 4 and remembers it", await pg.evaluate("Store.state.settings.level") == 4 and await pg.locator(".pnode").count() == 90)
+    await ctx.close()
+
+
+GROUPS = [("hsk5", t_hsk5), ("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

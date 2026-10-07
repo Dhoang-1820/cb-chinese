@@ -27,8 +27,17 @@
     "measure":      { sec: "Vocabulary", icon: "📏", en: "Measure words & collocations", vi: "Lượng từ & kết hợp từ", tip: "Learn nouns with their measure word and verb: 一份合同, 办手续, 提出意见." },
     "grammar":      { sec: "Grammar", icon: "📐", en: "Grammar patterns", vi: "Mẫu ngữ pháp", tip: "Open the grammar checklist, re-read the pattern, then redo its 5 questions." },
     "typing":       { sec: "Writing", icon: "⌨️", en: "Typing sentences (computer test)", vi: "Gõ câu (thi trên máy)", tip: "Type the whole sentence, then compare character by character; watch 的/得/地 and word order." },
-    "handwriting":  { sec: "Writing", icon: "🖌️", en: "Handwriting (stroke order)", vi: "Viết tay (thứ tự nét)", tip: "Watch the stroke animation once, then trace without the outline." }
+    "handwriting":  { sec: "Writing", icon: "🖌️", en: "Handwriting (stroke order)", vi: "Viết tay (thứ tự nét)", tip: "Watch the stroke animation once, then trace without the outline." },
+    /* HSK 5 practice is counted apart (lvl: 5): it never feeds the HSK 4 readiness estimate, plan, tips or weekly report. */
+    "h5-vocab":      { sec: "HSK 5", lvl: 5, icon: "📗", en: "HSK 5 · Word meaning", vi: "HSK 5 · Nghĩa của từ", tip: "Open the HSK 5 pack again, then review its flashcards." },
+    "h5-grammar":    { sec: "HSK 5", lvl: 5, icon: "📐", en: "HSK 5 · Grammar patterns", vi: "HSK 5 · Mẫu ngữ pháp", tip: "Re-read the HSK 5 pattern, then redo its 5 questions." },
+    "h5-confusable": { sec: "HSK 5", lvl: 5, icon: "⚖️", en: "HSK 5 · Confusable words", vi: "HSK 5 · Từ dễ nhầm", tip: "Read the explanation: it says what separates the words." },
+    "h5-ordering":   { sec: "HSK 5", lvl: 5, icon: "🔀", en: "HSK 5 · Sentence order", vi: "HSK 5 · Sắp xếp câu", tip: "Find the subject first, then the verb, then the rest." },
+    "h5-measure":    { sec: "HSK 5", lvl: 5, icon: "📏", en: "HSK 5 · Measure words", vi: "HSK 5 · Lượng từ", tip: "Learn each noun together with its measure word." },
+    "h5-writing":    { sec: "HSK 5", lvl: 5, icon: "✍️", en: "HSK 5 · Writing sentences", vi: "HSK 5 · Viết câu", tip: "Compare your sentence with the two models." }
   };
+  /* true for a skill that belongs to the HSK 4 exam picture (everything except the HSK 5 skills) */
+  function exam(k) { return !!SKILLS[k] && !SKILLS[k].lvl; }
 
   function S() {
     var s = Store.state;
@@ -41,7 +50,9 @@
   /* key: unique id of the item (e.g. "w:w0101", "q:3:2", "m:1:L2-3", "ls:<text>")
      meta: { kind, skill, ...refs } — enough to re-render the question later. */
   function record(key, meta, ok) {
-    var s = S(), m = s.mistakes[key], sk = meta && meta.skill;
+    var s = S(), m = s.mistakes[key];
+    if (meta && /^w:h5-/.test(key) && !(SKILLS[meta.skill] || {}).lvl) meta = Object.assign({}, meta, { skill: "h5-vocab" }); // an HSK 5 word counts as HSK 5 in every game
+    var sk = meta && meta.skill;
     if (sk) {
       var st = s.skills[sk] || (s.skills[sk] = { r: 0, w: 0 });
       if (ok) st.r++; else st.w++;
@@ -68,12 +79,12 @@
   }
   function count(skill) { return list(skill).length; }
 
-  /* Accuracy per skill, weakest first. Only skills with at least `min` answers. */
-  function report(min) {
+  /* Accuracy per skill, weakest first. Only skills with at least `min` answers. HSK 5 skills are left out unless all = true. */
+  function report(min, all) {
     var s = S(), out = [];
     Object.keys(s.skills).forEach(function (k) {
       var st = s.skills[k], n = st.r + st.w;
-      if (!SKILLS[k] || n < (min || 1)) return;
+      if (!SKILLS[k] || (!all && SKILLS[k].lvl) || n < (min || 1)) return;
       out.push({ skill: k, n: n, acc: st.r / n, info: SKILLS[k], open: count(k) });
     });
     return out.sort(function (a, b) { return a.acc - b.acc; });
@@ -96,12 +107,12 @@
     if (rep.length) out.push({ type: "repeat", sig: "r:" + rep.slice().sort().join(","), n: rep.reduce(function (a, k) { return a + byKey[k].n; }, 0), days: 14, keys: rep, counts: rep.map(function (k) { return byKey[k].n; }) });
     Object.keys(bySkill).forEach(function (k) {
       var st = s.skills[k], n = st ? st.r + st.w : 0;
-      if (!SKILLS[k] || bySkill[k].n < SKILL_N || !n || st.r / n >= 0.7) return;
+      if (!exam(k) || bySkill[k].n < SKILL_N || !n || st.r / n >= 0.7) return;
       out.push({ type: "skill", sig: "s:" + k + ":" + Math.floor(bySkill[k].n / 5), n: bySkill[k].n, days: 7, skill: k, acc: st.r / n });
     });
     out.sort(function (a, b) { return (b.type === "repeat" ? 1000 : 0) + b.n - ((a.type === "repeat" ? 1000 : 0) + a.n); });
     return out.slice(0, max || 2);
   }
 
-  window.Learn = { SKILLS: SKILLS, CLEAR_AFTER: CLEAR_AFTER, record: record, list: list, count: count, report: report, patterns: patterns };
+  window.Learn = { SKILLS: SKILLS, exam: exam, CLEAR_AFTER: CLEAR_AFTER, record: record, list: list, count: count, report: report, patterns: patterns };
 })();

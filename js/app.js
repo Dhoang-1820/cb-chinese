@@ -152,7 +152,8 @@
   }
 
   function levelBadge(l) {
-    return l === "HSK4" ? '<span class="tag t-hsk">HSK 4</span>' : l === "Mine" ? '<span class="tag t-mine">My word</span>' : '<span class="tag t-dom">C&amp;B · beyond HSK 4</span>';
+    var m = /^HSK([1-6])$/.exec(l || "");
+    return m ? '<span class="tag t-hsk">HSK ' + m[1] + "</span>" : l === "Mine" ? '<span class="tag t-mine">My word</span>' : '<span class="tag t-dom">C&amp;B · beyond HSK 4</span>';
   }
   function boxBadge(id) { var c = SRS.get(id); return c ? '<span class="tag t-box">Box ' + c.box + "</span>" : ""; }
   function dayWords(d) {
@@ -219,13 +220,13 @@
 
   /* ---------- loading ---------- */
   /* Download all files in parallel but run them in order (async=false keeps insertion order). */
-  function loadAll(files) {
+  function loadAll(files, quiet) {
     return Promise.all(files.map(function (f) {
       return new Promise(function (res) {
         var s = document.createElement("script");
         s.src = "data/" + f; s.async = false;
         s.onload = res;
-        s.onerror = function () { LOAD_ERRORS.push(f); res(); };
+        s.onerror = function () { if (!quiet) LOAD_ERRORS.push(f); s.remove(); res(); };
         document.head.appendChild(s);
       });
     }));
@@ -253,11 +254,84 @@
       if (!mocksReady) mocksP = null;
     }));
   }
+  /* Extra content, loaded only when the learner opens it (never on first load):
+       HSK 5       data/hsk5/*   word packs, grammar, drills (one file, data/hsk5.<hash>.js, in the deployed build)
+       HSK 4 extra data/hsk4x/*  91 more HSK 1-4 words, common phrases, word families, opposites (data/hsk4x.<hash>.js)
+     The service worker keeps both for offline use once they were fetched. A failed load is not an error: a screen
+     that needs the data says so, everything else carries on without it. */
+  var H5_FILE = "hsk5.js", X4_FILE = "hsk4x.js"; // replaced with the hashed file names at build time
+  var h5P = null, x4P = null, h5Tried = false, x4Tried = false, x4Want = false, x4Idx = null;
+  function h5Loaded() { return (window.CB_HSK5 || []).length > 0 && (window.CB_HSK5_GRAMMAR || []).length > 0 && !!window.CB_HSK5_DRILLS; }
+  function x4Loaded() { var X = window.CB_HSK4X || []; return X.length > 0 && (BUNDLED || X.length >= (window.CB_HSK4X_FILES || []).length); }
+  function h5Wanted() { var st = Store.state.settings; return st.h5 === true || st.level === 5; }
+  function x4Wanted() { if (!x4Want) x4Want = Object.keys(Store.state.srs).some(function (id) { return id.indexOf("x4-") === 0; }); return x4Want; }
+  function h5Files() { var f = []; for (var i = 1; i <= 62; i++) f.push("hsk5/words" + (i < 10 ? "0" : "") + i + ".js"); return f.concat(["hsk5/grammar.js", "hsk5/drills.js"]); }
+  /* The very first fetch can happen before the service worker controls the page, so store the file ourselves as well. */
+  function keepOffline(file) {
+    try {
+      if (BUNDLED && window.caches && location.protocol.indexOf("http") === 0) caches.open("cb-packs").then(function (c) { return c.match("data/" + file).then(function (hit) { return hit || c.add("data/" + file); }); }).catch(function () { /* optional */ });
+    } catch (e) { /* optional */ }
+  }
+  function packsReady() {
+    buildIndex(); x4Idx = null; refreshChrome();
+    if (window.Content) { try { Content.apply(); } catch (e) { /* fixes must never block loading */ } }
+  }
+  function ensureH5() {
+    if (h5Loaded()) return Promise.resolve(true);
+    return h5P || (h5P = loadAll(BUNDLED ? [H5_FILE] : h5Files(), true).then(function () {
+      h5P = null; h5Tried = true;
+      if (!h5Loaded()) return false;
+      keepOffline(H5_FILE); packsReady(); return true;
+    }));
+  }
+  function ensureX4() {
+    if (x4Loaded()) return Promise.resolve(true);
+    return x4P || (x4P = (BUNDLED ? loadAll([X4_FILE], true) : loadAll(["hsk4x/manifest.js"], true).then(function () { return loadAll((window.CB_HSK4X_FILES || []).map(function (f) { return "hsk4x/" + f; }), true); })).then(function () {
+      x4P = null; x4Tried = true;
+      if (!x4Loaded()) return false;
+      keepOffline(X4_FILE); packsReady(); return true;
+    }));
+  }
+  /* Word packs: "h5" = HSK 5 words (62 packs), "x4" = extra HSK 1-4 words missing from the lessons and decks (5 packs). */
+  function packList(kind) {
+    var l = kind === "h5" ? (window.CB_HSK5 || []) : (window.CB_HSK4X || []).filter(function (p) { return p.kind === "missing"; });
+    return l.slice().sort(function (a, b) { return a.pack - b.pack; });
+  }
+  function packGet(kind, n) { return packList(kind).filter(function (p) { return p.pack === n; })[0] || null; }
+  function packFromArg(arg) { var m = /^p-(h5|x4)-(\d{1,2})$/.exec(arg || ""); return m ? { kind: m[1], n: +m[2], pack: packGet(m[1], +m[2]) } : null; }
+  function packName(kind) { return kind === "h5" ? "HSK 5 words" : "Extra HSK 4 words"; }
+  function packHome(kind) { return kind === "h5" ? "#/learn/h5" : "#/learn/extra"; }
+  function packRec(kind, n) { return (Store.state.packs || {})[kind + "-" + n] || null; }
+  /* A pack is finished when its quiz was passed (8 of 10, or every question in a short pack). */
+  function packDone(kind, n) { var r = packRec(kind, n); return !!r && r.b >= 8; }
+  function packQuizDone(kind, n, score, total) {
+    var s = Store.state, k = kind + "-" + n; if (!s.packs) s.packs = {};
+    var r = s.packs[k] || (s.packs[k] = { b: 0, p: 0 });
+    r.p++; r.b = Math.max(r.b, Math.round(score / Math.max(1, total) * 10)); Store.save();
+  }
+
+  /* What a screen still needs before it can be drawn: "full", "mocks", "h5", "x4". */
+  function missing(v, parts) {
+    var m = [], a = parts[1] || "", b = parts[2] || "";
+    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes")) m.push("full");
+    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session")) m.push("mocks");
+    var hard5 = (v === "learn" && (a === "h5" || a === "h5p" || (!a && Store.state.settings.level === 5))) || (v === "pack" && a === "h5") || (v === "grammar" && /^h5/.test(a)) || (v === "game" && (b === "h5" || /^p-h5-/.test(b))) || (v === "cards" && /^p-h5-/.test(a));
+    var hard4 = (v === "learn" && a === "extra") || (v === "pack" && a === "x4") || v === "families" || (v === "game" && /^p-x4-/.test(b)) || (v === "cards" && /^p-x4-/.test(a));
+    /* screens that list or review words wait once for the packs this learner uses, so those words are there too */
+    var soft = /^(review|search|listen-mode|mistakes|session|read)$/.test(v) || (v === "cards" && a === "all");
+    if (!h5Loaded() && (hard5 || (soft && !h5Tried && h5Wanted()))) m.push("h5");
+    if (!x4Loaded() && (hard4 || (soft && !x4Tried && x4Wanted()))) m.push("x4");
+    return m;
+  }
   function needs(v, parts) {
-    var n = [];
-    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes")) n.push(ensureFull());
-    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session")) n.push(ensureMocks());
-    return n;
+    return missing(v, parts).map(function (k) { return k === "full" ? ensureFull() : k === "mocks" ? ensureMocks() : k === "h5" ? ensureH5() : ensureX4(); });
+  }
+  function missingHTML(miss) {
+    if (miss.indexOf("full") >= 0 || miss.indexOf("mocks") >= 0) return '<p class="warn">Couldn\'t load this part of the app. Check your connection and try again.</p>';
+    var h5 = miss.indexOf("h5") >= 0;
+    return (h5 ? levelSwitch(5) : "") + '<div class="card result" id="pack-miss">' + UI.mascot("think", 80) + "<h2>" + (h5 ? "HSK 5 is not on this phone yet" : "These extra words are not on this phone yet") + "</h2>" +
+      '<p class="sub">Connect to the internet and open this screen once. After that it works offline.</p>' +
+      '<div class="actions center"><button class="btn primary" id="miss-retry">Try again</button><a class="btn" href="#/">Home</a></div></div>';
   }
   function buildIndex() {
     DAYS = (window.CB_DAYS || []).slice().sort(function (a, b) { return a.day - b.day; });
@@ -272,19 +346,23 @@
       COREMAP[set.set] = set;
       set.words.forEach(function (w) { w._set = set.set; if (!w.level) w.level = "HSK4"; WORDS.push(w); WORDMAP[w.id] = w; });
     });
+    // word packs loaded on demand (HSK 5, extra HSK 1-4 words): same ids in review, search and games as any other word
+    ["x4", "h5"].forEach(function (kind) {
+      packList(kind).forEach(function (pk) { pk.words.forEach(function (w) { w._pk = kind; w._pn = pk.pack; if (!WORDMAP[w.id]) { WORDS.push(w); WORDMAP[w.id] = w; } }); });
+    });
     // the learner's own words
     (Store.state.custom || []).forEach(function (w) { w._mine = true; w.level = "Mine"; WORDS.push(w); WORDMAP[w.id] = w; });
     WORD_RE = null;
   }
-  function wordHome(w) { return w._mine ? "#/learn/mine" : w._set ? "#/core/" + w._set : "#/day/" + w._day + "/words"; }
-  function wordPlace(w) { return w._mine ? "My words" : w._set ? (w._set > 100 ? "HSK 1–3 set F" + (w._set - 100) : "Core set " + w._set) : "Day " + w._day; }
+  function wordHome(w) { return w._mine ? "#/learn/mine" : w._pk ? "#/pack/" + w._pk + "/" + w._pn : w._set ? "#/core/" + w._set : "#/day/" + w._day + "/words"; }
+  function wordPlace(w) { return w._mine ? "My words" : w._pk ? (w._pk === "h5" ? "HSK 5 pack " : "Extra HSK 4 pack ") + w._pn : w._set ? (w._set > 100 ? "HSK 1–3 set F" + (w._set - 100) : "Core set " + w._set) : "Day " + w._day; }
   function nextCoreSet(track) {
     for (var i = 0; i < CORE.length; i++) if ((track === "found") === (CORE[i].track === "found") && CORE[i].words.some(function (w) { return !SRS.has(w.id); })) return CORE[i];
     return null;
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -307,7 +385,8 @@
       render(skeleton());
       Promise.all(pending).then(function () {
         if (location.hash !== h) return;
-        if (needs(v, parts).length) { render('<p class="warn">Couldn\'t load this part of the app. Check your connection and try again.</p>'); return; }
+        var miss = missing(v, parts);
+        if (miss.length) { render(missingHTML(miss), "learn"); var rb = document.getElementById("miss-retry"); if (rb) rb.onclick = route; return; }
         route();
       });
       return;
@@ -322,6 +401,7 @@
     else if (v === "search") viewSearch();
     else if (v === "learn") viewLearn(parts[1]);
     else if (v === "core") viewCoreSet(parseInt(parts[1], 10));
+    else if (v === "pack") viewPack(parts[1], parseInt(parts[2], 10));
     else if (v === "check") viewQuickCheck(parseInt(parts[1], 10));
     else if (v === "listen-mode") viewListenMode();
     else if (v === "talk") viewTalk(parts[1]);
@@ -344,7 +424,7 @@
       else viewMockSection(parts[1], parts[2]);
     }
     else viewHome();
-    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
+    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] || "C&B 中文";
     document.getElementById("page-title").textContent = title;
@@ -727,7 +807,7 @@
     });
     Object.keys(sum).forEach(function (k) {
       var n = sum[k][0] + sum[k][1], acc = n ? Math.round(sum[k][0] / n * 100) : 100;
-      if (!Learn.SKILLS[k] || n < 10 || acc >= 70) return;
+      if (!Learn.exam(k) || n < 10 || acc >= 70) return;
       if (!best || acc < best.acc) best = { skill: k, acc: acc, n: n };
     });
     return best;
@@ -843,9 +923,25 @@
   }
 
   /* ---------- learn (plan) ---------- */
+  /* Level switch at the top of Learn. The choice is kept in settings.level; "HSK 5" opens the HSK 5 area. */
+  function levelSwitch(cur) {
+    return '<div class="lvl-sw" role="group" aria-label="Level">' + [4, 5].map(function (l) {
+      return '<button type="button" data-level="' + l + '" class="' + (cur === l ? "on" : "") + '" aria-pressed="' + (cur === l) + '">HSK ' + l + "</button>";
+    }).join("") + "</div>";
+  }
+  function setLevel(l) {
+    var st = Store.state.settings; st.level = l === 5 ? 5 : 4; if (st.level === 5) st.h5 = true; Store.save();
+    if (location.hash === "#/learn") route(); else location.hash = "#/learn";
+  }
+  var H5_NOTE = '<p class="h5-note" role="note">⚑ HSK 5 content is new and not yet checked by a teacher. Use the flag button to report mistakes.</p>';
+  function h5Seg(which) {
+    var t = [["words", "#/learn/h5", "Words"], ["grammar", "#/grammar/h5", "Grammar"], ["practice", "#/learn/h5p", "Practice"]];
+    if (!Store.state.settings.h5) { Store.state.settings.h5 = true; Store.save(); } // opened once: its words stay ready for Review and Search
+    return levelSwitch(5) + '<nav class="seg">' + t.map(function (x) { return '<a class="' + (which === x[0] ? "active" : "") + '" href="' + x[1] + '">' + x[2] + "</a>"; }).join("") + "</nav>" + H5_NOTE;
+  }
   function learnSeg(which) {
     var t = [["cb", "#/learn", "C&amp;B"], ["core", "#/learn/core", "HSK words"], ["grammar", "#/grammar", "Grammar"], ["mine", "#/learn/mine", "My words"]];
-    return '<nav class="seg seg4">' + t.map(function (x) { return '<a class="' + (which === x[0] ? "active" : "") + '" href="' + x[1] + '">' + x[2] + "</a>"; }).join("") + "</nav>";
+    return levelSwitch(4) + '<nav class="seg seg4">' + t.map(function (x) { return '<a class="' + (which === x[0] ? "active" : "") + '" href="' + x[1] + '">' + x[2] + "</a>"; }).join("") + "</nav>";
   }
   /* HSK word tracks: "core" = HSK 4 Core (sets 1–25), "found" = HSK 1–3 Foundation (sets 101–130, shown as F1–F30) */
   function isFound(set) { return set && set.track === "found"; }
@@ -968,9 +1064,59 @@
     }
     return html;
   }
+  /* ---------- word packs: HSK 5 words and the extra HSK 4 words share these screens ---------- */
+  function packGrid(kind) {
+    return '<div class="daygrid">' + packList(kind).map(function (pk) {
+      var n = pk.words.length, inSrs = pk.words.filter(function (w) { return SRS.has(w.id); }).length, rec = packRec(kind, pk.pack), done = packDone(kind, pk.pack);
+      return '<a class="daycard card' + (done ? " done" : "") + '" href="#/pack/' + kind + "/" + pk.pack + '"><span class="dnum">' + (done ? "✓ " : "") + "Pack " + pk.pack + '</span><span class="dzh zh">' +
+        esc(pk.words.slice(0, 3).map(function (w) { return w.hanzi; }).join(" · ")) + '</span><span class="dbar"><i style="width:' + Math.round(inSrs / n * 100) + '%"></i></span><span class="dmeta">' +
+        inSrs + "/" + n + " in review" + (rec ? " · quiz " + rec.b + "/10" : "") + "</span></a>";
+    }).join("") + "</div>";
+  }
+  function packStats(kind) {
+    var l = packList(kind), words = 0, inSrs = 0, started = 0, done = 0;
+    l.forEach(function (pk) {
+      var k = pk.words.filter(function (w) { return SRS.has(w.id); }).length;
+      words += pk.words.length; inSrs += k; if (k || packRec(kind, pk.pack)) started++; if (packDone(kind, pk.pack)) done++;
+    });
+    return { packs: l.length, words: words, inSrs: inSrs, started: started, done: done };
+  }
+  function viewH5Words() {
+    var st = packStats("h5");
+    render(h5Seg("words") + '<section class="card g-blue"><h2>📗 HSK 5 words</h2><p class="sub">' + st.words + " words in " + st.packs + " packs: the HSK 5 list without the words you already have. Add a pack to review, then take its quiz.</p>" +
+      '<div class="xpbar"><span style="width:' + Math.round(st.inSrs / Math.max(1, st.words) * 100) + '%"></span></div><p class="xp-t">' + st.inSrs + " / " + st.words + " in review · " + st.done + " / " + st.packs + " packs finished</p></section>" + packGrid("h5"), "learn");
+  }
+  function viewExtraList() {
+    var st = packStats("x4");
+    render('<a class="back" href="#/learn/core">‹ HSK words</a><section class="card g-teal"><h2>📘 Extra HSK 4 words</h2><p class="sub">' + st.words + " official HSK 1–4 words that no lesson or set teaches yet, in " + st.packs + " packs.</p>" +
+      '<div class="xpbar"><span style="width:' + Math.round(st.inSrs / Math.max(1, st.words) * 100) + '%"></span></div><p class="xp-t">' + st.inSrs + " / " + st.words + " in review · " + st.done + " / " + st.packs + " packs finished</p></section>" +
+      '<p class="h5-note" role="note">⚑ These packs are new and not yet checked by a teacher. Use the flag button to report mistakes.</p>' + packGrid("x4"), "learn");
+  }
+  function viewPack(kind, n) {
+    kind = kind === "h5" ? "h5" : "x4";
+    var pk = packGet(kind, n), home = packHome(kind);
+    if (!pk) { render('<p class="empty">Pack not found. <a href="' + home + '">Back</a></p>', "learn"); return; }
+    var prev = packGet(kind, n - 1), next = packGet(kind, n + 1), ws = pk.words, notIn = ws.filter(function (w) { return !SRS.has(w.id); }).length, rec = packRec(kind, n), arg = "p-" + kind + "-" + n;
+    var html = '<header class="dayhead card ' + (kind === "h5" ? "g-blue" : "g-teal") + '"><div class="dh-nav">' + (prev ? '<a class="pill" href="#/pack/' + kind + "/" + prev.pack + '">‹ ' + prev.pack + "</a>" : '<a class="pill" href="' + home + '">‹ All</a>') +
+      '<span class="dh-day">' + packName(kind) + "</span>" + (next ? '<a class="pill" href="#/pack/' + kind + "/" + next.pack + '">' + next.pack + " ›</a>" : "<span></span>") + "</div>" +
+      "<h1>Pack " + n + '</h1><p class="sub">' + ws.length + " words" + (rec ? " · quiz best " + rec.b + "/10" : "") + "</p></header>" +
+      '<div class="actions"><a class="btn primary" href="#/cards/' + arg + '">🃏 Flashcards</a><a class="btn" href="#/game/quick/' + arg + '" id="pack-quiz">❓ Quiz</a>' +
+      (notIn ? '<button class="btn" id="add-all">＋ Add ' + notIn + " to review</button>" : '<span class="ok-text">✓ All in review</span>') + "</div>" +
+      (pk.checked ? "" : '<p class="h5-note" role="note">⚑ ' + (kind === "h5" ? "HSK 5 content is new and not yet checked by a teacher." : "This pack is new and not yet checked by a teacher.") + " Use the flag button on a word to report mistakes.</p>") +
+      ws.map(function (w) { return wordCard(w, { flag: true, soft: true }); }).join("");
+    render(html, "day");
+    var add = document.getElementById("add-all");
+    if (add) add.onclick = function () {
+      SRS.addMany(ws.map(function (w) { return w.id; })); if (kind === "x4") x4Want = true;
+      Game.award(5); UI.toast(notIn + " words added to review", "➕"); viewPack(kind, n); refreshChrome();
+    };
+  }
+
   function viewLearn(sub) {
     if (sub === "core" || sub === "found") return viewCoreList(sub);
     if (sub === "mine") return viewMine();
+    if (sub === "h5" || (!sub && Store.state.settings.level === 5)) return viewH5Words();
+    if (sub === "extra") return viewExtraList();
     var st = Store.state, plan = window.CB_PLAN || [], mode = learnMode();
     var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb") +
       '<a class="cta card g-violet" href="#/track"><span class="cta-l"><small>6-month track · mixed in, never locked</small><b>🎓 C&amp;B Professional Chinese</b><em>Writing templates, role-plays, Vietnam vs China cards, HSK 5 reading</em></span><span class="cta-go">▶</span></a>' +
@@ -1005,19 +1151,25 @@
     var act = document.querySelector(".seg .active"); if (act && act.scrollIntoView) act.scrollIntoView({ inline: "center", block: "nearest" });
   }
 
-  function exHTML(w) {
-    return w.example ? '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(w.example.zh) + "</span>" + SAY(w.example.zh) + "</div>" + PY(w.example.py) + '<div class="tr">' + M(w.example) + "</div></div>" : "";
+  function exHTML(w, soft) {
+    return w.example ? '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(w.example.zh) + "</span>" + (soft ? SAYX : SAY)(w.example.zh) + "</div>" + PY(w.example.py) + '<div class="tr">' + M(w.example) + "</div></div>" : "";
   }
-  function wordCard(w) {
+  /* Play button that is left out when the audio exists in general but this text has no clip (packs without sentence audio). */
+  function SAYX(t, voice, big) { return !Audio2.available() || Audio2.has(t, voice) ? SAY(t, voice, big) : ""; }
+  /* o.flag: add a "report a problem" link for this word · o.soft: leave out play buttons that have no recording */
+  function wordCard(w, o) {
+    o = o || {};
+    var say = o.soft ? SAYX : SAY;
     return '<article class="word card" id="w-' + esc(w.id) + '">' +
-      '<div class="w-top"><div><div class="hz">' + esc(w.hanzi) + "</div>" + PY(w.pinyin) + "</div>" + SAY(w.hanzi, null, true) + "</div>" +
+      '<div class="w-top"><div><div class="hz">' + esc(w.hanzi) + "</div>" + PY(w.pinyin) + "</div>" + say(w.hanzi, null, true) + "</div>" +
       '<div class="w-mean">' + M(w) + "</div>" +
       '<div class="tags"><span class="tag">' + esc(w.pos) + "</span>" + levelBadge(w.level) + boxBadge(w.id) + "</div>" +
       (w.note ? '<div class="w-note">💡 ' + M(w.note) + "</div>" : "") +
       '<div class="colls">' + (w.collocations || []).map(function (c) {
-        return '<div class="coll"><div><span class="zh">' + esc(c.zh) + "</span> " + PY(c.py) + '<div class="dim">' + M(c) + "</div></div>" + SAY(c.zh) + "</div>";
+        return '<div class="coll"><div><span class="zh">' + esc(c.zh) + "</span> " + PY(c.py) + '<div class="dim">' + M(c) + "</div></div>" + say(c.zh) + "</div>";
       }).join("") + "</div>" +
-      exHTML(w) + "</article>";
+      exHTML(w, o.soft) +
+      (o.flag ? '<button type="button" class="linklike w-flag" data-flag="word:' + esc(w.id) + '" data-flag-label="' + esc(w.hanzi + " · " + w.pinyin) + '">⚑ Report a problem</button>' : "") + "</article>";
   }
   function tabWords(d, body) {
     var ws = dayWords(d), notIn = ws.filter(function (w) { return !SRS.has(w.id); }).length;
@@ -1256,6 +1408,11 @@
     var words, title, back;
     if (arg === "all") { words = WORDS; title = "All words"; back = "#/learn"; }
     else if (arg === "mine") { words = (Store.state.custom || []).map(function (w) { return WORDMAP[w.id]; }).filter(Boolean); title = "My words"; back = "#/learn/mine"; if (!words.length) { location.replace("#/learn/mine"); return; } }
+    else if (packFromArg(arg)) {
+      var pa = packFromArg(arg);
+      if (!pa.pack) { render('<p class="empty">Pack not found.</p>'); return; }
+      words = pa.pack.words; title = packName(pa.kind) + " · Pack " + pa.n; back = "#/pack/" + pa.kind + "/" + pa.n;
+    }
     else if (/^k\d+$/.test(arg || "")) {
       var cs = COREMAP[parseInt(arg.slice(1), 10)];
       if (!cs) { render('<p class="empty">Set not found.</p>'); return; }
@@ -2182,7 +2339,8 @@
   }
 
   /* ---------- mistake notebook, weak areas & targeted drills ---------- */
-  var SKILL_LINK = { confusable: "#/game/confuse", ordering: "#/game/order", measure: "#/game/measure", writing: "#/game/picture", grammar: "#/grammar", typing: "#/game/type", handwriting: "#/game/write", vocab: "#/review", pinyin: "#/game/race", "listen-word": "#/game/listen", "word-order": "#/game/builder", "listen-sentence": "#/game/drill" };
+  var SKILL_LINK = { confusable: "#/game/confuse", ordering: "#/game/order", measure: "#/game/measure", writing: "#/game/picture", grammar: "#/grammar", typing: "#/game/type", handwriting: "#/game/write", vocab: "#/review", pinyin: "#/game/race", "listen-word": "#/game/listen", "word-order": "#/game/builder", "listen-sentence": "#/game/drill",
+    "h5-vocab": "#/review", "h5-grammar": "#/grammar/h5", "h5-confusable": "#/game/confuse/h5", "h5-ordering": "#/game/order/h5", "h5-measure": "#/game/measure/h5", "h5-writing": "#/game/picture/h5" };
   function skillName(k) { var i = Learn.SKILLS[k]; return i ? i.icon + " " + esc(Store.state.settings.lang === "vi" ? i.vi : i.en) : esc(k); }
   function accBar(acc) {
     var pct = Math.round(acc * 100), cls = pct >= 80 ? "hi" : pct >= 60 ? "mid" : "lo";
@@ -2212,7 +2370,7 @@
       if (skill !== "all" && !Learn.SKILLS[skill]) { location.replace("#/mistakes"); return; }
       return runMistakeDrill(skill);
     }
-    var rep = Learn.report(3), all = Learn.list();
+    var rep = Learn.report(3, true), all = Learn.list();
     var bySkill = {};
     all.forEach(function (x) { if (Learn.SKILLS[x.skill]) bySkill[x.skill] = (bySkill[x.skill] || 0) + 1; });
     var html = '<section class="card g-coral"><h2>📒 Mistake notebook</h2><p class="sub">Every wrong answer from quizzes, games and mock exams lands here. Get it right ' + Learn.CLEAR_AFTER + " times in a row to clear it.</p>" +
@@ -2377,7 +2535,8 @@
       }
       var e = items[i], q = mistakeQ(e);
       if (!q) {
-        var loaded = e.kind === "mock" ? mocksReady : (e.kind === "quiz" || e.kind === "gram" || e.kind === "drill" ? fullReady : true);
+        var src = String((e.kind === "gram" ? e.g : e.id) || "");
+        var loaded = e.kind === "mock" ? mocksReady : /^h5/.test(src) ? h5Loaded() : /^x4-/.test(src) ? x4Loaded() : (e.kind === "quiz" || e.kind === "gram" || e.kind === "drill" ? fullReady : true);
         if (loaded) { delete Store.state.mistakes[e.key]; Store.save(); } // its source really is gone
         skipped++; i++; return draw();
       }
@@ -2741,7 +2900,7 @@
     var skills = [];
     Object.keys(s.skills).forEach(function (k) {
       var a = s.skills[k], b = snap.skills[k] || { r: 0, w: 0 }, r = a.r - b.r, w = a.w - b.w;
-      if (Learn.SKILLS[k] && r + w >= 5) skills.push({ k: k, acc: r / (r + w), n: r + w });
+      if (Learn.exam(k) && r + w >= 5) skills.push({ k: k, acc: r / (r + w), n: r + w });
     });
     skills.sort(function (x, y) { return x.acc - y.acc; });
     var f = forecast();
@@ -2758,7 +2917,7 @@
     }
     w.cur = weekSnap(); Store.save();
   }
-  function knownSkills(r) { return (r.skills || []).filter(function (x) { return Learn.SKILLS[x.k]; }); }
+  function knownSkills(r) { return (r.skills || []).filter(function (x) { return Learn.exam(x.k); }); }
   function weekHTML(r, title) {
     r.skills = knownSkills(r);
     var weak = r.skills[0], strong = r.skills.length > 1 ? r.skills[r.skills.length - 1] : null;
@@ -2839,7 +2998,7 @@
     }
     html += '<section class="card"><div class="sec-h"><h2>📘 Words in review</h2><span class="muted">' + Object.keys(s.srs).length + " / " + WORDS.length + "</span></div>" + lineChart(words, { max: Math.max(10, cum), empty: "" }) + "</section>";
     html += '<section class="card"><div class="sec-h"><h2>⭐ XP · last 14 days</h2><span class="muted">goal ' + (s.settings.dailyGoal || 30) + "</span></div>" + barChart(xp, { ref: s.settings.dailyGoal || 30 }) + "</section>";
-    var rep = Learn.report(3);
+    var rep = Learn.report(3, true);
     if (rep.length) html += '<section class="card"><div class="sec-h"><h2>🎯 Skills</h2><a href="#/mistakes">Details ›</a></div>' + rep.map(function (x) {
       return '<div class="sk-row"><span class="sk-n">' + skillName(x.skill) + "</span>" + accBar(x.acc) + "</div>"; }).join("") + "</section>";
     render(html, "me");
@@ -2873,7 +3032,7 @@
       if (x < prev) return; var to = x >= from ? now : bef;
       Object.keys(L[x].k || {}).forEach(function (k) { var c = to[k] || (to[k] = [0, 0]); c[0] += L[x].k[k][0]; c[1] += L[x].k[k][1]; });
     });
-    var trend = Object.keys(now).filter(function (k) { return Learn.SKILLS[k] && now[k][0] + now[k][1] >= 5; }).map(function (k) {
+    var trend = Object.keys(now).filter(function (k) { return Learn.exam(k) && now[k][0] + now[k][1] >= 5; }).map(function (k) {
       var a = now[k], b = bef[k], nb = b ? b[0] + b[1] : 0;
       return { skill: AI.SKILL_NAMES[k] || k, acc: Math.round(a[0] / (a[0] + a[1]) * 100), before: nb >= 5 ? Math.round(b[0] / nb * 100) : null, n: a[0] + a[1] };
     }).sort(function (a, b) { return a.acc - b.acc; }).slice(0, 8);
@@ -3662,6 +3821,10 @@
   }
   /* ---------- global events & boot ---------- */
   document.addEventListener("click", function (e) {
+    var lvb = e.target.closest("[data-level]");
+    if (lvb) { e.preventDefault(); setLevel(+lvb.getAttribute("data-level")); return; }
+    var fl = e.target.closest("[data-flag]");
+    if (fl) { e.preventDefault(); openReport({ ref: fl.getAttribute("data-flag"), label: fl.getAttribute("data-flag-label") || fl.getAttribute("data-flag") }); return; }
     var wl = e.target.closest(".wlink");
     if (wl) { e.preventDefault(); e.stopPropagation(); var host = wl.closest(".zh, p, li, .line, .bubble") || wl.parentNode; openWordSheet(wl.getAttribute("data-w"), host ? host.textContent.replace(/\s+/g, " ").trim().slice(0, 300) : ""); return; }
     var b = e.target.closest("[data-say]");
@@ -3697,6 +3860,9 @@
       route();
       // warm up the rest in the background so it's ready (and cached for offline) before it's needed
       whenIdle(4000).then(function () { ensureFull().then(function () { return ensureMocks(); }).then(function () { if (window.Content) { Content.apply(); Content.sync(false).then(function () { Content.apply(); }); } }, function () {}); });
+      /* packs this learner already uses (HSK 5 opened once, extra HSK 4 words in review): load them when idle so their
+         words are in Review, Search and the due count. A first-time learner never downloads them here. */
+      whenIdle(3000).then(function () { if (h5Wanted()) ensureH5(); if (x4Wanted()) ensureX4(); });
       if (!Store.state.settings.onboarded) setTimeout(showGuide, 600);
     });
     if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
@@ -3727,7 +3893,7 @@
   window.App = {
     esc: esc, M: M, PY: PY, SAY: SAY, shuffle: shuffle, render: render, setKeys: setKeys, typing: typing, rect: rect, norm: norm,
     dayWords: dayWords, studiedWords: studiedWords, levelBadge: levelBadge, refreshChrome: refreshChrome,
-    markWork: markWork, resetWork: function () { workDone = false; }, get CORE() { return CORE; }, get COREMAP() { return COREMAP; }, get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }
+    markWork: markWork, resetWork: function () { workDone = false; }, packFromArg: packFromArg, packQuizDone: packQuizDone, h5Loaded: h5Loaded, x4Loaded: x4Loaded, ensureH5: ensureH5, ensureX4: ensureX4, get CORE() { return CORE; }, get COREMAP() { return COREMAP; }, get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }
   };
   boot();
 })();

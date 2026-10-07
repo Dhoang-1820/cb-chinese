@@ -13,7 +13,7 @@
   function defaults() {
     return {
       version: 2,
-      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std" },
+      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std", level: 4, h5: false }, // level: 4 or 5 = the Learn level switch; h5: HSK 5 was opened once (its data is then kept ready)
       srs: {},        // wordId -> { box, due, right, wrong, added, last }
       days: {},       // dayNo -> { quizBest, practice: {}, completed }
       streak: { count: 0, last: null, best: 0 },
@@ -34,7 +34,8 @@
       mockHistory: [], // [{ id, date, total, sections }]
       sessions: {},   // date -> true when Today's session was completed
       official: [],   // official past-paper results: [{ id, date, name, l, r, w }] (each section /100)
-      grammar: {},    // grammar point id -> { best, passes, mastered }
+      grammar: {},    // grammar point id (g01.. HSK 4, h5g01.. HSK 5) -> { best, passes, mastered }
+      packs: {},      // word-pack quiz results: "h5-<pack>" (HSK 5) or "x4-<pack>" (extra HSK 4 words) -> { b: best score out of 10, p: plays }
       reports: [],    // "Report a problem" notes: [{ id, date, route, text, ctx }]
       weekly: {},     // { cur: snapshot at the start of this week, last: summary of last week } (see weekly report in app.js)
       custom: [],     // learner's own words: [{ id: "u…", hanzi, pinyin, vi, en, example? }]
@@ -83,6 +84,11 @@
     st.mockRate = [0, 1, 1.15, 1.3].indexOf(+st.mockRate) >= 0 ? +st.mockRate : 0; // 0 = same as "Voice speed"
     if (["quick", "std", "long"].indexOf(st.sessionMode) < 0) st.sessionMode = dflt.sessionMode;
     st.coreTarget = Math.max(1, Math.min(365, parseInt(st.coreTarget, 10) || dflt.coreTarget));
+    st.level = +st.level === 5 ? 5 : 4; st.h5 = st.h5 === true || st.level === 5;
+    if (!d.packs || typeof d.packs !== "object" || Array.isArray(d.packs)) d.packs = {};
+    Object.keys(d.packs).forEach(function (k) { var v = d.packs[k]; if (!/^(h5|x4)-\d{1,2}$/.test(k) || !v || typeof v !== "object") delete d.packs[k]; else d.packs[k] = { b: Math.max(0, Math.min(10, Math.round(n(v.b)))), p: Math.max(0, Math.round(n(v.p))) }; });
+    if (!d.games || typeof d.games !== "object" || Array.isArray(d.games)) d.games = {};
+    Object.keys(d.games).forEach(function (k) { var v = d.games[k]; if (!/^[a-z0-9]{1,16}$/.test(k) || !v || typeof v !== "object") delete d.games[k]; else { v.best = n(v.best); v.plays = n(v.plays); } });
     d.reports = (Array.isArray(d.reports) ? d.reports : []).filter(function (r) { return r && typeof r === "object" && typeof r.text === "string"; }).slice(-100).map(function (r, i) {
       return { id: (String(r.id || Date.now()).replace(/[^0-9a-z]/gi, "").slice(0, 16) || String(Date.now())) + "x" + i, date: /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : today(),
         route: /^#\/[\w\/-]{0,78}$/.test(String(r.route || "")) ? String(r.route) : "#/", text: String(r.text).slice(0, 500), ctx: String(r.ctx || "").slice(0, 400) };
@@ -102,7 +108,7 @@
       return { id: String(o.id || Date.now()).replace(/[^0-9a-z]/gi, "").slice(0, 16) || String(Date.now()), date: /^\d{4}-\d{2}-\d{2}$/.test(o.date) ? o.date : today(),
         name: String(o.name || "Official paper").slice(0, 60), l: c(o.l), r: c(o.r), w: c(o.w) };
     });
-    Object.keys(d.grammar).forEach(function (k) { var g = d.grammar[k]; if (!/^g\d\d$/.test(k) || !g || typeof g !== "object") delete d.grammar[k]; else { g.best = n(g.best); g.passes = n(g.passes); g.mastered = !!g.mastered; } });
+    Object.keys(d.grammar).forEach(function (k) { var g = d.grammar[k]; if (!/^(g|h5g)\d\d$/.test(k) || !g || typeof g !== "object") delete d.grammar[k]; else { g.best = n(g.best); g.passes = n(g.passes); g.mastered = !!g.mastered; } });
     var sts = d.stats; ["cards", "correct", "perfectQuizzes", "bossWins", "nightOwl", "hearts", "ladderRun", "ladderMiss"].forEach(function (k) { if (sts[k] != null) sts[k] = n(sts[k]); });
     if (sts.ladder != null) sts.ladder = Math.max(0, Math.min(3, Math.round(n(sts.ladder)))); // stays unset until the first drill picks a start speed
     if (!d.weekly || typeof d.weekly !== "object" || Array.isArray(d.weekly)) d.weekly = {};

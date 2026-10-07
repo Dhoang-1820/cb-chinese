@@ -4,6 +4,38 @@ var VERSION = "dev";
 var SHELL = "cb-shell-" + VERSION;
 var AUDIO = "cb-audio";
 var STROKES = "cb-strokes"; // handwriting data: never changes, kept across app versions
+/* Optional content packs (HSK 5, extra HSK 4 words): NOT precached. They are stored the first time the app asks for
+   them and then served cache-first (the file name carries a content hash). tools/build.js fills in the current names. */
+var PACKS = "cb-packs";
+var PACK_FILES = [];
+var PACK_RE = /\/data\/(hsk5|hsk4x)\.[0-9a-f]+\.js$/;
+function packKind(u) { var m = PACK_RE.exec(u); return m ? m[1] : ""; }
+/* A learner who already has a pack gets its new edition with the app update, so it still works offline afterwards. */
+function refreshPacks() {
+  return caches.open(PACKS).then(function (c) {
+    return c.keys().then(function (keys) {
+      var have = {}; keys.forEach(function (r) { have[packKind(new URL(r.url).pathname)] = 1; });
+      return Promise.all(PACK_FILES.map(function (f) {
+        if (!have[packKind("/" + f)]) return null;
+        return c.match(f).then(function (hit) { return hit || fetch(new Request(f, { cache: "reload" })).then(function (r) { if (r.ok) return c.put(f, r); }); }).catch(function () { /* offline: the app asks again later */ });
+      }));
+    });
+  }).catch(function () { /* optional */ });
+}
+function prunePacks() {
+  if (!PACK_FILES.length) return Promise.resolve();
+  return caches.open(PACKS).then(function (c) {
+    return c.keys().then(function (keys) {
+      return Promise.all(keys.map(function (r) {
+        var p = new URL(r.url).pathname, cur = PACK_FILES.some(function (f) { return p.slice(-f.length) === f; });
+        if (cur) return null;
+        /* drop an old edition only when the new one is stored, so the pack never disappears while offline */
+        var kind = packKind(p), next = PACK_FILES.filter(function (f) { return packKind("/" + f) === kind; })[0];
+        return next ? c.match(next).then(function (hit) { return hit ? c.delete(r) : null; }) : c.delete(r);
+      }));
+    });
+  }).catch(function () { /* optional */ });
+}
 /* PRECACHE:START — tools/build.js replaces this block with the built file list */
 var DAYS = [];
 for (var i = 1; i <= 90; i++) DAYS.push("data/day" + (i < 10 ? "0" + i : i) + ".js");
@@ -25,13 +57,13 @@ self.addEventListener("install", function (e) {
   // never gets stored with a stale copy of the previous version's files.
   e.waitUntil(caches.open(SHELL).then(function (c) {
     return c.addAll(PRECACHE.map(function (u) { return new Request(u, { cache: "reload" }); }));
-  }).then(function () { return self.skipWaiting(); }));
+  }).then(refreshPacks).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener("activate", function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
     return Promise.all(keys.filter(function (k) { return k.indexOf("cb-shell-") === 0 && k !== SHELL; }).map(function (k) { return caches.delete(k); }));
-  }).then(function () { return self.clients.claim(); }));
+  }).then(prunePacks).then(function () { return self.clients.claim(); }));
 });
 
 self.addEventListener("fetch", function (e) {
@@ -53,6 +85,16 @@ self.addEventListener("fetch", function (e) {
   if (url.origin === location.origin && /\/vendor\/dict\/[^/]+\.js$/.test(url.pathname)) {
     e.respondWith(caches.open("cb-dict").then(function (c) {
       return c.match(req).then(function (hit) {
+        return hit || fetch(req).then(function (r) { if (r.ok) c.put(req, r.clone()); return r; });
+      });
+    }));
+    return;
+  }
+
+  // Optional content packs: cache-first, stored on first use (see PACKS above).
+  if (url.origin === location.origin && PACK_RE.test(url.pathname)) {
+    e.respondWith(caches.open(PACKS).then(function (c) {
+      return c.match(req, { ignoreSearch: true }).then(function (hit) {
         return hit || fetch(req).then(function (r) { if (r.ok) c.put(req, r.clone()); return r; });
       });
     }));

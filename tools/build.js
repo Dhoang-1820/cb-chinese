@@ -7,6 +7,9 @@
    - data/index.js   light start-up data: word lists + day titles + plan (what Home, Review and games need)
    - data/full.js    dialogues, grammar, exercises, quizzes — loaded on demand / in the background
    - data/mocks.js   the mock exams — loaded on demand / in the background
+   - data/hsk5.<hash>.js   HSK 5 words, grammar and drills — only fetched when the learner opens HSK 5
+   - data/hsk4x.<hash>.js  extra HSK 4 words, phrases, families, opposites — only fetched by the screens that show them
+                           (neither is precached; the service worker keeps them once fetched; audit.json is not shipped)
    - app.<hash>.js   all app scripts in one minified file
    - style.<hash>.css minified CSS
    - index.html / sw.js rewritten to use the files above; version stamped in sw.js and app */
@@ -79,7 +82,18 @@ const J = x => JSON.stringify(x);
 const sizes = {};
 sizes["data/index.js"] = write("data/index.js", minifyJS(
   "window.CB_BUNDLED=true;window.CB_PLAN=" + J(sb.window.CB_PLAN || []) + ";window.CB_DAYS=" + J(light) + ";window.CB_CORE=" + J(coreLight) + ";"));
-sizes["data/full.js"] = write("data/full.js", minifyJS("window.CB_FULL=" + J(full) + ";window.CB_CORE_EX=" + J(coreEx) + ";window.CB_GRAMMAR=" + J(sb.window.CB_GRAMMAR || []) + ";window.CB_DRILLS=" + J(sb.window.CB_DRILLS || {}) + ";"));
+load("drills_extra.js");
+sizes["data/full.js"] = write("data/full.js", minifyJS("window.CB_FULL=" + J(full) + ";window.CB_CORE_EX=" + J(coreEx) + ";window.CB_GRAMMAR=" + J(sb.window.CB_GRAMMAR || []) + ";window.CB_DRILLS=" + J(sb.window.CB_DRILLS || {}) + ";window.CB_DRILLS_EXTRA=" + J(sb.window.CB_DRILLS_EXTRA || {}) + ";"));
+// optional packs: one file each, named by content so the service worker can keep them cache-first
+fs.readdirSync(path.join(ROOT, "data", "hsk5")).filter(f => /^(words\d+|grammar|drills)\.js$/.test(f)).sort().forEach(f => load("hsk5/" + f));
+load("hsk4x/manifest.js");
+sb.window.CB_HSK4X_FILES.forEach(f => load("hsk4x/" + f));
+if (!(sb.window.CB_HSK5 || []).length || !(sb.window.CB_HSK4X || []).length) throw new Error("HSK 5 / hsk4x packs did not load");
+const h5Code = minifyJS("window.CB_HSK5=" + J(sb.window.CB_HSK5.slice().sort((a, b) => a.pack - b.pack)) + ";window.CB_HSK5_GRAMMAR=" + J(sb.window.CB_HSK5_GRAMMAR || []) + ";window.CB_HSK5_GRAMMAR_META=" + J(sb.window.CB_HSK5_GRAMMAR_META || {}) + ";window.CB_HSK5_DRILLS=" + J(sb.window.CB_HSK5_DRILLS || {}) + ";");
+const x4Code = minifyJS("window.CB_HSK4X=" + J(sb.window.CB_HSK4X) + ";");
+const h5Name = "hsk5." + hash(h5Code) + ".js", x4Name = "hsk4x." + hash(x4Code) + ".js";
+sizes["data/" + h5Name] = write("data/" + h5Name, h5Code);
+sizes["data/" + x4Name] = write("data/" + x4Name, x4Code);
 sizes["data/track.js"] = write("data/track.js", minifyJS("window.CB_TRACK=" + J((sb.window.CB_TRACK || []).slice().sort((a, b) => a.week - b.week)) + ";"));
 sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(sb.window.CB_MOCK) + ";"));
 
@@ -87,6 +101,9 @@ sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(s
 const APP_FILES = ["js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/content.js", "js/games.js", "js/app.js"];
 let app = APP_FILES.map(read).join("\n;\n").replace('var BUILD = "dev";', 'var BUILD = "' + VERSION + '";');
 if (!app.includes('var BUILD = "' + VERSION + '"')) throw new Error("BUILD marker not found in js/app.js");
+const PACK_MARK = 'var H5_FILE = "hsk5.js", X4_FILE = "hsk4x.js";';
+if (!app.includes(PACK_MARK)) throw new Error("pack file marker not found in js/app.js");
+app = app.replace(PACK_MARK, 'var H5_FILE = "' + h5Name + '", X4_FILE = "' + x4Name + '";');
 app = minifyJS(app);
 const appName = "app." + hash(app) + ".js";
 sizes[appName] = write(appName, app);
@@ -120,6 +137,8 @@ const precache = ["./", "index.html", cssName, appName, "manifest.webmanifest", 
 if (fs.existsSync(path.join(OUT, "icons", "splash"))) fs.readdirSync(path.join(OUT, "icons", "splash")).filter(f => /\.png$/.test(f)).sort().forEach(f => precache.push("icons/splash/" + f));
 precache.forEach(f => { if (f !== "./" && !fs.existsSync(path.join(OUT, f))) throw new Error("precache file missing: " + f); });
 sw = sw.slice(0, p0) + "var PRECACHE = " + J(precache) + ";" + sw.slice(p1 + "/* PRECACHE:END */".length);
+if (!sw.includes("var PACK_FILES = [];")) throw new Error("PACK_FILES marker missing in sw.js");
+sw = sw.replace("var PACK_FILES = [];", "var PACK_FILES = " + J(["data/" + h5Name, "data/" + x4Name]) + ";");
 write("sw.js", sw);
 
 // ---- report ----

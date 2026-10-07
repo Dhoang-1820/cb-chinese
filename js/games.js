@@ -75,7 +75,7 @@
     App.render(header(g) + '<div class="card result">' + UI.mascot(mood, 100) + "<h2>" + (extra && extra.title || "Score: " + score) + "</h2>" +
       '<p class="sub">' + (extra && extra.sub ? extra.sub + " · " : "") + "Best " + st.best + (isBest && st.plays > 1 ? " · New record!" : "") + "</p>" +
       '<p class="xp-earn">+' + (xp + bonus) + " XP" + (bonus ? ' <span class="tag t-sun">🎯 challenge +15</span>' : "") + "</p>" +
-      '<div class="actions center"><a class="btn primary" href="#/game/' + id + (extra && extra.arg ? "/" + extra.arg : "") + '" id="again">↻ Play again</a><a class="btn" href="#/games">All games</a></div></div>' +
+      '<div class="actions center"><a class="btn primary" href="#/game/' + id + (extra && extra.arg ? "/" + extra.arg : "") + '" id="again">↻ Play again</a>' + (extra && extra.back ? '<a class="btn" href="' + extra.back[0] + '">' + extra.back[1] + "</a>" : '<a class="btn" href="#/games">All games</a>') + "</div></div>" +
       (extra && extra.review ? extra.review : ""), "game");
     document.getElementById("again").onclick = function (e) { e.preventDefault(); run(id, extra && extra.arg); };
     if (isBest || bonus) UI.confetti(120);
@@ -93,7 +93,9 @@
     var t = types[Math.floor(Math.random() * types.length)];
     if (t === "aud" && !Audio2.has(w.hanzi)) t = "m2h";
     if (t === "h2p" && !w.pinyin) t = "h2m"; // own words may have no pinyin
-    return { w: w, t: t, opts: A().shuffle([w].concat(pickOthers(w, A().WORDS, 3))) };
+    /* wrong options come from the same kind of word: HSK 5 words for an HSK 5 word, everything else for the rest */
+    var pool = A().WORDS.filter(function (o) { return (o._pk === "h5") === (w._pk === "h5"); });
+    return { w: w, t: t, opts: A().shuffle([w].concat(pickOthers(w, pool, 3))) };
   }
   function qHTML(q) {
     var App = A(), w = q.w, prompt, optF;
@@ -416,10 +418,13 @@
   /* ---------- 6. Quick Quiz ---------- */
   function quick(arg) {
     var App = A(), g = BY.quick, set = /^k\d+$/.test(arg || "") && App.COREMAP[parseInt(arg.slice(1), 10)];
+    var pa = App.packFromArg(arg), pack = pa && pa.pack; // a word pack (HSK 5 or extra HSK 4 words): 10 questions, the result is kept with the pack
+    if (pack) { set = { words: App.shuffle(pack.words).slice(0, 10) }; if (!RUN.exit) RUN.exit = "#/pack/" + pa.kind + "/" + pa.n; }
     var pool = App.shuffle(set ? set.words : App.studiedWords()).slice(0, set ? set.words.length : 10), i = 0, score = 0;
     var types = Audio2.available() ? ["h2m", "m2h", "h2p", "aud"] : ["h2m", "m2h", "h2p"];
     function draw() {
-      if (i >= pool.length) return finish("quick", score, score * 2, { title: score + " / " + pool.length, arg: set ? arg : "", mood: score >= pool.length * 0.8 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad" });
+      if (i >= pool.length && pack) App.packQuizDone(pa.kind, pa.n, score, pool.length);
+      if (i >= pool.length) return finish("quick", score, score * 2, { title: score + " / " + pool.length, arg: set ? arg : "", back: pack ? ["#/pack/" + pa.kind + "/" + pa.n, "Back to the pack"] : null, sub: pack ? (score >= pool.length * 0.8 ? "Pack finished ✓" : "Get " + Math.ceil(pool.length * 0.8) + " or more to finish the pack") : "", mood: score >= pool.length * 0.8 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad" });
       var q = makeQ(pool[i], i === 0 ? types.filter(function (t) { return t !== "aud"; }) : types);
       if (pool[i + 1]) Audio2.prefetch(pool[i + 1].hanzi);
       App.render(header(g, "⭐ " + score) + bar(i, pool.length) + qHTML(q), "game");

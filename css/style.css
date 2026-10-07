@@ -1175,3 +1175,12 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .tip .tip-t small { display: block; color: var(--muted); font-weight: 800; font-size: .75rem; }
 .tip .btn { flex: none; }
 .su-note { margin: 12px 0 0; text-align: left; }
+
+/* level switch (Learn), HSK 5 note, word-pack extras */
+.lvl-sw { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin: 0 0 10px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
+.lvl-sw button { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 900; min-height: 44px; border-radius: 12px; cursor: pointer; }
+.lvl-sw button.on { background: var(--g-violet); color: #fff; }
+.h5-note { margin: 0 0 12px; padding: 8px 12px; border-radius: 12px; background: #fff7e0; color: #6b4a00; font-size: .85rem; font-weight: 700; }
+[data-theme="dark"] .h5-note { background: #3a2f18; color: #ffe1a6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .h5-note { background: #3a2f18; color: #ffe1a6; } }
+.w-flag { display: inline-block; margin-top: 8px; min-height: 32px; font-size: .82rem; }

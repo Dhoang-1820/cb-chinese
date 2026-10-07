@@ -468,7 +468,7 @@ function reportResult(v: any, token: string, turns: number) {
 }
 
 async function contentTask(task: string, body: any, req: Request, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response | null> {
-  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide"].indexOf(task) < 0) return null;
+  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide", "learners_list", "learner_label"].indexOf(task) < 0) return null;
   if (!deps.db) return reply(500, { ok: false, error: "not_configured" }, h);
   const lang: Lang = body.lang === "vi" || body.lang === "en" ? body.lang : "both";
   const p = body.payload && typeof body.payload === "object" ? body.payload : {};
@@ -519,6 +519,17 @@ async function contentTask(task: string, body: any, req: Request, env: Record<st
     const aip = clientIp(req);
     if (aip && tooManyFails(aip)) return reply(429, { ok: false, error: "busy" }, h);
     if (!(await adminOk(req, env))) { if (aip) noteFail(aip); return reply(401, { ok: false, error: "bad_admin" }, h); }
+    // Admin view of the progress backups: numbers only (meta + study summary), never the full progress.
+    if (task === "learners_list") {
+      const rows = await deps.db("GET", "learners?select=id,created_at,updated_at,rev,meta,summary&order=updated_at.desc&limit=50");
+      return reply(200, { ok: true, task, result: { rows: (rows || []).map((r: any) => ({ id: r.id, created_at: r.created_at, updated_at: r.updated_at, rev: r.rev, meta: r.meta || {}, summary: r.summary || null })) } }, h);
+    }
+    if (task === "learner_label") {
+      const lid = str(p.id, 64); if (!/^[a-f0-9]{64}$/.test(lid)) return reply(400, { ok: false, error: "bad_id" }, h);
+      const cur = await deps.db("GET", "learners?id=eq." + lid + "&select=meta&limit=1"); if (!cur || !cur[0]) return reply(404, { ok: false, error: "no_backup" }, h);
+      await deps.db("PATCH", "learners?id=eq." + lid, { meta: { ...(cur[0].meta || {}), label: str(p.label, 30) } });
+      return reply(200, { ok: true, task, result: { id: lid, label: str(p.label, 30) } }, h);
+    }
     if (task === "review_list") {
       const st = ["proposed", "needs_review", "dismissed", "accepted", "rejected"].indexOf(p.status) >= 0 ? p.status : "proposed";
       const rows = await deps.db("GET", "content_reports?select=id,created_at,ref,route,note,snapshot,status,verdict,patch,quarantine&status=eq." + st + "&order=id.desc&limit=40&offset=" + Math.max(0, Math.min(2000, parseInt(p.offset, 10) || 0)));
@@ -578,6 +589,7 @@ async function syncTask(task: string, body: any, req: Request, env: Record<strin
     const meta = cleanMeta(p.meta), now = new Date().toISOString();
     let summary: unknown = null; try { const t = JSON.stringify(p.summary ?? null); if (t.length <= 4000 && p.summary && typeof p.summary === "object") summary = JSON.parse(t); } catch (_e) { summary = null; }
     const rows = await deps.db("GET", where + "&select=rev,updated_at,meta&limit=1"), row = rows && rows[0];
+    if (row && row.meta && typeof row.meta.label === "string") meta.label = row.meta.label.slice(0, 30); // the name the admin gave this learner survives every save
     if (!row) {
       const max = Math.max(1, parseInt(env.SYNC_MAX_LEARNERS || "20", 10) || 20);
       const all = await deps.db("GET", "learners?select=id&limit=" + (max + 1));
@@ -587,8 +599,9 @@ async function syncTask(task: string, body: any, req: Request, env: Record<strin
     }
     // another phone saved since this one last looked: never overwrite silently, let the learner choose
     if (p.force !== true && row.rev !== p.rev) return reply(200, { ok: true, task, result: { conflict: true, rev: row.rev, updated_at: row.updated_at, meta: row.meta || {} } }, h);
-    await deps.db("PATCH", where, { rev: row.rev + 1, data: d, meta, summary, updated_at: now });
-    return reply(200, { ok: true, task, result: { rev: row.rev + 1, updated_at: now } }, h);
+    const next = row.rev + 1;
+    await deps.db("PATCH", where, { rev: next, data: d, meta, summary, updated_at: now });
+    return reply(200, { ok: true, task, result: { rev: next, updated_at: now } }, h);
   } catch (_e) { return reply(502, { ok: false, error: "db_error" }, h); }
 }
 

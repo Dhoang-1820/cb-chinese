@@ -1549,17 +1549,53 @@
       document.getElementById("fx-save").onclick = function () { var v = document.getElementById("fx-code").value.trim(); if (v.length < 12) { document.getElementById("fx-msg").textContent = "At least 12 characters."; return; } Content.setAdminCode(v); viewFixes(); };
       return;
     }
-    var tabs = [["proposed", "Proposed"], ["needs_review", "Needs a look"], ["dismissed", "AI disagreed"], ["accepted", "Accepted"]];
+    var tabs = [["proposed", "Proposed"], ["needs_review", "Needs a look"], ["dismissed", "AI disagreed"], ["accepted", "Accepted"], ["learners", "👥 Learners"]];
     render(html0 + '<div class="fx-tabs">' + tabs.map(function (t) { return '<button class="btn small' + (t[0] === FIX_TAB ? " primary" : "") + '" data-fxtab="' + t[0] + '">' + t[1] + "</button>"; }).join("") + '</div><div id="fx-list"><p class="empty">Loading…</p></div><div class="actions"><button class="btn small" id="fx-forget">Forget reviewer code</button></div></section>', "me");
     [].forEach.call(document.querySelectorAll("[data-fxtab]"), function (b) { b.onclick = function () { FIX_TAB = b.getAttribute("data-fxtab"); viewFixes(); }; });
     document.getElementById("fx-forget").onclick = function () { Content.setAdminCode(""); viewFixes(); };
     var list = document.getElementById("fx-list");
+    if (FIX_TAB === "learners") { learnersList(list); return; }
     Content.admin("review_list", { status: FIX_TAB }).then(function (r) {
       if (!r.ok) { list.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(r.error)) + "</div>"; if (r.error === "bad_admin") { Content.setAdminCode(""); viewFixes(AI.errMsg("bad_admin")); } return; }
       var rows = r.result.rows || [];
       if (!rows.length) { list.innerHTML = '<p class="empty">Nothing here.</p>'; return; }
       list.innerHTML = rows.map(fixCard).join("");
       rows.forEach(wireFix);
+    });
+  }
+  /* Admin: one card per phone that keeps a cloud backup. Numbers only; the server never sends the full progress here. */
+  function agoText(iso) {
+    var ms = Date.now() - new Date(iso).getTime(); if (!isFinite(ms)) return "unknown";
+    var h = Math.floor(ms / 36e5); return h < 1 ? "less than an hour ago" : h < 24 ? h + " h ago" : Math.floor(h / 24) + " d ago";
+  }
+  function learnerCard(r, i) {
+    var m = r.meta || {}, sm = r.summary, name = m.label || "Learner " + String(r.id).slice(0, 6), out = "";
+    function hr(x) { return typeof x === "number" ? (x < 10 ? "0" : "") + x + ":00" : "not measured yet"; }
+    if (sm) {
+      out += '<p class="sub">Study days: <b>' + (sm.active28 || 0) + "</b> of the last " + (sm.span || 0) + " · longest gap " + (sm.longestGap || 0) + " d" + (sm.skipDay ? " · often skips " + esc(sm.skipDay) : "") + " · goal " + (sm.goalDays || 0) + " days a week</p>" +
+        '<p class="sub">Usually starts at ' + hr(sm.usualHour) + " (plan " + hr(sm.planHour) + ") · " + (sm.minutes == null ? "minutes not measured yet" : sm.minutes + " min per study day") + "</p>";
+      if ((sm.trend || []).length) out += '<p class="sub">Weakest skills, last 14 days: ' + sm.trend.slice(0, 3).map(function (t) { return esc(t.skill) + " <b>" + t.acc + "%</b>" + (t.before == null ? "" : " (was " + t.before + "%)"); }).join(" · ") + "</p>";
+      if ((sm.patterns || []).length) out += '<p class="sub">Mistake patterns: ' + sm.patterns.map(function (p) { return (p.kind === "skill" ? esc(p.skill) : "same items missed again") + " ×" + p.n; }).join(" · ") + "</p>";
+      if (sm.plan && (sm.plan.actions || []).length) out += '<p class="sub">Coach\'s plan (week of ' + esc(sm.plan.w) + "): " + sm.plan.actions.filter(function (a) { return a.done; }).length + "/" + sm.plan.actions.length + ' done</p><ul class="plan-l">' +
+        sm.plan.actions.map(function (a) { return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">Done: </span>' : "") + esc(a.text) + "</span></li>"; }).join("") + "</ul>";
+      else out += '<p class="sub">No coach plan yet.</p>';
+    } else out = '<p class="sub">No study summary yet (this phone has an older app version).</p>';
+    return '<div class="fix lrn"><div class="sec-h"><b>' + esc(name) + '</b><span class="muted">saved ' + esc(agoText(r.updated_at)) + '</span></div><p class="sub"><b>' + (m.xp || 0) + " XP</b> · streak " + (m.streak || 0) + " · " + (m.words || 0) + " words · last study " + esc(m.last || "never") + "</p>" + out +
+      '<div class="actions"><button class="btn small" data-lrn="' + i + '">Rename</button></div></div>';
+  }
+  function learnersList(list) {
+    Content.admin("learners_list", {}).then(function (r) {
+      if (!r.ok) { list.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(r.error)) + "</div>"; if (r.error === "bad_admin") { Content.setAdminCode(""); viewFixes(AI.errMsg("bad_admin")); } return; }
+      var rows = r.result.rows || [];
+      if (!rows.length) { list.innerHTML = '<p class="empty">No phone has saved a backup yet.</p>'; return; }
+      list.innerHTML = '<p class="sub">' + rows.length + " phone" + (rows.length === 1 ? "" : "s") + " with a cloud backup. You see numbers only, never answers or notes.</p>" + rows.map(learnerCard).join("");
+      [].forEach.call(list.querySelectorAll("[data-lrn]"), function (b) {
+        b.onclick = function () {
+          var row = rows[+b.getAttribute("data-lrn")], v = window.prompt("Name for this learner (only you see it)", (row.meta || {}).label || "");
+          if (v == null) return;
+          Content.admin("learner_label", { id: row.id, label: v.trim().slice(0, 30) }).then(function (x) { if (x.ok) learnersList(list); else UI.toast(AI.errMsg(x.error), "⚠️"); });
+        };
+      });
     });
   }
   function fixCard(r) {
@@ -2753,7 +2789,8 @@
     }).sort(function (a, b) { return a.acc - b.acc; }).slice(0, 8);
     return { span: span, active28: act28, longestGap: longest, skipDay: span >= 14 && miss[worst] >= 2 ? WD[worst] : "", usualHour: usual, planHour: parseInt(String(s.settings.remindTime || "").slice(0, 2), 10),
       minutes: days.length ? Math.round(mins / days.length) : null, sessions: days.length ? Math.round(ses / days.length * 10) / 10 : null, logDays: days.length, goalDays: s.settings.weeklyDays || 5, trend: trend,
-      patterns: Learn.patterns(3).map(function (p) { return { kind: p.type, skill: p.skill ? (AI.SKILL_NAMES[p.skill] || p.skill) : "", n: p.n }; }) };
+      patterns: Learn.patterns(3).map(function (p) { return { kind: p.type, skill: p.skill ? (AI.SKILL_NAMES[p.skill] || p.skill) : "", n: p.n }; }),
+      plan: (function () { var c = coachLast(); return c ? { w: c.w, actions: coachStatus(c).map(function (a) { return { text: a.text.slice(0, 200), skill: AI.SKILL_NAMES[a.skill] || a.skill, done: a.done }; }) } : null; })() };
   }
 
   /* ---------- AI weekly coach (Progress), with memory of its last advice ---------- */

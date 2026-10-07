@@ -48,7 +48,7 @@ const db = async (method, path, body) => {
     if (method === "POST") { lrn.push({ ...body }); return null; }
     if (method === "PATCH") { if (i >= 0) Object.assign(lrn[i], body); return null; }
     if (method === "DELETE") { if (i >= 0) lrn.splice(i, 1); return null; }
-    return m ? (i >= 0 ? [lrn[i]] : []) : lrn.slice();
+    return JSON.parse(JSON.stringify(m ? (i >= 0 ? [lrn[i]] : []) : lrn)); // copies, like a real database
   }
   if (method === "POST") { rows.push({ id: nid++, created_at: new Date().toISOString(), ...body }); return null; }
   if (method === "PATCH") { const id = +/id=eq\.(\d+)/.exec(path)[1]; Object.assign(rows.find((r) => r.id === id), body); return null; }

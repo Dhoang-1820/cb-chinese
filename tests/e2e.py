@@ -9,7 +9,7 @@ Environment: BASE (default http://localhost:8766/) and AI_URL (default http://lo
 Nothing here depends on today's date: exam dates and study logs are set relative to "today".
 The script exits with 1 when any check fails.
 """
-import asyncio, datetime, json, os, sys
+import asyncio, datetime, itertools, json, os, sys
 from playwright.async_api import async_playwright
 
 BASE = os.environ.get("BASE", "http://localhost:8766/")
@@ -740,7 +740,127 @@ async def t_grammar5(b):
     await ctx.close()
 
 
-GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+ZH_TAGGED = "(()=>{const l=[...document.querySelectorAll('#app .zh, #app .hz')];return l.length>0&&l.every(e=>e.lang==='zh-CN')})()"
+
+
+async def t_practice5(b):
+    ctx, pg = await open_app(b, {"settings": settings(level=5, h5=True), "srs": {}})
+    await go(pg, "#/learn/h5p", 300); await pg.wait_for_selector(".grow", timeout=15000)
+    txt = await pg.inner_text("#app")
+    check("HSK 5 practice: four games listed with the note", await pg.locator(".grow").count() == 4 and "not yet checked by a teacher" in txt and "96 questions" in txt and "110 questions" in txt, txt[:300])
+    await pg.locator(".grow").first.click(); await pg.wait_for_selector(".opts")
+    check("HSK 5 practice: the game opens on the HSK 5 set", await pg.evaluate("location.hash") == "#/game/confuse/h5" and "HSK 5 · Confusable Words" in await pg.inner_text(".ghead"))
+    for i in range(10):
+        ans = await pg.evaluate("(()=>{const q=document.querySelector('#qcard .q').textContent;const it=CB_HSK5_DRILLS.confuse.find(x=>x.q===q);return it?it.answer:null})()")
+        if i == 0:
+            check("HSK 5 round: the question comes from the HSK 5 data and its Chinese is tagged", ans is not None and await pg.evaluate(ZH_TAGGED))
+        await pg.click(".opt[data-k='%s']" % ans)
+        if i == 0:
+            ref = await pg.locator("#qfb .w-flag").get_attribute("data-flag")
+            check("HSK 5 round: the answer has a report link that resolves", bool(ref) and ref.startswith("drill:h5c") and await pg.evaluate("!!Content.resolve(%s)&&!!Content.snapshot(%s)" % (json.dumps(ref), json.dumps(ref))), ref)
+        await pg.click("#qnext"); await pg.wait_for_timeout(120)
+    await pg.wait_for_selector(".result"); await no_dialogs(pg)
+    gs = await pg.evaluate("Store.state.games"); sk = await pg.evaluate("Object.keys(Store.state.skills)")
+    check("HSK 5 round: score and plays are kept apart from HSK 4", gs.get("confuse5") == {"best": 10, "plays": 1} and "confuse" not in gs, gs)
+    check("HSK 5 round: counted under an HSK 5 skill, with XP for the daily goal", sk == ["h5-confusable"] and await pg.evaluate("Store.state.xp") == 20 and await pg.evaluate("Store.state.log[Store.today()]") == 20, sk)
+    check("HSK 5 round: readiness for the HSK 4 exam is untouched", await pg.evaluate("Sync.summary().progress.ready") is None and await pg.evaluate("Sync.summary().trend.length") == 0)
+    check("HSK 5 round: the result leads back to HSK 5 practice", await pg.locator(".result a[href='#/learn/h5p']").count() == 1 and await pg.locator("#again").get_attribute("href") == "#/game/confuse/h5")
+    await go(pg, "#/game/order/h5", 300); await pg.wait_for_selector(".opts")
+    it = await pg.evaluate("(()=>{const a=document.querySelector('.abc .zh').textContent;return CB_HSK5_DRILLS.order.find(x=>x.parts.A===a)})()")
+    await pg.click(".opt[data-k='%s']" % it["answer"])
+    check("HSK 5 sentence order: the answer shows the full sentence with its full stop", it["zh"] in await pg.inner_text("#qfb"), await pg.inner_text("#qfb"))
+    await go(pg, "#/game/measure/h5", 300); await pg.wait_for_selector(".opts")
+    check("HSK 5 measure words: four options", await pg.locator(".opt").count() == 4)
+    await go(pg, "#/game/picture/h5", 300); await pg.wait_for_selector("#pw")
+    check("HSK 5 picture writing opens", await pg.locator("#pw-check").count() == 1)
+    await go(pg, "#/learn/h5p", 500)
+    check("HSK 5 practice: the list shows the best score", "Best 10" in await pg.locator(".grow").first.inner_text())
+    await go(pg, "#/game/confuse", 600); await pg.wait_for_selector(".opts")
+    ans = await pg.evaluate("(()=>{const q=document.querySelector('#qcard .q').textContent;const it=CB_DRILLS.confuse.find(x=>x.q===q);return it?it.answer:null})()")
+    await pg.click(".opt[data-k='%s']" % ans)
+    check("HSK 4 game is unchanged: HSK 4 data, HSK 4 skill, no extra report link", ans is not None and "confusable" in await pg.evaluate("Object.keys(Store.state.skills)") and await pg.locator("#qfb .w-flag").count() == 0)
+    await ctx.close()
+
+
+def order_for(tokens, target):
+    """Indexes of the tokens in the order that spells target."""
+    for perm in itertools.permutations(range(len(tokens))):
+        if "".join(tokens[i] for i in perm) == target: return list(perm)
+    return None
+
+
+async def t_newgames(b):
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    await go(pg, "#/games", 600)
+    check("games: Word Bank and Arrange the Words are listed", await pg.locator(".grow[href='#/game/bank']").count() == 1 and await pg.locator(".grow[href='#/game/wordorder']").count() == 1)
+    # --- arrange the words: one wrong answer, then right ones (an 'alt' order when the item has one)
+    await pg.click(".grow[href='#/game/wordorder']"); await pg.wait_for_selector("#pool .piece")
+    check("arrange the words: Chinese is tagged and focus is on the screen", await pg.evaluate(ZH_TAGGED) and await pg.evaluate("document.activeElement&&document.activeElement.id") == "app")
+    used_alt = False; wrong_id = None
+    for i in range(8):
+        pieces = await pg.evaluate("[...document.querySelectorAll('#pool .piece')].map(e=>e.textContent)")
+        it = await pg.evaluate("p=>CB_DRILLS_EXTRA.wordorder.find(x=>x.tokens.slice().sort().join('|')===p.slice().sort().join('|'))", pieces)
+        if i == 0:
+            check("arrange the words: tokens are shuffled", it is not None and pieces != it["tokens"], pieces)
+            target = "".join(reversed(it["tokens"])); wrong_id = it["id"]
+        elif it.get("alt"):
+            target = it["alt"][0]; used_alt = True
+        else:
+            target = it["answer"]
+        order = order_for(it["tokens"], target) or list(range(len(it["tokens"])))
+        taken = []
+        for k in order:  # tap the piece that carries this token (the same text can appear twice)
+            idx = next(j for j, t in enumerate(pieces) if t == it["tokens"][k] and j not in taken); taken.append(idx)
+            await pg.locator("#pool .piece").nth(idx).click()
+        if i == 0:
+            check("arrange the words: Check unlocks when every word is placed", await pg.locator("#chk").is_enabled() and await pg.locator("#ans .piece").count() == len(pieces))
+        await pg.click("#chk"); await pg.wait_for_timeout(100)
+        fb = await pg.inner_text("#qfb")
+        if i == 0:
+            check("arrange the words: a wrong order shows the right sentence, the pattern and a report link", "Correct order" in fb and it["answer"] in fb and "Pattern" in fb and await pg.locator("#qfb .w-flag").get_attribute("data-flag") == "drill:" + it["id"], fb[:200])
+        elif not fb.startswith("✓"):
+            check("arrange the words: answer accepted (%s)" % it["id"], False, fb[:120])
+        await pg.click("#chk"); await pg.wait_for_timeout(120)
+    await pg.wait_for_selector(".result"); await no_dialogs(pg)
+    st = await pg.evaluate("Store.state"); 
+    check("arrange the words: a full round is scored 7 of 8, with XP", st["games"].get("wordorder") == {"best": 7, "plays": 1} and "7 / 8" in await pg.inner_text(".result") and st["xp"] == 14, st["games"])
+    check("arrange the words: counts as word order, the miss goes to the notebook", st["skills"].get("word-order") == {"r": 7, "w": 1} and ("dr:wordorder:" + wrong_id) in st["mistakes"], st["skills"])
+    alts = await pg.evaluate("CB_DRILLS_EXTRA.wordorder.filter(x=>x.alt&&x.alt.length).length")
+    check("arrange the words: the data has items with a second correct order", alts > 0, alts)
+    await go(pg, "#/mistakes/word-order", 900)
+    check("notebook: the missed sentence can be practised again", await pg.locator("#pool .piece").count() >= 3)
+    # an 'alt' order is accepted (always checked, whatever the shuffle picked above)
+    ok = await pg.evaluate("""(()=>{const it=CB_DRILLS_EXTRA.wordorder.find(x=>x.alt&&x.alt.length);const q=Games._drillQ('wordorder',it);App.render(q.html,'game');let res=null;q.wire(v=>{res=v});
+      const want=it.alt[0];let rest=want;const pool=[...document.querySelectorAll('#pool .piece')];
+      const go=(s,usedIdx)=>{if(!s)return usedIdx;for(let j=0;j<pool.length;j++){if(usedIdx.indexOf(j)>=0)continue;const t=pool[j].textContent;if(s.indexOf(t)===0){const r=go(s.slice(t.length),usedIdx.concat([j]));if(r)return r;}}return null};
+      const seq=go(want,[]);if(!seq)return 'no order';seq.forEach(j=>pool[j].click());document.getElementById('chk').click();const good=document.querySelector('#qfb .qexp').classList.contains('ok');document.getElementById('chk').click();return good&&res===true})()""")
+    check("arrange the words: an 'alt' order is accepted", ok is True, ok)
+    # --- word bank: two groups of five sentences
+    await go(pg, "#/game/bank", 600); await pg.wait_for_selector(".opts.bank")
+    check("word bank: six words to choose from, Chinese tagged", await pg.locator(".opts.bank .opt").count() == 6 and await pg.evaluate(ZH_TAGGED))
+    seen_groups = []; used_ok = True
+    for i in range(10):
+        it = await pg.evaluate("(()=>{const q=document.querySelector('#qcard .q').textContent;for(const g of CB_DRILLS_EXTRA.bank){const x=g.items.find(y=>y.q===q);if(x)return {g:g.id,n:x.n,answer:x.answer}}return null})()")
+        if it["g"] not in seen_groups: seen_groups.append(it["g"])
+        nth = i % 5  # sentences already answered in this group
+        used_ok = used_ok and await pg.locator(".opts.bank .opt.used").count() == nth and await pg.locator(".opts.bank .opt:disabled").count() == nth
+        await pg.click(".opts.bank .opt[data-k='%d']" % it["answer"])
+        if i == 0:
+            ref = await pg.locator("#qfb .w-flag").get_attribute("data-flag")
+            snap = await pg.evaluate("Content.snapshot(%s)" % json.dumps(ref))
+            check("word bank: the report link names the sentence and carries the six words", ref == "drill:%s:%d" % (it["g"], it["n"]) and bool(snap) and len(snap.get("bank", [])) == 6 and snap.get("answer") == it["answer"], (ref, snap))
+        await pg.click("#qnext"); await pg.wait_for_timeout(120)
+    await pg.wait_for_selector(".result"); await no_dialogs(pg)
+    st = await pg.evaluate("Store.state")
+    check("word bank: words already used in a group are crossed out", used_ok and len(seen_groups) == 2, seen_groups)
+    check("word bank: a full round of 10 is scored, with XP", st["games"].get("bank") == {"best": 10, "plays": 1} and "10 / 10" in await pg.inner_text(".result"), st["games"])
+    check("word bank: counts as choosing the right word", st["skills"].get("fill-word") == {"r": 10, "w": 0}, st["skills"])
+    await go(pg, "#/games", 500)
+    check("games: both new games show their best score", "Best 10" in await pg.locator(".grow[href='#/game/bank']").inner_text() and "Best 7" in await pg.locator(".grow[href='#/game/wordorder']").inner_text())
+    await ctx.close()
+
+
+GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

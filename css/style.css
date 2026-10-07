@@ -1188,3 +1188,6 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .g-filter .search { margin: 0; }
 .g-filter .vtoggle { justify-self: start; margin: 0; }
 .gitem[hidden] { display: none; }
+.opts.bank { grid-template-columns: 1fr 1fr; }
+.opts.bank .opt { justify-content: center; text-align: center; }
+.opt.used { opacity: .45; text-decoration: line-through; }

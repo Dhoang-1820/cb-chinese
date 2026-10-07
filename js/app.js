@@ -1112,10 +1112,21 @@
     };
   }
 
+  /* HSK 5 practice: the four drill games on the HSK 5 sets; best scores are kept apart from HSK 4 (games.confuse5, ...) */
+  function viewH5Practice() {
+    var D = window.CB_HSK5_DRILLS || {}, s = Store.state;
+    render(h5Seg("practice") + '<section class="card g-coral"><h2>🎯 HSK 5 practice</h2><p class="sub">The same four games, with HSK 5 questions. Scores here are kept apart from your HSK 4 scores.</p></section><div class="glist">' +
+      ["confuse", "order", "picture", "measure"].map(function (id) {
+        var g = Games.LIST.filter(function (x) { return x.id === id; })[0], st = s.games[id + "5"] || {};
+        return '<a class="grow" href="#/game/' + id + '/h5"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + g.name + "</b><small>" + (D[id] || []).length + " questions · " + esc(Games.H5_DESC[id]) + "</small></span>" +
+          (st.plays ? '<span class="g-best">Best ' + st.best + "</span>" : '<span class="g-go">▶</span>') + "</a>";
+      }).join("") + "</div>", "learn");
+  }
   function viewLearn(sub) {
     if (sub === "core" || sub === "found") return viewCoreList(sub);
     if (sub === "mine") return viewMine();
     if (sub === "h5" || (!sub && Store.state.settings.level === 5)) return viewH5Words();
+    if (sub === "h5p") return viewH5Practice();
     if (sub === "extra") return viewExtraList();
     var st = Store.state, plan = window.CB_PLAN || [], mode = learnMode();
     var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb") +
@@ -3920,7 +3931,7 @@
 
   window.App = {
     esc: esc, M: M, PY: PY, SAY: SAY, shuffle: shuffle, render: render, setKeys: setKeys, typing: typing, rect: rect, norm: norm,
-    dayWords: dayWords, studiedWords: studiedWords, levelBadge: levelBadge, refreshChrome: refreshChrome,
+    dayWords: dayWords, studiedWords: studiedWords, levelBadge: levelBadge, SAYX: SAYX, refreshChrome: refreshChrome,
     markWork: markWork, resetWork: function () { workDone = false; }, packFromArg: packFromArg, packQuizDone: packQuizDone, h5Loaded: h5Loaded, x4Loaded: x4Loaded, ensureH5: ensureH5, ensureX4: ensureX4, get CORE() { return CORE; }, get COREMAP() { return COREMAP; }, get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }
   };
   boot();

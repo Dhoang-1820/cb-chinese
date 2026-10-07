@@ -17,9 +17,13 @@
     { id: "order", icon: "🔀", name: "Sentence Order", desc: "Put A B C in order · Reading part 2", cls: "g-blue" },
     { id: "picture", icon: "🖼️", name: "Picture Writing", desc: "One word + a picture → a sentence · Writing part 2", cls: "g-teal" },
     { id: "coach", icon: "🧑‍🏫", name: "Paragraph Coach", desc: "Write 2-4 sentences · AI feedback & recurring mistakes · Writing practice", cls: "g-coral" },
-    { id: "measure", icon: "📏", name: "Measure Words", desc: "一份合同 · 办手续 · 提出意见", cls: "g-violet" }
+    { id: "measure", icon: "📏", name: "Measure Words", desc: "一份合同 · 办手续 · 提出意见", cls: "g-violet" },
+    { id: "bank", icon: "🗃️", name: "Word Bank", desc: "Six words, five gaps · Reading part 1", cls: "g-blue" },
+    { id: "wordorder", icon: "🧱", name: "Arrange the Words", desc: "Tap the words into a sentence · Writing part 1", cls: "g-teal" }
   ];
-  var DRILL_SKILL = { confuse: "confusable", order: "ordering", picture: "writing", measure: "measure" };
+  /* skill each drill set counts towards; the HSK 5 sets use the same names with "h5-" in front (see js/learn.js) */
+  var DRILL_SKILL = { confuse: "confusable", order: "ordering", picture: "writing", measure: "measure", bank: "fill-word", wordorder: "word-order" };
+  var H5_DESC = { confuse: "保持, 维持 or 坚持? 10 questions", order: "One sentence in three parts · Writing part 1", picture: "One word + a picture → a sentence · Writing part 2", measure: "Fill the gap in a full sentence" };
   var BY = {}; LIST.forEach(function (g) { BY[g.id] = g; });
 
   function challenge() {
@@ -32,7 +36,7 @@
   var GROUPS = [
     ["Words", ["speed", "race", "quick", "listen", "boss"]],
     ["Listening and writing", ["drill", "write", "type", "picture", "coach"]],
-    ["Grammar and exam skills", ["builder", "order", "confuse", "measure"]]
+    ["Grammar and exam skills", ["builder", "wordorder", "order", "bank", "confuse", "measure"]]
   ];
   function hub() {
     var App = A(), ch = challenge(), s = Store.state, chDone = !!s.challenges[Store.today()];
@@ -56,7 +60,7 @@
     RUN = opts || {};
     if (!RUN.onDone && A().resetWork) A().resetWork(); // "Play again" starts a new round
     ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick, drill: drill, write: write, type: typeGame,
-       confuse: drillGame, order: drillGame, picture: drillGame, measure: drillGame, coach: coachGame })[id](arg, id);
+       confuse: drillGame, order: drillGame, picture: drillGame, measure: drillGame, bank: drillGame, wordorder: drillGame, coach: coachGame })[id](arg, id);
   }
 
   /* ---------- shared ---------- */
@@ -64,9 +68,11 @@
     return '<div class="ghead"><a class="pill" href="' + (RUN.exit || "#/games") + '">✕</a><b>' + g.icon + " " + g.name + '</b><span class="ghr" id="ghr">' + (right || "") + "</span></div>";
   }
   var RUN = {}; // options for the current run: { count, onDone, exit } (used by Today's session)
+  /* extra.sid: where best score and plays are kept when it is not the game id (HSK 5 rounds: "confuse5", ...) · extra.head: header title */
   function finish(id, score, xp, extra) {
-    if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; Store.game(id).plays++; Store.save(); Game.award(xp, { silent: true }); cb(score); return; }
-    var App = A(), g = BY[id], st = Store.game(id), s = Store.state, isBest = score > st.best;
+    var sid = extra && extra.sid || id;
+    if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; Store.game(sid).plays++; Store.save(); Game.award(xp, { silent: true }); cb(score); return; }
+    var App = A(), g = extra && extra.head || BY[id], st = Store.game(sid), s = Store.state, isBest = score > st.best;
     st.plays++; st.best = Math.max(st.best, score);
     var bonus = 0, ch = challenge();
     if (ch.id === id && !s.challenges[Store.today()]) { s.challenges[Store.today()] = true; bonus = 15; }
@@ -505,23 +511,38 @@
 
   var LADDER = [0.9, 1, 1.15, 1.3];
 
-  /* ---------- 10. HSK 4 drills: confusable words, sentence order, picture writing, measure words ---------- */
-  function drillItems(type) { return ((window.CB_DRILLS || {})[type] || []).filter(function (it) { return !(window.Content && Content.isHidden("drill:" + it.id)); }); }
-  /* One drill question → { html, wire(done) }. Used by the drill games and by the mistake notebook. */
-  function drillQ(type, it) {
-    var App = A(), esc = App.esc, key = "dr:" + type + ":" + it.id, meta = { kind: "drill", skill: DRILL_SKILL[type], d: type, id: it.id };
+  /* ---------- 10. Drills: confusable words, sentence order, picture writing, measure words (HSK 4 and HSK 5),
+     plus two HSK 4 sets from data/drills_extra.js: word bank (reading part 1) and arrange the words (writing part 1) ---------- */
+  function drillSrc(type, lvl) {
+    if (lvl === 5) return ((window.CB_HSK5_DRILLS || {})[type]) || [];
+    var X = window.CB_DRILLS_EXTRA || {};
+    if (type === "wordorder") return X.wordorder || [];
+    if (type === "bank") { // one item per sentence; id "bk01:1" as in problem reports (drill:bk01:1)
+      var out = [];
+      (X.bank || []).forEach(function (grp) { (grp.items || []).forEach(function (it) { out.push({ id: grp.id + ":" + it.n, g: grp.id, bank: grp.bank, q: it.q, answer: it.answer, vi: it.vi, en: it.en }); }); });
+      return out;
+    }
+    return ((window.CB_DRILLS || {})[type]) || [];
+  }
+  function drillItems(type, lvl) { return drillSrc(type, lvl).filter(function (it) { return !(window.Content && Content.isHidden("drill:" + it.id)); }); }
+  function flagBtn(it) { return '<p class="sub"><button type="button" class="linklike w-flag" data-flag="drill:' + A().esc(it.id) + '">⚑ Report a problem</button></p>'; }
+  /* One drill question → { html, wire(done) }. Used by the drill games and by the mistake notebook.
+     o.used (word bank): indexes of bank words already used in this group. */
+  function drillQ(type, it, o) {
+    var App = A(), esc = App.esc, h5 = /^h5/.test(it.id), key = "dr:" + type + ":" + it.id, meta = { kind: "drill", skill: (h5 ? "h5-" : "") + DRILL_SKILL[type], d: type, id: it.id };
+    var flag = h5 || type === "bank" || type === "wordorder" ? flagBtn(it) : ""; // new, not yet teacher-checked sets get their own report link
     function rec(ok) { if (window.Learn) Learn.record(key, meta, ok); }
-    function mc(prompt, opts, answer, explain) { // opts: [[value, labelHTML]]
-      return { html: '<div class="card qcard" id="qcard">' + prompt + '<div class="opts">' + opts.map(function (o) { return '<button class="opt" data-k="' + esc(o[0]) + '">' + o[1] + "</button>"; }).join("") + '</div><div id="qfb"></div></div>',
+    function mc(prompt, opts, answer, explain, cls) { // opts: [[value, labelHTML, usedAlready]]
+      return { html: '<div class="card qcard" id="qcard">' + prompt + '<div class="opts' + (cls ? " " + cls : "") + '">' + opts.map(function (o) { return '<button class="opt' + (o[2] ? " used" : "") + '" data-k="' + esc(o[0]) + '"' + (o[2] ? " disabled" : "") + ">" + o[1] + "</button>"; }).join("") + '</div><div id="qfb"></div></div>',
         wire: function (done) {
           var answered = false;
           document.querySelector(".opts").onclick = function (e) {
-            var b = e.target.closest(".opt"); if (!b || answered) return; answered = true;
+            var b = e.target.closest(".opt"); if (!b || answered || b.disabled) return; answered = true;
             var ok = b.getAttribute("data-k") === String(answer);
             document.querySelectorAll(".opts .opt").forEach(function (o) { o.disabled = true; if (o.getAttribute("data-k") === String(answer)) o.classList.add("right"); else if (o === b) o.classList.add("wrong"); });
             (ok ? Audio2.sfx.good : Audio2.sfx.bad)(); if (!ok) UI.shake(document.getElementById("qcard"));
             if (App.markWork) App.markWork(); rec(ok);
-            document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Not quite.") + " " + (explain || "") + '</div><button class="btn primary wide" id="qnext">Next ›</button>';
+            document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Not quite.") + " " + (explain || "") + "</div>" + flag + '<button class="btn primary wide" id="qnext">Next ›</button>';
             if (!ok && window.AI) AI.attachExplain(document.getElementById("qfb"));
             document.getElementById("qnext").onclick = function () { done(ok); };
           };
@@ -539,9 +560,43 @@
     }
     if (type === "order") {
       var ORD = ["ABC", "ACB", "BAC", "BCA", "CAB", "CBA"];
+      /* HSK 5 items are one sentence cut in three, so the parts carry no punctuation: show the full sentence (zh) in the answer */
       return mc('<p class="sub">🔀 Put A, B, C in the right order</p><div class="abc">' + ["A", "B", "C"].map(function (k) { return "<p><b>" + k + '</b> <span class="zh">' + esc(it.parts[k]) + "</span></p>"; }).join("") + "</div>",
         ORD.map(function (o) { return [o, o.split("").join(" → ")]; }), it.answer,
-        '<span class="zh">' + it.answer.split("").map(function (k) { return esc(it.parts[k]); }).join("") + "</span><br>" + App.M(it) + (it.clue ? '<br><b>Clue:</b> ' + App.M(it.clue) : ""));
+        '<span class="zh">' + (it.zh ? esc(it.zh) : it.answer.split("").map(function (k) { return esc(it.parts[k]); }).join("")) + "</span><br>" + App.M(it) + (it.clue ? '<br><b>Clue:</b> ' + App.M(it.clue) : ""));
+    }
+    if (type === "bank") {
+      var used = (o && o.used) || [];
+      return mc('<p class="sub">🗃️ Choose the word that fits the gap</p><p class="q zh">' + esc(it.q) + "</p>",
+        it.bank.map(function (w, k) { return [String(k), '<span class="zh">' + esc(w) + "</span>", k !== it.answer && used.indexOf(k) >= 0]; }), it.answer,
+        '<span class="zh">' + esc(it.q.replace("____", it.bank[it.answer])) + "</span><br>" + App.M(it), "bank");
+    }
+    if (type === "wordorder") {
+      var toks = it.tokens, order = App.shuffle(toks.map(function (_, k) { return k; }));
+      if (order.every(function (v, k) { return v === k; })) order.reverse();
+      return { html: '<div class="card bcard" id="qcard"><p class="sub">🧱 Tap the words in the right order</p><div class="answer" id="ans"><span class="ph">Your sentence…</span></div>' +
+          '<div class="pool" id="pool">' + order.map(function (k) { return '<button class="piece zh" data-k="' + k + '">' + esc(toks[k]) + "</button>"; }).join("") + "</div>" +
+          '<details class="hint-d"><summary>💡 Hint</summary><div class="tr">' + App.M(it) + '</div></details><div id="qfb"></div><button class="btn primary wide" id="chk" disabled>Check</button></div>',
+        wire: function (done) {
+          var placed = [], ans = document.getElementById("ans"), poolEl = document.getElementById("pool"), chk = document.getElementById("chk");
+          function sync() {
+            ans.innerHTML = placed.length ? placed.map(function (k) { return '<button class="piece zh in" data-k="' + k + '">' + esc(toks[k]) + "</button>"; }).join("") : '<span class="ph">Your sentence…</span>';
+            poolEl.querySelectorAll(".piece").forEach(function (p) { p.classList.toggle("used", placed.indexOf(+p.dataset.k) >= 0); });
+            chk.disabled = placed.length !== toks.length;
+          }
+          poolEl.onclick = function (ev) { var p = ev.target.closest(".piece"); if (!p || p.classList.contains("used") || chk.dataset.done) return; placed.push(+p.dataset.k); Audio2.sfx.tap(); sync(); };
+          ans.onclick = function (ev) { var p = ev.target.closest(".piece"); if (!p || chk.dataset.done) return; placed.splice(placed.indexOf(+p.dataset.k), 1); sync(); };
+          chk.onclick = function () {
+            if (chk.dataset.done) { done(chk.dataset.ok === "1"); return; }
+            var got = placed.map(function (k) { return toks[k]; }).join(""), ok = got === it.answer || (it.alt || []).indexOf(got) >= 0; // alt: other orders that are also correct
+            chk.dataset.done = 1; chk.dataset.ok = ok ? "1" : "0"; chk.textContent = "Next ›";
+            if (App.markWork) App.markWork(); rec(ok);
+            (ok ? Audio2.sfx.good : Audio2.sfx.bad)(); if (!ok) UI.shake(document.getElementById("qcard"));
+            ans.classList.add(ok ? "ok" : "no");
+            document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Correct order:") + '<div class="ex-zh"><span class="zh">' + esc(ok ? got : it.answer) + '</span></div><div class="tr">' + App.M(it) + "</div>" +
+              (it.point ? "<b>Pattern:</b> " + App.M(it.point) : "") + "</div>" + flag;
+          };
+        } };
     }
     // picture writing: write a sentence, automatic checks, then compare with model answers and self-grade
     return { html: '<div class="card qcard" id="qcard"><p class="sub">🖼️ Write one sentence about the picture using the word</p><p class="w2-scene">' + esc(it.emoji) + ' <b class="zh">' + esc(it.word) + "</b></p>" +
@@ -554,9 +609,9 @@
           var n = (v.match(/[㐀-鿿]/g) || []).length;
           var checks = [[v.indexOf(it.word) >= 0, "Uses 「" + esc(it.word) + "」"], [n >= 7, "At least 7 characters (" + n + ")"], [/[。！？!?]$/.test(v), "Ends with 。/！/？"]];
           document.getElementById("qfb").innerHTML = '<div class="pw-checks">' + checks.map(function (c) { return '<p class="' + (c[0] ? "good-t" : "bad-t") + '">' + (c[0] ? "✔ " : "✘ ") + c[1] + "</p>"; }).join("") + "</div>" +
-            '<p class="sub">' + App.M(it.scene) + "</p>" + it.samples.map(function (x) { return '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(x.zh) + "</span>" + App.SAY(x.zh) + "</div>" + App.PY(x.py) + '<div class="tr">' + App.M(x) + "</div></div>"; }).join("") +
+            '<p class="sub">' + App.M(it.scene) + "</p>" + it.samples.map(function (x) { return '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(x.zh) + "</span>" + (h5 ? App.SAYX : App.SAY)(x.zh) + "</div>" + App.PY(x.py) + '<div class="tr">' + App.M(x) + "</div></div>"; }).join("") +
             (window.AI && AI.configured() ? '<button class="btn wide" id="pw-ai">🤖 Get AI feedback on my sentence</button><div id="pw-ai-out"></div>' : "") +
-            '<p class="sub">Is your sentence correct and natural, like the models?</p><div class="tf-btns"><button class="btn good-btn" id="pw-ok">Correct ✔</button><button class="btn bad-btn" id="pw-no">Not quite ✘</button></div>';
+            '<p class="sub">Is your sentence correct and natural, like the models?</p><div class="tf-btns"><button class="btn good-btn" id="pw-ok">Correct ✔</button><button class="btn bad-btn" id="pw-no">Not quite ✘</button></div>' + flag;
           var aib = document.getElementById("pw-ai");
           if (aib) aib.onclick = function () { aib.disabled = true; AI.grade(document.getElementById("pw-ai-out"), it, v).then(function () { aib.disabled = false; aib.textContent = "🤖 Check again"; }); };
           document.getElementById("pw-ok").onclick = function () { rec(true); Audio2.sfx.good(); done(true); };
@@ -604,14 +659,25 @@
       });
     };
   }
+  /* arg "h5" plays the HSK 5 set of the same game; its best score and plays are kept apart (confuse5, order5, ...) */
   function drillGame(arg, type) {
-    var App = A(), g = BY[type], items = App.shuffle(drillItems(type)).slice(0, RUN.count || (type === "picture" ? 5 : 10)), i = 0, score = 0;
-    if (!items.length) { if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; cb(0); return; } App.render(header(g) + '<p class="empty">No drill content loaded.</p>', "game"); return; }
+    var App = A(), lvl = arg === "h5" && H5_DESC[type] ? 5 : 4, g = BY[type], head = lvl === 5 ? { icon: g.icon, name: "HSK 5 · " + g.name } : g;
+    if (lvl === 5 && !RUN.exit) RUN.exit = "#/learn/h5p";
+    var all = drillItems(type, lvl), items, usedBy = {};
+    if (type === "bank") { // two exam-style groups, sentence by sentence; a word that was used is crossed out for the rest of its group
+      var groups = {}; all.forEach(function (it) { (groups[it.g] || (groups[it.g] = [])).push(it); });
+      items = [];
+      App.shuffle(Object.keys(groups)).slice(0, RUN.count ? 1 : 2).forEach(function (k) { items = items.concat(App.shuffle(groups[k])); });
+      if (RUN.count) items = items.slice(0, RUN.count);
+    } else items = App.shuffle(all).slice(0, RUN.count || (type === "picture" ? 5 : type === "wordorder" ? 8 : 10));
+    var i = 0, score = 0;
+    if (!items.length) { if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; cb(0); return; } App.render(header(head) + '<p class="empty">No drill content loaded.</p>', "game"); return; }
     (function draw() {
-      if (i >= items.length) return finish(type, score, score * 2, { title: score + " / " + items.length + " correct", mood: score >= items.length * 0.8 ? "cheer" : score >= items.length / 2 ? "happy" : "sad" });
-      var q = drillQ(type, items[i]);
-      App.render(header(g, (i + 1) + "/" + items.length) + bar(i, items.length) + q.html, "game");
-      q.wire(function (ok) { if (ok) score++; i++; draw(); });
+      if (i >= items.length) return finish(type, score, score * 2, { title: score + " / " + items.length + " correct", mood: score >= items.length * 0.8 ? "cheer" : score >= items.length / 2 ? "happy" : "sad",
+        arg: lvl === 5 ? "h5" : "", sid: lvl === 5 ? type + "5" : type, head: head, back: lvl === 5 ? ["#/learn/h5p", "HSK 5 practice"] : null });
+      var it = items[i], q = drillQ(type, it, { used: usedBy[it.g] || [] });
+      App.render(header(head, (i + 1) + "/" + items.length) + bar(i, items.length) + q.html, "game");
+      q.wire(function (ok) { if (ok) score++; if (type === "bank") (usedBy[it.g] || (usedBy[it.g] = [])).push(it.answer); i++; draw(); });
     })();
   }
 
@@ -769,5 +835,5 @@
       c.wire();
     })();
   }
-  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _drillQ: drillQ, _drillItem: function (type, id) { return drillItems(type).filter(function (x) { return x.id === id; })[0] || null; }, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
+  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _drillQ: drillQ, _drillItem: function (type, id) { return drillItems(type, /^h5/.test(id) ? 5 : 4).filter(function (x) { return x.id === id; })[0] || null; }, H5_DESC: H5_DESC, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
 })();

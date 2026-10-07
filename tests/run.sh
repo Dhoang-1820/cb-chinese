@@ -5,6 +5,7 @@
 # Needs: Node 22.18+, esbuild where Node can find it (npm install --no-save esbuild), Python with Playwright + Chromium.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+trap 'echo "::error title=Tests::tests/run.sh stopped at line $LINENO (see the step log)"' ERR
 OUT="${OUT:-_site_test}"; WEB_PORT="${WEB_PORT:-8766}"; AI_PORT="${AI_PORT:-9201}"
 
 echo "== content"; node tools/validate.js | tail -n 2
@@ -14,7 +15,10 @@ echo "== build"; node tools/build.js "$OUT" test > /dev/null
 node tests/serve.mjs "$OUT" "$WEB_PORT" > /dev/null & WEB_PID=$!
 PORT="$AI_PORT" ORIGIN="http://localhost:$WEB_PORT" node tests/mockai.mjs > /dev/null & AI_PID=$!
 trap 'kill $WEB_PID $AI_PID 2>/dev/null || true' EXIT
-sleep 1
+# wait until both servers answer (a cold machine can take several seconds), instead of hoping one second is enough
+wait_for() { for _ in $(seq 1 60); do curl -s -o /dev/null "$1" && return 0; sleep 0.5; done; echo "::error title=Tests::$2 did not start"; echo "$2 did not start" >&2; return 1; }
+wait_for "http://localhost:$WEB_PORT/index.html" "the test web server"
+wait_for "http://localhost:$AI_PORT/__calls" "the stand-in AI service"
 
 echo "== browser"
 BASE="http://localhost:$WEB_PORT/" AI_URL="http://localhost:$AI_PORT/ai" python3 tests/e2e.py "$@"

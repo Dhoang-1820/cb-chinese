@@ -14,6 +14,8 @@ from playwright.async_api import async_playwright
 
 BASE = os.environ.get("BASE", "http://localhost:8766/")
 AI_URL = os.environ.get("AI_URL", "http://localhost:9201/ai")
+SLOW = float(os.environ.get("SLOW", "1"))
+CI = bool(os.environ.get("GITHUB_ACTIONS"))
 KEY = "cbChinese.progress.v1"
 TODAY = datetime.date.today()
 results, page_errors = [], []
@@ -26,6 +28,8 @@ def day(n):
 def check(name, ok, detail=""):
     results.append((name, bool(ok), detail))
     print(("  ok   " if ok else "  FAIL ") + name + ("" if ok else "   <- " + str(detail)[:300]), flush=True)
+    if not ok and CI:  # shows up as an annotation on the run, so the failure can be read without opening the log
+        print("::error title=Browser test failed::" + (name + " <- " + str(detail)[:300]).replace("\n", " "), flush=True)
 
 
 def settings(**extra):
@@ -54,6 +58,8 @@ async def open_app(browser, state=None, path="", ai=False, expect_errors=False, 
     if init:
         await ctx.add_init_script(init)
     pg = await ctx.new_page()
+    if SLOW > 1:  # SLOW=4 imitates a slow machine, to find checks that only pass on a fast one
+        cdp = await ctx.new_cdp_session(pg); await cdp.send("Emulation.setCPUThrottlingRate", {"rate": SLOW})
     if not expect_errors:
         pg.on("pageerror", lambda e: page_errors.append(str(e)))
     pg.on("dialog", lambda d: asyncio.ensure_future(d.accept()))

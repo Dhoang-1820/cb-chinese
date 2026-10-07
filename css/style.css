@@ -1191,3 +1191,22 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .opts.bank { grid-template-columns: 1fr 1fr; }
 .opts.bank .opt { justify-content: center; text-align: center; }
 .opt.used { opacity: .45; text-decoration: line-through; }
+/* extra HSK 4 word resources: phrases and opposites under a word, word families */
+.w-x:empty { display: none; }
+.wx-b { margin-top: 10px; }
+.wx-h { margin: 0 0 6px; font-size: .78rem; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.wx-b .coll + .coll { margin-top: 6px; }
+.wx-d { margin-top: 6px; font-size: .9rem; }
+.wx-d summary { cursor: pointer; font-weight: 800; color: var(--primary-text, var(--primary)); min-height: 32px; }
+.wx-ex { padding: 6px 0; }
+.wx-ex .py { font-size: .85em; }
+.ws-x { text-align: left; }
+.more-words { margin: 0 0 14px; }
+.fam { padding: 0; margin: 0 0 8px; }
+.fam summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; min-height: 56px; }
+.fam summary::-webkit-details-marker { display: none; }
+.fam summary .hz { font-size: 1.9rem; line-height: 1; flex: 0 0 auto; }
+.fam .fam-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fam .fam-t small { color: var(--muted); font-size: .82rem; }
+.fam .wl-row .tag { flex: 0 0 auto; }
+.wl-row .linklike.zh { font-weight: 800; text-decoration: none; }

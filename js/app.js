@@ -310,6 +310,46 @@
     r.p++; r.b = Math.max(r.b, Math.round(score / Math.max(1, total) * 10)); Store.save();
   }
 
+  /* Extra HSK 4 word resources by word id: common phrases (163 words), opposites (65 pairs), word families (61). */
+  function x4Index() {
+    if (x4Idx) return x4Idx;
+    var idx = { col: {}, opp: {}, fam: [] };
+    if (!x4Loaded()) return idx;
+    window.CB_HSK4X.forEach(function (pk) {
+      if (pk.kind === "collocations") pk.items.forEach(function (it) { idx.col[it.ref] = it; });
+      else if (pk.kind === "opposites") pk.items.forEach(function (it) {
+        (idx.opp[it.a.ref] || (idx.opp[it.a.ref] = [])).push({ me: it.a, other: it.b });
+        (idx.opp[it.b.ref] || (idx.opp[it.b.ref] = [])).push({ me: it.b, other: it.a });
+      });
+      else if (pk.kind === "families") idx.fam = idx.fam.concat(pk.items);
+    });
+    return (x4Idx = idx);
+  }
+  function wordBtn(ref, hanzi) { return WORDMAP[ref] ? '<button type="button" class="linklike zh wlink" data-w="' + esc(ref) + '">' + esc(hanzi) + "</button>" : '<span class="zh">' + esc(hanzi) + "</span>"; }
+  /* The blocks shown under a word: phrases it is commonly used in, and its opposite. "" until the data is loaded. */
+  function wordExtras(w) {
+    if (!w || !x4Loaded()) return "";
+    var X = x4Index(), c = X.col[w.id], opp = X.opp[w.id] || [], html = "", have = {};
+    (w.collocations || []).forEach(function (x) { have[x.zh] = 1; });
+    var ph = c ? c.phrases.filter(function (x) { return !have[x.zh]; }) : [];
+    if (ph.length) html += '<div class="wx-b"><h4 class="wx-h">Common phrases</h4>' + ph.map(function (x) {
+      return '<div class="coll"><div><span class="zh">' + esc(x.zh) + "</span> " + PY(x.py) + '<div class="dim">' + M(x) + "</div></div>" + SAYX(x.zh) + "</div>";
+    }).join("") + "</div>";
+    opp.forEach(function (o) {
+      html += '<div class="wx-b"><h4 class="wx-h">Opposite</h4><div class="coll"><div>' + wordBtn(o.other.ref, o.other.hanzi) + " " + PY(o.other.pinyin) + '<div class="dim">' + M(o.other) + "</div></div></div>" +
+        '<details class="wx-d"><summary>Example for each</summary>' + [o.me, o.other].map(function (x) { return '<div class="wx-ex"><span class="zh">' + esc(x.example.zh) + "</span>" + PY(x.example.py) + '<div class="dim">' + M(x.example) + "</div></div>"; }).join("") + "</details></div>";
+    });
+    return html;
+  }
+  function fillExtras() {
+    if (!document.querySelector("[data-wx]")) return;
+    if (!x4Loaded() && x4Tried && navigator.onLine === false) return; // offline and not on the phone: the cards simply stay as they are
+    ensureX4().then(function (ok) {
+      if (!ok) return;
+      [].forEach.call(document.querySelectorAll("[data-wx]"), function (el) { if (!el.firstChild) el.innerHTML = wordExtras(WORDMAP[el.getAttribute("data-wx")]); });
+    });
+  }
+
   /* What a screen still needs before it can be drawn: "full", "mocks", "h5", "x4". */
   function missing(v, parts) {
     var m = [], a = parts[1] || "", b = parts[2] || "";
@@ -402,6 +442,7 @@
     else if (v === "learn") viewLearn(parts[1]);
     else if (v === "core") viewCoreSet(parseInt(parts[1], 10));
     else if (v === "pack") viewPack(parts[1], parseInt(parts[2], 10));
+    else if (v === "families") viewFamilies();
     else if (v === "check") viewQuickCheck(parseInt(parts[1], 10));
     else if (v === "listen-mode") viewListenMode();
     else if (v === "talk") viewTalk(parts[1]);
@@ -424,6 +465,7 @@
       else viewMockSection(parts[1], parts[2]);
     }
     else viewHome();
+    fillExtras();
     var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] || "C&B 中文";
@@ -955,7 +997,9 @@
       '<nav class="track-tabs"><a class="' + (track === "found" ? "on" : "") + '" href="#/learn/found">HSK 1–3 · ' + trackSets("found").length + ' sets</a><a class="' + (track === "core" ? "on" : "") + '" href="#/learn/core">HSK 4 · ' + trackSets("core").length + " sets</a></nav>" +
       '<section class="card ' + (track === "found" ? "g-teal" : "g-blue") + '"><h2>' + trackName(track) + '</h2><p class="sub">' +
       (track === "found" ? nWords + " HSK 1–3 words. The HSK 4 exam expects you to know them too. Most will be easy: use <b>Quick check</b> to sort the ones you know (they come back rarely) from the ones to learn." :
-        nWords + " general HSK 4 words the exam expects — the ones not already in your C&amp;B lessons. Add a set to review, then flashcards and games take it from there.") + '</p></section><div class="daygrid">';
+        nWords + " general HSK 4 words the exam expects — the ones not already in your C&amp;B lessons. Add a set to review, then flashcards and games take it from there.") + "</p></section>" +
+      '<div class="glist more-words"><a class="grow" href="#/learn/extra"><span class="g-ico">📘</span><span class="g-txt"><b>Extra HSK 4 words</b><small>91 official HSK 1–4 words that no lesson or set teaches · 5 packs</small></span><span class="g-go">▶</span></a>' +
+      '<a class="grow" href="#/families"><span class="g-ico">🧬</span><span class="g-txt"><b>Word families</b><small>61 characters and the words built with them</small></span><span class="g-go">▶</span></a></div><div class="daygrid">';
     sets.forEach(function (set) {
       var n = set.words.length, inSrs = set.words.filter(function (w) { return SRS.has(w.id); }).length;
       var strong = set.words.filter(function (w) { var c = SRS.get(w.id); return c && c.box >= 4; }).length, done = inSrs === n;
@@ -1112,6 +1156,18 @@
     };
   }
 
+  /* Word families: a character and the HSK 1-4 words built with it. Tap a word for its card. */
+  function viewFamilies() {
+    var F = x4Index().fam;
+    render('<a class="back" href="#/learn/core">‹ HSK words</a><section class="card g-violet"><h2>🧬 Word families</h2><p class="sub">' + F.length + " characters and the HSK 1–4 words built with them. Open a character to see its family. Tap a word for its card.</p></section>" +
+      '<p class="h5-note" role="note">⚑ This list is new and not yet checked by a teacher. Use the flag button at the top to report mistakes.</p>' +
+      F.map(function (f) {
+        return '<details class="fam card"><summary><span class="hz">' + esc(f.char) + '</span><span class="fam-t">' + PY(f.pinyin) + "<small>" + M(f.note) + '</small></span><span class="tag">' + f.words.length + " words</span></summary>" +
+          '<div class="wlist">' + f.words.map(function (w) {
+            return '<div class="wl-row"><div>' + wordBtn(w.ref, w.hanzi) + " " + PY(w.pinyin) + '<div class="dim">' + M(w) + "</div></div>" + levelBadge(w.level) + "</div>";
+          }).join("") + "</div></details>";
+      }).join(""), "learn");
+  }
   /* HSK 5 practice: the four drill games on the HSK 5 sets; best scores are kept apart from HSK 4 (games.confuse5, ...) */
   function viewH5Practice() {
     var D = window.CB_HSK5_DRILLS || {}, s = Store.state;
@@ -1179,7 +1235,7 @@
       '<div class="colls">' + (w.collocations || []).map(function (c) {
         return '<div class="coll"><div><span class="zh">' + esc(c.zh) + "</span> " + PY(c.py) + '<div class="dim">' + M(c) + "</div></div>" + say(c.zh) + "</div>";
       }).join("") + "</div>" +
-      exHTML(w, o.soft) +
+      exHTML(w, o.soft) + '<div class="w-x" data-wx="' + esc(w.id) + '">' + wordExtras(w) + "</div>" +
       (o.flag ? '<button type="button" class="linklike w-flag" data-flag="word:' + esc(w.id) + '" data-flag-label="' + esc(w.hanzi + " · " + w.pinyin) + '">⚑ Report a problem</button>' : "") + "</article>";
   }
   function tabWords(d, body) {
@@ -1561,7 +1617,7 @@
     results();
     function results() {
       var raw = searchQuery.trim(), out = document.getElementById("results");
-      if (!raw) { out.innerHTML = '<p class="sub center">' + WORDS.length + " words · pinyin works with or without tones</p>"; return; }
+      if (!raw) { out.innerHTML = '<p class="sub center">' + WORDS.length + ' words · pinyin works with or without tones</p><p class="center"><a class="btn small" href="#/families">🧬 Word families</a></p>'; return; }
       var nq = norm(raw);
       var hits = WORDS.filter(function (w) {
         if (w.hanzi.indexOf(raw) >= 0) return true;
@@ -2710,13 +2766,16 @@
   function openWordSheet(id, context) {
     var w = WORDMAP[id]; if (!w) return;
     var c = SRS.get(id);
+    [].forEach.call(document.querySelectorAll(".modal-wrap"), function (m) { if (m.querySelector(".wsheet")) m.remove(); }); // a word opened from another word's sheet replaces it
     UI.modal('<div class="wsheet"><div class="ws-top"><span class="hz big zh">' + esc(w.hanzi) + "</span>" + SAY(w.hanzi, null, true) + "</div>" +
       '<p class="ws-py">' + esc(w.pinyin) + '</p><div class="ws-mean">' + M(w) + "</div>" + levelBadge(w.level) +
       (w.example ? '<div class="ws-ex"><span class="zh">' + esc(w.example.zh) + "</span>" + SAY(w.example.zh) + '<div class="dim">' + M(w.example) + "</div></div>" : "") +
+      '<div class="w-x ws-x" data-wx="' + esc(w.id) + '">' + wordExtras(w) + "</div>" +
       '<div class="actions center">' + (c ? '<span class="tag t-box">In review · Box ' + c.box + (SRS.hard(id) ? " · hard" : "") + "</span>" : '<button class="btn primary" id="ws-add">➕ Add to review</button>') +
       '<a class="btn" href="' + wordHome(w) + '" id="ws-day">📖 ' + wordPlace(w) + "</a></div>" +
       (window.AI && AI.configured() ? '<div class="ws-ask" id="ws-ask"><button class="btn small ai-btn" id="ws-askbtn">🤖 Ask AI about this word</button></div>' : "") +
       '<div class="ws-ask"><button class="btn small" id="ws-report">⚑ Report a problem with this word</button></div></div>');
+    fillExtras();
     var wrb = document.getElementById("ws-report");
     if (wrb) wrb.onclick = function () { openReport({ ref: "word:" + id, label: w.hanzi + " · " + w.pinyin }); };
     var ab = document.getElementById("ws-askbtn");

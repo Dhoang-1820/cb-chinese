@@ -860,7 +860,56 @@ async def t_newgames(b):
     await ctx.close()
 
 
-GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+async def t_extras(b):
+    urls = []
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, watch=urls)
+    await go(pg, "#/learn/core", 900)
+    check("HSK words: links to the extra HSK 4 words and to word families", await pg.locator(".more-words a[href='#/learn/extra']").count() == 1 and await pg.locator(".more-words a[href='#/families']").count() == 1 and not pack_urls(urls), pack_urls(urls))
+    await pg.click(".more-words a[href='#/learn/extra']"); await pg.wait_for_selector(".daycard[href^='#/pack/x4']", timeout=15000)
+    txt = await pg.inner_text("#app")
+    check("extra HSK 4 words: 91 words in 5 packs, loaded on demand as one file", await pg.locator(".daycard").count() == 5 and "91 official" in txt and "not yet checked by a teacher" in txt and len(pack_urls(urls)) >= 1 and all(u.startswith("hsk4x.") for u in pack_urls(urls)), (txt[:120], pack_urls(urls)))
+    await pg.locator(".daycard").first.click(); await pg.wait_for_selector(".word.card")
+    card = await pg.locator(".word.card").first.inner_text()
+    check("extra pack: the same pack screen, with level badge, phrase, example and report link", await pg.evaluate("location.hash") == "#/pack/x4/1" and await pg.locator(".word.card").count() == 20 and await pg.locator(".w-flag").count() == 20 and "饭馆" in card and "HSK 1" in card and "一家饭馆" in card, card[:200])
+    check("extra pack: Chinese is tagged, focus is on the screen", await pg.evaluate(ZH_TAGGED) and await pg.evaluate("document.activeElement&&document.activeElement.id") == "app")
+    await pg.click("#add-all"); await pg.wait_for_timeout(500); await no_dialogs(pg)
+    ids = await pg.evaluate("Object.keys(Store.state.srs)")
+    check("extra pack: its words go into spaced review", len(ids) == 20 and all(i.startswith("x4-") for i in ids), ids[:3])
+    await go(pg, "#/search", 500)
+    check("search: a link to word families", await pg.locator("#results a[href='#/families']").count() == 1)
+    await pg.fill("#q", "饭馆"); await pg.wait_for_timeout(400)
+    check("search: an extra word is found and links to its pack", await pg.locator("#results .wl-row a").first.get_attribute("href") == "#/pack/x4/1")
+    await go(pg, "#/game/quick/p-x4-1", 700)
+    check("extra pack: its quiz starts", await pg.locator(".opts .opt").count() == 4)
+    # common phrases on a lesson word card and on a core-deck card
+    await go(pg, "#/day/1/words", 900); await pg.wait_for_selector("#w-d01-01 .wx-b", timeout=10000)
+    card = await pg.locator("#w-d01-01").inner_text()
+    dup = await pg.evaluate("(()=>{const l=[...document.querySelectorAll('#w-d01-01 .coll .zh')].map(e=>e.textContent);return l.length!==new Set(l).size})()")
+    check("lesson word card: a 'Common phrases' block from the extra data, without repeats", "COMMON PHRASES" in card.upper() and "发工资" in card and not dup, card[:300])
+    core = await pg.evaluate("(()=>{const it=CB_HSK4X.filter(p=>p.kind==='collocations').map(p=>p.items).flat().find(i=>i.src==='core');return {ref:it.ref,zh:it.phrases[0].zh,set:App.WORDMAP[it.ref]._set}})()")
+    await go(pg, "#/core/%d" % core["set"], 900)
+    check("core word card: common phrases too", core["zh"] in await pg.locator("#w-" + core["ref"]).inner_text(), core)
+    # opposites
+    op = await pg.evaluate("(()=>{const it=CB_HSK4X.find(p=>p.kind==='opposites').items[0];return {a:it.a.ref,ah:it.a.hanzi,b:it.b.ref,bh:it.b.hanzi,set:App.WORDMAP[it.a.ref]._set}})()")
+    await go(pg, "#/core/%d" % op["set"], 900)
+    blk = await pg.locator("#w-%s .w-x" % op["a"]).inner_text()
+    check("word card: its opposite is shown", "OPPOSITE" in blk.upper() and op["bh"] in blk, blk[:200])
+    await pg.locator("#w-%s .w-x .wlink" % op["a"]).first.click(); await pg.wait_for_selector(".wsheet"); await pg.wait_for_timeout(250)
+    sheet = await pg.inner_text(".wsheet")
+    check("opposite: tapping it opens that word's sheet, which shows the pair from the other side", op["bh"] in await pg.inner_text(".wsheet .hz") and "OPPOSITE" in sheet.upper() and op["ah"] in sheet and await pg.evaluate("document.querySelector('.modal-wrap .modal').contains(document.activeElement)"), sheet[:200])
+    await pg.keyboard.press("Escape"); await pg.wait_for_timeout(400)
+    # families
+    await go(pg, "#/families", 700)
+    check("word families: 61 families, closed by default", await pg.locator("details.fam").count() == 61 and await pg.locator("details.fam[open]").count() == 0 and await pg.evaluate("document.activeElement&&document.activeElement.id") == "app")
+    await pg.locator("details.fam summary").first.click(); await pg.wait_for_timeout(200)
+    fam = await pg.locator("details.fam").first.inner_text()
+    check("word families: opening one lists its words with pinyin, meaning and level", "经常" in fam and "jīngcháng" in fam and "HSK 3" in fam and await pg.evaluate(ZH_TAGGED), fam[:200])
+    await pg.locator("details.fam .wlink").first.click(); await pg.wait_for_selector(".wsheet")
+    check("word families: tapping a word opens its sheet", "经常" in await pg.inner_text(".wsheet .hz"))
+    await ctx.close()
+
+
+GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

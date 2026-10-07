@@ -181,6 +181,15 @@ async def t_flame(b):
     await pg.wait_for_selector(".fx-streak", state="detached", timeout=9000)
     check("streak flame: removes itself", await pg.locator(".fx-streak").count() == 0)
     await ctx.close()
+    # two rewards at once: the flame first, then the daily-goal card, never on top of each other
+    ctx, pg = await open_app(b, state)
+    await pg.evaluate("Game.award(40)")
+    await pg.wait_for_selector(".fx-streak"); await pg.wait_for_timeout(600)
+    first = await pg.locator(".fs-t").inner_text(); one = await pg.locator(".fx-streak").count()
+    await pg.click(".fx-streak"); await pg.wait_for_timeout(900)
+    second = await pg.locator(".fs-t").inner_text() if await pg.locator(".fs-t").count() else ""
+    check("celebration cards: queued one at a time (streak, then daily goal)", one == 1 and first == "day streak" and second == "Daily goal reached", (one, first, second))
+    await ctx.close()
     ctx, pg = await open_app(b, state, reduced_motion="reduce")
     await pg.evaluate("Game.award(5)"); await pg.wait_for_timeout(1500)
     check("streak flame: skipped with reduced motion", await pg.locator(".fx-streak").count() == 0 and await pg.evaluate("Store.state.streak.count") == 4)

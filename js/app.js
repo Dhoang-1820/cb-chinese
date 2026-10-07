@@ -745,7 +745,7 @@
       host.parentNode.insertBefore(d, host.nextSibling);
     });
     wireQuests(); wirePattern();
-    var wr = weekReward(); if (wr) setTimeout(function () { UI.toast(wr === "freeze" ? "Weekly goal met! +1 streak freeze" : "Weekly goal met!", wr === "freeze" ? "🧊" : "🎉"); UI.confetti(60); }, 600);
+    var wr = weekReward(); if (wr) setTimeout(function () { UI.toast(wr === "freeze" ? "Weekly goal met! +1 streak freeze" : "Weekly goal met!", wr === "freeze" ? "🧊" : "🎉"); UI.confetti(60); UI.burst("noto-muscle", weekInfo().n + " days", "Weekly goal met", wr === "freeze" ? "+1 streak freeze" : ""); }, 600);
     /* C&B track: show the next unfinished session (data loads in the background) */
     (trackLoaded() ? Promise.resolve() : whenIdle(2500)).then(ensureTrack).then(function () {
       var T = window.CB_TRACK || [], host = document.querySelector(".tiles");
@@ -1382,7 +1382,7 @@
       row("Reset progress", '<button class="btn small bad" id="s-reset">Reset</button>') + "</section></details>" +
       (isIOS && !standalone ? '<section class="card"><h2>Install on iPhone</h2><p class="sub">In Chrome, tap <b>Share ⬆︎</b> (address bar) → <b>Add to Home Screen</b>. The home-screen app opens full-screen, works offline, and iOS won\'t clear its progress. Export a backup now and then anyway.</p></section>' : "") +
       '<p class="sub center">' + DAYS.length + " days · " + WORDS.length + ' words · <a href="#/search">Search</a></p>' +
-      '<p class="sub center">Version 1.1 · build ' + BUILD + "</p>";
+      '<p class="sub center">Version 1.1 · build ' + BUILD + '</p><p class="sub center">Animated emoji: Noto Emoji Animation by Google, CC BY 4.0</p>';
     render(html, "me");
     function sv(k, v) { set[k] = v; Store.save(); applySettings(); }
     document.getElementById("s-py").onchange = function () { sv("showPinyin", this.checked); };
@@ -2044,7 +2044,7 @@
     var r = EXAM.result, pass = r.pass;
     var xp = Math.round(r.total / 300 * 40);
     if (!EXAM.awarded) { EXAM.awarded = true; Game.award(xp, { silent: true }); if (pass) UI.confetti(150); }
-    var html = '<section class="card ' + (pass ? "g-teal" : "g-coral") + '">' + UI.mascot(pass ? "cheer" : "wow", 64) +
+    var html = '<section class="card ' + (pass ? "g-teal" : "g-coral") + '">' + (pass ? UI.anim("noto-trophy", 84, UI.mascot("cheer", 64)) : UI.mascot("wow", 64)) +
       '<h2>' + (pass ? "Pass! 🎉" : "Keep practicing") + '</h2>' + (EXAM.strict ? '<p><span class="tag t-hsk">🎯 Exam simulator</span></p>' : "") + '<p class="score-big">' + r.total + "/300</p>" +
       "<p>" + secBar("Listening", r.listening.score) + secBar("Reading", r.reading.score) + secBar("Writing", r.writing.score) + "</p>" +
       '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p></section>" + weakHTML(r.skills) + focusCard() +

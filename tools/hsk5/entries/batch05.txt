@@ -1,0 +1,100 @@
+黄金|n.|gold|vàng|最近 黄金 的 价格 涨 得 很 快 。|The price of gold has risen fast lately.|Gần đây giá vàng tăng rất nhanh.
+灰|adj./n.|grey; ash; dust|màu xám; tro, bụi|他 今天 穿 了 一 件 灰 衬衫 。|He is wearing a grey shirt today.|Hôm nay anh ấy mặc một chiếc áo sơ mi màu xám.
+灰尘|n.|dust|bụi|很 久 没 打扫 ， 桌子 上 都 是 灰尘 。|It hasn't been cleaned for ages, and the desk is covered in dust.|Lâu rồi không dọn dẹp, trên bàn toàn là bụi.
+灰心|v./adj.|to lose heart; discouraged|nản lòng, nản chí|这 次 没 通过 面试 ， 你 也 不要 灰心 。|Don't lose heart even though you didn't pass the interview this time.|Lần này không qua phỏng vấn, bạn cũng đừng nản lòng.
+挥|v.|to wave; to wield|vẫy, vung|他 站 在 门口 向 我们 挥 了 挥 手 。|He stood at the door and waved to us.|Anh ấy đứng ở cửa vẫy tay với chúng tôi.
+恢复|v.|to recover; to restore|hồi phục, khôi phục|休息 了 一 个 星期 ， 他 的 身体 恢复 了 。|After a week's rest, he has recovered.|Nghỉ ngơi một tuần, sức khỏe của anh ấy đã hồi phục.
+婚礼|n.|wedding ceremony|lễ cưới, đám cưới|下 个 月 我 要 参加 同事 的 婚礼 。|Next month I'm going to a colleague's wedding.|Tháng sau tôi sẽ dự đám cưới của đồng nghiệp.
+婚姻|n.|marriage|hôn nhân|他们 的 婚姻 生活 一直 很 幸福 。|Their married life has always been happy.|Cuộc sống hôn nhân của họ luôn rất hạnh phúc.
+活跃|adj./v.|active; lively; to enliven|sôi nổi, năng động|今天 讨论 的 气氛 特别 活跃 。|The atmosphere of today's discussion was especially lively.|Không khí thảo luận hôm nay đặc biệt sôi nổi.
+火柴|n.|match (for lighting fire)|que diêm, diêm|现在 很 少 有 人 用 火柴 了 。|Few people use matches nowadays.|Bây giờ rất ít người dùng diêm.
+伙伴|n.|partner; companion|bạn đồng hành, đối tác|他 是 我 多 年 的 生意 伙伴 。|He has been my business partner for many years.|Anh ấy là đối tác làm ăn nhiều năm của tôi.
+或许|adv.|perhaps; maybe|có lẽ, có thể|你 去 问问 小王 ， 他 或许 知道 。|Go and ask Xiao Wang; perhaps he knows.|Bạn đi hỏi Tiểu Vương xem, có lẽ anh ấy biết.
+机器|n.|machine|máy móc|这 台 机器 坏 了 ， 需要 找 人 修理 。|This machine is broken and needs someone to repair it.|Chiếc máy này hỏng rồi, cần tìm người sửa.
+肌肉|n.|muscle|cơ bắp|他 每 天 锻炼 ， 身上 的 肌肉 很 结实 。|He exercises every day, and his muscles are firm.|Anh ấy tập luyện mỗi ngày, cơ bắp trên người rất săn chắc.
+基本|adj./adv.|basic; basically|cơ bản|这 是 每 个 员工 的 基本 工资 。|This is each employee's basic salary.|Đây là lương cơ bản của mỗi nhân viên.
+激烈|adj.|intense; fierce|kịch liệt, gay gắt|现在 找 工作 的 竞争 非常 激烈 。|Competition for jobs is very fierce nowadays.|Hiện nay cạnh tranh tìm việc rất gay gắt.
+及格|v.|to pass (a test)|đạt, đỗ, qua điểm chuẩn|这 次 考试 六十 分 才 算 及格 。|In this exam you need sixty marks to pass.|Bài thi lần này sáu mươi điểm mới tính là đạt.
+极其|adv.|extremely|cực kỳ, vô cùng|这 是 一 个 极其 重要 的 决定 。|This is an extremely important decision.|Đây là một quyết định cực kỳ quan trọng.
+急忙|adv.|hastily; in a hurry|vội vàng, vội vã|听到 有 人 敲 门 ， 他 急忙 去 开 门 。|Hearing someone knock, he hurried to open the door.|Nghe thấy có người gõ cửa, anh ấy vội vàng ra mở.
+急诊|n.|emergency treatment|cấp cứu|孩子 半夜 发烧 ， 我们 去 医院 看 了 急诊 。|Our child had a fever in the middle of the night, so we went to A&E.|Nửa đêm con bị sốt, chúng tôi đã đưa đến bệnh viện khám cấp cứu.
+集合|v.|to gather; to assemble|tập hợp, tập trung|明天 早上 八 点 在 公司 门口 集合 。|Assemble at the company entrance at eight tomorrow morning.|Sáng mai tám giờ tập trung ở cổng công ty.
+集中|v./adj.|to concentrate; concentrated|tập trung|办公室 太 吵 ， 我 没 办法 集中 精力 。|The office is too noisy; I can't concentrate.|Văn phòng ồn quá, tôi không thể tập trung được.
+计算|v.|to calculate; to compute|tính toán|请 帮 我 计算 一下 这个 月 的 加班 费 。|Please help me work out this month's overtime pay.|Làm ơn tính giúp tôi tiền tăng ca tháng này.
+记录|v./n.|to record; record; minutes|ghi chép; biên bản|开会 的 时候 请 你 负责 记录 。|Please take the minutes during the meeting.|Khi họp bạn hãy phụ trách ghi biên bản.
+记忆|n./v.|memory; to remember|ký ức, trí nhớ|那 次 旅行 给 我 留 下 了 美好 的 记忆 。|That trip left me with wonderful memories.|Chuyến đi đó đã để lại cho tôi những ký ức đẹp.
+纪录|n.|record (best achievement)|kỷ lục|他 在 这 次 比赛 中 打破 了 世界 纪录 。|He broke the world record in this competition.|Anh ấy đã phá kỷ lục thế giới trong cuộc thi này.
+纪念|v./n.|to commemorate; souvenir|kỷ niệm|我们 拍 张 照片 纪念 一下 吧 。|Let's take a photo as a memento.|Chúng ta chụp một tấm ảnh làm kỷ niệm đi.
+系领带|v.|to tie a necktie|thắt cà vạt|他 上班 的 时候 每 天 都 系领带 。|He wears a tie every day at work.|Khi đi làm ngày nào anh ấy cũng thắt cà vạt.
+寂寞|adj.|lonely|cô đơn, hiu quạnh|一 个 人 在 国外 生活 ， 有 时候 很 寂寞 。|Living alone abroad is sometimes very lonely.|Sống một mình ở nước ngoài, đôi khi rất cô đơn.
+夹子|n.|clip; clamp; tongs|cái kẹp|请 用 夹子 把 这些 文件 夹{jiā} 在 一起 。|Please clip these documents together.|Hãy dùng kẹp để kẹp những tài liệu này lại với nhau.
+家庭|n.|family; household|gia đình|他 有 一 个 非常 幸福 的 家庭 。|He has a very happy family.|Anh ấy có một gia đình rất hạnh phúc.
+家务|n.|housework|việc nhà|周末 我 和 丈夫 一起 做 家务 。|At weekends my husband and I do the housework together.|Cuối tuần tôi cùng chồng làm việc nhà.
+家乡|n.|hometown|quê hương|我 的 家乡 是 一 个 美丽 的 小 城市 。|My hometown is a beautiful little city.|Quê tôi là một thành phố nhỏ xinh đẹp.
+嘉宾|n.|honoured guest|khách mời, khách quý|今天 的 活动 请 了 三 位 嘉宾 。|Three guests of honour were invited to today's event.|Sự kiện hôm nay mời ba vị khách quý.
+甲|n.|first (in a series); party A|giáp; thứ nhất; bên A|合同 上 写 着 甲 方 是 我们 公司 。|The contract states that Party A is our company.|Trên hợp đồng ghi bên A là công ty chúng tôi.
+假如|conj.|if; supposing|nếu như, giả sử|假如 明天 下雨 ， 活动 就 改 到 下 周 。|If it rains tomorrow, the event will be moved to next week.|Nếu ngày mai mưa, hoạt động sẽ dời sang tuần sau.
+假装|v.|to pretend|giả vờ|他 假装 没 看见 我 ， 很 快 走 开 了 。|He pretended not to see me and quickly walked away.|Anh ấy giả vờ không nhìn thấy tôi rồi đi nhanh mất.
+价值|n.|value; worth|giá trị|这 次 培训 对 我 很 有 价值 。|This training is very valuable to me.|Đợt đào tạo này rất có giá trị đối với tôi.
+驾驶|v.|to drive; to pilot|lái (xe, máy bay)|喝 酒 以后 驾驶 汽车 非常 危险 。|Driving a car after drinking is very dangerous.|Lái xe sau khi uống rượu rất nguy hiểm.
+嫁|v.|(of a woman) to marry|lấy chồng, gả|她 去年 嫁 给 了 自己 的 大学 同学 。|Last year she married her university classmate.|Năm ngoái cô ấy lấy bạn học đại học của mình.
+坚决|adj.|firm; resolute|kiên quyết|对于 这个 决定 ， 他 坚决 不 同意 。|He firmly disagrees with this decision.|Đối với quyết định này, anh ấy kiên quyết không đồng ý.
+坚强|adj.|strong; staunch|kiên cường, mạnh mẽ|遇到 困难 的 时候 ， 我们 要 坚强 一点儿 。|When we meet difficulties, we should be a bit stronger.|Khi gặp khó khăn, chúng ta phải mạnh mẽ hơn một chút.
+肩膀|n.|shoulder|vai|他 拍 了 拍 我 的 肩膀 ， 让 我 别 担心 。|He patted me on the shoulder and told me not to worry.|Anh ấy vỗ vai tôi, bảo tôi đừng lo.
+艰巨|adj.|arduous; formidable|gian khổ, nặng nề, khó khăn|三 个 月 完成 这个 任务 非常 艰巨 。|Finishing this task in three months is very demanding.|Hoàn thành nhiệm vụ này trong ba tháng là vô cùng khó khăn.
+兼职|n./v.|part-time job; to work part-time|việc làm thêm; kiêm chức|他 周末 在 一 家 咖啡 店 做 兼职 。|He works part-time at a café at weekends.|Cuối tuần anh ấy làm thêm ở một quán cà phê.
+捡|v.|to pick up|nhặt|我 在 楼梯 上 捡 到 了 一 张 员工 卡 。|I picked up a staff card on the stairs.|Tôi nhặt được một chiếc thẻ nhân viên trên cầu thang.
+剪刀|n.|scissors|cái kéo|请 把 剪刀 借 我 用 一下 ， 好 吗 ？|May I borrow the scissors for a moment?|Cho tôi mượn cái kéo dùng một lát được không?
+简直|adv.|simply; really (emphasis)|quả thực, thật là|这里 的 风景 简直 太 美 了 ！|The scenery here is simply too beautiful!|Phong cảnh ở đây quả thực quá đẹp!
+建立|v.|to establish; to set up|thành lập, xây dựng, thiết lập|两 家 公司 建立 了 很 好 的 合作 关系 。|The two companies have built a good working relationship.|Hai công ty đã thiết lập quan hệ hợp tác rất tốt.
+建设|v./n.|to build; construction|xây dựng, kiến thiết|这个 城市 正在 建设 一 条 新 地铁 。|This city is building a new metro line.|Thành phố này đang xây dựng một tuyến tàu điện ngầm mới.
+建筑|n./v.|building; architecture; to construct|kiến trúc, công trình|这 座 建筑 已经 有 三 百 年 的 历史 了 。|This building has three hundred years of history.|Công trình này đã có lịch sử ba trăm năm.
+健身|v.|to work out; to keep fit|tập thể hình, rèn luyện thân thể|下班 以后 ， 我 常常 去 健身 。|After work I often go to work out.|Sau giờ làm, tôi thường đi tập thể hình.
+键盘|n.|keyboard|bàn phím|这个 键盘 有 几 个 键 不 好 用 了 。|A few keys on this keyboard no longer work well.|Bàn phím này có mấy phím không còn dùng tốt nữa.
+讲究|v./adj.|to be particular about; exquisite|chú trọng, cầu kỳ; tinh tế|他 对 吃 的 东西 非常 讲究 。|He is very particular about what he eats.|Anh ấy rất cầu kỳ trong chuyện ăn uống.
+讲座|n.|lecture; talk|buổi tọa đàm, bài giảng chuyên đề|下午 有 一 个 关于 健康 的 讲座 。|There is a talk on health this afternoon.|Buổi chiều có một buổi tọa đàm về sức khỏe.
+酱油|n.|soy sauce|xì dầu, nước tương|家里 的 酱油 用 完 了 ， 你 去 买 一 瓶 吧 。|We've run out of soy sauce at home; go and buy a bottle.|Xì dầu trong nhà hết rồi, bạn đi mua một chai đi.
+交换|v.|to exchange; to swap|trao đổi|第一 次 见面 ， 我们 交换 了 名片 。|At our first meeting we exchanged business cards.|Lần đầu gặp mặt, chúng tôi đã trao đổi danh thiếp.
+交际|v./n.|to socialise; social intercourse|giao tiếp, giao thiệp|做 销售 工作 需要 很 强 的 交际 能力 。|Sales work calls for strong social skills.|Làm công việc bán hàng cần khả năng giao tiếp rất tốt.
+交往|v.|to associate with; to have contact with|qua lại, giao du|他 很 喜欢 和 不同 的 人 交往 。|He enjoys mixing with different people.|Anh ấy rất thích giao du với những người khác nhau.
+浇|v.|to water; to pour on|tưới, dội|我 出差 的 时候 ， 请 帮 我 浇 一下 花 。|While I'm away on business, please water the flowers for me.|Khi tôi đi công tác, làm ơn tưới hoa giúp tôi.
+胶水|n.|glue|keo dán, hồ dán|请 用 胶水 把 照片 贴 在 申请 表 上 。|Please glue the photo onto the application form.|Hãy dùng keo dán ảnh vào đơn đăng ký.
+角度|n.|angle; point of view|góc độ|我们 应该 从 客户 的 角度 考虑 问题 。|We should consider the problem from the client's point of view.|Chúng ta nên xem xét vấn đề từ góc độ của khách hàng.
+狡猾|adj.|sly; cunning|xảo quyệt, gian xảo|故事 里 的 那 只 动物 非常 狡猾 。|The animal in the story is very cunning.|Con vật trong câu chuyện ấy rất xảo quyệt.
+教材|n.|teaching material; textbook|giáo trình, tài liệu giảng dạy|这 套 汉语 教材 很 适合 自学 。|This set of Chinese textbooks is well suited to self-study.|Bộ giáo trình tiếng Trung này rất hợp để tự học.
+教练|n.|coach; instructor|huấn luyện viên|我 的 游泳 教练 对 我 很 严格 。|My swimming coach is very strict with me.|Huấn luyện viên bơi của tôi rất nghiêm khắc với tôi.
+教训|n./v.|lesson (from experience); to lecture|bài học; dạy bảo, răn dạy|这 次 失败 给 了 我们 一 个 教训 。|This failure taught us a lesson.|Thất bại lần này đã cho chúng tôi một bài học.
+阶段|n.|stage; phase|giai đoạn|这个 计划 现在 还 在 准备 阶段 。|This plan is still at the preparation stage.|Kế hoạch này hiện vẫn đang ở giai đoạn chuẩn bị.
+结实|adj.|sturdy; solid; strong|chắc chắn, bền; rắn chắc|这 双 鞋 很 结实 ， 穿 了 三 年 还 没 坏 。|These shoes are sturdy; after three years they still haven't worn out.|Đôi giày này rất bền, đi ba năm vẫn chưa hỏng.
+接触|v.|to come into contact with; to touch|tiếp xúc|我 的 工作 每 天 要 接触 很多 人 。|My job brings me into contact with many people every day.|Công việc của tôi mỗi ngày phải tiếp xúc với rất nhiều người.
+接待|v.|to receive (guests)|tiếp đón, tiếp đãi|明天 由 我 负责 接待 国外 的 客人 。|Tomorrow I'm responsible for receiving the overseas guests.|Ngày mai tôi phụ trách tiếp đón khách nước ngoài.
+接近|v.|to approach; to be close to|gần, tiếp cận, xấp xỉ|今年 的 销售 数字 已经 接近 目标 了 。|This year's sales figures are already close to the target.|Số liệu bán hàng năm nay đã gần đạt mục tiêu.
+节省|v.|to save; to economise|tiết kiệm|坐 地铁 上班 可以 节省 不 少 时间 。|Taking the metro to work can save quite a lot of time.|Đi làm bằng tàu điện ngầm có thể tiết kiệm khá nhiều thời gian.
+结构|n.|structure; composition|kết cấu, cơ cấu|公司 明年 要 调整 工资 结构 。|The company will adjust its pay structure next year.|Năm sau công ty sẽ điều chỉnh cơ cấu tiền lương.
+结合|v.|to combine; to integrate|kết hợp|学习 语言 要 把 听 和 说 结合 起来 。|In learning a language you should combine listening and speaking.|Học ngôn ngữ phải kết hợp nghe và nói với nhau.
+结账|v.|to pay the bill; to settle accounts|thanh toán, tính tiền|服务员 ， 我们 吃 好 了 ， 请 结账 。|Waiter, we've finished; the bill, please.|Phục vụ ơi, chúng tôi ăn xong rồi, tính tiền giúp.
+戒|v.|to give up; to quit (a habit)|cai, bỏ (thói quen)|为了 家人 的 健康 ， 他 把 烟 戒 了 。|For the sake of his family's health, he gave up smoking.|Vì sức khỏe của gia đình, anh ấy đã cai thuốc lá.
+戒指|n.|ring (jewellery)|nhẫn|结婚 那 天 ， 他 送 给 她 一 个 戒指 。|On their wedding day he gave her a ring.|Ngày cưới, anh ấy tặng cô ấy một chiếc nhẫn.
+届|m.|(measure word for sessions, graduating classes)|khóa, kỳ, lần (lượng từ)|他 是 我们 学校 的 第 三 届 毕业生 。|He is from our school's third graduating class.|Anh ấy là sinh viên tốt nghiệp khóa thứ ba của trường chúng tôi.
+借口|n./v.|excuse; to use as an excuse|cớ, lý do thoái thác|别 再 找 借口 了 ， 快 去 写 作业 吧 。|Stop making excuses and go and do your homework.|Đừng tìm cớ nữa, mau đi làm bài tập đi.
+金属|n.|metal|kim loại|这 种 杯子 是 用 金属 做 的 ， 很 结实 。|This kind of cup is made of metal and is very sturdy.|Loại cốc này làm bằng kim loại, rất bền.
+尽快|adv.|as soon as possible|nhanh nhất có thể, càng sớm càng tốt|收到 邮件 以后 ， 请 尽快 回复 我 。|Please reply to me as soon as possible after receiving the email.|Nhận được thư xin hãy trả lời tôi càng sớm càng tốt.
+尽量|adv.|as much as possible; to do one's best|cố gắng hết mức, hết sức có thể|明天 的 会议 很 重要 ， 请 尽量 参加 。|Tomorrow's meeting is important; please attend if at all possible.|Cuộc họp ngày mai rất quan trọng, xin cố gắng tham gia.
+紧急|adj.|urgent; emergency|khẩn cấp|对不起 ， 我 有 点儿 紧急 的 事情 要 处理 。|Sorry, I have something urgent to deal with.|Xin lỗi, tôi có chút việc khẩn cấp phải xử lý.
+谨慎|adj.|cautious; prudent|thận trọng, cẩn trọng|签 合同 以前 一定 要 谨慎 。|You must be cautious before signing a contract.|Trước khi ký hợp đồng nhất định phải thận trọng.
+尽力|v.|to do one's best|cố gắng hết sức, tận lực|不管 结果 怎么样 ， 我们 都 尽力 了 。|Whatever the result, we did our best.|Dù kết quả thế nào, chúng tôi cũng đã cố gắng hết sức.
+进步|v./n.|to make progress; progress|tiến bộ|这个 学期 你 的 汉语 进步 很 大 。|Your Chinese has improved a great deal this term.|Học kỳ này tiếng Trung của bạn tiến bộ rất nhiều.
+进口|v./n.|to import; import; entrance|nhập khẩu; lối vào|这 家 超市 卖 很多 进口 水果 。|This supermarket sells a lot of imported fruit.|Siêu thị này bán nhiều hoa quả nhập khẩu.
+近代|n.|modern times (recent history)|cận đại|他 对 中国 近代 历史 很 感 兴趣 。|He is very interested in modern Chinese history.|Anh ấy rất quan tâm đến lịch sử cận đại Trung Quốc.
+经典|adj./n.|classic|kinh điển|这 是 一 部 非常 经典 的 老 电影 。|This is a real classic among old films.|Đây là một bộ phim cũ rất kinh điển.
+经商|v.|to be in business; to trade|kinh doanh, buôn bán|他 大学 毕业 后 就 开始 经商 了 。|He went into business right after graduating from university.|Sau khi tốt nghiệp đại học anh ấy bắt đầu kinh doanh.
+经营|v.|to run; to manage (a business)|kinh doanh, quản lý|他 和 太太 一起 经营 一 家 小 饭馆 。|He and his wife run a small restaurant together.|Anh ấy cùng vợ kinh doanh một quán ăn nhỏ.
+精力|n.|energy; vigour|tinh lực, sức lực|年轻 人 精力 好 ， 加班 也 不 觉得 累 。|Young people have plenty of energy and don't feel tired even working overtime.|Người trẻ nhiều sức lực, tăng ca cũng không thấy mệt.
+精神|n./adj.|spirit; mind; lively|tinh thần; có sức sống|睡 了 一 个 好 觉{jiào} ， 他 今天 很 有 精神 。|After a good night's sleep, he is full of energy today.|Ngủ một giấc ngon, hôm nay anh ấy rất có tinh thần.
+酒吧|n.|bar; pub|quán bar, quán rượu|下班 以后 ， 同事 们 常 去 酒吧 喝 一 杯 。|After work, colleagues often go to a bar for a drink.|Sau giờ làm, các đồng nghiệp thường ra quán bar uống một ly.
+救|v.|to save; to rescue|cứu|医生 们 努力 了 一 夜 ， 终于 把 他 救 了 。|The doctors worked all night and finally saved him.|Các bác sĩ nỗ lực suốt đêm, cuối cùng đã cứu được anh ấy.
+救护车|n.|ambulance|xe cấp cứu|有 人 受伤 了 ， 快 打 电话 叫 救护车 ！|Someone is injured; quick, phone for an ambulance!|Có người bị thương, mau gọi điện kêu xe cấp cứu!
+舅舅|n.|uncle (mother's brother)|cậu (anh em trai của mẹ)|我 舅舅 在 上海 开 了 一 家 公司 。|My uncle has opened a company in Shanghai.|Cậu tôi mở một công ty ở Thượng Hải.
+居然|adv.|unexpectedly; to one's surprise|vậy mà, không ngờ lại|这么 重要 的 会议 ， 他 居然 忘 了 。|He actually forgot such an important meeting.|Cuộc họp quan trọng như vậy mà anh ấy lại quên mất.
+桔子|n.|tangerine; orange|quả quýt|这些 桔子 又 大 又 甜 ， 你 尝尝 吧 。|These tangerines are big and sweet; have a taste.|Những quả quýt này vừa to vừa ngọt, bạn nếm thử đi.
+巨大|adj.|huge; enormous|to lớn, khổng lồ|这 几 年 我们 的 城市 发生 了 巨大 的 变化 。|In recent years our city has undergone enormous change.|Mấy năm nay thành phố của chúng tôi đã có những thay đổi to lớn.

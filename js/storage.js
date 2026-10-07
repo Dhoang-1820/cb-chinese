@@ -194,6 +194,22 @@
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
+  /* Export through the iOS share sheet (Save to Files, AirDrop, Mail) when the browser can share a file; otherwise download it. */
+  function shareJSON() {
+    var name = "cb-chinese-progress-" + today() + ".json", file = null, data = null;
+    try {
+      if (typeof File === "function" && navigator.canShare && navigator.share) {
+        file = new File([serialize(true)], name, { type: "application/json" });
+        data = { files: [file], title: "C&B Chinese progress" };
+        if (!navigator.canShare(data)) data = null;
+      }
+    } catch (e) { data = null; }
+    if (!data) { exportJSON(); return Promise.resolve("download"); }
+    return navigator.share(data).then(function () { return "shared"; }, function (e) {
+      if (e && e.name === "AbortError") return "cancelled"; // the learner closed the sheet
+      exportJSON(); return "download";
+    });
+  }
   function importJSON(text) {
     var obj = JSON.parse(text);
     var p = obj && obj.progress ? obj.progress : obj;
@@ -207,7 +223,7 @@
     get state() { return state; },
     load: load, save: save, touch: touch, streak: streak, day: day, game: game,
     today: today, addDays: addDays, daysBetween: daysBetween,
-    exportJSON: exportJSON, importJSON: importJSON, serialize: serialize, reset: reset,
+    exportJSON: exportJSON, shareJSON: shareJSON, importJSON: importJSON, serialize: serialize, reset: reset,
     get available() { return available; }
   };
   load();

@@ -102,7 +102,9 @@ CONTRAST_JS = r"""() => {
 async def t_first_run(b):
     ctx, pg = await open_app(b, None)
     await pg.wait_for_selector("#su-go")
-    check("first run: setup dialog is shown", await pg.locator("#su-time").count() == 1 and await pg.locator("#su-days").count() == 1)
+    check("first run: one short setup step (exam date, study time, days a week)", await pg.locator("#su-exam").count() == 1 and await pg.locator("#su-time").count() == 1 and await pg.locator("#su-days").count() == 1
+          and await pg.locator("#su-goal, #su-lv, #g-skip").count() == 0)
+    check("setup dialog: defaults are preselected", await pg.locator("#su-time .on").get_attribute("data-v") == "20:00" and await pg.locator("#su-days .on").get_attribute("data-v") == "5" and bool(await pg.input_value("#su-exam")))
     await pg.wait_for_timeout(200)
     check("setup dialog: focus is inside and it has a name", await pg.evaluate("(()=>{const m=document.querySelector('.modal');return m.contains(document.activeElement)&&!!m.getAttribute('aria-labelledby')})()"))
     await pg.keyboard.press("Escape")
@@ -110,13 +112,150 @@ async def t_first_run(b):
     vp = pg.viewport_size
     box = await pg.locator("#su-go").bounding_box()
     check("setup dialog: Continue is on screen", box and box["y"] + box["height"] <= vp["height"], box)
-    await pg.click(".su-o[data-v='50']"); await pg.click("#su-time [data-v='12:30']"); await pg.click("#su-days [data-v='3']")
-    await pg.fill("#su-exam", day(40)); await pg.click("#su-go"); await pg.wait_for_timeout(300)
+    await pg.click("#su-time [data-v='12:30']"); await pg.click("#su-days [data-v='3']")
+    check("setup dialog: the chosen option is marked for screen readers", await pg.locator("#su-days [aria-pressed='true']").get_attribute("data-v") == "3")
+    await pg.fill("#su-exam", day(40)); await pg.click("#su-go"); await pg.wait_for_timeout(600)
     st = await pg.evaluate("Store.state.settings")
-    check("setup: choices are saved", st.get("dailyGoal") == 50 and st.get("remindTime") == "12:30" and st.get("weeklyDays") == 3 and st.get("examDate") == day(40) and st.get("setupDone"), st)
-    check("guide follows setup", await pg.locator("#g-next").count() == 1)
-    await pg.click("#g-skip"); await pg.wait_for_timeout(500)
-    check("after the guide the Home screen is usable", await pg.locator(".modal-wrap").count() == 0 and await pg.locator(".session-cta").count() == 1)
+    check("setup: choices are saved, the rest keeps its default", st.get("remindTime") == "12:30" and st.get("weeklyDays") == 3 and st.get("examDate") == day(40) and st.get("setupDone") and st.get("onboarded") and st.get("dailyGoal") == 30, st)
+    check("after setup the Home screen is usable (no guide pages)", await pg.locator(".modal-wrap").count() == 0 and await pg.locator(".session-cta").count() == 1)
+    check("after setup Home shows the chosen exam date and weekly goal", "40 days" in await pg.inner_text("#app") and "Study 3 days" in await pg.inner_text(".wkrow"))
+    await go(pg, "#/me", 500); await pg.click("#s-guide"); await pg.wait_for_timeout(300)
+    check("the guide pages are still under Me", await pg.locator("#g-next").count() == 1 and await pg.locator("#su-go").count() == 0)
+    await ctx.close()
+    # Continue straight away: defaults are saved
+    ctx, pg = await open_app(b, None)
+    await pg.wait_for_selector("#su-go"); await pg.click("#su-go"); await pg.wait_for_timeout(600)
+    st = await pg.evaluate("Store.state.settings")
+    check("setup: Continue with no choices keeps the defaults", st.get("remindTime") == "20:00" and st.get("weeklyDays") == 5 and st.get("onboarded") and await pg.locator(".modal-wrap").count() == 0, st)
+    await ctx.close()
+
+
+async def t_resume(b):
+    back = "document.dispatchEvent(new Event('visibilitychange'))"
+    shown = "window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}))"
+    mark = "document.querySelector('#app > *').setAttribute('data-old','1')"
+    old = "document.querySelectorAll('#app [data-old]').length"
+
+    async def at(pg, days, h, m=0):
+        """Set the phone's clock, and make sure it took (a clock change is sometimes lost right after another one)."""
+        t = datetime.datetime.combine(TODAY + datetime.timedelta(days=days), datetime.time(h, m))
+        for _ in range(10):
+            await pg.clock.set_fixed_time(t)
+            if await pg.evaluate("(()=>{const d=new Date();return [d.getFullYear(),d.getMonth()+1,d.getDate(),d.getHours(),d.getMinutes()]})()") == [t.year, t.month, t.day, t.hour, t.minute]: return
+            await pg.wait_for_timeout(50)
+        raise Exception("the test clock could not be set")
+
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    await pg.clock.install(time=datetime.datetime.combine(TODAY, datetime.time(9, 0)))
+    await pg.reload(); await pg.wait_for_selector(".quests")
+    await pg.evaluate(mark); await at(pg, 0, 10); await pg.evaluate(back); await pg.wait_for_timeout(200)
+    check("resume: Home is left alone after a short break", await pg.evaluate(old) == 1)
+    await at(pg, 0, 12, 30)
+    await pg.evaluate("document.body.insertAdjacentHTML('beforeend','<div class=\"modal-wrap\" id=\"x-dlg\"></div>')")
+    await pg.evaluate(back); await pg.wait_for_timeout(200)
+    check("resume: Home is not redrawn under an open dialog", await pg.evaluate(old) == 1)
+    await pg.evaluate("document.getElementById('x-dlg').className='fx-streak'"); await pg.evaluate(back); await pg.wait_for_timeout(200)
+    check("resume: Home is not redrawn under a celebration card", await pg.evaluate(old) == 1)
+    await pg.evaluate("document.getElementById('x-dlg').remove()"); await pg.evaluate(back); await pg.wait_for_timeout(300)
+    check("resume: Home is redrawn after more than 3 hours away", await pg.evaluate(old) == 0 and await pg.locator(".quests").count() == 1)
+    await pg.evaluate(mark); await pg.evaluate(shown); await pg.wait_for_timeout(200)
+    check("resume: not redrawn twice in a row", await pg.evaluate(old) == 1)
+    # a new day, only one hour later on the clock
+    await at(pg, 0, 23, 30); await go(pg, "#/me", 300); await go(pg, "#/", 500)
+    await pg.evaluate(mark); await at(pg, 1, 0, 30)
+    await pg.evaluate(shown); await pg.wait_for_timeout(300)
+    check("resume: Home is redrawn when the day changed", await pg.evaluate(old) == 0 and await pg.evaluate("Store.today()") == day(1))
+    # other screens are never touched
+    await go(pg, "#/day/1/quiz"); await pg.wait_for_selector(".opt")
+    await pg.evaluate(mark); await at(pg, 2, 12)
+    await pg.evaluate(back); await pg.evaluate(shown); await pg.wait_for_timeout(300)
+    check("resume: a screen other than Home is never redrawn", await pg.evaluate(old) == 1 and await pg.locator(".opt").count() > 0)
+    await ctx.close()
+
+
+async def t_tip(b):
+    async def tip(state, ai=False):
+        ctx, pg = await open_app(b, state, ai=ai)
+        el = pg.locator("#tip")
+        r = (await el.get_attribute("data-rule"), await el.inner_text(), await pg.locator("#tip-go").get_attribute("href")) if await el.count() else (None, "", None)
+        return ctx, pg, r
+    base = {"settings": settings(examDate=day(120)), "srs": {}}
+    ctx, pg, r = await tip(base)
+    ids = await pg.evaluate("App.WORDS.slice(0,25).map(w=>w.id)")
+    check("tip: today's lesson when nothing else applies", r[0] == "lesson" and r[2] == "#/day/1", r)
+    check("tip: one small card above the More fold with one button", await pg.locator("#tip .btn").count() == 1 and await pg.evaluate("!document.querySelector('details.more #tip')"))
+    await pg.click("#tip-go"); await pg.wait_for_timeout(500)
+    seen = await pg.evaluate("JSON.parse(localStorage.getItem('cbChinese.tip'))")
+    check("tip: the button opens the screen and the tap is remembered", await pg.evaluate("location.hash") == "#/day/1" and seen == {"d": day(0), "r": "lesson"}, seen)
+    await go(pg, "#/", 600)
+    check("tip: hidden for the rest of the day once acted on", await pg.locator("#tip").count() == 0 and await pg.locator(".quests").count() == 1)
+    await pg.evaluate("localStorage.setItem('cbChinese.tip',JSON.stringify({d:'2020-01-01',r:'lesson'}))"); await go(pg, "#/me", 300); await go(pg, "#/", 600)
+    check("tip: back the next day", await pg.locator("#tip").count() == 1)
+    await ctx.close()
+    done = {"1": {"completed": True, "completedOn": day(0), "quizBest": 9}}
+    ctx, pg, r = await tip(dict(base, days=done))
+    check("tip: 'all caught up' links to listening or the Reader", r[0] in ("listen", "read") and r[2] in ("#/listen-mode", "#/read") and "All caught up" in r[1], r)
+    await ctx.close()
+    ctx, pg, r = await tip({"settings": settings(examDate=day(30)), "srs": {}, "days": done})
+    check("tip: a mock exam when none was taken in 14 days and the exam is near", r[0] == "mock" and r[2] == "#/mock", r)
+    await ctx.close()
+    mock = [{"id": 1, "date": day(-3), "mode": "exam", "total": 188, "sections": {"listening": 52, "reading": 74, "writing": 62}}]
+    ctx, pg, r = await tip({"settings": settings(examDate=day(30)), "srs": {}, "days": done, "mockHistory": mock})
+    check("tip: no mock tip after a recent mock", r[0] in ("listen", "read"), r)
+    await ctx.close()
+    slog = {day(-2): {"m": 10, "s": 1, "h": 20, "k": {"measure": [4, 8], "vocab": [20, 2], "pinyin": [1, 5]}}}
+    ctx, pg, r = await tip(dict(base, slog=slog, log={day(-2): 30}))
+    check("tip: the weakest skill of the last 14 days (10+ answers, under 70%)", r[0] == "weak" and r[2] == "#/game/measure" and "33%" in r[1], r)
+    await ctx.close()
+    mlog = [{"d": day(-1), "k": "t:%d" % i, "s": "confusable"} for i in range(6)]
+    ctx, pg, r = await tip(dict(base, slog=slog, mlog=mlog, skills={"confusable": {"r": 4, "w": 8}}))
+    check("tip: a mistake pattern comes before the weakest skill", r[0] == "pattern" and r[2] == "#/game/confuse" and "Confusable words" in r[1], r)
+    await ctx.close()
+    srs = {i: {"box": 1, "due": day(-1), "right": 0, "wrong": 0, "added": day(-3), "last": day(-2)} for i in ids}
+    ctx, pg, r = await tip(dict(base, srs=srs, slog=slog, mlog=mlog, skills={"confusable": {"r": 4, "w": 8}}))
+    check("tip: 20 or more due words come first", r[0] == "due" and r[2] == "#/review" and "25 words are due. Clear them first." in r[1], r)
+    await ctx.close()
+    # the coach's plan already asks for the same skill -> no second card
+    today = datetime.date.today(); mon = (today - datetime.timedelta(days=today.weekday())).isoformat()
+    def plan(skill):
+        return [{"w": mon, "d": day(0), "base": {"skills": {skill: 0}, "cards": 0, "mocks": 0}, "actions": [{"text": "Practise this", "minutes": 10, "skill": skill}]}]
+    ctx, pg, r = await tip(dict(base, slog=slog, coachLog=plan("measure")))
+    check("tip: not shown when the coach's plan has the same skill open", r[0] is None and await pg.locator("#coach-plan li").count() == 1, r)
+    await ctx.close()
+    ctx, pg, r = await tip(dict(base, slog=slog, coachLog=plan("typing")))
+    check("tip: shown beside a coach plan about something else", r[0] == "weak" and await pg.locator("#coach-plan li").count() == 1, r)
+    await ctx.close()
+
+
+async def t_theme(b):
+    metas = "[...document.querySelectorAll('meta[name=\"theme-color\"]')].map(m=>m.content)"
+    bg = "(()=>{const m=getComputedStyle(document.body).backgroundColor.match(/\\d+/g);return '#'+m.slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join('')})()"
+    for scheme in ("light", "dark"):
+        ctx, pg = await open_app(b, {"settings": settings(theme="auto"), "srs": {}}, color_scheme=scheme)
+        m = await pg.evaluate(metas); col = await pg.evaluate(bg)
+        used = await pg.evaluate("[...document.querySelectorAll('meta[name=\"theme-color\"]')].filter(m=>matchMedia(m.media).matches).map(m=>m.content)")
+        check("status bar: follows the system theme (%s) and matches the page background" % scheme, len(m) == 2 and used == [col], (m, used, col))
+        await go(pg, "#/me", 500)
+        other = "dark" if scheme == "light" else "light"
+        await pg.select_option("#s-theme", other); await pg.wait_for_timeout(300)
+        m = await pg.evaluate(metas); col = await pg.evaluate(bg)
+        check("status bar: changes with a manual theme (%s on a %s phone)" % (other, scheme), m == [col, col] and col == ("#17161f" if other == "dark" else "#ece8fa"), (m, col))
+        await pg.select_option("#s-theme", "auto"); await pg.wait_for_timeout(300)
+        m = await pg.evaluate(metas)
+        check("status bar: back to the system colours with theme System (%s)" % scheme, m == ["#ece8fa", "#17161f"], m)
+        await ctx.close()
+    # export: share sheet when the phone can share a file, download otherwise
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    await pg.evaluate("()=>{window.__sh=null;navigator.canShare=d=>!!(d&&d.files&&d.files.length);navigator.share=d=>{window.__sh={n:d.files[0].name,t:d.files[0].type};return Promise.resolve()}}")
+    await go(pg, "#/me", 500); await pg.evaluate("document.querySelectorAll('#app details').forEach(d=>d.open=true)")
+    await pg.click("#s-exp"); await pg.wait_for_timeout(300)
+    sh = await pg.evaluate("window.__sh")
+    check("export: uses the share sheet with a JSON file when files can be shared", sh and sh["n"].endswith(".json") and sh["t"] == "application/json", sh)
+    await pg.evaluate("()=>{navigator.canShare=()=>false}")
+    async with pg.expect_download() as dl:
+        await pg.click("#s-exp")
+    d = await dl.value
+    check("export: falls back to a download", d.suggested_filename.startswith("cb-chinese-progress-"), d.suggested_filename)
     await ctx.close()
 
 
@@ -369,7 +508,8 @@ async def t_sync(b):
 async def t_coach(b):
     today = datetime.date.today(); mon = today - datetime.timedelta(days=today.weekday()); iso = lambda d: d.isoformat()
     log = {iso(today - datetime.timedelta(days=i)): 30 for i in range(1, 12) if i not in (3, 4)}
-    old = {"w": iso(mon - datetime.timedelta(days=7)), "d": iso(mon - datetime.timedelta(days=7)), "base": {"skills": {"measure": 20}, "cards": 0, "mocks": 0},
+    # made on Friday of last week: Home keeps a plan for 9 days, so this holds on every weekday the tests run
+    old = {"w": iso(mon - datetime.timedelta(days=7)), "d": iso(mon - datetime.timedelta(days=3)), "base": {"skills": {"measure": 20}, "cards": 0, "mocks": 0},
            "actions": [{"text": "Do measure words", "minutes": 10, "skill": "measure"}, {"text": "Take one mock exam", "minutes": 30, "skill": "mock"}]}
     state = {"settings": settings(), "srs": {}, "log": log, "xp": 270, "skills": {"measure": {"r": 30, "w": 10}}, "coachLog": [old],
              "weekly": {"cur": {"start": iso(mon), "skills": {}, "cards": 0, "fc": None}}}
@@ -500,7 +640,7 @@ async def t_contrast(b):
         await ctx.close()
 
 
-GROUPS = [("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+GROUPS = [("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

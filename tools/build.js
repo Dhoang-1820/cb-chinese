@@ -116,6 +116,8 @@ const precache = ["./", "index.html", cssName, appName, "manifest.webmanifest", 
   "data/index.js", "data/full.js", "data/mocks.js", "data/track.js", "vendor/hanzi-writer.min.js",
   "icons/icon-64.png", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
   "fonts/nunito-latin-wght-normal.woff2", "fonts/nunito-latin-ext-wght-normal.woff2", "fonts/nunito-vietnamese-wght-normal.woff2"];
+// iOS launch screens (tools/gen_splash.py): precached like the icons
+if (fs.existsSync(path.join(OUT, "icons", "splash"))) fs.readdirSync(path.join(OUT, "icons", "splash")).filter(f => /\.png$/.test(f)).sort().forEach(f => precache.push("icons/splash/" + f));
 precache.forEach(f => { if (f !== "./" && !fs.existsSync(path.join(OUT, f))) throw new Error("precache file missing: " + f); });
 sw = sw.slice(0, p0) + "var PRECACHE = " + J(precache) + ";" + sw.slice(p1 + "/* PRECACHE:END */".length);
 write("sw.js", sw);

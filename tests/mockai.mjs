@@ -43,6 +43,7 @@ let count = 0;
 const rows = []; let nid = 1;
 const lrn = [];
 const db = async (method, path, body) => {
+  if (path.startsWith("ai_usage")) return [{ day: new Date().toISOString().slice(0, 10), n: Math.min(count, +env.AI_DAILY_CAP) }, { day: new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10), n: 7 }]; // today's counter + one earlier day
   if (path.startsWith("learners")) {
     const m = /id=eq\.([a-f0-9]+)/.exec(path), i = m ? lrn.findIndex((r) => r.id === m[1]) : -1;
     if (method === "POST") { lrn.push({ ...body }); return null; }
@@ -55,12 +56,14 @@ const db = async (method, path, body) => {
   const tk = /verdict-%3E%3Etoken=eq\.([a-f0-9-]+)/.exec(path); if (tk) return rows.filter((r) => r.verdict && r.verdict.token === tk[1]);
   const bid = /[?&]id=eq\.(\d+)/.exec(path); if (bid && method === "GET") return rows.filter((r) => r.id === +bid[1]);
   const st = /status=eq\.(\w+)/.exec(path); if (/quarantine=is\.true/.test(path)) return rows.filter((r) => r.quarantine);
+  const stIn = /status=in\.\(([^)]*)\)/.exec(path); if (stIn && !/ref=eq\./.test(path)) return rows.filter((r) => stIn[1].split(",").indexOf(r.status) >= 0); // admin_stats: reports waiting
   return rows.filter((r) => !st || r.status === st[1]).slice().reverse();
 };
 const deps = { fetch: fakeFetch, bump: async (cap) => (++count > cap ? -1 : count), db };
 http.createServer(async (rq, rs) => {
   if (rq.url === "/__mode") { let b = ""; rq.on("data", (d) => (b += d)); rq.on("end", () => { mode = b.trim() || "ok"; count = mode === "reset" ? 0 : count; if (mode === "reset") mode = "ok"; rs.end("mode=" + mode); }); return; }
   if (rq.url === "/__rows") { rs.end(JSON.stringify(rows)); return; }
+  if (rq.url === "/__stale") { lrn.forEach((r) => { r.updated_at = new Date(Date.now() - 5 * 864e5).toISOString(); }); rs.end("stale=" + lrn.length); return; } // every backup now looks 5 days old
   if (rq.url === "/__calls") { rs.end(String(n)); return; }
   let body = ""; rq.on("data", (d) => (body += d));
   rq.on("end", async () => {

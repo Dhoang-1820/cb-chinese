@@ -1852,10 +1852,11 @@
       return;
     }
     var tabs = [["proposed", "Proposed"], ["needs_review", "Needs a look"], ["dismissed", "AI disagreed"], ["accepted", "Accepted"], ["learners", "👥 Learners"]];
-    render(html0 + '<div class="fx-tabs">' + tabs.map(function (t) { return '<button class="btn small' + (t[0] === FIX_TAB ? " primary" : "") + '" data-fxtab="' + t[0] + '">' + t[1] + "</button>"; }).join("") + '</div><div id="fx-list"><p class="empty">Loading…</p></div><div class="actions"><button class="btn small" id="fx-forget">Forget reviewer code</button></div></section>', "me");
+    render(html0 + '<div id="fx-svc"></div><div class="fx-tabs">' + tabs.map(function (t) { return '<button class="btn small' + (t[0] === FIX_TAB ? " primary" : "") + '" data-fxtab="' + t[0] + '">' + t[1] + "</button>"; }).join("") + '</div><div id="fx-list"><p class="empty">Loading…</p></div><div class="actions"><button class="btn small" id="fx-forget">Forget reviewer code</button></div></section>', "me");
     [].forEach.call(document.querySelectorAll("[data-fxtab]"), function (b) { b.onclick = function () { FIX_TAB = b.getAttribute("data-fxtab"); viewFixes(); }; });
     document.getElementById("fx-forget").onclick = function () { Content.setAdminCode(""); viewFixes(); };
     var list = document.getElementById("fx-list");
+    serviceBlock(document.getElementById("fx-svc"));
     if (FIX_TAB === "learners") { learnersList(list); return; }
     Content.admin("review_list", { status: FIX_TAB }).then(function (r) {
       if (!r.ok) { list.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(r.error)) + "</div>"; if (r.error === "bad_admin") { Content.setAdminCode(""); viewFixes(AI.errMsg("bad_admin")); } return; }
@@ -1863,6 +1864,23 @@
       if (!rows.length) { list.innerHTML = '<p class="empty">Nothing here.</p>'; return; }
       list.innerHTML = rows.map(fixCard).join("");
       rows.forEach(wireFix);
+    });
+  }
+  /* Admin: how the service is doing. Numbers only. An older server has no "admin_stats" task: then there is simply no block. */
+  function serviceBlock(host) {
+    if (!host) return;
+    Content.admin("admin_stats", {}).then(function (r) {
+      if (!r.ok || !r.result || typeof r.result !== "object" || !document.body.contains(host)) return;
+      var x = r.result, ai = x.ai, bk = x.backups, rp = x.reports, out = "";
+      function n(v) { v = Math.round(+v); return isFinite(v) && v > 0 ? v : 0; }
+      if (ai && Array.isArray(ai.days)) {
+        var days = ai.days.slice(-14).map(function (d) { return { x: String(d.day || "").slice(8, 10), y: n(d.n) }; }), most = days.reduce(function (m, d) { return Math.max(m, d.y); }, 0);
+        out += '<p class="sub">AI calls today: <b class="' + (n(ai.today) >= n(ai.cap) * 0.8 ? "bad-t" : "") + '" id="svc-ai">' + n(ai.today) + "/" + n(ai.cap) + "</b>" + (n(ai.today) >= n(ai.cap) ? " · the daily cap is reached" : "") + "</p>" +
+          barChart(days, {}) + '<p class="sub lrn-cap">AI calls a day, last 14 days (UTC), today on the right · most in a day: ' + most + '</p><p class="sr">Calls per day, oldest first: ' + days.map(function (d) { return d.y; }).join(", ") + "</p>";
+      } else out += '<p class="sub">AI calls: unknown (the usage table could not be read).</p>';
+      out += bk ? '<p class="sub">Phones with a backup: <b class="' + (n(bk.n) >= n(bk.max) ? "bad-t" : "") + '" id="svc-bk">' + n(bk.n) + "/" + n(bk.max) + "</b>" + (n(bk.n) >= n(bk.max) ? " · full, a new phone cannot back up" : "") + ' · not saved for 3+ days: <b id="svc-stale">' + n(bk.stale) + "</b></p>" : '<p class="sub">Backups: unknown.</p>';
+      out += rp ? '<p class="sub">Content reports waiting: <b id="svc-rep">' + n(rp.waiting) + "</b></p>" : '<p class="sub">Content reports: unknown.</p>';
+      host.innerHTML = '<div class="fix svc" id="svc"><div class="sec-h"><b>Service</b><span class="muted">now</span></div>' + out + "</div>";
     });
   }
   /* Admin: one card per phone that keeps a cloud backup. Numbers only; the server never sends the full progress here. */

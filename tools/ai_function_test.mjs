@@ -296,4 +296,56 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
   fn.resetBreaker(); fn.setBreakerClock();
   t("breaker reset leaves no state behind", fn.breakerRemaining(MAIN) === 0);
 }
+{
+  // ---- admin_stats: numbers for the admin's Service block ----
+  const NOW = Date.now(), dayOf = (t) => new Date(t).toISOString().slice(0, 10), today = dayOf(NOW);
+  const usage = [{ day: today, n: 12 }, { day: dayOf(NOW - 864e5), n: 40 }, { day: dayOf(NOW - 20 * 864e5), n: 99 }, { day: "junk", n: 5 }];
+  const lrn = [{ updated_at: new Date(NOW - 36e5).toISOString() }, { updated_at: new Date(NOW - 4 * 864e5).toISOString() }, { updated_at: new Date(NOW - 2 * 864e5).toISOString() }, { updated_at: null }];
+  const reports = [{ id: 1, status: "proposed" }, { id: 2, status: "needs_review" }, { id: 3, status: "accepted" }, { id: 4, status: "dismissed" }, { id: 5, status: "proposed" }];
+  const seen = []; let broken = "";
+  const db = async (method, path) => {
+    seen.push(method + " " + path);
+    if (broken && path.startsWith(broken)) throw new Error("db 404");
+    if (path.startsWith("ai_usage")) return usage;
+    if (path.startsWith("learners")) return lrn;
+    const stIn = /status=in\.\(([^)]*)\)/.exec(path);
+    return reports.filter((r) => !stIn || stIn[1].split(",").indexOf(r.status) >= 0);
+  };
+  const e9 = { GEMINI_API_KEY: "k", ADMIN_CODE: "admin-code-12345", AI_DAILY_CAP: "80", SYNC_MAX_LEARNERS: "6" };
+  let aiCalls = 0, bumps = 0;
+  const deps9 = { fetch: async () => { aiCalls++; return { status: 500, json: async () => ({}) }; }, bump: async () => { bumps++; return 1; }, db };
+  const ask = async (code, ip) => { const r = await fn.handle(req({ task: "admin_stats", lang: "both", payload: {} }, { ...(code ? { "x-admin-code": code } : {}), ...(ip ? { "cf-connecting-ip": ip } : {}) }), e9, deps9); return { s: r.status, j: await r.json() }; };
+  let a = await ask(null, "198.51.100.71"); t("admin_stats needs the admin code", a.s === 401 && a.j.error === "bad_admin" && seen.length === 0, JSON.stringify(a.j));
+  a = await ask("wrong-code-000000", "198.51.100.72"); t("admin_stats: a wrong code is refused before any read", a.s === 401 && seen.length === 0);
+  a = await ask("admin-code-12345");
+  const x = a.j.result || {};
+  t("admin_stats: AI calls today against the cap", a.s === 200 && a.j.ok && x.ai.today === 12 && x.ai.cap === 80, JSON.stringify(x.ai));
+  t("admin_stats: 14 days, oldest first, today last, gaps as 0, old and junk rows ignored", x.ai.days.length === 14 && x.ai.days[13].day === today && x.ai.days[13].n === 12 && x.ai.days[12].n === 40 && x.ai.days[0].n === 0 && x.ai.days.reduce((s, d) => s + d.n, 0) === 52, JSON.stringify(x.ai.days));
+  t("admin_stats: backups against the limit, and how many are 3+ days old", x.backups.n === 4 && x.backups.max === 6 && x.backups.stale === 2, JSON.stringify(x.backups));
+  t("admin_stats: only proposed and needs_review reports are waiting", x.reports.waiting === 3, JSON.stringify(x.reports));
+  t("admin_stats: reads only, no AI call and no usage count", seen.every((q) => q.startsWith("GET ")) && seen.length === 3 && aiCalls === 0 && bumps === 0, seen.join(" | "));
+  t("admin_stats: never sends learner data or report text", !/data|summary|meta|note|snapshot/.test(seen.join(" ")) && Object.keys(x).sort().join() === "ai,at,backups,reports", seen.join(" | "));
+  broken = "ai_usage"; a = await ask("admin-code-12345");
+  t("admin_stats: a missing table gives null for that part only", a.j.ok && a.j.result.ai === null && a.j.result.backups.n === 4 && a.j.result.reports.waiting === 3, JSON.stringify(a.j.result));
+  broken = "";
+  const s2 = await fn.adminStats({}, db, NOW);
+  t("admin_stats: default cap 150 and limit 20", s2.ai.cap === 150 && s2.backups.max === 20);
+  const noDb = await fn.handle(req({ task: "admin_stats", payload: {} }, { "x-admin-code": "admin-code-12345" }), e9, { fetch: deps9.fetch, bump: deps9.bump });
+  t("admin_stats without a database → not_configured", noDb.status === 500);
+  // problem-report ids of the new content fit the server's pattern (HSK 5 drills and grammar, word bank, arrange the words)
+  const okRefs = ["drill:h5c001", "drill:h5o110", "drill:h5p052", "drill:h5m050", "gq:h5g01:4", "grammar:h5g42", "word:h5-1231", "word:x4-0091", "drill:wo54", "drill:bk08:5", "gq:g70:0"];
+  const rdb = async (method) => (method === "GET" ? [] : null);
+  const verdictOk = { status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ verdict: "ok", reasoning: "Fine.", patch: { set: [] }, confidence: "high" }) }] } }] }) };
+  let bad = [];
+  for (const ref of okRefs) {
+    const r = await fn.handle(req({ task: "report", lang: "both", payload: { ref, note: "check", snapshot: { id: "x", q: "测试" }, route: "#/x" } }), { ...e9, AI_REPORT_CAP: "99" }, { fetch: async () => verdictOk, bump: async () => 1, db: rdb });
+    const j = await r.json(); if (!j.ok) bad.push(ref + ":" + j.error);
+  }
+  t("report: ids of the new content are accepted (" + okRefs.length + " kinds)", bad.length === 0, bad.join(" "));
+  for (const ref of ["drill:bk01:1:2", "word:h5-0001/x", "drill:" + "a".repeat(25)]) {
+    const r = await fn.handle(req({ task: "report", lang: "both", payload: { ref, note: "check", snapshot: { id: "x" }, route: "#/x" } }), e9, { fetch: async () => verdictOk, bump: async () => 1, db: rdb });
+    const j = await r.json(); if (j.error !== "bad_ref") bad.push(ref);
+  }
+  t("report: malformed ids are still refused", bad.length === 0, bad.join(" "));
+}
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

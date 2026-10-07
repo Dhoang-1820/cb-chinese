@@ -9,7 +9,7 @@ Environment: BASE (default http://localhost:8766/) and AI_URL (default http://lo
 Nothing here depends on today's date: exam dates and study logs are set relative to "today".
 The script exits with 1 when any check fails.
 """
-import asyncio, datetime, itertools, json, os, sys
+import asyncio, datetime, itertools, json, os, sys, urllib.request
 from playwright.async_api import async_playwright
 
 BASE = os.environ.get("BASE", "http://localhost:8766/")
@@ -909,7 +909,49 @@ async def t_extras(b):
     await ctx.close()
 
 
-GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+async def t_admin(b):
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await pg.evaluate("Game.award(40)"); await no_dialogs(pg)
+    await pg.evaluate("Sync.now()")
+    await pg.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
+    before = await pg.evaluate("Content.admin('admin_stats',{}).then(r=>r.result)")
+    await go(pg, "#/fixes", 400); await pg.wait_for_selector("#svc", timeout=10000)
+    txt = await pg.inner_text("#svc")
+    check("admin: the Service block shows AI calls against the cap, backups against the limit and reports waiting",
+          ("AI calls today: %d/50" % before["ai"]["today"]) in txt and ("Phones with a backup: %d/20" % before["backups"]["n"]) in txt and "not saved for 3+ days: 0" in txt and ("Content reports waiting: %d" % before["reports"]["waiting"]) in txt, txt)
+    check("admin: the Service block charts the last 14 days", await pg.locator("#svc svg.chart rect").count() == 14 and len(before["ai"]["days"]) == 14 and "last 14 days" in txt)
+    faint = await pg.evaluate(CONTRAST_JS)
+    await pg.evaluate("document.documentElement.setAttribute('data-theme','dark')"); await pg.wait_for_timeout(150)
+    faint += await pg.evaluate(CONTRAST_JS)
+    await pg.evaluate("document.documentElement.setAttribute('data-theme','light')")
+    check("admin: the Service block is readable in both themes", not faint, faint[:4])
+    # a waiting report and two AI calls later, and with every backup 5 days old
+    await go(pg, "#/game/confuse", 700); await pg.wait_for_selector(".opts")
+    st = await pg.evaluate("Content.report('drill:c01','the key looks wrong','#/game/confuse').then(r=>r.result&&r.result.status)")
+    urllib.request.urlopen(AI_URL.replace("/ai", "/__stale")).read()
+    await go(pg, "#/fixes", 400); await pg.wait_for_selector("#svc", timeout=10000)
+    after = [await pg.inner_text("#svc-ai"), await pg.inner_text("#svc-rep"), await pg.inner_text("#svc-stale")]
+    check("admin: the numbers follow what happens (2 more AI calls, 1 more report waiting, stale backups counted)",
+          st in ("proposed", "needs_review") and after[0] == "%d/50" % (before["ai"]["today"] + 2) and after[1] == str(before["reports"]["waiting"] + 1) and int(after[2]) == before["backups"]["n"] >= 1, (st, after, before))
+    await pg.click("[data-fxtab='learners']"); await pg.wait_for_selector(".lrn", timeout=10000)
+    check("admin: the Service block stays on the Learners tab", await pg.locator("#svc").count() == 1)
+    bad = await pg.evaluate("AI.call('admin_stats',{},{'x-admin-code':'wrong-code-000000'}).then(r=>r.error)")
+    check("admin: the numbers need the reviewer code", bad == "bad_admin", bad)
+    # an older server does not know the task: no block, everything else still works
+    async def old_server(route):
+        body = route.request.post_data or ""
+        if '"admin_stats"' in body:
+            await route.fulfill(status=400, content_type="application/json", headers={"access-control-allow-origin": "*"}, body=json.dumps({"ok": False, "error": "bad_task"}))
+        else:
+            await route.continue_()
+    await ctx.route(AI_URL, old_server)
+    await go(pg, "#/", 300); await go(pg, "#/fixes", 400); await pg.click("[data-fxtab='learners']"); await pg.wait_for_selector(".lrn", timeout=10000); await pg.wait_for_timeout(500)
+    check("admin: with an older server there is no Service block and the screen still works", await pg.locator("#svc").count() == 0 and await pg.locator(".lrn").count() >= 1 and await pg.locator(".fx-tabs button").count() == 5)
+    await pg.evaluate("AI.call('sync_delete',{code:Sync.cfg().code})")  # leave no backup behind for the other groups
+    await ctx.close()
+
+
+GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("sync", t_sync), ("admin", t_admin), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

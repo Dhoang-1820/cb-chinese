@@ -22,7 +22,9 @@
      GEMINI_TIMEOUT_MS   optional, default 8000 — how long to wait for the main model, 3000..18000 (the fallback gets 15000)
      AI_DAILY_CAP        optional, default 150 calls a day in total
      ALLOWED_ORIGINS     optional, comma-separated, default https://dhoang-1820.github.io
-     ADMIN_CODE          optional — turns on the content review screen (accept / reject / hide). 12+ random characters
+     ADMIN_CODE          optional — turns on the content review screen (accept / reject / hide). 12+ random characters.
+                         Admin-only tasks: review_list, review_decide, learners_list, learner_label and admin_stats
+                         (AI calls today against the cap and for the last 14 days, backups against the limit, reports waiting)
      AI_REPORT_CAP       optional, default 10 problem reports per rolling 24 hours (each one costs two AI calls)
      SYNC_MAX_LEARNERS   optional, default 20 — how many phones may keep a progress backup (see sync_put below)
 */
@@ -505,7 +507,33 @@ async function adminOk(req: Request, env: Record<string, string | undefined>): P
   return !!env.ADMIN_CODE && env.ADMIN_CODE.length >= 12 && !!code && await sameSecret(code, env.ADMIN_CODE);
 }
 
-/* Handles report / patches / review_list / review_decide. Returns null for the tasks handled elsewhere. */
+/* Numbers for the admin's "Service" block: AI calls against the daily cap, backups against the limit, reports waiting.
+   Each part is read on its own, so one missing table shows as null ("unknown") instead of hiding the rest. No AI call. */
+const DAY_OK = /^\d{4}-\d{2}-\d{2}$/;
+export async function adminStats(env: Record<string, string | undefined>, db: NonNullable<Deps["db"]>, now = Date.now()) {
+  const cap = Math.max(1, parseInt(env.AI_DAILY_CAP || "150", 10) || 150), max = Math.max(1, parseInt(env.SYNC_MAX_LEARNERS || "20", 10) || 20);
+  const num = (x: unknown) => { const v = Math.round(+(x as number)); return isFinite(v) ? Math.max(0, Math.min(1e7, v)) : 0; };
+  const day = (t: number) => new Date(t).toISOString().slice(0, 10), today = day(now);
+  let ai: unknown = null, backups: unknown = null, reports: unknown = null;
+  try {
+    const rows = await db("GET", "ai_usage?select=day,n&order=day.desc&limit=14"), by: Record<string, number> = {};
+    for (const r of rows || []) { const d = String(r && r.day || "").slice(0, 10); if (DAY_OK.test(d)) by[d] = num(r.n); }
+    const days: { day: string; n: number }[] = [];
+    for (let i = 13; i >= 0; i--) { const d = day(now - i * 864e5); days.push({ day: d, n: by[d] || 0 }); } // oldest first, today last
+    ai = { today: by[today] || 0, cap, days };
+  } catch (_e) { ai = null; }
+  try {
+    const rows = await db("GET", "learners?select=updated_at&limit=1000"), cut = now - 3 * 864e5;
+    backups = { n: (rows || []).length, max, stale: (rows || []).filter((r: any) => { const t = new Date(r && r.updated_at).getTime(); return !isFinite(t) || t < cut; }).length };
+  } catch (_e) { backups = null; }
+  try {
+    const rows = await db("GET", "content_reports?select=id&status=in.(proposed,needs_review)&limit=1000");
+    reports = { waiting: (rows || []).length };
+  } catch (_e) { reports = null; }
+  return { at: new Date(now).toISOString(), ai, backups, reports };
+}
+
+/* Handles report / patches / review_list / review_decide / learners_list / learner_label / admin_stats. Returns null for the tasks handled elsewhere. */
 const TOKEN_OK = /^[a-f0-9-]{36}$/;
 function reportResult(v: any, token: string, turns: number) {
   return v ? { token, status: v.status, verdict: v.verdict, reasoning: v.reasoning, confidence: v.confidence, hasFix: v.patch.set.length > 0, quarantined: false, turns, canDiscuss: v.status !== "accepted" && turns < 5 }
@@ -513,7 +541,7 @@ function reportResult(v: any, token: string, turns: number) {
 }
 
 async function contentTask(task: string, body: any, req: Request, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response | null> {
-  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide", "learners_list", "learner_label"].indexOf(task) < 0) return null;
+  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide", "learners_list", "learner_label", "admin_stats"].indexOf(task) < 0) return null;
   if (!deps.db) return reply(500, { ok: false, error: "not_configured" }, h);
   const lang: Lang = body.lang === "vi" || body.lang === "en" ? body.lang : "both";
   const p = body.payload && typeof body.payload === "object" ? body.payload : {};
@@ -564,6 +592,7 @@ async function contentTask(task: string, body: any, req: Request, env: Record<st
     const aip = clientIp(req);
     if (aip && tooManyFails(aip)) return reply(429, { ok: false, error: "busy" }, h);
     if (!(await adminOk(req, env))) { if (aip) noteFail(aip); return reply(401, { ok: false, error: "bad_admin" }, h); }
+    if (task === "admin_stats") return reply(200, { ok: true, task, result: await adminStats(env, deps.db) }, h);
     // Admin view of the progress backups: numbers only (meta + study summary), never the full progress.
     if (task === "learners_list") {
       const rows = await deps.db("GET", "learners?select=id,created_at,updated_at,rev,meta,summary&order=updated_at.desc&limit=50");

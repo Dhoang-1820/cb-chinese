@@ -1,0 +1,54 @@
+{
+  "_readme": "Pages the weekly HSK watch checks. Edit freely: see docs/HSK-WATCH.md. 'verified' is only a note for humans (set it to true once you have seen the source succeed in a real run); the script ignores it. Optional per-source keys: enabled (false = skip), links (false = ignore link addresses), minChars (default 200), ignore (list of regular expressions; matching lines are dropped).",
+  "sources": [
+    {
+      "id": "cti-home",
+      "name": "Chinese Testing International: home page",
+      "url": "https://www.chinesetest.cn/",
+      "why": "Official HSK organiser. The home page links to the current year's test calendar and the pinned announcement, so a new calendar or announcement shows up here as a changed link.",
+      "verified": false
+    },
+    {
+      "id": "cti-hsk",
+      "name": "Chinese Testing International: HSK overview (HSK 3.0, 'three stages, nine levels')",
+      "url": "https://www.chinesetest.cn/HSK",
+      "why": "Official description of the HSK and of the move to HSK 3.0: links to the new syllabus, sample questions and the demo test.",
+      "verified": false
+    },
+    {
+      "id": "cti-hsk4",
+      "name": "Chinese Testing International: HSK level 4 format",
+      "url": "https://www.chinesetest.cn/HSK/4",
+      "why": "The level this app prepares for: number of questions, sections, duration, pass mark. A change here means the level 4 exam format changed.",
+      "verified": false
+    },
+    {
+      "id": "cti-news",
+      "name": "Chinese Testing International: news and notices list",
+      "url": "https://www.chinesetest.cn/news",
+      "why": "Official announcements. May be drawn by JavaScript, in which case a plain download sees only the menu (the run log will say 'same text as cti-home').",
+      "verified": false
+    },
+    {
+      "id": "cti-calendar-2026",
+      "name": "Chinese Testing International: 2026 test calendar",
+      "url": "https://www.chinesetest.cn/news/50278989",
+      "why": "Exam dates for 2026. Replace the URL each year with the new calendar link from the home page. May be drawn by JavaScript or be an image (see cti-news).",
+      "verified": false
+    },
+    {
+      "id": "clec-home",
+      "name": "Center for Language Education and Cooperation (CLEC, formerly Hanban)",
+      "url": "http://www.chinese.cn/",
+      "why": "The Ministry of Education body that owns the HSK and publishes policy news about it. URL written from memory.",
+      "verified": false
+    },
+    {
+      "id": "moe-standards-2021",
+      "name": "Ministry of Education: Chinese Proficiency Grading Standards (basis of HSK 3.0)",
+      "url": "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/s5987/202103/t20210329_523304.html",
+      "why": "The national standard (GF 0025-2021) that HSK 3.0 implements. Rarely changes; a change would be important. URL written from memory.",
+      "verified": false
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+# Once a week: check the official HSK pages listed in tools/hsk_watch_sources.json and open
+# (or comment on) an issue labelled "hsk-watch" when their text changed. See docs/HSK-WATCH.md.
+#
+# The texts from the previous check live on the separate branch "hsk-watch-state".
+# This workflow never pushes to main, so it does not start the Pages deploy (deploy.yml runs
+# only on pushes to main or by hand).
+name: HSK watch
+
+on:
+  schedule:
+    - cron: "0 1 * * 1" # Mondays 01:00 UTC (08:00 in Vietnam)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: only print what would be reported (no issue, no state saved)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # push the state branch
+  issues: write # create the issue or comment
+
+concurrency:
+  group: hsk-watch
+  cancel-in-progress: false
+
+env:
+  STATE_BRANCH: hsk-watch-state
+  DRY_RUN: ${{ inputs.dry_run == true && 'true' || 'false' }}
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tests (no network)
+        run: node tools/hsk_watch_test.mjs
+
+      # Puts the state branch in a second folder next to the code. First run: starts an empty branch.
+      - name: Get previous state
+        run: |
+          STATE_DIR="$RUNNER_TEMP/hsk-watch-state"
+          echo "STATE_DIR=$STATE_DIR" >> "$GITHUB_ENV"
+          if git ls-remote --exit-code --heads origin "$STATE_BRANCH" >/dev/null; then
+            git fetch --no-tags --depth=1 origin "$STATE_BRANCH"
+            git worktree add -B "$STATE_BRANCH" "$STATE_DIR" FETCH_HEAD
+          else
+            echo "No $STATE_BRANCH branch yet: this run records the baseline."
+            git worktree add --detach "$STATE_DIR"
+            git -C "$STATE_DIR" checkout --orphan "$STATE_BRANCH"
+            git -C "$STATE_DIR" rm -rf --quiet .
+          fi
+
+      # Unreachable pages do not fail this step; only a broken source file or a GitHub API error does.
+      - name: Check pages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            node tools/hsk_watch.mjs --dry-run --state-dir "$STATE_DIR"
+          else
+            node tools/hsk_watch.mjs --github --state-dir "$STATE_DIR"
+          fi
+
+      - name: Save state
+        if: env.DRY_RUN != 'true'
+        run: |
+          cd "$STATE_DIR"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "State unchanged."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet -m "HSK watch state $(date -u +%F)"
+          git push origin "HEAD:refs/heads/$STATE_BRANCH"

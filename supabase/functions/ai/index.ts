@@ -347,6 +347,14 @@ async function callGemini(deps: Deps, key: string, model: string, body: unknown)
   return { status, text: text || null };
 }
 
+/* One line per Gemini call in the function log (Supabase → Edge Functions → Logs): task, model, HTTP status (0 = the call
+   threw, e.g. a timeout), how long it took and the error name. Never the key, the question or the answer. */
+function note(task: string, model: string, status: number, t0: number, err: unknown) {
+  const D0: any = (globalThis as any).Deno; if (!D0) return; // quiet under Node tests
+  const e = err instanceof Error ? err.name + ": " + err.message.slice(0, 120) : String(err || "");
+  console.log(JSON.stringify({ gemini: task, model, status, ms: Date.now() - t0, err: e }));
+}
+
 /* Runs one task end to end: main model, optional fallback model, one retry on unusable JSON. */
 export async function runTask(c: Clean, env: Record<string, string | undefined>, deps: Deps): Promise<{ ok: true; result: Record<string, unknown>; model: string } | { ok: false; error: string; status: number }> {
   const key = env.GEMINI_API_KEY || "";
@@ -357,8 +365,9 @@ export async function runTask(c: Clean, env: Record<string, string | undefined>,
   let lastStatus = 502, all404 = true;
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
-      let r;
-      try { r = await callGemini(deps, key, model, req); } catch (_e) { lastStatus = 0; all404 = false; break; }
+      let r; const t0 = Date.now();
+      try { r = await callGemini(deps, key, model, req); } catch (e) { note(c.task, model, 0, t0, e); lastStatus = 0; all404 = false; break; }
+      note(c.task, model, r.status, t0, r.text === null ? "no text" : "");
       lastStatus = r.status; if (r.status !== 404) all404 = false;
       if (r.text === null) { if (r.status === 404 || r.status === 429 || r.status >= 500 || r.status === 200) break; return { ok: false, error: "upstream_" + r.status, status: 502 }; }
       let parsed: any = null;

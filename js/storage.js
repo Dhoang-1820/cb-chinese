@@ -23,6 +23,8 @@
       badges: {},     // badgeId -> date earned
       games: {},      // gameId -> { best, plays }
       mocks: {},      // mockId -> { best, plays, lastScore, lastSections: {listening, reading, writing} }
+      slog: {},       // study log, last 8 weeks: date -> { m: minutes, s: sessions, h: hour of the first one, k: { skill: [right, wrong] } }
+      coachLog: [],   // weekly coach advice, newest last (max 6): [{ w: week start, d: date, actions: [{ text, minutes, skill }], base: {...} }]
       mlog: [],       // wrong answers, newest last: [{ d: date, k: key, s: skill }] (capped; feeds the pattern rules in js/learn.js)
       weekGoal: {},   // week-start date -> true once that week's study-days goal was met
       patternHide: {}, // pattern signature -> date it was dismissed (hidden for the rest of that day)
@@ -121,6 +123,17 @@
       var o = { id: w.id, hanzi: String(w.hanzi).slice(0, 12), pinyin: String(w.pinyin || "").slice(0, 60), vi: String(w.vi || "").slice(0, 120), en: String(w.en || "").slice(0, 120), pos: "", level: "Mine", added: w.added };
       if (w.example && typeof w.example.zh === "string") o.example = { zh: w.example.zh.slice(0, 60), py: String(w.example.py || "").slice(0, 160), vi: String(w.example.vi || "").slice(0, 200), en: String(w.example.en || "").slice(0, 200) };
       return o;
+    });
+    Object.keys(d.slog).forEach(function (k) {
+      var e = d.slog[k]; if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !e || typeof e !== "object") { delete d.slog[k]; return; }
+      e.m = n(e.m); e.s = n(e.s); e.h = Math.max(0, Math.min(23, Math.round(n(e.h)))); var kk = {};
+      Object.keys(e.k && typeof e.k === "object" ? e.k : {}).forEach(function (x) { var v = e.k[x]; if (Array.isArray(v)) kk[x] = [n(v[0]), n(v[1])]; }); e.k = kk;
+    });
+    d.coachLog = (Array.isArray(d.coachLog) ? d.coachLog : []).filter(function (c) { return c && typeof c === "object" && /^\d{4}-\d{2}-\d{2}$/.test(c.w) && /^\d{4}-\d{2}-\d{2}$/.test(c.d) && Array.isArray(c.actions); }).slice(-6).map(function (c) {
+      var b = c.base && typeof c.base === "object" ? c.base : {}, sk = {};
+      Object.keys(b.skills && typeof b.skills === "object" ? b.skills : {}).forEach(function (x) { sk[x] = n(b.skills[x]); });
+      return { w: c.w, d: c.d, actions: c.actions.filter(function (a) { return a && typeof a.text === "string"; }).slice(0, 3).map(function (a) { return { text: a.text.slice(0, 600), minutes: Math.max(5, Math.min(30, Math.round(n(a.minutes)) || 10)), skill: String(a.skill || "review").slice(0, 30) }; }),
+        base: { skills: sk, cards: n(b.cards), mocks: n(b.mocks) } };
     });
     Object.keys(d.mistakes).forEach(function (k) { var v = d.mistakes[k]; if (!v || typeof v !== "object" || typeof v.skill !== "string") delete d.mistakes[k]; });
   }

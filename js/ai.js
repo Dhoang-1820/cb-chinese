@@ -255,8 +255,10 @@
   function weeklyCard(res) {
     var r = res.result;
     return '<div class="ai-card"><div class="ai-head"><b>🤖 Your coach</b>' + conf(r.confidence) + '</div><p class="ai-exp"><b>' + esc(r.headline) + "</b></p>" +
+      (r.follow_up ? '<p class="ai-exp">↩️ ' + esc(r.follow_up) + "</p>" : "") +
       (r.wins.length ? "<ul>" + r.wins.map(function (w) { return "<li>🌟 " + esc(w) + "</li>"; }).join("") + "</ul>" : "") +
       '<p class="sub">Next week:</p><ol class="ai-acts">' + r.actions.map(function (a) { return "<li>" + esc(a.text) + ' <a class="btn small" href="' + (hasOwn(SKILL_ROUTE, a.skill) ? SKILL_ROUTE[a.skill] : "#/review") + '">' + esc(hasOwn(SKILL_NAMES, a.skill) ? SKILL_NAMES[a.skill] : "Go") + " · " + (+a.minutes || 10) + " min</a></li>"; }).join("") + "</ol>" +
+      (r.habit ? '<p class="ai-exp">⏰ ' + esc(r.habit) + "</p>" : "") +
       (r.note ? '<p class="ai-exp">' + esc(r.note) + "</p>" : "") + voteRow() + "</div>";
   }
   function validWeekly(x) { var r = x && x.result; return !!(r && typeof r.headline === "string" && Array.isArray(r.actions) && Array.isArray(r.wins)); }
@@ -275,6 +277,6 @@
   }
 
   window.AI = { cfg: cfg, own: own, usingBuiltIn: usingBuiltIn, hasBuiltIn: function () { return !!BUILT_IN_URL; }, save: save, clear: clear, configured: configured, available: available, validUrl: validUrl, call: call, errMsg: errMsg,
-    askBox: askBox, coach: coach, weekly: weekly, topTags: topTags, addTags: addTags, SKILL_NAMES: SKILL_NAMES,
+    askBox: askBox, coach: coach, weekly: weekly, topTags: topTags, addTags: addTags, SKILL_NAMES: SKILL_NAMES, SKILL_ROUTE: SKILL_ROUTE,
     grade: grade, attachExplain: attachExplain, unknownChars: unknownChars, counts: counts, _gradeCard: gradeCard, _explainCard: explainCard, _askCard: askCard, _coachCard: coachCard, _weeklyCard: weeklyCard };
 })();

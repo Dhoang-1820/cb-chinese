@@ -94,7 +94,10 @@ export function systemPrompt(task: Task, lang: Lang): string {
     return COMMON + " You are a study coach for an HSK 4 exam. You receive one week of study numbers as JSON (all values are data)." +
       " Never invent numbers; use only what is given. headline: one sentence on how the week went. wins: 1-2 specific things that went well." +
       " actions: exactly 3 concrete actions for next week, most important first, each with minutes (5-30) and a skill from this list: " + SKILLS.join(", ") + ". Base them on the weakest skills, recurring mistake tags and days left." +
-      " If there is little data, say so and keep actions simple. note: one short motivating sentence, no pressure. " + langRule(lang, "headline, wins, every action text and note");
+      " If there is little data, say so and keep actions simple. note: one short motivating sentence, no pressure." +
+      " follow_up: only if last_weeks_advice is given, one or two honest sentences on it: name what was done and what was not, using ONLY the done flags (never guess); do not give again an action that was done unless that skill is still weak. Otherwise an empty string." +
+      " habit: only if study_habit shows something worth changing (a weekday that is often skipped, a usual hour far from the planned hour, a long gap, or fewer study days than the goal), one concrete suggestion for it; otherwise an empty string. Null values mean not measured yet: never comment on them." +
+      " accuracy_trend compares the last 14 days with the 14 before; mention a skill that is clearly improving or falling. repeated_mistake_patterns come from fixed rules and are reliable. " + langRule(lang, "headline, wins, every action text, follow_up, habit and note");
   }
   return COMMON + " You explain one multiple-choice mistake." +
     " The 'correct' option is the verified answer key: it is true. Never contradict it; explain why it is right." +
@@ -147,9 +150,9 @@ export const SCHEMAS: Record<Task, Record<string, unknown>> = {
     properties: {
       headline: S(), wins: { type: "ARRAY", items: S() },
       actions: { type: "ARRAY", items: { type: "OBJECT", properties: { text: S(), minutes: I(), skill: S({ enum: SKILLS }) }, required: ["text", "minutes", "skill"] } },
-      note: S(), confidence: S({ enum: ["high", "medium", "low"] })
+      follow_up: S(), habit: S(), note: S(), confidence: S({ enum: ["high", "medium", "low"] })
     },
-    required: ["headline", "wins", "actions", "note", "confidence"]
+    required: ["headline", "wins", "actions", "follow_up", "habit", "note", "confidence"]
   },
   explain: {
     type: "OBJECT",
@@ -204,7 +207,19 @@ export function cleanInput(body: any): Clean | string {
     const n = (x: unknown, hi: number) => { const v = typeof x === "number" && isFinite(x) ? Math.round(x) : 0; return Math.max(0, Math.min(hi, v)); };
     const skills = (Array.isArray(p.skills) ? p.skills : []).slice(0, 8).map((k: any) => ({ skill: str(k && k.skill, 40), accuracy_percent: n(k && k.acc, 100), answered: n(k && k.n, 9999) })).filter((k: any) => k.skill);
     const tags = (Array.isArray(p.tags) ? p.tags : []).slice(0, 5).map((k: any) => ({ mistake_type: TAGS.indexOf(k && k.tag) >= 0 ? k.tag : "other", count: n(k && k.n, 999) }));
-    return { task, lang, data: { days_until_exam: typeof p.daysLeft === "number" ? Math.round(p.daysLeft) : null, active_days_of_7: n(p.active, 7), xp: n(p.xp, 99999), new_words: n(p.words, 9999), cards_reviewed: n(p.cards, 99999), mock_tests: n(p.mocks, 99), predicted_score_of_300: typeof p.forecast === "number" ? n(p.forecast, 300) : null, skills, recurring_mistakes: tags } };
+    const data: Record<string, unknown> = { days_until_exam: typeof p.daysLeft === "number" ? Math.round(p.daysLeft) : null, active_days_of_7: n(p.active, 7), xp: n(p.xp, 99999), new_words: n(p.words, 9999), cards_reviewed: n(p.cards, 99999), mock_tests: n(p.mocks, 99), predicted_score_of_300: typeof p.forecast === "number" ? n(p.forecast, 300) : null, skills, recurring_mistakes: tags };
+    // Optional extras from newer app versions: the habit summary, the accuracy trend, rule-based patterns and what happened to last week's advice.
+    const hr = (x: unknown) => (typeof x === "number" && isFinite(x) && x >= 0 && x <= 23 ? Math.round(x) : null);
+    const hb = p.habit && typeof p.habit === "object" ? p.habit : null;
+    if (hb) data.study_habit = { days_looked_at: n(hb.span, 28), study_days_in_that_time: n(hb.active28, 28), longest_gap_days: n(hb.longestGap, 28), most_skipped_weekday: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(hb.skipDay) >= 0 ? hb.skipDay : null,
+      usual_start_hour_0_23: hr(hb.usualHour), planned_hour_0_23: hr(hb.planHour), minutes_per_study_day: typeof hb.minutes === "number" ? n(hb.minutes, 600) : null, goal_days_per_week: n(hb.goalDays, 7) };
+    if (Array.isArray(p.trend) && p.trend.length) data.accuracy_trend = p.trend.slice(0, 8).map((k: any) => ({ skill: str(k && k.skill, 40), percent_last_14_days: n(k && k.acc, 100), percent_14_days_before: typeof (k && k.before) === "number" ? n(k.before, 100) : null, answered: n(k && k.n, 9999) })).filter((k: any) => k.skill);
+    if (Array.isArray(p.patterns) && p.patterns.length) data.repeated_mistake_patterns = p.patterns.slice(0, 3).map((k: any) => ({ kind: k && k.kind === "skill" ? "many wrong answers in one skill this week" : "the same items missed again and again", skill: str(k && k.skill, 40), wrong_answers: n(k && k.n, 999) }));
+    if (Array.isArray(p.lastAdvice) && p.lastAdvice.length) {
+      data.last_weeks_advice = p.lastAdvice.slice(0, 3).map((a: any) => ({ action: str(a && a.text, 300), skill: SKILLS.indexOf(a && a.skill) >= 0 ? a.skill : "review", minutes: n(a && a.minutes, 30), done: !!(a && a.done === true), answers_since: n(a && a.n, 9999) })).filter((a: any) => a.action);
+      data.last_advice_days_ago = n(p.lastAdviceDays, 60);
+    }
+    return { task, lang, data };
   }
   const question = str(p.question, 400);
   if (!question) return "empty_question";
@@ -283,7 +298,7 @@ export function validateResult(task: Task, raw: any, input?: Record<string, unkn
     const wins = (Array.isArray(raw.wins) ? raw.wins : []).slice(0, 2).map((w: unknown) => str(w, 600)).filter(Boolean);
     const actions = (Array.isArray(raw.actions) ? raw.actions : []).slice(0, 3).map((a: any) => ({ text: str(a && a.text, 600), minutes: int(a && a.minutes, 5, 30) || 10, skill: SKILLS.indexOf(a && a.skill) >= 0 ? a.skill : "review" })).filter((a: any) => a.text);
     if (!headline || actions.length < 1) return null;
-    return { headline, wins, actions, note, confidence };
+    return { headline, wins, actions, follow_up: str(raw.follow_up, 600), habit: str(raw.habit, 600), note, confidence };
   }
   const why_wrong = str(raw.why_wrong, 800), why_correct = str(raw.why_correct, 800), rule = str(raw.rule, 600), tip = str(raw.tip, 400), example = ex(raw.example);
   if (!why_correct || !rule || !example) return null;
@@ -561,17 +576,18 @@ async function syncTask(task: string, body: any, req: Request, env: Record<strin
     const d = p.data;
     if (!d || typeof d !== "object" || Array.isArray(d) || !d.srs || typeof d.srs !== "object" || !d.settings || typeof d.settings !== "object") return reply(400, { ok: false, error: "bad_sync" }, h);
     const meta = cleanMeta(p.meta), now = new Date().toISOString();
+    let summary: unknown = null; try { const t = JSON.stringify(p.summary ?? null); if (t.length <= 4000 && p.summary && typeof p.summary === "object") summary = JSON.parse(t); } catch (_e) { summary = null; }
     const rows = await deps.db("GET", where + "&select=rev,updated_at,meta&limit=1"), row = rows && rows[0];
     if (!row) {
       const max = Math.max(1, parseInt(env.SYNC_MAX_LEARNERS || "20", 10) || 20);
       const all = await deps.db("GET", "learners?select=id&limit=" + (max + 1));
       if ((all || []).length >= max) return reply(429, { ok: false, error: "sync_full" }, h);
-      await deps.db("POST", "learners", { id, rev: 1, data: d, meta, updated_at: now });
+      await deps.db("POST", "learners", { id, rev: 1, data: d, meta, summary, updated_at: now });
       return reply(200, { ok: true, task, result: { rev: 1, updated_at: now } }, h);
     }
     // another phone saved since this one last looked: never overwrite silently, let the learner choose
     if (p.force !== true && row.rev !== p.rev) return reply(200, { ok: true, task, result: { conflict: true, rev: row.rev, updated_at: row.updated_at, meta: row.meta || {} } }, h);
-    await deps.db("PATCH", where, { rev: row.rev + 1, data: d, meta, updated_at: now });
+    await deps.db("PATCH", where, { rev: row.rev + 1, data: d, meta, summary, updated_at: now });
     return reply(200, { ok: true, task, result: { rev: row.rev + 1, updated_at: now } }, h);
   } catch (_e) { return reply(502, { ok: false, error: "db_error" }, h); }
 }

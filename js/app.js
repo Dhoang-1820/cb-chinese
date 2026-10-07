@@ -727,6 +727,7 @@
             : '<a class="tile t-blue" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>' + (exam >= 0 ? exam + " days to HSK 4" : "Exam done") + "</small></a>") +
       "</div>";
     html += '<a class="trackrow toolrow" href="#/read"><span class="t-ico">📖</span><span class="tr-t"><small>Real text from work</small><b>Reader · tap any word</b></span><span class="tr-go">›</span></a>';
+    html += planCard();
     html += '<details class="more"><summary><span>More: plan, focus, activity, badges</span></summary>' +
       focusCard() + (fin ? "" : todayCard()) + weeklyTeaser() +
       '<section class="card"><div class="sec-h"><h2>Study activity</h2><span class="muted">12 weeks</span></div>' + heatmap() + '<div class="heat-key"><span>Less</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>More</span></div></section>' +
@@ -745,6 +746,7 @@
       host.parentNode.insertBefore(d, host.nextSibling);
     });
     wireQuests(); wirePattern();
+    whenIdle(4000).then(autoCoach);
     var wr = weekReward(); if (wr) setTimeout(function () { UI.toast(wr === "freeze" ? "Weekly goal met! +1 streak freeze" : "Weekly goal met!", wr === "freeze" ? "🧊" : "🎉"); UI.confetti(60); UI.burst("noto-muscle", weekInfo().n + " days", "Weekly goal met", wr === "freeze" ? "+1 streak freeze" : ""); }, 600);
     /* C&B track: show the next unfinished session (data loads in the background) */
     (trackLoaded() ? Promise.resolve() : whenIdle(2500)).then(ensureTrack).then(function () {
@@ -2719,18 +2721,110 @@
   }
 
   /* ---------- AI weekly coach (Progress) ---------- */
+  /* ---------- study summary (no AI): habit, practice and mistakes, worked out on the phone ----------
+     Minutes and sessions are logged from the day this shipped; study days come from the XP log, so they go further back. */
+  var lastTick = 0, WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  function studyTick() {
+    var s = Store.state, L = s.slog || (s.slog = {}), t = Store.today(), now = Date.now(), gap = now - lastTick;
+    var e = L[t] || (L[t] = { m: 0, s: 0, h: new Date().getHours(), k: {} });
+    if (!lastTick || gap > 10 * 60000) { e.s++; e.m += 1; } else e.m += gap / 60000; // a pause over 10 minutes starts a new session
+    e.m = Math.round(e.m * 10) / 10; lastTick = now;
+    var old = Store.addDays(t, -56); Object.keys(L).forEach(function (d) { if (d < old) delete L[d]; });
+    Store.save();
+  }
+  function studySummary() {
+    var s = Store.state, t = Store.today(), L = s.slog || {}, i, d, act28 = 0, gap = 0, longest = 0, miss = [0, 0, 0, 0, 0, 0, 0];
+    var first = Object.keys(s.log).sort()[0] || t, span = Math.min(28, Store.daysBetween(first, t) + 1);
+    for (i = span - 1; i >= 0; i--) {
+      d = Store.addDays(t, -i);
+      if (s.log[d] > 0) { act28++; gap = 0; } else if (i > 0) { gap++; longest = Math.max(longest, gap); miss[(new Date(d + "T00:00:00").getDay() + 6) % 7]++; } // today is not a miss yet
+    }
+    var worst = miss.indexOf(Math.max.apply(null, miss)), days = Object.keys(L).filter(function (x) { return L[x].s > 0; }), hrs = {}, mins = 0, ses = 0;
+    days.forEach(function (x) { hrs[L[x].h] = (hrs[L[x].h] || 0) + 1; mins += L[x].m; ses += L[x].s; });
+    var usual = days.length >= 3 ? +Object.keys(hrs).sort(function (a, b) { return hrs[b] - hrs[a]; })[0] : null;
+    var from = Store.addDays(t, -13), prev = Store.addDays(t, -27), now = {}, bef = {};
+    Object.keys(L).forEach(function (x) {
+      if (x < prev) return; var to = x >= from ? now : bef;
+      Object.keys(L[x].k || {}).forEach(function (k) { var c = to[k] || (to[k] = [0, 0]); c[0] += L[x].k[k][0]; c[1] += L[x].k[k][1]; });
+    });
+    var trend = Object.keys(now).filter(function (k) { return Learn.SKILLS[k] && now[k][0] + now[k][1] >= 5; }).map(function (k) {
+      var a = now[k], b = bef[k], nb = b ? b[0] + b[1] : 0;
+      return { skill: AI.SKILL_NAMES[k] || k, acc: Math.round(a[0] / (a[0] + a[1]) * 100), before: nb >= 5 ? Math.round(b[0] / nb * 100) : null, n: a[0] + a[1] };
+    }).sort(function (a, b) { return a.acc - b.acc; }).slice(0, 8);
+    return { span: span, active28: act28, longestGap: longest, skipDay: span >= 14 && miss[worst] >= 2 ? WD[worst] : "", usualHour: usual, planHour: parseInt(String(s.settings.remindTime || "").slice(0, 2), 10),
+      minutes: days.length ? Math.round(mins / days.length) : null, sessions: days.length ? Math.round(ses / days.length * 10) / 10 : null, logDays: days.length, goalDays: s.settings.weeklyDays || 5, trend: trend,
+      patterns: Learn.patterns(3).map(function (p) { return { kind: p.type, skill: p.skill ? (AI.SKILL_NAMES[p.skill] || p.skill) : "", n: p.n }; }) };
+  }
+
+  /* ---------- AI weekly coach (Progress), with memory of its last advice ---------- */
+  function coachBase(actions) {
+    var s = Store.state, sk = {};
+    actions.forEach(function (a) { var v = s.skills[a.skill]; sk[a.skill] = v ? v.r + v.w : 0; });
+    return { skills: sk, cards: s.stats.cards || 0, mocks: s.mockHistory.length + (s.official || []).length };
+  }
+  /* What happened to each action of one piece of advice: answers since then and whether that counts as done (rule, no AI). */
+  function coachStatus(c) {
+    var s = Store.state, b = c.base || { skills: {} };
+    return c.actions.map(function (a) {
+      var v = s.skills[a.skill], n;
+      if (a.skill === "mock") { n = s.mockHistory.length + (s.official || []).length - (b.mocks || 0); return { text: a.text, minutes: a.minutes, skill: a.skill, n: n, done: n >= 1 }; }
+      n = a.skill === "review" || a.skill === "vocab" ? (s.stats.cards || 0) - (b.cards || 0) : (v ? v.r + v.w : 0) - ((b.skills || {})[a.skill] || 0);
+      return { text: a.text, minutes: a.minutes, skill: a.skill, n: Math.max(0, n), done: n >= 10 };
+    });
+  }
+  function coachLast() { var l = Store.state.coachLog || []; return l.length ? l[l.length - 1] : null; }
+  function coachKeep(res) {
+    if (!res || !res.ok || !res.result || !Array.isArray(res.result.actions)) return; // a saved answer shown again is not new advice
+    var s = Store.state, l = s.coachLog || (s.coachLog = []), ws = weekStart(Store.today());
+    var acts = res.result.actions.slice(0, 3).map(function (a) { return { text: String(a.text || ""), minutes: +a.minutes || 10, skill: String(a.skill || "review") }; });
+    var e = { w: ws, d: Store.today(), actions: acts, base: coachBase(acts) };
+    if (l.length && l[l.length - 1].w === ws) l[l.length - 1] = e; else l.push(e);
+    if (l.length > 6) l.splice(0, l.length - 6);
+    Store.save(); syncSoon();
+  }
   function coachReport() {
     var w = Store.state.weekly || {}, cur = w.cur ? weekSummary(w.cur, Store.today()) : null, r = cur && cur.active > 0 ? cur : (w.last || cur);
     if (!r) return null;
-    var isCur = r === cur, f = forecast();
-    return { key: r.start + "/" + (isCur ? Store.today() : r.end) + "/" + (Store.state.settings.lang || "both"), report: { daysLeft: Store.daysBetween(Store.today(), Store.state.settings.examDate || "2026-11-14"), active: r.active, xp: r.xp, words: r.words, cards: Math.max(0, r.cards),
+    var isCur = r === cur, f = forecast(), sm = studySummary(), ws = weekStart(Store.today());
+    var prev = (Store.state.coachLog || []).filter(function (c) { return c.w < ws; }).pop() || null; // advice from an earlier week, not this week's own
+    var rep = { daysLeft: Store.daysBetween(Store.today(), Store.state.settings.examDate || "2026-11-14"), active: r.active, xp: r.xp, words: r.words, cards: Math.max(0, r.cards),
       mocks: r.mocks, forecast: f ? f.total : null, skills: r.skills.slice(0, 8).map(function (x) { return { skill: (AI.SKILL_NAMES[x.k] || x.k), acc: Math.round(x.acc * 100), n: x.n }; }),
-      tags: AI.topTags(5).map(function (t) { return { tag: t.tag, n: t.n }; }) } };
+      tags: AI.topTags(5).map(function (t) { return { tag: t.tag, n: t.n }; }),
+      habit: { span: sm.span, active28: sm.active28, longestGap: sm.longestGap, skipDay: sm.skipDay, usualHour: sm.usualHour, planHour: sm.planHour, minutes: sm.minutes, goalDays: sm.goalDays }, trend: sm.trend, patterns: sm.patterns };
+    if (prev) { rep.lastAdvice = coachStatus(prev).map(function (a) { return { text: a.text.slice(0, 300), skill: a.skill, minutes: a.minutes, done: a.done, n: a.n }; }); rep.lastAdviceDays = Store.daysBetween(prev.d, Store.today()); }
+    return { key: r.start + "/" + (isCur ? Store.today() : r.end) + "/" + (Store.state.settings.lang || "both"), report: rep };
+  }
+  /* This week's plan on Home: the coach's actions with a tick once they are done. */
+  function planCard() {
+    var c = coachLast(); if (!c || !c.actions.length || Store.daysBetween(c.d, Store.today()) > 9) return "";
+    var st = coachStatus(c), n = st.filter(function (a) { return a.done; }).length;
+    return '<section class="card plan-card" id="coach-plan"><div class="sec-h"><h2>🤖 Coach\'s plan</h2><span class="muted">' + n + "/" + st.length + ' done</span></div><ul class="plan-l">' + st.map(function (a) {
+      var name = AI.SKILL_NAMES[a.skill] || "Go", href = Object.prototype.hasOwnProperty.call(AI.SKILL_ROUTE, a.skill) ? AI.SKILL_ROUTE[a.skill] : "#/review";
+      return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">Done: </span>' : "") + esc(a.text) + "</span>" +
+        (a.done ? "" : '<a class="btn small" href="' + href + '">' + esc(name) + " · " + a.minutes + " min</a>") + "</li>";
+    }).join("") + "</ul></section>";
+  }
+  /* Once a week, when there is something to say, ask the coach without being asked (one AI call). Tried at most once a day. */
+  function autoCoach() {
+    try {
+      if (!window.AI || !AI.available()) return;
+      var ws = weekStart(Store.today()), c = coachLast(), k = "cbChinese.coach.try";
+      if (c && c.w === ws) return;
+      if (localStorage.getItem(k) === Store.today()) return;
+      var r = coachReport(); if (!r || (r.report.active < 2 && r.report.habit.active28 < 3)) return; // too little to talk about
+      localStorage.setItem(k, Store.today());
+      AI.weekly(document.createElement("div"), r.key, r.report, true).then(function (res) {
+        if (!res || !res.ok) return; coachKeep(res);
+        UI.toast("Your coach has a new plan for this week", "🤖");
+        var el = document.getElementById("coach-plan");
+        if (el) el.outerHTML = planCard(); else if ((location.hash || "#/") === "#/") route();
+      });
+    } catch (e) { /* optional */ }
   }
   function coachBox() {
     if (!window.AI || !AI.configured()) return "";
     var tags = AI.topTags(3);
-    return '<section class="card ai-weekly"><div class="sec-h"><h2>🤖 AI coach</h2><span class="tag">optional</span></div><p class="sub">Turns your numbers into 3 things to do next. Only these counts are sent, no personal details.</p>' +
+    return '<section class="card ai-weekly"><div class="sec-h"><h2>🤖 AI coach</h2><span class="tag">optional</span></div><p class="sub">Turns your numbers into 3 things to do next, and checks what you did with the plan from last week. It runs by itself once a week. Only counts are sent (study days, usual hour, accuracy per skill), no personal details.</p>' +
       (tags.length ? '<p class="sub">Recurring mistakes from the paragraph coach: ' + tags.map(function (t) { return '<a href="' + t.link + '">' + esc(t.name) + " ×" + t.n + "</a>"; }).join(" · ") + "</p>" : "") +
       '<button class="btn small primary" id="wk-ai">Coach me for next week</button><div id="wk-ai-out"></div></section>';
   }
@@ -2739,7 +2833,7 @@
     b.onclick = function () {
       var r = coachReport(); if (!r) { UI.toast("Study a little first, then ask", "📊"); return; }
       b.disabled = true;
-      AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, false).then(function () { b.disabled = false; b.textContent = "Refresh"; b.onclick = function () { b.disabled = true; AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, true).then(function () { b.disabled = false; }); }; });
+      AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, false).then(function (res) { coachKeep(res); b.disabled = false; b.textContent = "Refresh"; b.onclick = function () { b.disabled = true; AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, true).then(function (res2) { coachKeep(res2); b.disabled = false; }); }; });
     };
   }
 
@@ -3078,7 +3172,7 @@
     var mark = syncMark(); if (!force && c.code && c.mark === mark) return Promise.resolve("same");
     var first = !c.code; if (first) { c.code = syncNewCode(); c.rev = 0; syncSave(c); }
     var data = JSON.parse(Store.serialize(false)).progress;
-    syncBusy = AI.call("sync_put", { code: c.code, rev: c.rev || 0, force: !!force, data: data, meta: syncMeta() }).then(function (r) {
+    syncBusy = AI.call("sync_put", { code: c.code, rev: c.rev || 0, force: !!force, data: data, meta: syncMeta(), summary: studySummary() }).then(function (r) {
       syncBusy = null; var n = syncCfg();
       if (!r.ok) { n.err = r.error === "too_big" || r.error === "bad_task" ? "bad_task" : r.error; syncSave(n); return r.error; }
       delete n.err;
@@ -3102,11 +3196,11 @@
     });
   }
   (function () {
-    var aw = Game.award; Game.award = function () { var r = aw.apply(this, arguments); syncSoon(); return r; };
+    var aw = Game.award; Game.award = function () { var r = aw.apply(this, arguments); try { studyTick(); } catch (e) { /* never block a reward */ } syncSoon(); return r; };
     document.addEventListener("visibilitychange", function () { if (document.hidden) { clearTimeout(syncTimer); syncNow(); } });
     setTimeout(function () { syncNow(); }, 8000); // catches a save that was cut off when the app was closed
   })();
-  window.Sync = { now: syncNow, cfg: syncCfg };
+  window.Sync = { now: syncNow, cfg: syncCfg, summary: studySummary };
   function wireSync() {
     var box = document.getElementById("sync-box"); if (!box) return;
     function draw() {

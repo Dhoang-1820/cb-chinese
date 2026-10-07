@@ -351,6 +351,35 @@ async def t_sync(b):
     await c1.close(); await c2.close()
 
 
+async def t_coach(b):
+    today = datetime.date.today(); mon = today - datetime.timedelta(days=today.weekday()); iso = lambda d: d.isoformat()
+    log = {iso(today - datetime.timedelta(days=i)): 30 for i in range(1, 12) if i not in (3, 4)}
+    old = {"w": iso(mon - datetime.timedelta(days=7)), "d": iso(mon - datetime.timedelta(days=7)), "base": {"skills": {"measure": 20}, "cards": 0, "mocks": 0},
+           "actions": [{"text": "Do measure words", "minutes": 10, "skill": "measure"}, {"text": "Take one mock exam", "minutes": 30, "skill": "mock"}]}
+    state = {"settings": settings(), "srs": {}, "log": log, "xp": 270, "skills": {"measure": {"r": 30, "w": 10}}, "coachLog": [old],
+             "weekly": {"cur": {"start": iso(mon), "skills": {}, "cards": 0, "fc": None}}}
+    ctx, pg = await open_app(b, state, ai=True)
+    sm = await pg.evaluate("Sync.summary()")
+    check("summary: study days and the longest gap come from the saved history", sm["active28"] == 9 and sm["longestGap"] == 2 and sm["minutes"] is None, sm)
+    check("coach plan: last week's plan is on Home straight away", await pg.locator("#coach-plan li").count() == 2 and await pg.locator("#coach-plan li.done").count() == 1)
+    await pg.wait_for_function("Store.state.coachLog.length === 2", timeout=20000); await pg.wait_for_timeout(300)
+    lg = await pg.evaluate("Store.state.coachLog")
+    check("coach: runs by itself once a week and keeps the advice", len(lg) == 2 and lg[1]["w"] == iso(mon) and len(lg[1]["actions"]) >= 1, lg)
+    saved = await pg.evaluate("JSON.parse(localStorage.getItem('cbChinese.ai.weekly')).res.result")
+    check("coach: was told which of last week's actions were done", saved.get("follow_up") == "Done: 1 of 2.", saved.get("follow_up"))
+    check("coach plan: on Home with a button per action", await pg.locator("#coach-plan li").count() == len(lg[1]["actions"]) and await pg.locator("#coach-plan li a.btn").count() == len(lg[1]["actions"]))
+    sk = lg[1]["actions"][0]["skill"]
+    await pg.evaluate("for(let i=0;i<10;i++)Learn.record('t:'+i,{skill:%s,statsOnly:true},true)" % json.dumps(sk))
+    await go(pg, "#/me", 300); await go(pg, "#/", 600)
+    check("coach plan: an action is ticked after 10 answers in that skill", await pg.locator("#coach-plan li.done").count() >= 1)
+    await pg.evaluate("Game.award(5)"); await no_dialogs(pg)
+    e = await pg.evaluate("Store.state.slog[Store.today()]")
+    check("study log: a session, its minutes and answers per skill are recorded", e and e["s"] == 1 and e["m"] >= 1 and e["k"].get(sk, [0])[0] == 10, e)
+    await pg.reload(); await pg.wait_for_timeout(6000)
+    check("coach: not asked again in the same week", len(await pg.evaluate("Store.state.coachLog")) == 2)
+    await ctx.close()
+
+
 async def t_track(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
     await go(pg, "#/track", 1500)
@@ -456,7 +485,7 @@ async def t_contrast(b):
         await ctx.close()
 
 
-GROUPS = [("sync", t_sync), ("first_run", t_first_run), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+GROUPS = [("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

@@ -45,6 +45,8 @@
     if (sk) {
       var st = s.skills[sk] || (s.skills[sk] = { r: 0, w: 0 });
       if (ok) st.r++; else st.w++;
+      var L = s.slog || (s.slog = {}), t = Store.today(), e = L[t] || (L[t] = { m: 0, s: 0, h: new Date().getHours(), k: {} }), c = (e.k || (e.k = {}))[sk] || (e.k[sk] = [0, 0]);
+      c[ok ? 0 : 1]++;
     }
     if (!ok) { s.mlog.push({ d: Store.today(), k: key, s: sk || "" }); if (s.mlog.length > 600) s.mlog.splice(0, s.mlog.length - 600); }
     if (meta && meta.statsOnly) { Store.save(); return false; }

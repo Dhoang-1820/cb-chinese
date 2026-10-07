@@ -175,7 +175,7 @@
     })(k);
   }
 
-  window.UI = { toast: toast, confetti: confetti, pop: pop, shake: shake, modal: modal, mascot: mascot, reduced: reduced, hearts: hearts, heartIcon: heartIcon, heartsInFlight: function () { return inFlight > 0; } };
+  window.UI = { toast: toast, confetti: confetti, pop: pop, shake: shake, modal: modal, mascot: mascot, reduced: reduced, hearts: hearts, streakFlame: streakFlame, anim: anim, mountAnims: mountAnims, unmountAnims: unmountAnims, burst: burst, heartIcon: heartIcon, heartsInFlight: function () { return inFlight > 0; } };
 
   /* ---------------- Levels ---------------- */
   var LEVELS = [
@@ -233,6 +233,79 @@
     }
   }
 
+  /* ---------------- streak flame (Lottie) ----------------
+     Played once when the streak grows on the first study of a day. The player (47 KB gzipped) and the animation are
+     fetched only then, and stay in the service-worker cache. Skipped with reduced motion; tap to dismiss. */
+  var lottieP = null;
+  function lottieLib() {
+    return lottieP || (lottieP = new Promise(function (res, rej) {
+      if (window.lottie) return res(window.lottie);
+      var sc = document.createElement("script"); sc.src = "vendor/lottie/lottie_light.min.js";
+      sc.onload = function () { window.lottie ? res(window.lottie) : rej(new Error("lottie")); };
+      sc.onerror = function () { lottieP = null; rej(new Error("network")); };
+      document.head.appendChild(sc);
+    }));
+  }
+  /* A Lottie animation inside the page. Returns a placeholder that already shows `fallback` (usually the coin mascot);
+     mountAnims() swaps the animation in once the player and the file have loaded, so offline or on an error the
+     fallback simply stays. With reduced motion the animation is shown as a still picture. */
+  function anim(name, size, fallback, loop) {
+    return '<span class="lt" data-lt="' + name + '"' + (loop === false ? "" : " data-loop") + ' style="width:' + size + "px;height:" + size + 'px" aria-hidden="true">' + (fallback || "") + "</span>";
+  }
+  function mountAnims(root) {
+    if (!root || root.nodeType !== 1) return;
+    var list = [].slice.call(root.querySelectorAll(".lt:not([data-on])"));
+    if (root.matches(".lt:not([data-on])")) list.push(root);
+    if (!list.length) return;
+    list.forEach(function (el) { el.setAttribute("data-on", "1"); });
+    lottieLib().then(function (lib) {
+      list.forEach(function (el) {
+        if (!document.body.contains(el)) return;
+        var box = document.createElement("span"); box.className = "lt-in"; box.style.visibility = "hidden"; el.appendChild(box);
+        var a = lib.loadAnimation({ container: box, renderer: "svg", loop: el.hasAttribute("data-loop") && !reduced, autoplay: !reduced, path: "vendor/lottie/" + el.getAttribute("data-lt") + ".json" });
+        el._lt = a;
+        a.addEventListener("DOMLoaded", function () {
+          [].slice.call(el.childNodes).forEach(function (c) { if (c !== box) el.removeChild(c); });
+          box.style.visibility = ""; if (reduced) a.goToAndStop(Math.floor(a.totalFrames * 0.4), true);
+        });
+        a.addEventListener("data_failed", function () { try { a.destroy(); } catch (e) { /* ignore */ } box.remove(); });
+      });
+    }, function () { /* offline and not cached yet: the fallback stays */ });
+  }
+  function unmountAnims(root) {
+    if (!root || root.nodeType !== 1) return;
+    var list = [].slice.call(root.querySelectorAll(".lt")); if (root.matches(".lt")) list.push(root);
+    list.forEach(function (el) { if (el._lt) { try { el._lt.destroy(); } catch (e) { /* ignore */ } el._lt = null; } });
+  }
+  /* A short celebration card over the screen that closes by itself (tap to close sooner). */
+  function burst(name, big, title, sub) {
+    if (reduced || document.querySelector(".fx-streak")) return;
+    lottieLib().then(function (lib) {
+      var w = document.createElement("div"); w.className = "fx-streak"; w.setAttribute("role", "status");
+      w.innerHTML = '<div class="fs-card"><div class="fs-anim fs-plain" aria-hidden="true"></div><b class="fs-n">' + big + '</b><span class="fs-t">' + title + "</span>" + (sub ? "<small>" + sub + "</small>" : "") + "</div>";
+      document.body.appendChild(w);
+      var gone = false, a = lib.loadAnimation({ container: w.querySelector(".fs-anim"), renderer: "svg", loop: true, autoplay: true, path: "vendor/lottie/" + name + ".json" });
+      function close() { if (gone) return; gone = true; w.classList.remove("show"); setTimeout(function () { try { a.destroy(); } catch (e) { /* ignore */ } w.remove(); }, 260); }
+      requestAnimationFrame(function () { w.classList.add("show"); });
+      a.addEventListener("data_failed", close);
+      w.onclick = close; setTimeout(close, 3200);
+    }, function () { /* offline and not cached yet */ });
+  }
+  function streakFlame(n) {
+    if (reduced || document.querySelector(".fx-streak")) return;
+    lottieLib().then(function (lib) {
+      var w = document.createElement("div"); w.className = "fx-streak"; w.setAttribute("role", "status");
+      w.innerHTML = '<div class="fs-card"><div class="fs-anim" aria-hidden="true"></div><b class="fs-n">' + n + '</b><span class="fs-t">day streak</span><small>Keep the fire going</small></div>';
+      document.body.appendChild(w);
+      var gone = false, a = lib.loadAnimation({ container: w.querySelector(".fs-anim"), renderer: "svg", loop: false, autoplay: true, path: "vendor/lottie/streak-flame.json" });
+      function close() { if (gone) return; gone = true; w.classList.remove("show"); setTimeout(function () { try { a.destroy(); } catch (e) { /* ignore */ } w.remove(); }, 260); }
+      requestAnimationFrame(function () { w.classList.add("show"); });
+      a.addEventListener("complete", function () { setTimeout(close, 900); });
+      a.addEventListener("data_failed", close);
+      w.onclick = close; setTimeout(close, 6000);
+    }, function () { /* offline and not cached yet: the streak chip still updates */ });
+  }
+
   /* ---------------- XP award ---------------- */
   function award(xp, opts) {
     opts = opts || {};
@@ -243,10 +316,11 @@
     var after = level(s.xp);
     if (info.freezeUsed) toast("Streak saved with " + info.freezeUsed + " freeze" + (info.freezeUsed > 1 ? "s" : ""), "🧊");
     if (info.freezeEarned) toast("You earned a streak freeze", "🧊");
+    if (info.newDay && s.streak.count >= 2) setTimeout(function () { streakFlame(s.streak.count); }, 500);
     if (todayBefore < goal && todayBefore + xp >= goal) { toast("Daily goal reached!", "🎯"); confetti(70); Audio2.sfx.win(); }
     if (after.n > before.n) {
       Audio2.sfx.win(); confetti(160);
-      modal('<div class="lv-up">' + mascot("cheer", 96) + '<p class="lv-small">Level up · Lên cấp</p><h2 class="zh">' + after.zh + "</h2><p>" + after.en + " · " + after.vi + "</p></div>");
+      modal('<div class="lv-up">' + anim("cat-laugh", 130, mascot("cheer", 96)) + '<p class="lv-small">Level up · Lên cấp</p><h2 class="zh">' + after.zh + "</h2><p>" + after.en + " · " + after.vi + "</p></div>");
     }
     checkBadges();
     if (window.App && App.refreshChrome) App.refreshChrome();

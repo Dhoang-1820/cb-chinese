@@ -1124,3 +1124,26 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .card.g-sun, .card.g-sun .sub, .card.g-sun small, .card.g-sun .muted, .card.g-sun h2,
 .card.g-w3, .card.g-w3 .sub, .card.g-w3 small, .card.g-w3 .muted { color: var(--on-sun); }
 .g-sun .cta-go, .gfeat.g-sun .g-go, .g-w3 .cta-go { color: var(--on-sun); }
+
+/* ---------- streak flame ---------- */
+.fx-streak { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: rgba(20, 12, 45, .45); opacity: 0; transition: opacity 200ms ease-out; }
+.fx-streak.show { opacity: 1; }
+.fs-card { width: min(260px, 78vw); padding: 14px 18px 20px; border-radius: 26px; background: var(--surface); color: var(--text); text-align: center; display: flex; flex-direction: column; align-items: center;
+  box-shadow: 0 6px 0 var(--edge); transform: scale(.92); transition: transform 220ms cubic-bezier(.2, .9, .3, 1.2); }
+.fx-streak.show .fs-card { transform: none; }
+.fs-anim { width: 170px; height: 170px; margin-bottom: -30px; }
+.fs-n { font-size: 3rem; font-weight: 900; line-height: 1; color: #c2410c; }
+.fs-t { font-weight: 900; font-size: 1.1rem; } .fs-card small { color: var(--muted); font-weight: 700; margin-top: 2px; }
+:root[data-theme="dark"] .fs-n { color: #ff9a4d; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fs-n { color: #ff9a4d; } }
+
+/* ---------- Lottie animations in the page ---------- */
+.lt { display: inline-grid; place-items: center; vertical-align: middle; flex: none; }
+.lt > * { grid-area: 1 / 1; } .lt-in { display: block; width: 100%; height: 100%; }
+.card.result > .lt, .lv-up > .lt { display: grid; margin: 0 auto; }
+.ai-wait.has-robot { display: flex; align-items: center; gap: 8px; }
+.mini-link.has-dog { display: flex; align-items: center; justify-content: center; gap: 6px; padding-top: 4px; padding-bottom: 4px; }
+.fs-anim.fs-plain { margin-bottom: 0; }
+/* the robot is black line art: flip it to light lines on the dark theme and turn the eye colour back */
+:root[data-theme="dark"] .lt[data-lt="robot"] { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lt[data-lt="robot"] { filter: invert(1) hue-rotate(180deg); } }

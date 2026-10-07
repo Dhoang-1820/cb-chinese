@@ -125,19 +125,28 @@
       if (prev && prev.focus && document.body.contains(prev)) { try { prev.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
     };
   }
+  /* every "AI is thinking" card gets the little robot in place of the 🤖 emoji */
+  function robotWait(root) {
+    var l = [].slice.call(root.querySelectorAll(".ai-wait")); if (root.matches(".ai-wait")) l.push(root);
+    l.forEach(function (el) {
+      if (el.querySelector(".lt")) return;
+      var t = el.textContent.replace(/^\s*🤖\s*/, "");
+      el.innerHTML = UI.anim("robot", 34, "🤖") + "<span></span>"; el.lastChild.textContent = t; el.classList.add("has-robot");
+    });
+  }
   function watchDom() {
-    tagZh(document.body);
+    tagZh(document.body); UI.mountAnims(document.body);
     if (!window.MutationObserver) return;
     new MutationObserver(function (list) {
       for (var i = 0; i < list.length; i++) {
         var m = list[i], k, nd;
         for (k = 0; k < m.addedNodes.length; k++) {
           nd = m.addedNodes[k]; if (nd.nodeType !== 1) continue;
-          tagZh(nd);
+          tagZh(nd); robotWait(nd); UI.mountAnims(nd);
           if (nd.classList.contains("modal-wrap")) trapDialog(nd);
           else { var w = nd.closest && nd.closest(".modal-wrap"); if (w && w._relabel) setTimeout(w._relabel, 30); }
         }
-        for (k = 0; k < m.removedNodes.length; k++) { nd = m.removedNodes[k]; if (nd.nodeType === 1 && nd._release) nd._release(); }
+        for (k = 0; k < m.removedNodes.length; k++) { nd = m.removedNodes[k]; if (nd.nodeType === 1) { UI.unmountAnims(nd); if (nd._release) nd._release(); } }
       }
     }).observe(document.body, { childList: true, subtree: true });
   }
@@ -394,7 +403,7 @@
     b.onclick = function () {
       var s = Store.state, t = Store.today(); s.questChest = s.questChest || {}; if (s.questChest[t]) return;
       s.questChest[t] = true; Store.save(); b.disabled = true; b.classList.remove("primary"); b.textContent = "🎁 Chest opened today";
-      Game.award(20); UI.confetti(90); Audio2.sfx.win();
+      Game.award(20); UI.confetti(90); Audio2.sfx.win(); UI.burst("cat-laugh", "+20 XP", "Quest chest opened");
     };
   }
 
@@ -1141,7 +1150,7 @@
       if (score === qs.length) Store.state.stats.perfectQuizzes++;
       var xp = score * 2 + (score === qs.length ? 10 : 0);
       var mood = score === qs.length ? "cheer" : score >= 7 ? "happy" : "sad";
-      body.innerHTML = '<div class="card result">' + UI.mascot(mood, 96) + '<h2>' + score + " / " + qs.length + "</h2><p>" +
+      body.innerHTML = '<div class="card result">' + (score >= 7 ? UI.anim("cat-love", 150, UI.mascot(mood, 96)) : UI.mascot(mood, 96)) + '<h2>' + score + " / " + qs.length + "</h2><p>" +
         (score >= 7 ? "Day " + d.day + " completed ✓" : "Get 7 or more to complete the day") + "</p>" +
         '<div class="actions center"><button class="btn primary" id="qretry">↻ Try again</button><a class="btn" href="#/learn">Back to plan</a></div></div>' +
         '<h3 class="sec">Answer key</h3><div class="card akey">' + qs.map(function (x, n) {
@@ -1282,7 +1291,7 @@
     }).join("") + "</div>";
     if (!ids.length) {
       var nd = SRS.nextDue();
-      render('<div class="card result">' + UI.mascot(total ? "think" : "sleepy", 88) + "<h2>" + (total ? "All caught up!" : "Nothing to review yet") + "</h2>" +
+      render('<div class="card result">' + (total ? UI.mascot("think", 88) : UI.anim("cat-sleep", 150, UI.mascot("sleepy", 88))) + "<h2>" + (total ? "All caught up!" : "Nothing to review yet") + "</h2>" +
         '<p class="sub">' + (total ? (nd ? "Next review: " + esc(nd) : "") : "Study a day's flashcards to fill your deck.") + "</p></div>" + boxes + mistakesCard() +
         '<div class="actions center"><a class="btn primary" href="#/games">🎮 Play a game</a><a class="btn" href="#/learn">📚 Learn</a></div>', "review");
       return;
@@ -3149,7 +3158,7 @@
   function shortLink() {
     var s = Store.state, t = Store.today();
     if ((s.log[t] || 0) > 0 || (s.sessions || {})[t] || rescueCard()) return "";
-    return '<a class="mini-link" href="#/session/rescue">⏱ Short on time? Do the 2-minute version</a>';
+    return '<a class="mini-link has-dog" href="#/session/rescue">' + UI.anim("dog-peek", 46, "⏱") + "<span>Short on time? Do the 2-minute version</span></a>";
   }
   /* After your study time with a streak running and nothing studied yet: offer the 2-minute rescue. */
   function rescueCard() {
@@ -3186,7 +3195,7 @@
       Store.save();
       if (first) Game.award(10, { silent: true });
       var xp = s.xp - start.xp, hearts = (s.stats.hearts || 0) - start.hearts, added = Object.keys(s.srs).length - start.srs, cleared = Math.max(0, start.mis - Learn.count());
-      render('<div class="card result">' + UI.mascot("cheer", 96) + "<h2>" + (rescue ? "Streak saved! 🔥" : "Session complete! 🎉") + "</h2>" +
+      render('<div class="card result">' + UI.anim("cat-love", 150, UI.mascot("cheer", 96)) + "<h2>" + (rescue ? "Streak saved! 🔥" : "Session complete! 🎉") + "</h2>" +
         '<div class="sum-grid"><div><b>+' + xp + '</b><span>XP' + (first ? " (incl. +10 bonus)" : "") + '</span></div><div><b>' + hearts + '</b><span>❤️ hearts</span></div><div><b>' + added + '</b><span>new words</span></div><div><b>' + cleared + '</b><span>mistakes cleared</span></div></div>' +
         '<p class="sub">🔥 Streak: ' + Store.streak() + " day" + (Store.streak() === 1 ? "" : "s") + '</p><div class="actions center"><a class="btn primary" href="#/">Home</a>' + (rescue ? '<a class="btn" href="#/session">▶ Full session</a>' : '<a class="btn" href="#/listen-mode">🎧 Keep listening</a>') + "</div></div>", "home");
       UI.confetti(140);

@@ -167,6 +167,56 @@ async def t_habit(b):
     await ctx.close()
 
 
+async def t_flame(b):
+    state = {"settings": settings(), "srs": {}, "streak": {"count": 3, "last": day(-1), "best": 3}, "log": {day(-1): 30}}
+    ctx, pg = await open_app(b, state)
+    await pg.evaluate("Game.award(5)")
+    try:
+        await pg.wait_for_selector(".fx-streak .fs-anim svg", timeout=8000); shown = True
+    except Exception:
+        shown = False
+    check("streak flame: plays when the streak grows, with the real number", shown and (await pg.locator(".fs-n").inner_text()) == "4")
+    await pg.evaluate("Game.award(5)"); await pg.wait_for_timeout(700)
+    check("streak flame: only once a day", await pg.locator(".fx-streak").count() <= 1)
+    await pg.wait_for_selector(".fx-streak", state="detached", timeout=9000)
+    check("streak flame: removes itself", await pg.locator(".fx-streak").count() == 0)
+    await ctx.close()
+    ctx, pg = await open_app(b, state, reduced_motion="reduce")
+    await pg.evaluate("Game.award(5)"); await pg.wait_for_timeout(1500)
+    check("streak flame: skipped with reduced motion", await pg.locator(".fx-streak").count() == 0 and await pg.evaluate("Store.state.streak.count") == 4)
+    await ctx.close()
+
+
+async def t_anims(b):
+    async def playing(pg, name):
+        try:
+            await pg.wait_for_selector(".lt[data-lt='%s'] .lt-in svg" % name, timeout=8000); return True
+        except Exception:
+            return False
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    check("animations: the dog peeks beside the 2-minute link", await playing(pg, "dog-peek"))
+    await go(pg, "#/review", 500)
+    check("animations: the sleeping cat on an empty Review", await playing(pg, "cat-sleep") and await pg.locator(".lt[data-lt='cat-sleep'] > svg").count() == 0)
+    await go(pg, "#/day/1/quiz"); await pg.wait_for_selector(".opt")
+    n = await pg.evaluate("CB_DAYS.find(d=>d.day===1).quiz.length")
+    for i in range(n):
+        await no_dialogs(pg)
+        k = await pg.evaluate("i=>CB_DAYS.find(d=>d.day===1).quiz[i].answer", i)
+        await pg.click(".opt[data-k='%s']" % k); await pg.click("#qnext"); await pg.wait_for_timeout(120)
+    check("animations: the loving cat when a lesson quiz is passed", await playing(pg, "cat-love"))
+    await no_dialogs(pg)
+    await pg.evaluate("()=>{const d=document.createElement('div');d.className='ai-card ai-wait';d.textContent='🤖 Thinking…';document.getElementById('app').appendChild(d)}")
+    check("animations: the robot on an 'AI is thinking' card", await playing(pg, "robot") and "Thinking" in await pg.locator(".ai-wait").inner_text())
+    await go(pg, "#/", 400)
+    check("animations: players are released when the screen changes", await pg.locator(".lt[data-lt='robot']").count() == 0)
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    await pg.route("**/vendor/lottie/**", lambda r: r.abort())
+    await go(pg, "#/review", 900)
+    check("animations: the coin mascot stays when an animation cannot load", await pg.locator(".lt[data-lt='cat-sleep'] svg").count() == 1 and await pg.locator(".lt .lt-in svg").count() == 0)
+    await ctx.close()
+
+
 async def t_ready(b):
     skills = {"listen-word": {"r": 10, "w": 14}, "vocab": {"r": 40, "w": 8}, "typing": {"r": 9, "w": 6}}
     mocks = [{"id": 1, "date": day(-6), "mode": "exam", "total": 171, "sections": {"listening": 48, "reading": 68, "writing": 55}},
@@ -360,7 +410,7 @@ async def t_contrast(b):
         await ctx.close()
 
 
-GROUPS = [("first_run", t_first_run), ("home", t_home), ("habit", t_habit), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+GROUPS = [("first_run", t_first_run), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

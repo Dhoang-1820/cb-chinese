@@ -1572,8 +1572,20 @@
     var m = r.meta || {}, sm = r.summary, name = m.label || "Learner " + String(r.id).slice(0, 6), out = "";
     function hr(x) { return typeof x === "number" ? (x < 10 ? "0" : "") + x + ":00" : "not measured yet"; }
     if (sm) {
+      var pg = sm.progress;
+      if (pg) {
+        out += '<h3 class="lrn-h">Progress</h3><p class="sub">Lessons <b>' + (pg.lessons || 0) + "/" + (pg.lessonsAll || 90) + "</b> · track sessions <b>" + (pg.track || 0) + "/" + (pg.trackAll || 72) + "</b> · " + (pg.due || 0) + " words due" + (pg.exam ? " · exam " + esc(pg.exam) : "") + "</p>" +
+          (pg.ready ? '<p class="sub">Readiness: <b>' + esc(pg.ready.verdict || "") + "</b>, about " + (pg.ready.total || 0) + "/300 (" + (pg.ready.lo || 0) + "–" + (pg.ready.hi || 0) + ", from " + (pg.ready.src === "mock" ? "mock exams" : "practice answers") + ")</p>" : '<p class="sub">Readiness: not enough answers yet.</p>') +
+          ((pg.mocks || []).length ? '<p class="sub">Last mocks: ' + pg.mocks.map(function (x) { return esc(String(x.d).slice(5)) + " <b>" + (x.t || 0) + "</b> (L" + (x.l || 0) + " R" + (x.r || 0) + " W" + (x.w || 0) + ")"; }).join(" · ") + "</p>" : '<p class="sub">No mock exam taken yet.</p>');
+      }
+      out += '<h3 class="lrn-h">Habit</h3>';
+      if (/^[01]{28}$/.test(sm.days28 || "")) out += '<div class="lrn-days" role="img" aria-label="Study days, last 28 days, oldest first: ' + sm.days28.split("").map(function (c) { return c === "1" ? "yes" : "no"; }).join(", ") + '">' + sm.days28.split("").map(function (c, j) { return '<i class="' + (c === "1" ? "on" : "") + (j === 27 ? " today" : "") + '"></i>'; }).join("") + '</div><p class="sub lrn-cap">Last 28 days, today on the right</p>';
+      if (Array.isArray(sm.week) && sm.week.some(function (x) { return x > 0; })) out += '<p class="sub">Minutes, last 7 days: ' + sm.week.map(function (x, j) { return j === 6 ? "<b>" + (+x || 0) + "</b>" : (+x || 0); }).join(" · ") + "</p>";
+      var hk = Object.keys(sm.hours || {}).sort(function (a, b) { return sm.hours[b] - sm.hours[a]; }).slice(0, 3);
+      if (hk.length) out += '<p class="sub">Starts studying at: ' + hk.map(function (h) { return hr(+h) + " (" + (+sm.hours[h] || 0) + " d)"; }).join(" · ") + "</p>";
       out += '<p class="sub">Study days: <b>' + (sm.active28 || 0) + "</b> of the last " + (sm.span || 0) + " · longest gap " + (sm.longestGap || 0) + " d" + (sm.skipDay ? " · often skips " + esc(sm.skipDay) : "") + " · goal " + (sm.goalDays || 0) + " days a week</p>" +
         '<p class="sub">Usually starts at ' + hr(sm.usualHour) + " (plan " + hr(sm.planHour) + ") · " + (sm.minutes == null ? "minutes not measured yet" : sm.minutes + " min per study day") + "</p>";
+      out += '<h3 class="lrn-h">Skills and plan</h3>';
       if ((sm.trend || []).length) out += '<p class="sub">Weakest skills, last 14 days: ' + sm.trend.slice(0, 3).map(function (t) { return esc(t.skill) + " <b>" + t.acc + "%</b>" + (t.before == null ? "" : " (was " + t.before + "%)"); }).join(" · ") + "</p>";
       if ((sm.patterns || []).length) out += '<p class="sub">Mistake patterns: ' + sm.patterns.map(function (p) { return (p.kind === "skill" ? esc(p.skill) : "same items missed again") + " ×" + p.n; }).join(" · ") + "</p>";
       if (sm.plan && (sm.plan.actions || []).length) out += '<p class="sub">Coach\'s plan (week of ' + esc(sm.plan.w) + "): " + sm.plan.actions.filter(function (a) { return a.done; }).length + "/" + sm.plan.actions.length + ' done</p><ul class="plan-l">' +
@@ -2790,6 +2802,15 @@
     return { span: span, active28: act28, longestGap: longest, skipDay: span >= 14 && miss[worst] >= 2 ? WD[worst] : "", usualHour: usual, planHour: parseInt(String(s.settings.remindTime || "").slice(0, 2), 10),
       minutes: days.length ? Math.round(mins / days.length) : null, sessions: days.length ? Math.round(ses / days.length * 10) / 10 : null, logDays: days.length, goalDays: s.settings.weeklyDays || 5, trend: trend,
       patterns: Learn.patterns(3).map(function (p) { return { kind: p.type, skill: p.skill ? (AI.SKILL_NAMES[p.skill] || p.skill) : "", n: p.n }; }),
+      days28: (function () { var o = ""; for (var j = 27; j >= 0; j--) o += s.log[Store.addDays(t, -j)] > 0 ? "1" : "0"; return o; })(), // oldest first, today last
+      hours: hrs, // start hour -> number of study days that began in it
+      week: (function () { var o = []; for (var j = 6; j >= 0; j--) { var e = L[Store.addDays(t, -j)]; o.push(e ? Math.round(e.m) : 0); } return o; })(), // minutes per day, today last
+      progress: (function () {
+        var r = null, due = 0; try { r = readiness(); due = SRS.dueIds(WORDMAP).length; } catch (e) { /* content not loaded yet */ }
+        var ms = byDate(s.mockHistory || []).slice(-3).map(function (h) { return { d: h.date, t: h.total, l: h.sections.listening, r: h.sections.reading, w: h.sections.writing }; });
+        return { lessons: Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length, lessonsAll: DAYS.length, track: Object.keys(s.track || {}).filter(function (k) { return s.track[k]; }).length, trackAll: 72,
+          due: due, ready: r ? { total: r.total, lo: r.lo, hi: r.hi, verdict: r.verdict[1], src: r.src } : null, mocks: ms, exam: s.settings.examDate || "", goal: s.settings.dailyGoal || 30 };
+      })(),
       plan: (function () { var c = coachLast(); return c ? { w: c.w, actions: coachStatus(c).map(function (a) { return { text: a.text.slice(0, 200), skill: AI.SKILL_NAMES[a.skill] || a.skill, done: a.done }; }) } : null; })() };
   }
 

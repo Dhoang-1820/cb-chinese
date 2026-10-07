@@ -331,6 +331,7 @@ async def t_sync(b):
     await go(p1, "#/fixes", 500); await p1.click("[data-fxtab='learners']"); await p1.wait_for_selector(".lrn", timeout=10000)
     card = await p1.locator(".lrn").first.inner_text()
     check("admin: the learner is listed with XP and the study summary", "40 XP" in card and "Study days" in card and "No coach plan yet" in card, card[:200])
+    check("admin: the card shows progress and the habit strip", "Lessons 0/" in card and "words due" in card and "No mock exam taken yet" in card and await p1.locator(".lrn .lrn-days i").count() == 28 and await p1.locator(".lrn .lrn-days i.on").count() == 1, card[:300])
     lid = await p1.evaluate("Content.admin('learners_list',{}).then(r=>r.result.rows[0].id)")
     await p1.evaluate("Content.admin('learner_label',{id:%s,label:'Hoang'})" % json.dumps(lid)); await p1.wait_for_timeout(300)
     await p1.evaluate("Game.award(1)"); await p1.evaluate("Sync.now()")

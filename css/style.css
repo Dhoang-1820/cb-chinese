@@ -1161,3 +1161,9 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 
 /* admin: learner cards */
 .lrn .plan-l { margin: 4px 0 8px; }
+.lrn-h { margin: 12px 0 2px; font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.lrn-days { display: grid; grid-template-columns: repeat(28, 1fr); gap: 2px; margin: 6px 0 2px; }
+.lrn-days i { aspect-ratio: 1; border-radius: 3px; background: var(--track); }
+.lrn-days i.on { background: var(--good); }
+.lrn-days i.today { outline: 2px solid var(--text); outline-offset: 1px; }
+.lrn-cap { margin-top: 0; font-size: .75rem; }

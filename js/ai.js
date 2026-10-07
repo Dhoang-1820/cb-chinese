@@ -7,7 +7,7 @@
   "use strict";
   /* The shared AI service every user of this site gets with no setup. It is a public address, not a secret:
      the Gemini key stays in Supabase, and the service limits calls per day and per address. Empty = no built-in AI. */
-  var BUILT_IN_URL = "https://kztzcwhbfdzanqvecoxi.supabase.co/functions/v1/ai";
+  var BUILT_IN_URL = "https://ihstekksnivjaywourzt.supabase.co/functions/v1/ai";
   var KEY = "cbChinese.ai", FB = "cbChinese.ai.fb";
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }

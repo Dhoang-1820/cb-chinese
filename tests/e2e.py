@@ -348,6 +348,12 @@ async def t_contrast(b):
             await go(pg, h, 700)
             if name == "me": await pg.evaluate("document.querySelectorAll('#app details').forEach(d=>d.open=true)")
             if name == "reader": await pg.click("#rd-sample"); await pg.wait_for_timeout(300)
+            if name == "games":  # the daily-challenge card changes colour by day; check it in every colour, starting with today's
+                for cls in ("", "g-sun", "g-coral", "g-teal", "g-blue", "g-violet", "g-boss"):
+                    if cls: await pg.evaluate("c=>{const e=document.querySelector('.gfeat');e.className=e.className.replace(/g-[a-z]+/,c)}", cls)
+                    f = await pg.evaluate(CONTRAST_JS)
+                    if f: bad["games " + (cls or "today")] = f[:4]
+                continue
             faint = await pg.evaluate(CONTRAST_JS)
             if faint: bad[name] = faint[:4]
         check("contrast: no faint text in the %s theme" % theme, not bad, bad)

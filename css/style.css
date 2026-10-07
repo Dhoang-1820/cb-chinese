@@ -1123,3 +1123,4 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 /* the orange card keeps its bright fill, so its text is dark in the light theme (white on it is 2:1) */
 .card.g-sun, .card.g-sun .sub, .card.g-sun small, .card.g-sun .muted, .card.g-sun h2,
 .card.g-w3, .card.g-w3 .sub, .card.g-w3 small, .card.g-w3 .muted { color: var(--on-sun); }
+.g-sun .cta-go, .gfeat.g-sun .g-go, .g-w3 .cta-go { color: var(--on-sun); }

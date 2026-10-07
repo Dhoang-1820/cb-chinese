@@ -927,6 +927,7 @@
             : '<a class="tile t-blue" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>' + (exam >= 0 ? exam + " days to HSK 4" : "Exam done") + "</small></a>") +
       "</div>";
     html += '<a class="trackrow toolrow" href="#/read"><span class="t-ico">📖</span><span class="tr-t"><small>Real text from work</small><b>Reader · tap any word</b></span><span class="tr-go">›</span></a>';
+    html += h5HomeRow();
     html += plan;
     html += '<details class="more"><summary><span>More: plan, focus, activity, badges</span></summary>' +
       focusCard() + (fin ? "" : todayCard()) + weeklyTeaser() +
@@ -3114,6 +3115,14 @@
     var g = Object.keys(s.grammar || {}).filter(function (k) { return /^h5g/.test(k) && s.grammar[k].mastered; }).length;
     return { started: Object.keys(packs).length, done: done, packs: 62, words: words, grammar: g };
   }
+  /* Home, only while the Learn switch is on HSK 5: where to carry on. Home itself stays about the HSK 4 exam. */
+  function h5HomeRow() {
+    if (Store.state.settings.level !== 5) return "";
+    var p = h5Progress(), next = 0;
+    for (var k = 1; k <= p.packs && !next; k++) if (!packDone("h5", k)) next = k;
+    return '<a class="trackrow toolrow" id="h5-row" href="' + (next ? "#/pack/h5/" + next : "#/learn/h5") + '"><span class="t-ico">📗</span><span class="tr-t"><small>HSK 5 · ' + p.done + "/" + p.packs + " packs finished · " + p.words + " words in review</small><b>" +
+      (next ? "Continue with pack " + next : "All packs finished") + '</b></span><span class="tr-go">›</span></a>';
+  }
   function studySummary() {
     var s = Store.state, t = Store.today(), L = s.slog || {}, i, d, act28 = 0, gap = 0, longest = 0, miss = [0, 0, 0, 0, 0, 0, 0];
     var first = Object.keys(s.log).sort()[0] || t, span = Math.min(28, Store.daysBetween(first, t) + 1);
@@ -3783,7 +3792,7 @@
   }
 
   /* ---------- grammar checklists: HSK 4 (g01..) and HSK 5 (h5g01.., loaded with the HSK 5 pack) ---------- */
-  var _gm = null, gFilter = { q: "", st: "all" };
+  var _gm = null, gFilter = { q: "", st: "all", lvl: 4 };
   function GLIST(lvl) { return (lvl === 5 ? window.CB_HSK5_GRAMMAR : window.CB_GRAMMAR) || []; }
   function gLvl(id) { return /^h5g/.test(id) ? 5 : 4; }
   function gHome(lvl) { return lvl === 5 ? "#/grammar/h5" : "#/grammar"; }
@@ -3797,6 +3806,7 @@
   }
   function viewGrammarList(lvl) {
     lvl = lvl === 5 ? 5 : 4;
+    if (gFilter.lvl !== lvl) gFilter = { q: "", st: "all", lvl: lvl }; // each level starts with its own, empty filter
     var G = GLIST(lvl), mastered = G.filter(function (g) { return (Store.state.grammar[g.id] || {}).mastered; }).length;
     var html = (lvl === 5 ? h5Seg("grammar") : learnSeg("grammar")) + '<section class="card g-teal"><h2>📐 HSK ' + lvl + ' grammar checklist</h2><p class="sub">The grammar points tested at HSK ' + lvl + ". Read the pattern, do 5 questions; get 5/5 (or 4/5 twice) to master it.</p>" +
       '<div class="xpbar"><span style="width:' + Math.round(mastered / Math.max(1, G.length) * 100) + '%"></span></div><p class="xp-t">' + mastered + " / " + G.length + " mastered</p></section>";

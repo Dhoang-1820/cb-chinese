@@ -1184,3 +1184,7 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 [data-theme="dark"] .h5-note { background: #3a2f18; color: #ffe1a6; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .h5-note { background: #3a2f18; color: #ffe1a6; } }
 .w-flag { display: inline-block; margin-top: 8px; min-height: 32px; font-size: .82rem; }
+.g-filter { display: grid; gap: 8px; margin: 0 0 8px; }
+.g-filter .search { margin: 0; }
+.g-filter .vtoggle { justify-self: start; margin: 0; }
+.gitem[hidden] { display: none; }

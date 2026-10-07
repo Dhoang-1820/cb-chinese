@@ -406,7 +406,7 @@
     else if (v === "listen-mode") viewListenMode();
     else if (v === "talk") viewTalk(parts[1]);
     else if (v === "session") viewSession(parts[1]);
-    else if (v === "grammar") parts[1] ? viewGrammarPoint(parts[1], parts[2]) : viewGrammarList();
+    else if (v === "grammar") { if (parts[1] === "h5") viewGrammarList(5); else if (parts[1]) viewGrammarPoint(parts[1], parts[2]); else viewGrammarList(4); }
     else if (v === "official") viewOfficial();
     else if (v === "me" || v === "settings") viewMe();
     else if (v === "reports") viewReports();
@@ -3682,9 +3682,12 @@
     document.getElementById("ss-go").onclick = function () { next(); };
   }
 
-  /* ---------- grammar checklist (HSK 4 grammar points) ---------- */
-  var _gm = null;
-  function GRAMMAP() { if (!_gm || _gm.n !== (window.CB_GRAMMAR || []).length) { _gm = { n: (window.CB_GRAMMAR || []).length }; (window.CB_GRAMMAR || []).forEach(function (g) { _gm[g.id] = g; }); } return _gm; }
+  /* ---------- grammar checklists: HSK 4 (g01..) and HSK 5 (h5g01.., loaded with the HSK 5 pack) ---------- */
+  var _gm = null, gFilter = { q: "", st: "all" };
+  function GLIST(lvl) { return (lvl === 5 ? window.CB_HSK5_GRAMMAR : window.CB_GRAMMAR) || []; }
+  function gLvl(id) { return /^h5g/.test(id) ? 5 : 4; }
+  function gHome(lvl) { return lvl === 5 ? "#/grammar/h5" : "#/grammar"; }
+  function GRAMMAP() { var n = GLIST(4).length + GLIST(5).length; if (!_gm || _gm.n !== n) { _gm = { n: n }; GLIST(4).concat(GLIST(5)).forEach(function (g) { _gm[g.id] = g; }); } return _gm; }
   function gState(id) { var g = Store.state.grammar; return g[id] || (g[id] = { best: 0, passes: 0, mastered: false }); }
   function gStatus(id) {
     var st = Store.state.grammar[id];
@@ -3692,31 +3695,56 @@
     if (st.mastered) return ["done", "✓ Mastered"];
     return st.best ? ["prog", "Best " + st.best + "/5"] : ["new", "Not started"];
   }
-  function viewGrammarList() {
-    var G = window.CB_GRAMMAR || [], mastered = G.filter(function (g) { return (Store.state.grammar[g.id] || {}).mastered; }).length;
-    var html = learnSeg("grammar") + '<section class="card g-teal"><h2>📐 HSK 4 grammar checklist</h2><p class="sub">The grammar points tested at HSK 4. Read the pattern, do 5 questions; get 5/5 (or 4/5 twice) to master it.</p>' +
+  function viewGrammarList(lvl) {
+    lvl = lvl === 5 ? 5 : 4;
+    var G = GLIST(lvl), mastered = G.filter(function (g) { return (Store.state.grammar[g.id] || {}).mastered; }).length;
+    var html = (lvl === 5 ? h5Seg("grammar") : learnSeg("grammar")) + '<section class="card g-teal"><h2>📐 HSK ' + lvl + ' grammar checklist</h2><p class="sub">The grammar points tested at HSK ' + lvl + ". Read the pattern, do 5 questions; get 5/5 (or 4/5 twice) to master it.</p>" +
       '<div class="xpbar"><span style="width:' + Math.round(mastered / Math.max(1, G.length) * 100) + '%"></span></div><p class="xp-t">' + mastered + " / " + G.length + " mastered</p></section>";
+    /* a long list needs a way in: filter by text (Chinese, pinyin-free Vietnamese or English) and by status */
+    html += '<div class="g-filter"><input id="g-q" class="search" type="search" inputmode="search" placeholder="Filter: 把 · compare · so sánh" aria-label="Filter grammar points" value="' + esc(gFilter.q) + '" autocomplete="off" autocapitalize="off" spellcheck="false">' +
+      '<div class="vtoggle" role="group" aria-label="Show">' + [["all", "All"], ["todo", "To do"], ["done", "Mastered"]].map(function (x) { return '<button type="button" data-gf="' + x[0] + '" class="' + (gFilter.st === x[0] ? "on" : "") + '" aria-pressed="' + (gFilter.st === x[0]) + '">' + x[1] + "</button>"; }).join("") + '</div></div><p class="sub" id="g-count" role="status"></p>';
     html += '<div class="glist">' + G.map(function (g, i) {
       var s = gStatus(g.id);
-      return '<a class="gitem card ' + s[0] + '" href="#/grammar/' + g.id + '"><span class="gnum">' + (i + 1) + '</span><span class="gtxt"><b class="zh">' + esc(g.title.zh) + "</b><small>" + M(g.title) + '</small></span><span class="gst">' + s[1] + "</span></a>";
+      return '<a class="gitem card ' + s[0] + '" href="#/grammar/' + g.id + '" data-t="' + esc(norm(g.title.zh + " " + g.title.vi + " " + g.title.en + " " + g.pattern)) + '" data-z="' + esc(g.title.zh + " " + g.pattern) + '"><span class="gnum">' + (i + 1) + '</span><span class="gtxt"><b class="zh">' + esc(g.title.zh) + "</b><small>" + M(g.title) + '</small></span><span class="gst">' + s[1] + "</span></a>";
     }).join("") + "</div>";
     render(html, "learn");
+    var q = document.getElementById("g-q"), cnt = document.getElementById("g-count");
+    function apply() {
+      var raw = gFilter.q.trim(), nq = norm(raw), n = 0;
+      [].forEach.call(document.querySelectorAll(".glist .gitem"), function (el) {
+        var done = el.classList.contains("done");
+        var ok = (gFilter.st === "all" || (gFilter.st === "done") === done) && (!raw || el.getAttribute("data-z").indexOf(raw) >= 0 || (nq && el.getAttribute("data-t").indexOf(nq) >= 0));
+        el.hidden = !ok; if (ok) n++;
+      });
+      cnt.textContent = raw || gFilter.st !== "all" ? (n ? n + " of " + G.length + " grammar points" : "No grammar point matches.") : "";
+      cnt.hidden = !cnt.textContent;
+    }
+    q.oninput = function () { gFilter.q = q.value; apply(); };
+    [].forEach.call(document.querySelectorAll("[data-gf]"), function (bt) {
+      bt.onclick = function () {
+        gFilter.st = bt.getAttribute("data-gf");
+        [].forEach.call(document.querySelectorAll("[data-gf]"), function (x) { x.classList.toggle("on", x === bt); x.setAttribute("aria-pressed", x === bt ? "true" : "false"); });
+        apply();
+      };
+    });
+    apply();
   }
   function viewGrammarPoint(id, sub) {
     var g = GRAMMAP()[id];
     if (!g) { render('<p class="empty">Grammar point not found. <a href="#/grammar">Back</a></p>', "learn"); return; }
     if (sub === "practice") return grammarQuiz(g);
-    var st = Store.state.grammar[id] || {}, G = window.CB_GRAMMAR || [], i = G.indexOf(g);
-    var html = '<header class="dayhead card g-teal"><div class="dh-nav">' + (G[i - 1] ? '<a class="pill" href="#/grammar/' + G[i - 1].id + '">‹</a>' : '<a class="pill" href="#/grammar">‹ All</a>') +
-      '<span class="dh-day">Grammar ' + (i + 1) + "/" + G.length + "</span>" + (G[i + 1] ? '<a class="pill" href="#/grammar/' + G[i + 1].id + '">›</a>' : "<span></span>") + "</div>" +
-      '<h1 class="zh">' + esc(g.title.zh) + '</h1><p class="sub">' + M(g.title) + "</p></header>" +
+    var lvl = gLvl(id), home = gHome(lvl), st = Store.state.grammar[id] || {}, G = GLIST(lvl), i = G.indexOf(g);
+    var html = '<header class="dayhead card g-teal"><div class="dh-nav">' + (G[i - 1] ? '<a class="pill" href="#/grammar/' + G[i - 1].id + '">‹</a>' : '<a class="pill" href="' + home + '">‹ All</a>') +
+      '<span class="dh-day">' + (lvl === 5 ? "HSK 5 grammar " : "Grammar ") + (i + 1) + "/" + G.length + "</span>" + (G[i + 1] ? '<a class="pill" href="#/grammar/' + G[i + 1].id + '">›</a>' : "<span></span>") + "</div>" +
+      '<h1 class="zh">' + esc(g.title.zh) + '</h1><p class="sub">' + M(g.title) + "</p></header>" + (lvl === 5 ? H5_NOTE : "") +
       '<section class="card"><p class="gpat zh">' + esc(g.pattern) + '</p><div class="tr show">' + M(g.explain) + "</div></section>" +
       '<h3 class="sec">Examples</h3>' + g.examples.map(function (e) {
-        return '<div class="card w-ex"><div class="ex-zh"><span class="zh">' + linkWords(e.zh) + "</span>" + SAY(e.zh) + "</div>" + PY(e.py) + '<div class="tr">' + M(e) + "</div></div>";
+        return '<div class="card w-ex"><div class="ex-zh"><span class="zh">' + linkWords(e.zh) + "</span>" + (lvl === 5 ? SAYX : SAY)(e.zh) + "</div>" + PY(e.py) + '<div class="tr">' + M(e) + "</div></div>";
       }).join("") +
       '<div class="actions center"><a class="btn primary big" href="#/grammar/' + id + '/practice">✍️ Practice 5 questions</a></div>' +
       '<p class="sub center">' + (st.mastered ? "✓ Mastered" : st.best ? "Best so far: " + st.best + "/5" : "Not practised yet") +
-      ' · <button class="linklike" id="g-toggle">' + (st.mastered ? "Unmark mastered" : "Mark as mastered") + "</button></p>";
+      ' · <button class="linklike" id="g-toggle">' + (st.mastered ? "Unmark mastered" : "Mark as mastered") + "</button></p>" +
+      (lvl === 5 ? '<p class="sub center"><button type="button" class="linklike w-flag" data-flag="grammar:' + esc(id) + '" data-flag-label="' + esc(g.title.zh) + '">⚑ Report a problem</button></p>' : "");
     render(html, "learn");
     document.getElementById("g-toggle").onclick = function () { var x = gState(id); x.mastered = !x.mastered; if (!x.mastered) x.passes = 0; Store.save(); viewGrammarPoint(id); };
   }
@@ -3730,7 +3758,7 @@
         Store.save(); Game.award(right * 2);
         render('<div class="card result">' + UI.mascot(right >= 4 ? "cheer" : "happy", 88) + "<h2>" + right + " / 5</h2>" +
           '<p class="sub">' + (st.mastered && !before ? "Mastered: " + esc(g.title.zh) + " ✓" : st.mastered ? "Still mastered ✓" : right >= 4 ? "One more 4/5+ round to master it." : "Re-read the pattern and try again.") + "</p>" +
-          '<div class="actions center"><a class="btn primary" href="#/grammar/' + g.id + '/practice" id="g-again">↻ Again</a><a class="btn" href="#/grammar">Checklist</a></div></div>', "learn");
+          '<div class="actions center"><a class="btn primary" href="#/grammar/' + g.id + '/practice" id="g-again">↻ Again</a><a class="btn" href="' + gHome(gLvl(g.id)) + '">Checklist</a></div></div>', "learn");
         document.getElementById("g-again").onclick = function (ev) { ev.preventDefault(); workDone = false; grammarQuiz(g); };
         if (st.mastered && !before) UI.confetti(90);
         return;
@@ -3743,7 +3771,7 @@
         '</div><div id="qfb"></div></div>', "learn");
       wireMC(q.answer, function (ok) {
         if (ok) right++; markWork();
-        Learn.record("gr:" + g.id + ":" + k, { kind: "gram", skill: "grammar", g: g.id, i: k }, ok);
+        Learn.record("gr:" + g.id + ":" + k, { kind: "gram", skill: gLvl(g.id) === 5 ? "h5-grammar" : "grammar", g: g.id, i: k }, ok);
         return M(q.explain);
       }, function () { i++; draw(); });
     })();

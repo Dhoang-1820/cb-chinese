@@ -702,7 +702,45 @@ async def t_hsk5(b):
     await ctx.close()
 
 
-GROUPS = [("hsk5", t_hsk5), ("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+async def t_grammar5(b):
+    gr = {"g01": {"best": 5, "passes": 1, "mastered": True}, "h5g01": {"best": 4, "passes": 1, "mastered": False}, "zz9": {"best": 5, "passes": 1, "mastered": True}}
+    ctx, pg = await open_app(b, {"settings": settings(level=5, h5=True), "srs": {}, "grammar": gr})
+    keys = sorted(await pg.evaluate("Object.keys(Store.state.grammar)"))
+    check("saved progress: HSK 4 and HSK 5 grammar ids are kept, anything else is dropped", keys == ["g01", "h5g01"], keys)
+    await go(pg, "#/grammar", 900)
+    check("HSK 4 grammar: 70 points with a filter", await pg.locator(".gitem").count() == 70 and await pg.locator("#g-q").count() == 1 and await pg.locator(".lvl-sw [aria-pressed='true']").get_attribute("data-level") == "4")
+    await pg.fill("#g-q", "把"); await pg.wait_for_timeout(200)
+    n = await pg.locator(".gitem:not([hidden])").count()
+    check("grammar filter: typing narrows the list and says how many are left", 0 < n < 20 and ("%d of 70" % n) in await pg.inner_text("#g-count"), n)
+    await pg.fill("#g-q", "so sanh"); await pg.wait_for_timeout(200)
+    check("grammar filter: Vietnamese without accents works", await pg.locator(".gitem:not([hidden])").count() >= 1)
+    await pg.fill("#g-q", ""); await pg.click("[data-gf='done']"); await pg.wait_for_timeout(200)
+    check("grammar filter: 'Mastered' shows only mastered points", await pg.locator(".gitem:not([hidden])").count() == 1 and await pg.locator("[data-gf='done']").get_attribute("aria-pressed") == "true")
+    await pg.click("[data-gf='all']")
+    await go(pg, "#/grammar/h5", 300); await pg.wait_for_selector(".gitem", timeout=15000)
+    txt = await pg.inner_text("#app")
+    check("HSK 5 grammar: 42 points, the note, and saved progress", await pg.locator(".gitem").count() == 42 and "not yet checked by a teacher" in txt and "Best 4/5" in await pg.locator(".gitem").first.inner_text() and "HSK 5 grammar checklist" in txt)
+    await pg.locator(".gitem").nth(1).click(); await pg.wait_for_selector(".gpat")
+    check("HSK 5 grammar point: pattern, two examples, Chinese tagged", await pg.evaluate("location.hash") == "#/grammar/h5g02" and await pg.locator(".w-ex").count() == 2 and await pg.evaluate("[...document.querySelectorAll('#app .zh')].every(e=>e.lang==='zh-CN')") and "hsk 5 grammar 2/42" in (await pg.inner_text("#app")).lower())
+    await pg.click("a[href='#/grammar/h5g02/practice']"); await pg.wait_for_selector(".opts")
+    ref = await pg.evaluate("(Content.locate(document.getElementById('app').innerText)[0]||{}).ref")
+    check("HSK 5 grammar question: a problem report finds the item", bool(ref) and ref.startswith("gq:h5g02:") and await pg.evaluate("!!Content.resolve('grammar:h5g01')&&!!Content.snapshot(%s)" % json.dumps(ref)), ref)
+    for _ in range(5):
+        k = await pg.evaluate("(()=>{const q=document.querySelector('#qcard .q').textContent;return CB_HSK5_GRAMMAR[1].quiz.find(x=>x.q===q).answer})()")
+        await pg.click(".opt[data-k='%d']" % k); await pg.click("#qnext"); await pg.wait_for_timeout(120)
+    await pg.wait_for_selector(".result"); await no_dialogs(pg)
+    st = await pg.evaluate("Store.state.grammar.h5g02"); sk = await pg.evaluate("Object.keys(Store.state.skills)")
+    check("HSK 5 grammar: 5/5 masters the point, counted under its own skill", st.get("mastered") and st.get("best") == 5 and sk == ["h5-grammar"] and "5 / 5" in await pg.inner_text(".result"), (st, sk))
+    check("HSK 5 grammar: the result links back to the HSK 5 checklist", await pg.locator(".result a[href='#/grammar/h5']").count() == 1)
+    await pg.reload(); await pg.wait_for_selector("#app > *:not(.skel)")
+    st = await pg.evaluate("Store.state.grammar.h5g02")
+    check("HSK 5 grammar progress survives a reload", bool(st) and st.get("mastered") is True, st)
+    await go(pg, "#/grammar/h5", 300); await pg.wait_for_selector(".gitem", timeout=15000)
+    check("HSK 5 grammar: the list shows the mastered point", await pg.locator(".gitem.done").count() == 1)
+    await ctx.close()
+
+
+GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("sync", t_sync), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

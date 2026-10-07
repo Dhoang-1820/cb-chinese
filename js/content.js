@@ -16,8 +16,10 @@
   /* ---------- finding items ---------- */
   var idx = null, idxN = -1;
   function count() {
-    var D = window.CB_DRILLS || {}, n = (window.CB_GRAMMAR || []).length + (window.CB_MOCK || []).length;
-    Object.keys(D).forEach(function (k) { n += (D[k] || []).length; });
+    var n = (window.CB_GRAMMAR || []).length + (window.CB_HSK5_GRAMMAR || []).length + (window.CB_MOCK || []).length;
+    [window.CB_DRILLS, window.CB_HSK5_DRILLS, window.CB_DRILLS_EXTRA].forEach(function (D) {
+      Object.keys(D || {}).forEach(function (k) { if (Array.isArray(D[k])) n += D[k].length; });
+    });
     return n;
   }
   function walkMock(o, out) {
@@ -34,12 +36,23 @@
       all = all.map(norm).filter(function (x) { return x.length >= 1; });
       if (all.length && all.join("").length >= 6) idx.needles.push({ ref: ref, all: all, label: label });
     }
-    var D = window.CB_DRILLS || {};
-    (D.confuse || []).forEach(function (it) { add("drill:" + it.id, it, [it.q], it.q); });
-    (D.order || []).forEach(function (it) { add("drill:" + it.id, it, [it.parts && it.parts.A, it.parts && it.parts.B, it.parts && it.parts.C], (it.parts && it.parts.B) || it.id); });
-    (D.measure || []).forEach(function (it) { add("drill:" + it.id, it, [it.q].concat(it.options || []), it.q + " " + (it.options || []).join("/")); });
-    (D.picture || []).forEach(function (it) { add("drill:" + it.id, it, [it.word, it.emoji], it.word + " · " + (it.scene && it.scene.en || "")); });
-    (window.CB_GRAMMAR || []).forEach(function (g) {
+    /* HSK 4 drills and, once its pack is loaded, the HSK 5 drills (ids h5c001.., so the two never collide) */
+    [window.CB_DRILLS || {}, window.CB_HSK5_DRILLS || {}].forEach(function (D) {
+      (D.confuse || []).forEach(function (it) { add("drill:" + it.id, it, [it.q], it.q); });
+      (D.order || []).forEach(function (it) { add("drill:" + it.id, it, [it.parts && it.parts.A, it.parts && it.parts.B, it.parts && it.parts.C], it.zh || (it.parts && it.parts.B) || it.id); });
+      (D.measure || []).forEach(function (it) { add("drill:" + it.id, it, [it.q].concat(it.options || []), it.q + " " + (it.options || []).join("/")); });
+      (D.picture || []).forEach(function (it) { add("drill:" + it.id, it, [it.word, it.emoji], it.word + " · " + (it.scene && it.scene.en || "")); });
+    });
+    /* the two extra HSK 4 sets: drill:wo01 (arrange the words) and drill:bk01:1 (one sentence of a word-bank group) */
+    var X = window.CB_DRILLS_EXTRA || {};
+    (X.wordorder || []).forEach(function (it) { add("drill:" + it.id, it, it.tokens || [], it.answer || it.id); });
+    (X.bank || []).forEach(function (g) {
+      (g.items || []).forEach(function (it) {
+        if (!has(it, "_bank")) Object.defineProperty(it, "_bank", { value: g.bank, enumerable: false }); // the six words of its group: needed to check a patched answer and to show the AI the choices
+        add("drill:" + g.id + ":" + it.n, it, [it.q], it.q);
+      });
+    });
+    (window.CB_GRAMMAR || []).concat(window.CB_HSK5_GRAMMAR || []).forEach(function (g) {
       idx.items["grammar:" + g.id] = g;
       (g.quiz || []).forEach(function (q, i) { add("gq:" + g.id + ":" + i, q, [q.q].concat(q.options || []), q.q); });
     });
@@ -67,7 +80,7 @@
   }
   function snapshot(ref) {
     var o = resolve(ref); if (!o) return null;
-    var s = JSON.stringify(o, function (k, v) { return k && k.charAt(0) === "_" ? undefined : v; });
+    var s = JSON.stringify(o._bank ? Object.assign({ bank: o._bank }, o) : o, function (k, v) { return k && k.charAt(0) === "_" ? undefined : v; });
     if (s.length > 3800) { var c = JSON.parse(s); delete c.explain; delete c.collocations; delete c.examples; s = JSON.stringify(c); }
     return s.length > 3900 ? null : JSON.parse(s);
   }
@@ -76,6 +89,7 @@
   var applied = {};
   function answerOk(o, v) {
     if (Array.isArray(o.options)) return typeof v === "number" && v >= 0 && v < o.options.length && v % 1 === 0;
+    if (Array.isArray(o._bank)) return typeof v === "number" && v >= 0 && v < o._bank.length && v % 1 === 0;
     if (Array.isArray(o.words)) return typeof v === "string" && o.words.indexOf(v) >= 0;
     if (o.parts) return typeof v === "string" && /^[ABC]{3}$/.test(v) && v.split("").sort().join("") === "ABC";
     if (typeof o.answer === "boolean") return typeof v === "boolean";

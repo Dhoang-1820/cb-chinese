@@ -619,7 +619,7 @@
     wireQuests(); wirePattern();
     var wr = weekReward(); if (wr) setTimeout(function () { UI.toast(wr === "freeze" ? "Weekly goal met! +1 streak freeze" : "Weekly goal met!", wr === "freeze" ? "🧊" : "🎉"); UI.confetti(60); }, 600);
     /* C&B track: show the next unfinished session (data loads in the background) */
-    ensureTrack().then(function () {
+    (trackLoaded() ? Promise.resolve() : whenIdle(2500)).then(ensureTrack).then(function () {
       var T = window.CB_TRACK || [], host = document.querySelector(".tiles");
       if (!T.length || !host || !document.getElementById("app").contains(host) || document.querySelector(".trackrow")) return;
       for (var a = 0; a < T.length; a++) for (var b = 1; b <= 3; b++) {
@@ -2135,6 +2135,13 @@
   var trackP = null;
   var TK_BLOCKS = { templates: ["✍️", "Writing templates"], roleplay: ["🎭", "Role-plays"], cards: ["🇻🇳🇨🇳", "Vietnam vs China"], reading: ["📚", "Reading · HSK 5 bridge"] };
   var TK_KIND = { model: "Read the model", fill: "Fill the gaps", write: "Write it yourself", prep: "Get ready", script: "Choose your replies", free: "Free reply", cards: "Compare terms", words: "New words", passage: "Read and answer" };
+  function trackLoaded() { return (window.CB_TRACK || []).length >= 24; }
+  /* Resolve when the browser is idle, at least `ms` after now. Keeps background downloads and parsing away from first paint. */
+  function whenIdle(ms) {
+    return new Promise(function (res) {
+      setTimeout(function () { if (window.requestIdleCallback) requestIdleCallback(function () { res(); }, { timeout: 3000 }); else res(); }, ms || 0);
+    });
+  }
   function ensureTrack() {
     if ((window.CB_TRACK || []).length >= 24) return Promise.resolve();
     return trackP || (trackP = loadAll(BUNDLED ? ["track.js"] : (window.CB_TRACK_FILES || [])).then(function () {
@@ -3242,7 +3249,7 @@
       window.addEventListener("hashchange", route);
       route();
       // warm up the rest in the background so it's ready (and cached for offline) before it's needed
-      setTimeout(function () { ensureFull().then(function () { return ensureMocks(); }).then(function () { if (window.Content) { Content.apply(); Content.sync(false).then(function () { Content.apply(); }); } }, function () {}); }, 1500);
+      whenIdle(4000).then(function () { ensureFull().then(function () { return ensureMocks(); }).then(function () { if (window.Content) { Content.apply(); Content.sync(false).then(function () { Content.apply(); }); } }, function () {}); });
       if (!Store.state.settings.onboarded) setTimeout(showGuide, 600);
     });
     if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {

@@ -1147,3 +1147,6 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 /* the robot is black line art: flip it to light lines on the dark theme and turn the eye colour back */
 :root[data-theme="dark"] .lt[data-lt="robot"] { filter: invert(1) hue-rotate(180deg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lt[data-lt="robot"] { filter: invert(1) hue-rotate(180deg); } }
+
+/* cloud backup: the restore code is read aloud and typed by hand, so make it large and evenly spaced */
+.sync-code { display: inline-block; margin: 4px 0; font: 700 1.05rem/1.4 ui-monospace, Menlo, monospace; letter-spacing: .06em; user-select: all; -webkit-user-select: all; }

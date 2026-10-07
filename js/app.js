@@ -1373,7 +1373,8 @@
       row("Time", '<input type="time" id="s-rtime" value="' + esc(set.remindTime || "20:00") + '">') +
       row("Days per week", '<select id="s-wdays">' + [2, 3, 4, 5, 6, 7].map(function (n) { return '<option value="' + n + '"' + ((set.weeklyDays || 5) === n ? " selected" : "") + ">" + n + "</option>"; }).join("") + "</select>") +
       '<div class="actions"><button class="btn small primary" id="s-ics">📅 iPhone Calendar</button><a class="btn small" id="s-gcal" target="_blank" rel="noopener" href="#">Google Calendar</a></div></section>' +
-      '<section class="card settings"><h2>Cloud backup</h2><div id="gist-box"></div></section>' +
+      '<section class="card settings"><h2>☁️ Cloud backup</h2><div id="sync-box"></div></section>' +
+      '<section class="card settings"><div class="sec-h"><h2>GitHub backup</h2><span class="tag">advanced</span></div><div id="gist-box"></div></section>' +
       '<section class="card settings"><h2>Offline & data</h2>' +
       row("Audio recordings", '<span class="muted" id="s-audio-n">' + (nAudio ? nAudio + " files" : "not generated yet") + "</span>") +
       ("caches" in window && location.protocol.indexOf("http") === 0 ? row((nAudio ? "Download audio + stroke data" : "Download stroke data") + " for offline", '<button class="btn small" id="s-dl">⬇ Download</button>') : "") +
@@ -1405,7 +1406,7 @@
       setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 60000);
       UI.toast("Opening the calendar file — tap Add to Calendar", "📅");
     };
-    wireBackup(); wireAI();
+    wireSync(); wireBackup(); wireAI();
     var sg = document.getElementById("s-guide"); if (sg) sg.onclick = function () { showGuide(); };
     document.getElementById("s-exam").onchange = function () { if (this.value) { sv("examDate", this.value); document.getElementById("s-exam-note").textContent = examNote(this.value); UI.toast("Plan updated for " + this.value, "📅"); } };
     document.getElementById("s-core").onchange = function () { sv("coreTarget", parseInt(this.value, 10)); UI.toast("Plan updated", "📅"); };
@@ -3048,6 +3049,93 @@
         if (!window.confirm("Disconnect cloud backup on this phone? Your backup stays in GitHub.")) return;
         try { localStorage.removeItem(GIST_KEY); } catch (e) {} draw();
       };
+    }
+    draw();
+  }
+
+  /* ---------- cloud backup (the app's own server) ----------
+     On by default and silent: a copy of the progress is saved after study, and the phone stays the main copy (the app
+     works the same offline). No account: this phone makes a random restore code, and typing that code on another phone
+     loads the backup there. The code lives in localStorage "cbChinese.sync" and is never part of an export. */
+  var SYNC_KEY = "cbChinese.sync", SYNC_ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", syncTimer = null, syncBusy = null;
+  function syncCfg() { try { var c = JSON.parse(localStorage.getItem(SYNC_KEY)); return c && typeof c === "object" ? c : {}; } catch (e) { return {}; } }
+  function syncSave(c) { try { localStorage.setItem(SYNC_KEY, JSON.stringify(c)); } catch (e) { /* ignore */ } }
+  function syncNewCode() {
+    var a = new Uint8Array(16), out = ""; (window.crypto || window.msCrypto).getRandomValues(a);
+    for (var i = 0; i < 16; i++) out += SYNC_ABC.charAt(a[i] % 32);
+    return out;
+  }
+  function syncShow(code) { return String(code || "").replace(/(.{4})(?=.)/g, "$1-"); }
+  function syncMeta() { var st = Store.state; return { xp: st.xp, streak: Store.streak(), words: Object.keys(st.srs).length, last: st.streak.last || "" }; }
+  function syncMark() { var st = Store.state; return st.xp + ":" + Object.keys(st.srs).length + ":" + (st.streak.last || ""); }
+  /* Saves now. Resolves with "saved", "conflict", "same", "off" or an error code; never rejects. */
+  function syncNow(force) {
+    var c = syncCfg();
+    if (c.off || !Store.available || !Store.state.settings.onboarded || !AI.available()) return Promise.resolve("off");
+    if (c.conflict && !force) return Promise.resolve("conflict");
+    if (!c.code && !Store.state.xp) return Promise.resolve("off"); // nothing worth keeping yet
+    if (syncBusy) return syncBusy;
+    var mark = syncMark(); if (!force && c.code && c.mark === mark) return Promise.resolve("same");
+    var first = !c.code; if (first) { c.code = syncNewCode(); c.rev = 0; syncSave(c); }
+    var data = JSON.parse(Store.serialize(false)).progress;
+    syncBusy = AI.call("sync_put", { code: c.code, rev: c.rev || 0, force: !!force, data: data, meta: syncMeta() }).then(function (r) {
+      syncBusy = null; var n = syncCfg();
+      if (!r.ok) { n.err = r.error === "too_big" || r.error === "bad_task" ? "bad_task" : r.error; syncSave(n); return r.error; }
+      delete n.err;
+      if (r.result.conflict) { n.conflict = { at: r.result.updated_at, meta: r.result.meta || {} }; syncSave(n); return "conflict"; }
+      n.rev = r.result.rev; n.last = Date.now(); n.mark = mark; delete n.conflict; syncSave(n);
+      if (first) UI.toast("Your progress is now backed up online (Me → Cloud backup)", "☁️");
+      return "saved";
+    });
+    return syncBusy;
+  }
+  function syncSoon() { clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncNow(); }, 20000); }
+  function syncRestore(code) {
+    code = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return AI.call("sync_get", { code: code }).then(function (r) {
+      if (!r.ok) throw new Error(AI.errMsg(r.error));
+      var m = r.result.meta || {}, when = r.result.updated_at ? new Date(r.result.updated_at).toLocaleString() : "unknown time";
+      if (!window.confirm("Replace the progress on this phone with the backup from " + when + " (" + (m.xp || 0) + " XP, " + (m.words || 0) + " words)?")) return false;
+      Store.importJSON(JSON.stringify(r.result.data));
+      syncSave({ code: code, rev: r.result.rev, last: Date.now(), mark: syncMark() });
+      buildIndex(); applySettings(); return true;
+    });
+  }
+  (function () {
+    var aw = Game.award; Game.award = function () { var r = aw.apply(this, arguments); syncSoon(); return r; };
+    document.addEventListener("visibilitychange", function () { if (document.hidden) { clearTimeout(syncTimer); syncNow(); } });
+    setTimeout(function () { syncNow(); }, 8000); // catches a save that was cut off when the app was closed
+  })();
+  window.Sync = { now: syncNow, cfg: syncCfg };
+  function wireSync() {
+    var box = document.getElementById("sync-box"); if (!box) return;
+    function draw() {
+      var c = syncCfg(), h = "";
+      if (c.off) h = '<p class="sub">Off. Your progress is only on this phone.</p><div class="actions"><button class="btn primary small" id="y-on">Turn on</button><button class="btn small" id="y-code">Restore with a code</button></div>';
+      else if (c.conflict) h = '<p class="warn">Another phone saved this backup on ' + esc(c.conflict.at ? new Date(c.conflict.at).toLocaleString() : "an unknown date") + " (" + (c.conflict.meta.xp || 0) + " XP). This phone has " + Store.state.xp + ' XP. Choose which one to keep; backup is paused until you do.</p><div class="actions"><button class="btn primary small" id="y-take">Use the cloud copy</button><button class="btn small" id="y-keep">Keep this phone</button></div>';
+      else h = '<p class="sub">' + (c.code ? "On. " + (c.last ? "Last saved: " + esc(new Date(c.last).toLocaleString()) + "." : "Not saved yet.") : "On. The first backup is made after your first study session.") +
+        " A copy of your progress is saved on the app's server after you study. No account is needed.</p>" +
+        (c.err ? '<p class="warn">Last try failed: ' + esc(AI.errMsg(c.err)) + "</p>" : "") +
+        (c.code ? '<p class="sub">Restore code: <b class="sync-code" id="y-show">' + esc(syncShow(c.code)) + "</b><br>Type it on a new phone to load your progress there. Keep it private: anyone with the code can open your backup.</p>" : "") +
+        '<div class="actions">' + (c.code ? '<button class="btn primary small" id="y-up">☁️ Back up now</button>' : "") + '<button class="btn small" id="y-code">Restore with a code</button><button class="btn small" id="y-off">Turn off</button></div>';
+      box.innerHTML = h + '<div id="y-form" hidden><label for="y-in">Restore code</label><input id="y-in" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX"><div class="actions"><button class="btn primary small" id="y-go">Restore</button></div></div>';
+      function on(id, fn) { var b = document.getElementById(id); if (b) b.onclick = function () { fn(b); }; }
+      function done(msg, icon) { UI.toast(msg, icon); draw(); }
+      function load(code, b) {
+        b.disabled = true;
+        syncRestore(code).then(function (ok) { if (ok) { UI.toast("Progress restored", "✅"); route(); } else b.disabled = false; }, function (e) { b.disabled = false; UI.toast(e.message, "⚠️"); });
+      }
+      on("y-up", function (b) { b.disabled = true; syncNow(true).then(function (r) { done(r === "saved" ? "Backed up" : AI.errMsg(r), r === "saved" ? "☁️" : "⚠️"); }); });
+      on("y-code", function () { document.getElementById("y-form").hidden = false; document.getElementById("y-in").focus(); });
+      on("y-go", function (b) { load(document.getElementById("y-in").value, b); });
+      on("y-take", function (b) { load(c.code, b); });
+      on("y-keep", function (b) { b.disabled = true; syncNow(true).then(function (r) { done(r === "saved" ? "This phone's progress is now the backup" : AI.errMsg(r), r === "saved" ? "☁️" : "⚠️"); }); });
+      on("y-on", function () { var n = syncCfg(); delete n.off; syncSave(n); syncNow(true).then(draw); draw(); });
+      on("y-off", function () {
+        var n = syncCfg(), wipe = n.code && window.confirm("Also delete the copy on the server?\n\nOK = delete it. Cancel = keep it there.");
+        if (wipe) AI.call("sync_delete", { code: n.code });
+        syncSave(wipe ? { off: true } : { off: true, code: n.code, rev: n.rev }); draw();
+      });
     }
     draw();
   }

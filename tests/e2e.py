@@ -314,6 +314,43 @@ async def t_talk(b):
     await ctx.close()
 
 
+async def t_sync(b):
+    opened = "document.getElementById('sync-box').closest('details').open=true"
+    cfg = "JSON.parse(localStorage.getItem('cbChinese.sync')||'{}')"
+    c1, p1 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    check("backup: nothing is sent before any study", await p1.evaluate("Sync.now()") == "off")
+    await p1.evaluate("Game.award(40)"); await no_dialogs(p1)
+    r = await p1.evaluate("Sync.now()"); c = await p1.evaluate(cfg)
+    check("backup: saved after study, with a 16-character code", r == "saved" and c.get("rev") == 1 and len(c.get("code", "")) == 16, (r, c))
+    check("backup: nothing is sent again when nothing changed", await p1.evaluate("Sync.now()") == "same")
+    await go(p1, "#/me", 500); await p1.evaluate(opened)
+    shown = await p1.locator("#y-show").inner_text()
+    check("backup: Me shows the restore code in groups of four", shown.replace("-", "") == c["code"] and shown.count("-") == 3, shown)
+    # a second phone restores with the code
+    c2, p2 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await go(p2, "#/me", 500); await p2.evaluate(opened)
+    await p2.click("#y-code"); await p2.fill("#y-in", "AAAA-BBBB-CCCC-DDDD"); await p2.click("#y-go"); await p2.wait_for_timeout(700)
+    check("backup: a wrong code changes nothing", await p2.evaluate("Store.state.xp") == 0)
+    await p2.fill("#y-in", shown.lower()); await p2.click("#y-go"); await p2.wait_for_timeout(900)
+    check("backup: the second phone gets the progress", await p2.evaluate("Store.state.xp") == 40, await p2.evaluate("Store.state.xp"))
+    await p2.evaluate("Game.award(10)"); await no_dialogs(p2)
+    r2 = await p2.evaluate("Sync.now()"); k2 = await p2.evaluate(cfg)
+    check("backup: the second phone saves on top", r2 in ("saved", "same") and k2.get("rev", 0) >= 2, (r2, k2))  # the start-up save may add one more  # "same" when the start-up save got there first
+    # the first phone must not overwrite it silently
+    await p1.evaluate("Game.award(5)"); await no_dialogs(p1)
+    check("backup: the first phone is told about the newer copy", await p1.evaluate("Sync.now()") == "conflict")
+    await go(p1, "#/", 300); await go(p1, "#/me", 500); await p1.evaluate(opened)
+    check("backup: Me asks which copy to keep", await p1.locator("#y-take").count() == 1 and await p1.locator("#y-keep").count() == 1)
+    await p1.click("#y-take"); await p1.wait_for_timeout(900)
+    check("backup: 'Use the cloud copy' loads it", await p1.evaluate("Store.state.xp") == 50, await p1.evaluate("Store.state.xp"))
+    await go(p1, "#/me", 500); await p1.evaluate(opened)
+    await p1.click("#y-off"); await p1.wait_for_timeout(600)
+    check("backup: turning off (and deleting) stops saving", await p1.evaluate("Sync.now()") == "off" and "code" not in await p1.evaluate(cfg))
+    gone = await p2.evaluate("AI.call('sync_get',{code:%s}).then(r=>r.error)" % json.dumps(c["code"]))
+    check("backup: the deleted copy is gone from the server", gone == "no_backup", gone)
+    await c1.close(); await c2.close()
+
+
 async def t_track(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
     await go(pg, "#/track", 1500)
@@ -419,7 +456,7 @@ async def t_contrast(b):
         await ctx.close()
 
 
-GROUPS = [("first_run", t_first_run), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+GROUPS = [("sync", t_sync), ("first_run", t_first_run), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

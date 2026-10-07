@@ -41,7 +41,15 @@ const fakeFetch = async (url, init) => {
 };
 let count = 0;
 const rows = []; let nid = 1;
+const lrn = [];
 const db = async (method, path, body) => {
+  if (path.startsWith("learners")) {
+    const m = /id=eq\.([a-f0-9]+)/.exec(path), i = m ? lrn.findIndex((r) => r.id === m[1]) : -1;
+    if (method === "POST") { lrn.push({ ...body }); return null; }
+    if (method === "PATCH") { if (i >= 0) Object.assign(lrn[i], body); return null; }
+    if (method === "DELETE") { if (i >= 0) lrn.splice(i, 1); return null; }
+    return m ? (i >= 0 ? [lrn[i]] : []) : lrn.slice();
+  }
   if (method === "POST") { rows.push({ id: nid++, created_at: new Date().toISOString(), ...body }); return null; }
   if (method === "PATCH") { const id = +/id=eq\.(\d+)/.exec(path)[1]; Object.assign(rows.find((r) => r.id === id), body); return null; }
   const tk = /verdict-%3E%3Etoken=eq\.([a-f0-9-]+)/.exec(path); if (tk) return rows.filter((r) => r.verdict && r.verdict.token === tk[1]);

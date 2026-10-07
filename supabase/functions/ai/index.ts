@@ -22,6 +22,7 @@
      ALLOWED_ORIGINS     optional, comma-separated, default https://dhoang-1820.github.io
      ADMIN_CODE          optional — turns on the content review screen (accept / reject / hide). 12+ random characters
      AI_REPORT_CAP       optional, default 10 problem reports per rolling 24 hours (each one costs two AI calls)
+     SYNC_MAX_LEARNERS   optional, default 20 — how many phones may keep a progress backup (see sync_put below)
 */
 
 export type Lang = "vi" | "en" | "both";
@@ -40,6 +41,7 @@ const DEFAULT_MODEL = "gemini-3.8-flash";
 const DEFAULT_FALLBACK = "gemini-3.5-flash-lite";
 const DEFAULT_ORIGINS = "https://dhoang-1820.github.io";
 const MAX_BODY = 8000;
+const MAX_SYNC = 400000; // a progress backup is far larger than an AI question
 
 /* ---------------- prompts ---------------- */
 
@@ -294,7 +296,7 @@ export type Deps = {
   fetch: (url: string, init: any) => Promise<any>;
   /** adds one call to today's total and returns the new count, or -1 when over the cap */
   bump: (cap: number) => Promise<number>;
-  /** talks to the content_reports table (PostgREST path after /rest/v1/); absent in tests that don't need it */
+  /** talks to the content_reports and learners tables (PostgREST path after /rest/v1/); absent in tests that don't need it */
   db?: (method: string, path: string, body?: unknown) => Promise<any>;
 };
 
@@ -527,6 +529,53 @@ async function contentTask(task: string, body: any, req: Request, env: Record<st
 }
 
 function clientIp(req: Request): string { return (req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || "").trim(); }
+/* ---------------- progress backup (sync_put / sync_get / sync_delete) ----------------
+   No accounts. Each phone makes a random 16-character restore code and keeps it; the row id is a hash of that code, so
+   the code itself is never stored here and whoever knows it can read or replace that one backup. No AI call is made. */
+const CODE_OK = /^[A-HJ-NP-Z2-9]{16}$/;
+async function syncId(code: unknown): Promise<string> {
+  const c = String(code == null ? "" : code).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return CODE_OK.test(c) ? await sha("cb-sync:" + c) : "";
+}
+function cleanMeta(m: any): Record<string, unknown> {
+  const n = (x: unknown) => { const v = Math.round(+(x as number)); return isFinite(v) ? Math.max(0, Math.min(1e7, v)) : 0; };
+  m = m && typeof m === "object" ? m : {};
+  return { xp: n(m.xp), streak: n(m.streak), words: n(m.words), last: /^\d{4}-\d{2}-\d{2}$/.test(m.last) ? m.last : "" };
+}
+async function syncTask(task: string, body: any, req: Request, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response | null> {
+  if (["sync_put", "sync_get", "sync_delete"].indexOf(task) < 0) return null;
+  if (!deps.db) return reply(500, { ok: false, error: "not_configured" }, h);
+  const p = body.payload && typeof body.payload === "object" ? body.payload : {};
+  const ip = clientIp(req);
+  if (ip && tooManyFails(ip)) return reply(429, { ok: false, error: "busy" }, h);
+  const id = await syncId(p.code);
+  if (!id) { if (ip) noteFail(ip); return reply(400, { ok: false, error: "bad_sync" }, h); }
+  const where = "learners?id=eq." + id;
+  try {
+    if (task === "sync_get") {
+      const rows = await deps.db("GET", where + "&select=data,rev,updated_at,meta&limit=1");
+      if (!rows || !rows[0]) { if (ip) noteFail(ip); return reply(404, { ok: false, error: "no_backup" }, h); } // wrong guesses are counted per address
+      return reply(200, { ok: true, task, result: { data: rows[0].data, rev: rows[0].rev, updated_at: rows[0].updated_at, meta: rows[0].meta || {} } }, h);
+    }
+    if (task === "sync_delete") { await deps.db("DELETE", where); return reply(200, { ok: true, task, result: { deleted: true } }, h); }
+    const d = p.data;
+    if (!d || typeof d !== "object" || Array.isArray(d) || !d.srs || typeof d.srs !== "object" || !d.settings || typeof d.settings !== "object") return reply(400, { ok: false, error: "bad_sync" }, h);
+    const meta = cleanMeta(p.meta), now = new Date().toISOString();
+    const rows = await deps.db("GET", where + "&select=rev,updated_at,meta&limit=1"), row = rows && rows[0];
+    if (!row) {
+      const max = Math.max(1, parseInt(env.SYNC_MAX_LEARNERS || "20", 10) || 20);
+      const all = await deps.db("GET", "learners?select=id&limit=" + (max + 1));
+      if ((all || []).length >= max) return reply(429, { ok: false, error: "sync_full" }, h);
+      await deps.db("POST", "learners", { id, rev: 1, data: d, meta, updated_at: now });
+      return reply(200, { ok: true, task, result: { rev: 1, updated_at: now } }, h);
+    }
+    // another phone saved since this one last looked: never overwrite silently, let the learner choose
+    if (p.force !== true && row.rev !== p.rev) return reply(200, { ok: true, task, result: { conflict: true, rev: row.rev, updated_at: row.updated_at, meta: row.meta || {} } }, h);
+    await deps.db("PATCH", where, { rev: row.rev + 1, data: d, meta, updated_at: now });
+    return reply(200, { ok: true, task, result: { rev: row.rev + 1, updated_at: now } }, h);
+  } catch (_e) { return reply(502, { ok: false, error: "db_error" }, h); }
+}
+
 const fails = new Map<string, number[]>();
 function noteFail(ip: string) { const now = Date.now(), l = (fails.get(ip) || []).filter((t) => now - t < 9e5); l.push(now); fails.set(ip, l); if (fails.size > 500) fails.clear(); }
 function tooManyFails(ip: string): boolean { const now = Date.now(); return (fails.get(ip) || []).filter((t) => now - t < 9e5).length >= 8; }
@@ -556,8 +605,11 @@ export async function handle(req: Request, env: Record<string, string | undefine
   }
   let text = "";
   try { text = await req.text(); } catch (_e) { return reply(400, { ok: false, error: "bad_request" }, h); }
-  if (text.length > MAX_BODY) return reply(413, { ok: false, error: "too_big" }, h);
+  if (text.length > MAX_SYNC) return reply(413, { ok: false, error: "too_big" }, h);
   let body: any; try { body = JSON.parse(text); } catch (_e) { return reply(400, { ok: false, error: "bad_json" }, h); }
+  if (text.length > MAX_BODY && !(body && body.task === "sync_put")) return reply(413, { ok: false, error: "too_big" }, h);
+  const sy = await syncTask(body && body.task, body || {}, req, env, deps, h);
+  if (sy) return sy;
   const ct = await contentTask(body && body.task, body || {}, req, env, deps, h);
   if (ct) return ct;
   const c = cleanInput(body);

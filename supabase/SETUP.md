@@ -82,3 +82,14 @@ With the AI on, the **⚑** button sends a report to the AI, which checks the it
 
 ## Checking accuracy (optional)
 `GEMINI_API_KEY=... node tools/ai_golden.js` runs 30 reference cases directly against Gemini and prints the pass rate (needs Node 22.18+). Run it after changing a prompt or model.
+
+## Cloud backup of progress (added October 2026)
+
+The app saves a copy of each phone's progress through the same function (tasks `sync_put`, `sync_get`, `sync_delete`).
+To turn it on:
+
+1. SQL Editor → run the last block of `supabase/setup.sql` (the `learners` table). Running the whole file again is safe.
+2. Redeploy the `ai` function with the current `index.ts` (Verify JWT stays off).
+
+Until both are done the app simply shows "The server does not have cloud backup yet" under Me → Cloud backup and keeps
+working as before. Optional secret: `SYNC_MAX_LEARNERS` (default 20) limits how many phones may keep a backup.

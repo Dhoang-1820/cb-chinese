@@ -1,8 +1,9 @@
 # HSK 5 word packs
 
 `words01.js` ... `words62.js`: the HSK 2.0 level-5 vocabulary that the app does not teach yet,
-**1,231 words in 62 packs** (61 packs of 20, the last pack has 11). Data only: nothing in the app loads
-these files yet.
+**1,231 words in 62 packs** (61 packs of 20, the last pack has 11). The app shows them under Learn → HSK 5 → Words
+(loaded on demand; the build puts all of `data/hsk5/` into one file, `data/hsk5.<hash>.js`). Keep 20 words per pack
+and ids in order: the app works out a word's pack from its id.
 
 All content is machine-written and **not yet checked by a human** (`checked: false` on every pack).
 
@@ -29,8 +30,7 @@ Each file appends one pack to a global:
 ```
 
 The word object has the same fields as a lesson word (`data/dayNN.js`), without `collocations`.
-Note for whoever wires this in: `tools/validate.js` only accepts the levels `HSK4` and `Beyond HSK4`,
-so `level: "HSK5"` needs to be added there when these words join the main build.
+`tools/validate.js` checks the pack levels (`HSK5` here, `HSK1`..`HSK4` in `data/hsk4x`) and runs `validate_hsk5.js`.
 Words are in the order of the source list (alphabetical by pinyin); packs have no themes.
 
 ## Word list: source and licence

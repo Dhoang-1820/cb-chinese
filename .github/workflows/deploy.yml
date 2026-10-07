@@ -38,7 +38,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: audio
-          key: audio-${{ hashFiles('data/*.js', 'tools/gen_audio.py', 'tools/collect_texts.js') }}
+          key: audio-${{ hashFiles('data/*.js', 'data/hsk5/*.js', 'data/hsk4x/*.js', 'tools/gen_audio.py', 'tools/collect_texts.js') }}
           restore-keys: audio-
 
       - name: Generate audio (edge-tts)

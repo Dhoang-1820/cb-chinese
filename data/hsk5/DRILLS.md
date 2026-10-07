@@ -1,6 +1,6 @@
 # HSK 5 drills (data/hsk5/drills.js)
 
-Global: `window.CB_HSK5_DRILLS`. Data only; no game reads it yet. All sentences are original.
+Global: `window.CB_HSK5_DRILLS`. Played by the four drill games at Learn → HSK 5 → Practice (`#/game/<set>/h5`). All sentences are original.
 `checked: false` means the content is machine-written and has not been reviewed by a human teacher.
 
 ```js

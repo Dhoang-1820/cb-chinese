@@ -422,6 +422,27 @@ async def t_pages(b):
         empty = await pg.locator("#q").count() == 0 if route == "#/search" else len(t) < 60
         if empty or "Something broke" in t: bad.append(route)
     check("every main screen renders", not bad, bad)
+    # the new screens: every HSK 5 pack and grammar point, every extra pack, families, both levels of the grammar list, the new games
+    bad = []
+    await go(pg, "#/learn/h5", 300); await pg.wait_for_selector(".daycard[href^='#/pack/h5']", timeout=15000)
+    await go(pg, "#/learn/extra", 300); await pg.wait_for_selector(".daycard[href^='#/pack/x4']", timeout=15000)
+    for n in range(1, 63):
+        await go(pg, "#/pack/h5/%d" % n, 110)
+        if await pg.locator(".word.card").count() != (11 if n == 62 else 20) or await pg.locator(".word.card .w-ex").count() != (11 if n == 62 else 20): bad.append("pack h5/%d" % n)
+    for n in range(1, 6):
+        await go(pg, "#/pack/x4/%d" % n, 110)
+        if await pg.locator(".word.card").count() != (11 if n == 5 else 20): bad.append("pack x4/%d" % n)
+    for gid in ["h5g%02d" % n for n in range(1, 43)] + ["g%02d" % n for n in range(1, 71)]:
+        await go(pg, "#/grammar/" + gid, 90)
+        if await pg.locator(".gpat").count() != 1 or await pg.locator(".w-ex").count() != 2: bad.append("grammar " + gid)
+    check("every HSK 5 pack, extra pack and grammar point renders (67 packs, 112 points)", not bad, bad[:8])
+    bad = []
+    for route in ["#/learn/h5", "#/learn/h5p", "#/grammar/h5", "#/learn/extra", "#/families", "#/game/bank", "#/game/wordorder", "#/game/confuse/h5", "#/game/order/h5", "#/game/picture/h5", "#/game/measure/h5",
+                  "#/game/quick/p-h5-62", "#/cards/p-h5-1", "#/cards/p-x4-5", "#/pack/h5/99", "#/pack/x4/0", "#/grammar/h5g99", "#/game/confuse/zz"]:
+        await go(pg, route, 400)
+        t = await pg.inner_text("#app")
+        if len(t) < 12 or "Something broke" in t or ("/99" in route or "/0" in route or "g99" in route) != ("not found" in t): bad.append(route)
+    check("the new screens render, and unknown packs or points say so", not bad, bad)
     await ctx.close()
 
 
@@ -621,7 +642,11 @@ async def t_crash(b):
 
 async def t_contrast(b):
     screens = [("home", "#/"), ("learn", "#/learn"), ("lesson", "#/day/1"), ("orange lesson", "#/day/16"), ("games", "#/games"), ("review", "#/review"), ("me", "#/me"),
-               ("plan", "#/plan"), ("ready", "#/ready"), ("reader", "#/read"), ("quiz", "#/day/1/quiz")]
+               ("plan", "#/plan"), ("ready", "#/ready"), ("reader", "#/read"), ("quiz", "#/day/1/quiz"),
+               # screens added with HSK 5, the extra HSK 4 words and the two new games
+               ("hsk5 words", "#/learn/h5"), ("hsk5 pack", "#/pack/h5/1"), ("hsk5 grammar", "#/grammar/h5"), ("hsk5 grammar point", "#/grammar/h5g01"), ("hsk5 practice", "#/learn/h5p"),
+               ("hsk5 game", "#/game/confuse/h5"), ("grammar list", "#/grammar"), ("hsk words", "#/learn/core"), ("extra words", "#/learn/extra"), ("extra pack", "#/pack/x4/1"),
+               ("families", "#/families"), ("lesson words with phrases", "#/day/1/words"), ("word bank", "#/game/bank"), ("arrange the words", "#/game/wordorder")]
     mocks = [{"id": 1, "date": day(-2), "mode": "exam", "total": 188, "sections": {"listening": 52, "reading": 74, "writing": 62}}]
     for theme in ("light", "dark"):
         ctx, pg = await open_app(b, {"settings": settings(theme=theme), "srs": {}, "skills": {"listen-word": {"r": 10, "w": 14}}, "mockHistory": mocks})
@@ -631,6 +656,17 @@ async def t_contrast(b):
             await go(pg, h, 700)
             if name == "me": await pg.evaluate("document.querySelectorAll('#app details').forEach(d=>d.open=true)")
             if name == "reader": await pg.click("#rd-sample"); await pg.wait_for_timeout(300)
+            if name in ("hsk5 words", "extra words"): await pg.wait_for_selector(".daycard[href^='#/pack/']", timeout=15000)
+            if name == "families": await pg.locator("details.fam summary").first.click(); await pg.wait_for_timeout(150)
+            if name == "lesson words with phrases": await pg.wait_for_selector(".wx-b", timeout=10000); await pg.evaluate("document.querySelectorAll('#app details').forEach(d=>d.open=true)")
+            if name in ("hsk5 game", "word bank"):  # the answer screen as well: explanation, used words, report link
+                first = await pg.evaluate(CONTRAST_JS)
+                if first: bad[name + " question"] = first[:4]
+                await pg.locator(".opt").first.click(); await pg.wait_for_timeout(150)
+                if name == "word bank": await pg.click("#qnext"); await pg.wait_for_timeout(200)
+            if name == "arrange the words":
+                for k in range(await pg.locator("#pool .piece").count()): await pg.locator("#pool .piece").nth(k).click()
+                await pg.click("#chk"); await pg.wait_for_timeout(150)
             if name == "games":  # the daily-challenge card changes colour by day; check it in every colour, starting with today's
                 for cls in ("", "g-sun", "g-coral", "g-teal", "g-blue", "g-violet", "g-boss"):
                     if cls: await pg.evaluate("c=>{const e=document.querySelector('.gfeat');e.className=e.className.replace(/g-[a-z]+/,c)}", cls)
@@ -951,7 +987,143 @@ async def t_admin(b):
     await ctx.close()
 
 
-GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("sync", t_sync), ("admin", t_admin), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+def heavy_state():
+    """A learner who has used everything for a year: every log at its cap. The review deck is added in the page."""
+    skills = ["vocab", "pinyin", "listen-word", "listen-tf", "listen-short", "listen-long", "listen-sentence", "quiz", "fill-word", "connectors", "passage", "word-order", "writing", "ordering",
+              "confusable", "measure", "grammar", "typing", "handwriting", "h5-vocab", "h5-grammar", "h5-confusable", "h5-ordering", "h5-measure", "h5-writing"]
+    s = {"settings": settings(level=5, h5=True), "srs": {}, "xp": 54000, "streak": {"count": 120, "last": day(0), "best": 120}, "freezes": 2}
+    s["days"] = {str(i): {"quizBest": 9, "practice": {"matching": True, "fill": True, "translate": True}, "completed": True, "completedOn": day(-200 + i)} for i in range(1, 91)}
+    for k in ("log", "sessions", "challenges", "questChest"):
+        s[k] = {day(-i): (120 if k == "log" else True) for i in range(365)}
+    s["slog"] = {day(-i): {"m": 35.5, "s": 2, "h": 20, "k": {k: [12, 3] for k in skills}} for i in range(56)}
+    s["skills"] = {k: {"r": 1500, "w": 300} for k in skills}
+    s["mlog"] = [{"d": day(-3), "k": "dr:confuse:h5c%03d" % (i % 96 + 1), "s": "h5-confusable"} for i in range(600)]
+    s["mistakes"] = {"m:%d:L2-%d" % (i % 6 + 1, i): {"added": day(-40), "wrong": 2, "kind": "mock", "skill": "listen-short", "mock": i % 6 + 1, "item": "L2-%d" % i, "streak": 1, "last": day(-2)} for i in range(200)}
+    s["mockHistory"] = [{"id": i % 6 + 1, "date": day(-60 + i), "mode": "exam", "strict": False, "total": 210, "sections": {"listening": 70, "reading": 72, "writing": 68}} for i in range(30)]
+    s["grammar"] = {("g%02d" % i): {"best": 5, "passes": 2, "mastered": True} for i in range(1, 71)}
+    s["grammar"].update({("h5g%02d" % i): {"best": 5, "passes": 2, "mastered": True} for i in range(1, 43)})
+    s["packs"] = {("h5-%d" % i): {"b": 10, "p": 3} for i in range(1, 63)}
+    s["games"] = {g: {"best": 99, "plays": 120} for g in "builder listen speed race boss quick drill write type confuse order picture coach measure bank wordorder confuse5 order5 picture5 measure5".split()}
+    s["track"] = {"w%ds%d" % (w, b): True for w in range(1, 25) for b in range(1, 4)}
+    s["reports"] = [{"id": "r%d" % i, "date": day(-9), "route": "#/game/confuse", "text": "t" * 120, "ctx": "c" * 300} for i in range(100)]
+    s["custom"] = [{"id": "u%dabc" % i, "hanzi": "年终奖金", "pinyin": "niánzhōng jiǎngjīn", "vi": "thưởng cuối năm", "en": "year-end bonus", "example": {"zh": "今年的年终奖什么时候发？"}} for i in range(60)]
+    return s
+
+
+async def t_state(b):
+    # what is new in saved progress survives export / import, and junk in an imported file is cleaned
+    ctx, pg = await open_app(b, {"settings": settings(level=5, h5=True), "srs": {"h5-0001": {"box": 3, "due": day(2), "right": 4, "wrong": 1, "added": day(-9), "last": day(-2), "lapses": 1, "late": True}, "h5-0045": {"box": 1, "due": day(0), "right": 0, "wrong": 0, "added": day(0), "last": None}},
+                                 "packs": {"h5-1": {"b": 9, "p": 2}, "h5-3": {"b": 4, "p": 1}, "x4-2": {"b": 10, "p": 1}}, "games": {"confuse5": {"best": 8, "plays": 3}, "bank": {"best": 10, "plays": 1}}, "grammar": {"h5g03": {"best": 5, "passes": 1, "mastered": True}}})
+    await pg.wait_for_timeout(300)
+    same = await pg.evaluate("(()=>{const pick=s=>JSON.stringify([s.settings.level,s.settings.h5,s.packs,s.games,s.grammar,s.srs]);const a=pick(Store.state);Store.importJSON(Store.serialize());return a===pick(Store.state)&&Store.state.settings.level===5&&Store.state.packs['h5-1'].b===9&&Store.state.games.confuse5.best===8})()")
+    check("progress: level, pack results, HSK 5 scores and grammar survive export and import", same is True)
+    hs = await pg.evaluate("Sync.summary().progress.hsk5")
+    check("study summary: an hsk5 line with packs started / finished, words in review and grammar", hs == {"started": 2, "done": 1, "packs": 62, "words": 2, "grammar": 1}, hs)
+    back = await pg.evaluate("(()=>{const before=JSON.parse(JSON.stringify(Store.state.srs));const c=Store.compact();const packed=Array.isArray(c.srs['h5-0001'])&&c.srs['h5-0045'].length===5;Store.importJSON(JSON.stringify({progress:c}));const a=Store.state.srs;return [packed,JSON.stringify(a['h5-0001'])===JSON.stringify(before['h5-0001']),a['h5-0045'].box===1&&a['h5-0045'].due===before['h5-0045'].due&&a['h5-0045'].last===null&&a['h5-0045'].added===before['h5-0045'].added]})()")
+    check("cloud backup form: review cards are packed small and come back exactly", back == [True, True, True], back)
+    junk = await pg.evaluate("(()=>{const p=JSON.parse(Store.serialize()).progress;p.settings.level='7';p.packs={'h5-1':{b:99,p:'x'},'evil':{b:1,p:1},'h5-2':'no'};p.games={'confuse5':{best:'9',plays:null},'<b>':{best:1,plays:1}};p.grammar={'h5g01':{best:5},'h5x':{best:5}};p.srs={'h5-0002':{box:99,due:'soon',right:'2',wrong:null},'bad':7};Store.importJSON(JSON.stringify({progress:p}));const s=Store.state;return [s.settings.level,s.packs,Object.keys(s.games),s.games.confuse5,Object.keys(s.grammar),s.srs['h5-0002'].box,s.srs['h5-0002'].due===Store.today(),s.srs['h5-0002'].right,'bad' in s.srs]})()")
+    check("imported file: bad values in the new fields are cleaned", junk == [4, {"h5-1": {"b": 10, "p": 0}}, ["confuse5"], {"best": 9, "plays": 0}, ["h5g01"], 5, True, 2, False], junk)
+    await ctx.close()
+    # a year of heavy use with every word (HSK 4, extra and HSK 5) in review still fits in a cloud backup, and restores
+    c1, p1 = await open_app(b, heavy_state(), ai=True)
+    await go(p1, "#/learn/h5", 300); await p1.wait_for_selector(".daycard", timeout=15000)
+    await go(p1, "#/learn/extra", 300); await p1.wait_for_selector(".daycard[href^='#/pack/x4']", timeout=15000)
+    sizes = await p1.evaluate("""(()=>{const t=Store.today();App.WORDS.forEach((w,i)=>{Store.state.srs[w.id]={box:1+i%5,due:Store.addDays(t,i%16),right:3+i%20,wrong:i%4,added:Store.addDays(t,-30-i%200),last:Store.addDays(t,-i%9),late:i%7===0,lapses:i%4}});Store.save();
+      const n=Object.keys(Store.state.srs).length;return {words:n,h5:Object.keys(Store.state.srs).filter(k=>k.indexOf('h5-')===0).length,plain:Store.serialize(false).length,compact:JSON.stringify(Store.compact()).length,srs:JSON.stringify(Store.compact().srs).length,saved:localStorage.getItem('cbChinese.progress.v1').length}})()""")
+    print("    heavy user: %(words)d words in review (%(h5)d HSK 5) · plain %(plain)d chars · cloud backup %(compact)d chars (review deck %(srs)d) · on the phone %(saved)d" % sizes, flush=True)
+    check("heavy user: every word is in review (3,000+, all 1,231 HSK 5 words)", sizes["words"] >= 3100 and sizes["h5"] == 1231, sizes)
+    check("heavy user: the cloud backup stays under the server limit of 400,000 characters", sizes["compact"] < 360000 and sizes["plain"] > 400000, sizes)
+    r = await p1.evaluate("Sync.now(true)"); cfg = await p1.evaluate("Sync.cfg()")
+    check("heavy user: the server accepts the backup", r == "saved" and cfg.get("rev", 0) >= 1 and "err" not in cfg, (r, cfg))
+    hs = await p1.evaluate("Sync.summary().progress.hsk5")
+    check("heavy user: the study summary counts HSK 5", hs.get("started") == 62 and hs.get("done") == 62 and hs.get("words") == 1231 and hs.get("grammar") == 42, hs)
+    await p1.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
+    await go(p1, "#/fixes", 400); await p1.click("[data-fxtab='learners']"); await p1.wait_for_selector(".lrn-h5", timeout=10000)
+    line = await p1.locator(".lrn-h5").first.inner_text()
+    check("admin: the learner card shows the HSK 5 line", "HSK 5: 62/62 packs started, 62 finished" in line and "1231 words in review" in line and "42 grammar points mastered" in line, line)
+    c2, p2 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    got = await p2.evaluate("AI.call('sync_get',{code:%s}).then(r=>{Store.importJSON(JSON.stringify(r.result.data));const s=Store.state;return [Object.keys(s.srs).length,s.srs['h5-1231'],s.settings.level,Object.keys(s.packs).length,s.grammar.h5g42.mastered]})" % json.dumps(cfg["code"]))
+    mine = await p1.evaluate("Store.state.srs['h5-1231']")
+    check("heavy user: a second phone restores the whole deck from the compact backup", got[0] == sizes["words"] and {k: v for k, v in got[1].items() if v} == {k: v for k, v in mine.items() if v} and got[2:] == [5, 62, True], got)
+    await p1.evaluate("AI.call('sync_delete',{code:Sync.cfg().code})")
+    await c1.close(); await c2.close()
+
+
+SW_READY = "navigator.serviceWorker&&navigator.serviceWorker.controller&&caches.open('cb-shell-test').then(c=>c.keys()).then(k=>k.length>20)"
+
+
+async def sw_ready(pg):
+    """Wait until the service worker controls the page and has stored the app shell."""
+    for _ in range(80):
+        if await pg.evaluate("Promise.resolve(%s).then(Boolean,()=>false)" % SW_READY): return True
+        await pg.wait_for_timeout(250)
+    return False
+
+
+async def net(ctx, on):
+    """Cut or restore the network: for the page (navigator.onLine) and at the test server (which also covers the service worker)."""
+    await ctx.set_offline(not on)
+    urllib.request.urlopen(BASE + "__net/" + ("on" if on else "off")).read()
+
+
+async def t_offline(b):
+    try:
+        await offline_checks(b)
+    finally:
+        urllib.request.urlopen(BASE + "__net/on").read()  # never leave the server down for the next group
+
+
+async def offline_checks(b):
+    # HSK 5 opened once while online: afterwards it works with no network, even after the app is closed and opened again
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    check("offline: the service worker is in control", await sw_ready(pg))
+    await go(pg, "#/learn", 600); await pg.click(".lvl-sw [data-level='5']"); await pg.wait_for_selector(".daycard", timeout=15000)
+    kept = False
+    for _ in range(40):
+        kept = await pg.evaluate("caches.open('cb-packs').then(c=>c.keys()).then(k=>k.some(r=>/\\/data\\/hsk5\\.[0-9a-f]+\\.js$/.test(r.url)))")
+        if kept: break
+        await pg.wait_for_timeout(250)
+    check("offline: the HSK 5 file is kept on the phone after the first visit", kept)
+    await net(ctx, False)
+    await pg.reload(); await pg.wait_for_selector("#app > *:not(.skel)", timeout=20000)
+    await go(pg, "#/learn", 300); await pg.wait_for_selector(".daycard", timeout=15000)
+    check("offline: after a reload Learn still opens the 62 HSK 5 packs", await pg.locator(".daycard").count() == 62)
+    await pg.locator(".daycard").nth(4).click(); await pg.wait_for_selector(".word.card")
+    check("offline: a pack shows its words", await pg.locator(".word.card").count() == 20)
+    await pg.click("#add-all"); await pg.wait_for_timeout(400); await no_dialogs(pg)
+    await go(pg, "#/review", 600)
+    check("offline: its words go into review", "20 words due" in await pg.inner_text("#app"))
+    await go(pg, "#/grammar/h5", 300); await pg.wait_for_selector(".gitem", timeout=15000)
+    check("offline: HSK 5 grammar opens", await pg.locator(".gitem").count() == 42)
+    await go(pg, "#/game/confuse/h5", 300); await pg.wait_for_selector(".opts", timeout=15000)
+    check("offline: an HSK 5 practice game starts", await pg.locator(".opt").count() >= 2)
+    await net(ctx, True)
+    await ctx.close()
+    # never opened while online: a clear message, a way back, and it loads once the phone is online again
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    await sw_ready(pg); await pg.wait_for_timeout(6000)  # the rest of the HSK 4 course has been stored by now
+    await net(ctx, False)
+    await go(pg, "#/learn", 600); await pg.click(".lvl-sw [data-level='5']"); await pg.wait_for_selector("#pack-miss", timeout=15000)
+    txt = await pg.inner_text("#app")
+    check("offline, HSK 5 never downloaded: a clear message instead of an empty screen", "HSK 5 is not on this phone yet" in txt and "Connect to the internet" in txt and await pg.locator("#miss-retry").count() == 1, txt[:200])
+    await go(pg, "#/pack/h5/1", 900)
+    check("offline: a direct link to a pack shows the same message", await pg.locator("#pack-miss").count() == 1)
+    await go(pg, "#/learn/extra", 900)
+    check("offline: the extra HSK 4 words say so too", "These extra words are not on this phone yet" in await pg.inner_text("#app"))
+    await go(pg, "#/day/1/words", 900)
+    check("offline: a lesson still opens, just without the extra phrases", await pg.locator(".word.card").count() == 10 and await pg.locator(".wx-b").count() == 0)
+    await go(pg, "#/learn", 900)
+    check("offline: the message keeps the level switch", await pg.locator("#pack-miss").count() == 1 and await pg.locator(".lvl-sw [data-level='4']").count() == 1)
+    await pg.click(".lvl-sw [data-level='4']"); await pg.wait_for_selector(".pnode", timeout=10000)
+    check("offline: back on HSK 4 everything works", await pg.locator(".pnode").count() == 90 and await pg.evaluate("Store.state.settings.level") == 4)
+    await pg.click(".lvl-sw [data-level='5']"); await pg.wait_for_selector("#pack-miss", timeout=15000)
+    await net(ctx, True)
+    await pg.click("#miss-retry"); await pg.wait_for_selector(".daycard", timeout=15000)
+    check("online again: 'Try again' loads HSK 5", await pg.locator(".daycard").count() == 62)
+    await ctx.close()
+
+
+GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track)]
 PW = None

@@ -49,6 +49,7 @@
     no_backup: "No backup was found for that code.",
     sync_full: "Cloud backup is full. Tell the app owner.",
     bad_task: "The server does not have cloud backup yet (it needs an update).",
+    sync_big: "Your progress is too large for the cloud backup. Use Me → Export to keep a copy.",
     db_error: "The server could not reach its database. Did you run supabase/setup.sql?",
     bad_ref: "This item can't be sent for checking.",
     bad_snapshot: "This item is too large to send.",

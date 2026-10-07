@@ -39,7 +39,7 @@ function prunePacks() {
 /* PRECACHE:START — tools/build.js replaces this block with the built file list */
 var DAYS = [];
 for (var i = 1; i <= 90; i++) DAYS.push("data/day" + (i < 10 ? "0" + i : i) + ".js");
-var MOCKS = ["data/mock-manifest.js", "data/track-manifest.js", "data/track_w01-06.js", "data/track_w07-12.js", "data/track_w13-18.js", "data/track_w19-24.js", "data/mock1.js", "data/mock2.js", "data/mock3.js", "data/mock4.js", "data/mock5.js", "data/mock6.js", "data/core-manifest.js", "data/grammar.js", "data/drills.js", "data/found.js"];
+var MOCKS = ["data/mock-manifest.js", "data/track-manifest.js", "data/track_w01-06.js", "data/track_w07-12.js", "data/track_w13-18.js", "data/track_w19-24.js", "data/mock1.js", "data/mock2.js", "data/mock3.js", "data/mock4.js", "data/mock5.js", "data/mock6.js", "data/core-manifest.js", "data/grammar.js", "data/drills.js", "data/drills_extra.js", "data/found.js"];
 for (var j = 1; j <= 25; j++) MOCKS.push("data/core" + (j < 10 ? "0" + j : j) + ".js");
 /* iOS launch screens (tools/gen_splash.py) */
 var SPLASH = ["750x1334", "1242x2208", "1125x2436", "828x1792", "1242x2688", "1170x2532", "1284x2778", "1179x2556", "1290x2796", "1206x2622", "1320x2868"].map(function (n) { return "icons/splash/" + n + ".png"; });

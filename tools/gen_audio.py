@@ -108,8 +108,11 @@ async def main(src):
           f"failed: {len(stats['failed'])}  in manifest: {len(manifest)}")
     for v, t, e in stats["failed"][:10]:
         print(f"  FAILED [{v}] {t[:30]}… {e[:80]}")
-    # Deploy anyway with partial audio, but fail loudly if most of it is missing.
-    if len(manifest) < 0.9 * len(items):
+    # Deploy anyway with partial audio, but fail loudly if most of the course audio is missing.
+    # Clips of the optional packs ("opt": HSK 5, extra HSK 4 words) never fail the build: the app hides their play button.
+    need = [it for it in items if not it.get("opt")]
+    have = sum(1 for it in need if f'{it["v"]}|{it["t"]}' in manifest)
+    if have < 0.9 * len(need):
         sys.exit(1)
 
 

@@ -1,6 +1,8 @@
 # data/hsk4x - HSK 1-4 coverage audit, gap words and extra HSK 4 word resources
 
-Everything here is additive: no existing file was changed and nothing is loaded by the app yet.
+Everything here is additive: no existing file was changed. The app loads the folder on demand (one built file,
+`data/hsk4x.<hash>.js`): gap words under Learn → HSK words → Extra HSK 4 words, phrases and opposites on word cards,
+families under Word families. `audit.json` and `hsk2-ref.json` are tool files and are not part of the built site.
 All Chinese phrases and sentences, and all Vietnamese / English glosses written for this folder, are original.
 
 | File | What it is |

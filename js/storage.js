@@ -69,10 +69,43 @@
     clean(d);
     return d;
   }
+  /* Compact review deck for the cloud backup (the server takes at most 400,000 characters per backup).
+     A card { box, due, right, wrong, added, last, lapses, late } is sent as [box, due, right, wrong, added, last, lapses, late]:
+     dates as a day number (1 = 2020-01-01, 0 = none), trailing zeros left off. About a third of the size, so a learner
+     with every HSK 4 and HSK 5 word in review still fits. merge() turns such cards back into objects, wherever they come from. */
+  var EPOCH = "2020-01-01", DATE = /^\d{4}-\d{2}-\d{2}$/;
+  function dnum(s) { return DATE.test(s || "") ? Math.max(0, daysBetween(EPOCH, s)) + 1 : 0; }
+  function dstr(v) { v = Math.round(n(v)); return v > 0 && v < 60000 ? addDays(EPOCH, v - 1) : null; }
+  function packCard(c) {
+    var a = [Math.round(n(c.box)) || 1, dnum(c.due), n(c.right), n(c.wrong), dnum(c.added), dnum(c.last), n(c.lapses), c.late ? 1 : 0];
+    while (a.length > 2 && !a[a.length - 1]) a.pop();
+    return a;
+  }
+  function unpackCard(a) {
+    var c = { box: a[0], due: dstr(a[1]) || today(), right: n(a[2]), wrong: n(a[3]), added: dstr(a[4]) || today(), last: dstr(a[5]) };
+    if (n(a[6])) c.lapses = n(a[6]);
+    if (a[7]) c.late = true;
+    return c;
+  }
+  /* the progress as the cloud backup stores it: everything as it is, the review deck in its compact form */
+  function compact() {
+    var p = JSON.parse(JSON.stringify(state)), z = {};
+    Object.keys(p.srs).forEach(function (id) { if (p.srs[id] && typeof p.srs[id] === "object") z[id] = packCard(p.srs[id]); });
+    p.srs = z;
+    return p;
+  }
+
   /* Imported files are untrusted: keep numbers numeric and drop malformed entries. */
   function n(x) { x = +x; return isFinite(x) ? x : 0; }
   function clean(d) {
     var st = d.settings, dflt = defaults().settings;
+    Object.keys(d.srs).forEach(function (k) {
+      var c = d.srs[k];
+      if (Array.isArray(c)) c = d.srs[k] = unpackCard(c); // compact card from a cloud backup
+      if (!c || typeof c !== "object") { delete d.srs[k]; return; }
+      c.box = Math.max(1, Math.min(5, Math.round(n(c.box)) || 1)); c.right = n(c.right); c.wrong = n(c.wrong);
+      if (!DATE.test(c.due)) c.due = today();
+    });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(st.examDate)) st.examDate = dflt.examDate;
     if (!/^\d{2}:\d{2}$/.test(st.remindTime)) st.remindTime = dflt.remindTime;
     if (["both", "vi", "en"].indexOf(st.lang) < 0) st.lang = dflt.lang;
@@ -229,7 +262,7 @@
     get state() { return state; },
     load: load, save: save, touch: touch, streak: streak, day: day, game: game,
     today: today, addDays: addDays, daysBetween: daysBetween,
-    exportJSON: exportJSON, shareJSON: shareJSON, importJSON: importJSON, serialize: serialize, reset: reset,
+    exportJSON: exportJSON, shareJSON: shareJSON, importJSON: importJSON, serialize: serialize, compact: compact, reset: reset,
     get available() { return available; }
   };
   load();

@@ -8,8 +8,10 @@ cd "$(dirname "$0")/.."
 trap 'echo "::error title=Tests::tests/run.sh stopped at line $LINENO (see the step log)"' ERR
 OUT="${OUT:-_site_test}"; WEB_PORT="${WEB_PORT:-8766}"; AI_PORT="${AI_PORT:-9201}"
 
-echo "== content"; node tools/validate.js | tail -n 2
+echo "== content"; node tools/validate.js | tail -n 2   # also runs validate_grammar / _drills / _hsk5 / _hsk5_drills / _hsk4x
+echo "== HSK page watch"; node tools/hsk_watch_test.mjs | tail -n 1
 echo "== AI service"; node tools/ai_function_test.mjs | tail -n 3
+echo "== service worker: optional packs"; node tools/sw_packs_test.mjs | tail -n 1
 echo "== build"; node tools/build.js "$OUT" test > /dev/null
 
 node tests/serve.mjs "$OUT" "$WEB_PORT" > /dev/null & WEB_PID=$!

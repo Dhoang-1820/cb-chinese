@@ -82,7 +82,7 @@ const J = x => JSON.stringify(x);
 const sizes = {};
 sizes["data/index.js"] = write("data/index.js", minifyJS(
   "window.CB_BUNDLED=true;window.CB_PLAN=" + J(sb.window.CB_PLAN || []) + ";window.CB_DAYS=" + J(light) + ";window.CB_CORE=" + J(coreLight) + ";"));
-load("drills_extra.js");
+if (!sb.window.CB_DRILLS_EXTRA) load("drills_extra.js");
 sizes["data/full.js"] = write("data/full.js", minifyJS("window.CB_FULL=" + J(full) + ";window.CB_CORE_EX=" + J(coreEx) + ";window.CB_GRAMMAR=" + J(sb.window.CB_GRAMMAR || []) + ";window.CB_DRILLS=" + J(sb.window.CB_DRILLS || {}) + ";window.CB_DRILLS_EXTRA=" + J(sb.window.CB_DRILLS_EXTRA || {}) + ";"));
 // optional packs: one file each, named by content so the service worker can keep them cache-first
 fs.readdirSync(path.join(ROOT, "data", "hsk5")).filter(f => /^(words\d+|grammar|drills)\.js$/.test(f)).sort().forEach(f => load("hsk5/" + f));

@@ -1895,6 +1895,7 @@
       var pg = sm.progress;
       if (pg) {
         out += '<h3 class="lrn-h">Progress</h3><p class="sub">Lessons <b>' + (pg.lessons || 0) + "/" + (pg.lessonsAll || 90) + "</b> · track sessions <b>" + (pg.track || 0) + "/" + (pg.trackAll || 72) + "</b> · " + (pg.due || 0) + " words due" + (pg.exam ? " · exam " + esc(pg.exam) : "") + "</p>" +
+          (pg.hsk5 ? '<p class="sub lrn-h5">HSK 5: ' + (pg.hsk5.started || pg.hsk5.words || pg.hsk5.grammar ? "<b>" + (pg.hsk5.started || 0) + "/" + (pg.hsk5.packs || 62) + "</b> packs started, <b>" + (pg.hsk5.done || 0) + "</b> finished · " + (pg.hsk5.words || 0) + " words in review · " + (pg.hsk5.grammar || 0) + " grammar points mastered" : "not started") + "</p>" : "") +
           (pg.ready ? '<p class="sub">Readiness: <b>' + esc(pg.ready.verdict || "") + "</b>, about " + (pg.ready.total || 0) + "/300 (" + (pg.ready.lo || 0) + "–" + (pg.ready.hi || 0) + ", from " + (pg.ready.src === "mock" ? "mock exams" : "practice answers") + ")</p>" : '<p class="sub">Readiness: not enough answers yet.</p>') +
           ((pg.mocks || []).length ? '<p class="sub">Last mocks: ' + pg.mocks.map(function (x) { return esc(String(x.d).slice(5)) + " <b>" + (x.t || 0) + "</b> (L" + (x.l || 0) + " R" + (x.r || 0) + " W" + (x.w || 0) + ")"; }).join(" · ") + "</p>" : '<p class="sub">No mock exam taken yet.</p>');
       }
@@ -3105,6 +3106,14 @@
     var old = Store.addDays(t, -56); Object.keys(L).forEach(function (d) { if (d < old) delete L[d]; });
     Store.save();
   }
+  /* HSK 5 in numbers, worked out from saved progress alone (ids h5-0001.. sit 20 to a pack), so it needs no HSK 5 data loaded */
+  function h5Progress() {
+    var s = Store.state, packs = {}, words = 0, done = 0;
+    Object.keys(s.srs).forEach(function (id) { var m = /^h5-(\d{4})$/.exec(id); if (m) { words++; packs[Math.ceil(+m[1] / 20)] = 1; } });
+    Object.keys(s.packs || {}).forEach(function (k) { var m = /^h5-(\d+)$/.exec(k); if (m) { packs[+m[1]] = 1; if (s.packs[k].b >= 8) done++; } });
+    var g = Object.keys(s.grammar || {}).filter(function (k) { return /^h5g/.test(k) && s.grammar[k].mastered; }).length;
+    return { started: Object.keys(packs).length, done: done, packs: 62, words: words, grammar: g };
+  }
   function studySummary() {
     var s = Store.state, t = Store.today(), L = s.slog || {}, i, d, act28 = 0, gap = 0, longest = 0, miss = [0, 0, 0, 0, 0, 0, 0];
     var first = Object.keys(s.log).sort()[0] || t, span = Math.min(28, Store.daysBetween(first, t) + 1);
@@ -3133,7 +3142,7 @@
       progress: (function () {
         var r = null, due = 0; try { r = readiness(); due = SRS.dueIds(WORDMAP).length; } catch (e) { /* content not loaded yet */ }
         var ms = byDate(s.mockHistory || []).slice(-3).map(function (h) { return { d: h.date, t: h.total, l: h.sections.listening, r: h.sections.reading, w: h.sections.writing }; });
-        return { lessons: Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length, lessonsAll: DAYS.length, track: Object.keys(s.track || {}).filter(function (k) { return s.track[k]; }).length, trackAll: 72,
+        return { hsk5: h5Progress(), lessons: Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length, lessonsAll: DAYS.length, track: Object.keys(s.track || {}).filter(function (k) { return s.track[k]; }).length, trackAll: 72,
           due: due, ready: r ? { total: r.total, lo: r.lo, hi: r.hi, verdict: r.verdict[1], src: r.src } : null, mocks: ms, exam: s.settings.examDate || "", goal: s.settings.dailyGoal || 30 };
       })(),
       plan: (function () { var c = coachLast(); return c ? { w: c.w, actions: coachStatus(c).map(function (a) { return { text: a.text.slice(0, 200), skill: AI.SKILL_NAMES[a.skill] || a.skill, done: a.done }; }) } : null; })() };
@@ -3536,6 +3545,7 @@
   var SYNC_KEY = "cbChinese.sync", SYNC_ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", syncTimer = null, syncBusy = null;
   function syncCfg() { try { var c = JSON.parse(localStorage.getItem(SYNC_KEY)); return c && typeof c === "object" ? c : {}; } catch (e) { return {}; } }
   function syncSave(c) { try { localStorage.setItem(SYNC_KEY, JSON.stringify(c)); } catch (e) { /* ignore */ } }
+  var SYNC_LIMIT = 400000; // characters per backup the server accepts (MAX_SYNC in supabase/functions/ai/index.ts)
   function syncNewCode() {
     var a = new Uint8Array(16), out = ""; (window.crypto || window.msCrypto).getRandomValues(a);
     for (var i = 0; i < 16; i++) out += SYNC_ABC.charAt(a[i] % 32);
@@ -3553,10 +3563,12 @@
     if (syncBusy) return syncBusy;
     var mark = syncMark(); if (!force && c.code && c.mark === mark) return Promise.resolve("same");
     var first = !c.code; if (first) { c.code = syncNewCode(); c.rev = 0; syncSave(c); }
-    var data = JSON.parse(Store.serialize(false)).progress;
+    var data = Store.compact(), size = 0; // the review deck goes in its compact form (see js/storage.js); restoring expands it again
+    try { size = JSON.stringify(data).length; } catch (e) { size = 0; }
     syncBusy = AI.call("sync_put", { code: c.code, rev: c.rev || 0, force: !!force, data: data, meta: syncMeta(), summary: studySummary() }).then(function (r) {
       syncBusy = null; var n = syncCfg();
-      if (!r.ok) { n.err = r.error === "too_big" || r.error === "bad_task" ? "bad_task" : r.error; syncSave(n); return r.error; }
+      /* "too_big" from a server that knows backups means this backup is over its limit; from an older server it means "no backup task" */
+      if (!r.ok) { n.err = r.error === "too_big" && size > SYNC_LIMIT - 20000 ? "sync_big" : r.error === "too_big" || r.error === "bad_task" ? "bad_task" : r.error; syncSave(n); return r.error; }
       delete n.err;
       if (r.result.conflict) { n.conflict = { at: r.result.updated_at, meta: r.result.meta || {} }; syncSave(n); return "conflict"; }
       n.rev = r.result.rev; n.last = Date.now(); n.mark = mark; delete n.conflict; syncSave(n);

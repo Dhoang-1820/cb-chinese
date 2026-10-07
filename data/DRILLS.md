@@ -5,7 +5,7 @@ HSK 4 practice sets. All sentences are original, written for this app.
 | File | Global | Loaded by the app | Played by |
 |---|---|---|---|
 | `data/drills.js` | `window.CB_DRILLS` | yes | `js/games.js` (`drillQ`, `drillGame`) |
-| `data/drills_extra.js` | `window.CB_DRILLS_EXTRA` | **no, data only** | nothing yet |
+| `data/drills_extra.js` | `window.CB_DRILLS_EXTRA` | yes | `js/games.js`: Word Bank (`bank`), Arrange the Words (`wordorder`) |
 
 Check both with `node tools/validate_drills.js` (exit code 1 on any error). `node tools/validate.js` also checks `drills.js`, with fewer rules.
 
@@ -78,9 +78,10 @@ Check both with `node tools/validate_drills.js` (exit code 1 on any error). `nod
 - m01–m20 and m41–m110 are measure words; m21–m40 are verb + noun collocations.
 - When a noun takes more than one measure word (一张/一份报纸, 一只/一条狗, 一部/一台手机), only one of them is among the options.
 
-## `CB_DRILLS_EXTRA` (data only)
+## `CB_DRILLS_EXTRA`
 
-Two HSK 4 question types the drills did not have. Nothing loads this file yet. To use it, the integrator has to:
+Two HSK 4 question types the drills did not have, now played as the games **Word Bank** and **Arrange the Words**
+(skills `fill-word` and `word-order`). What was needed to wire them in, for reference:
 
 1. add `<script src="data/drills_extra.js">` (or lazy-load it) and add the file to the service-worker cache list;
 2. write the two games in `js/games.js`;

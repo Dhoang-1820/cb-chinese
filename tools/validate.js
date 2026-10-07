@@ -10,7 +10,10 @@ const ROOT = path.join(__dirname, "..");
 const DATA = path.join(ROOT, "data");
 const WORDS_PER_LESSON = 10;
 const QUIZ_LEN = 10;
-const LEVELS = ["HSK4", "Beyond HSK4"];
+const LEVELS = ["HSK4", "Beyond HSK4"];               // lesson words (data/dayNN.js)
+const PACK_LEVELS = { h5: ["HSK5"], x4: ["HSK1", "HSK2", "HSK3", "HSK4"] }; // word packs loaded on demand (data/hsk5, data/hsk4x)
+/* the detailed checks of the newer content live in their own tools; this one runs them all, so one command covers everything */
+const MORE = ["validate_grammar.js", "validate_drills.js", "validate_hsk5.js", "validate_hsk5_drills.js", "validate_hsk4x.js"];
 const TONE_VOWELS = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/g;
 const CJK = /^[㐀-鿿]+$/;
 
@@ -277,5 +280,37 @@ console.log(`Grammar points    : ${grammar.length} (${grammar.reduce((s, g) => s
 checks.forEach(([name, ok]) => console.log(`${ok ? "PASS" : "FAIL"}  ${name}`));
 console.log("");
 if (warnings.length) { console.log(`Warnings (${warnings.length}):`); warnings.forEach(w => console.log("  ⚠ " + w)); console.log(""); }
+/* ---- word packs loaded on demand: they join the same word index as the lessons, so ids and levels must fit ---- */
+{
+  const psb = { window: {} }; vm.createContext(psb);
+  const prun = f => { try { vm.runInContext(fs.readFileSync(path.join(DATA, f), "utf8"), psb, { filename: f }); } catch (e) { err(f, "JavaScript error: " + e.message); } };
+  fs.readdirSync(path.join(DATA, "hsk5")).filter(f => /^words\d+\.js$/.test(f)).sort().forEach(f => prun("hsk5/" + f));
+  prun("hsk4x/manifest.js"); (psb.window.CB_HSK4X_FILES || []).forEach(f => prun("hsk4x/" + f));
+  const taken = {};
+  days.forEach(d => (d.words || []).forEach(w => { taken[w.id] = "Day " + d.day; }));
+  core.forEach(set => set.words.forEach(w => { taken[w.id] = "set " + set.set; }));
+  const packs = { h5: psb.window.CB_HSK5 || [], x4: (psb.window.CB_HSK4X || []).filter(p => p.kind === "missing") };
+  const n = { h5: 0, x4: 0 };
+  Object.keys(packs).forEach(kind => packs[kind].forEach(pk => (pk.words || []).forEach(w => {
+    const W = (kind === "h5" ? "HSK 5 pack " : "Extra HSK 4 pack ") + pk.pack + " " + w.id;
+    n[kind]++;
+    if (!PACK_LEVELS[kind].includes(w.level)) err(W, `level "${w.level}" is not one of ${PACK_LEVELS[kind].join(", ")}`);
+    if (!(kind === "h5" ? /^h5-\d{4}$/ : /^x4-\d{4}$/).test(w.id)) err(W, "id does not match its pack kind");
+    if (taken[w.id]) err(W, "id already used by " + taken[w.id]);
+    taken[w.id] = W;
+    if (Math.ceil(parseInt(w.id.slice(3), 10) / 20) !== pk.pack) err(W, "word is not in the pack its number belongs to (20 per pack; the app derives the pack from the id)");
+  })));
+  console.log(`Word packs        : HSK 5 ${n.h5} words in ${packs.h5.length} packs · extra HSK 4 ${n.x4} words in ${packs.x4.length} packs`);
+  if (!n.h5 || !n.x4) err("word packs", "data/hsk5 or data/hsk4x did not load");
+}
+/* ---- the other validators ---- */
+const { spawnSync } = require("child_process");
+MORE.forEach(f => {
+  const r = spawnSync(process.execPath, [path.join(__dirname, f)], { encoding: "utf8" });
+  const ok = r.status === 0;
+  console.log(`${ok ? "PASS" : "FAIL"}  tools/${f}`);
+  if (!ok) { err("tools/" + f, "failed (run it for the details)"); console.log(String(r.stdout || "").split("\n").filter(l => /✗|ERROR|error/i.test(l)).slice(0, 12).map(l => "      " + l.trim()).join("\n")); }
+});
+console.log("");
 if (errors.length) { console.log(`Errors (${errors.length}):`); errors.forEach(e => console.log("  ✗ " + e)); process.exit(1); }
 console.log("✓ No errors.");

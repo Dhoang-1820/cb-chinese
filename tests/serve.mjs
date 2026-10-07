@@ -4,7 +4,12 @@ import http from "http"; import fs from "fs"; import path from "path"; import zl
 const root = path.resolve(process.argv[2] || "_site"), port = Number(process.argv[3] || 8766);
 const TYPES = { ".js": "application/javascript", ".css": "text/css", ".html": "text/html", ".json": "application/json", ".png": "image/png",
   ".woff2": "font/woff2", ".webmanifest": "application/manifest+json", ".mp3": "audio/mpeg", ".txt": "text/plain" };
+// GET /__net/off makes every later request fail like a dead connection, /__net/on brings the server back. The browser's own
+// "offline" switch does not reach a service worker's requests, so the offline tests cut the network here as well.
+let down = false;
 http.createServer((req, res) => {
+  if (req.url.startsWith("/__net/")) { down = req.url === "/__net/off"; res.writeHead(200, { "cache-control": "no-store" }); return res.end(down ? "off" : "on"); }
+  if (down) return req.socket.destroy();
   let p = decodeURIComponent(req.url.split("?")[0]); if (p.endsWith("/")) p += "index.html";
   const file = path.join(root, p);
   if (!file.startsWith(root)) { res.writeHead(403); return res.end(); }

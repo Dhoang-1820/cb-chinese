@@ -41,7 +41,11 @@ Check everything with `node tools/validate_grammar.js` (exit code 1 on any error
 - Ids must stay consecutive and in file order (validator rule); append, never renumber, because ids are
   progress keys in `Store.state.grammar` and part of content refs `grammar:<id>` and `gq:<id>:<n>`.
 
-## What the integrator must change
+## What the integrator had to change (done; kept for reference)
+
+All seven points below are wired in: ids matching `/^(g|h5g)\d\d$/` are kept, HSK 5 grammar loads with the HSK 5 pack
+(`data/hsk5.<hash>.js`), the screens take a level (`#/grammar/h5`), `js/content.js` indexes both lists, and the HSK 4 list
+has a filter.
 
 1. **`js/storage.js` line ~105**: the migration deletes every `grammar` key that fails `/^g\d\d$/`, so HSK 5
    progress would be wiped on load. Extend it to `/^(g|h5g)\d\d$/` (or keep HSK 5 progress in its own map).

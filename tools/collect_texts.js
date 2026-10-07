@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 /* Collects every Chinese text the app can play, with the voice to use.
    Usage: node tools/collect_texts.js > audio_texts.json
-   Output: [{ "v": "F" | "M", "t": "中文" }, ...]  (unique)
+   Output: [{ "v": "F" | "M", "t": "中文" }, ...]  (unique). Items of the optional packs carry "opt": true:
+   tools/gen_audio.py does not count them when it decides whether too much audio is missing.
+
+   Optional packs (decided by cost, counts in README.md "Audio"):
+     recorded      HSK 5 headwords, HSK 5 grammar examples, HSK 5 picture-writing model sentences,
+                   the 91 extra HSK 4 words with their phrase and example
+     not recorded  HSK 5 example sentences (1,231 more clips), the extra HSK 4 "common phrases" and the
+                   opposites' examples. The app hides the play button where there is no clip.
+   Pass --all to include those as well (prints the same counts).
    Keep MALE_SPEAKERS in sync with js/audio.js. */
 "use strict";
 const fs = require("fs"), path = require("path"), vm = require("vm");
@@ -61,5 +69,28 @@ for (const wk of sb.window.CB_TRACK || []) for (const ss of wk.sessions || []) {
 }
 
 add("你好，这是薪酬福利中文。");
+
+/* ---- optional packs: HSK 5 (data/hsk5) and the extra HSK 4 word resources (data/hsk4x) ---- */
+const ALL = process.argv.includes("--all");
+const base = out.size, counts = {};
+const opt = (name, on, list) => {
+  let n = 0;
+  for (const t of list) { const k = "F|" + t; if (t && /[㐀-鿿]/.test(t) && !out.has(k)) { n++; if (on) out.set(k, { v: "F", t, opt: true }); } }
+  counts[name] = (on ? "+" : "skipped ") + n;
+};
+fs.readdirSync(path.join(ROOT, "data", "hsk5")).filter(f => /^(words\d+|grammar|drills)\.js$/.test(f)).sort().forEach(f => load("hsk5/" + f));
+load("hsk4x/manifest.js");
+(sb.window.CB_HSK4X_FILES || []).forEach(f => load("hsk4x/" + f));
+const h5 = (sb.window.CB_HSK5 || []).flatMap(p => p.words), x4 = sb.window.CB_HSK4X || [];
+const kind = k => x4.filter(p => p.kind === k);
+opt("HSK 5 headwords", true, h5.map(w => w.hanzi));
+opt("HSK 5 grammar examples", true, (sb.window.CB_HSK5_GRAMMAR || []).flatMap(g => g.examples.map(e => e.zh)));
+opt("HSK 5 picture model sentences", true, ((sb.window.CB_HSK5_DRILLS || {}).picture || []).flatMap(it => it.samples.map(x => x.zh)));
+opt("extra HSK 4 words (word, phrase, example)", true, kind("missing").flatMap(p => p.words).flatMap(w => [w.hanzi].concat((w.collocations || []).map(c => c.zh), w.example ? [w.example.zh] : [])));
+opt("HSK 5 example sentences", ALL, h5.map(w => w.example && w.example.zh));
+opt("extra HSK 4 common phrases", ALL, kind("collocations").flatMap(p => p.items).flatMap(i => i.phrases.map(x => x.zh)));
+opt("opposites examples", ALL, kind("opposites").flatMap(p => p.items).flatMap(i => [i.a.example.zh, i.b.example.zh]));
+
 process.stdout.write(JSON.stringify([...out.values()]));
-process.stderr.write(`collected ${out.size} texts\n`);
+process.stderr.write(`collected ${out.size} texts (${base} for the HSK 4 course, ${out.size - base} for the optional packs)\n` +
+  Object.keys(counts).map(k => `  ${k}: ${counts[k]}`).join("\n") + "\n");

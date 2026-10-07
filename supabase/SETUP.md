@@ -93,3 +93,14 @@ To turn it on:
 
 Until both are done the app simply shows "The server does not have cloud backup yet" under Me → Cloud backup and keeps
 working as before. Optional secret: `SYNC_MAX_LEARNERS` (default 20) limits how many phones may keep a backup.
+
+Size: one backup may be at most 400,000 characters. The app sends the review deck in a compact form (a short list per
+word instead of named fields), so a learner with every HSK 4 and HSK 5 word in review and a year of logs needs about
+320,000. If a backup is ever refused for size, the app says so under Me → Cloud backup; Me → Export always works.
+
+## Service numbers for the admin (added October 2026)
+
+Me → Content review shows a **Service** block: AI calls today against `AI_DAILY_CAP` and for the last 14 days, phones
+with a backup against `SYNC_MAX_LEARNERS`, how many did not save for 3 or more days, and content reports waiting.
+It needs the current `index.ts` (admin-only task `admin_stats`, which only reads `ai_usage`, `learners.updated_at` and
+`content_reports.status`). No SQL change. With an older function the block is simply not shown.

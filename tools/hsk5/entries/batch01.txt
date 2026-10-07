@@ -1,0 +1,100 @@
+哎|int.|hey; oh (surprise or reminder)|này; ôi (ngạc nhiên, nhắc nhở)|哎 ， 你 怎么 现在 才 来 ？|Hey, why are you only arriving now?|Này, sao bây giờ bạn mới đến?
+唉|int.|alas; sigh|haizz; ôi (than thở)|唉 ， 这 次 考试 我 又 没 通过 。|Sigh, I failed the exam again this time.|Haizz, lần thi này tôi lại không đỗ.
+爱护|v.|to take good care of; to cherish|yêu quý, giữ gìn|我们 应该 爱护 公司 的 电脑 。|We should take good care of the company's computers.|Chúng ta nên giữ gìn máy tính của công ty.
+爱惜|v.|to treasure; to use sparingly|quý trọng, tiết kiệm|年轻 人 要 爱惜 自己 的 身体 。|Young people should look after their health.|Người trẻ phải biết quý trọng sức khỏe của mình.
+爱心|n.|compassion; loving heart|lòng nhân ái, tấm lòng yêu thương|她 是 一 个 很 有 爱心 的 护士 。|She is a very caring nurse.|Cô ấy là một y tá rất giàu lòng nhân ái.
+安慰|v./n.|to comfort; comfort|an ủi; sự an ủi|朋友 伤心 的 时候 ， 我 常常 安慰 她 。|When my friend is sad, I often comfort her.|Khi bạn buồn, tôi thường an ủi cô ấy.
+安装|v.|to install|lắp đặt, cài đặt|新 电脑 需要 安装 几 个 软件 。|The new computer needs a few programs installed.|Máy tính mới cần cài đặt vài phần mềm.
+岸|n.|bank; shore|bờ (sông, biển)|很多 人 喜欢 在 河 岸 上 散步 。|Many people like to walk along the river bank.|Nhiều người thích đi dạo trên bờ sông.
+暗|adj.|dark; dim|tối, mờ|房间 里 太 暗 了 ， 把 灯 打开 吧 。|The room is too dark; turn on the light.|Trong phòng tối quá, bật đèn lên đi.
+熬夜|v.|to stay up late|thức khuya|为了 完成 报告 ， 他 昨天 又 熬夜 了 。|He stayed up late again yesterday to finish the report.|Để hoàn thành báo cáo, hôm qua anh ấy lại thức khuya.
+摆|v.|to put; to arrange; to wave|bày, đặt, xếp|她 把 书 整齐 地 摆 在 桌子 上 。|She arranged the books neatly on the desk.|Cô ấy xếp sách ngay ngắn trên bàn.
+傍晚|n.|early evening; dusk|chiều tối, chạng vạng|傍晚 的 时候 ， 公园 里 人 很多 。|There are many people in the park at dusk.|Lúc chiều tối, trong công viên rất đông người.
+包裹|n.|parcel; package|bưu kiện, gói hàng|我 下午 要 去 邮局 取 一 个 包裹 。|I'm going to the post office this afternoon to pick up a parcel.|Chiều nay tôi phải ra bưu điện lấy một bưu kiện.
+包含|v.|to contain; to include|bao hàm, chứa đựng|这 句 话 包含 着 两 层 意思 。|This sentence carries two layers of meaning.|Câu nói này bao hàm hai tầng ý nghĩa.
+包括|v.|to include|bao gồm|工资 里 不 包括 年底 的 奖金 。|The salary does not include the year-end bonus.|Tiền lương không bao gồm tiền thưởng cuối năm.
+薄|adj.|thin|mỏng|今天 很 冷 ， 你 穿 得 太 薄 了 。|It's cold today; you are dressed too lightly.|Hôm nay rất lạnh, bạn mặc mỏng quá.
+宝贝|n.|treasure; darling; baby|bảo bối, cục cưng|这 只 小 猫 是 奶奶 的 宝贝 。|This kitten is Grandma's treasure.|Chú mèo con này là cục cưng của bà.
+宝贵|adj.|valuable; precious|quý báu, quý giá|谢谢 您 给 我们 提 了 宝贵 的 意见 。|Thank you for giving us your valuable comments.|Cảm ơn ông đã cho chúng tôi những ý kiến quý báu.
+保持|v.|to keep; to maintain|giữ, duy trì|开会 的 时候 请 大家 保持 安静 。|Please keep quiet during the meeting.|Khi họp xin mọi người giữ yên lặng.
+保存|v.|to save; to preserve|lưu, bảo quản|写 完 文件 以后 别 忘 了 保存 。|Don't forget to save the file after you finish writing it.|Viết xong tài liệu đừng quên lưu lại.
+保留|v.|to keep; to retain; to reserve|giữ lại, bảo lưu|这些 旧 照片 我 一直 保留 着 。|I have kept these old photos all along.|Những bức ảnh cũ này tôi vẫn luôn giữ lại.
+保险|n./adj.|insurance; safe|bảo hiểm; an toàn|公司 为 每 个 员工 都 买 了 保险 。|The company has bought insurance for every employee.|Công ty đã mua bảo hiểm cho mọi nhân viên.
+报道|v./n.|to report (news); news report|đưa tin; bản tin|很多 报纸 都 报道 了 这 件 事 。|Many newspapers reported this matter.|Nhiều tờ báo đã đưa tin về việc này.
+报告|n./v.|report; to report|báo cáo|这 份 报告 明天 要 交给 经理 。|This report must be handed to the manager tomorrow.|Bản báo cáo này ngày mai phải nộp cho giám đốc.
+报社|n.|newspaper office|tòa soạn báo|他 大学 毕业 后 在 一 家 报社 工作 。|After graduating from university he worked at a newspaper office.|Sau khi tốt nghiệp đại học, anh ấy làm việc ở một tòa soạn báo.
+抱怨|v.|to complain|phàn nàn, oán trách|他 总是 抱怨 工作 太 多 ， 时间 不够 。|He always complains that there is too much work and not enough time.|Anh ấy luôn phàn nàn công việc quá nhiều, thời gian không đủ.
+背|v.|to carry on one's back|cõng, đeo (trên lưng)|他 每 天 背 着 一 个 很 重 的 包 上班 。|He goes to work every day carrying a heavy bag on his back.|Ngày nào anh ấy cũng đeo một chiếc ba lô rất nặng đi làm.
+悲观|adj.|pessimistic|bi quan|遇到 困难 的 时候 不要 太 悲观 。|Don't be too pessimistic when you meet difficulties.|Khi gặp khó khăn đừng quá bi quan.
+背景|n.|background|bối cảnh, lai lịch, phông nền|面试 以前 ， 我 先 了解 了 公司 的 背景 。|Before the interview, I first learned about the company's background.|Trước buổi phỏng vấn, tôi đã tìm hiểu bối cảnh của công ty.
+被子|n.|quilt; blanket|chăn|天气 冷 了 ， 晚上 要 盖 厚 被子 。|It has turned cold, so use a thick quilt at night.|Trời lạnh rồi, buổi tối phải đắp chăn dày.
+本科|n.|undergraduate course; bachelor's degree|bậc đại học (hệ cử nhân)|这个 职位 要求 本科 以上 学历 。|This position requires a bachelor's degree or above.|Vị trí này yêu cầu trình độ đại học trở lên.
+本领|n.|skill; ability|bản lĩnh, tài năng|他 在 工作 中 学 到 了 很多 本领 。|He has learned many skills at work.|Anh ấy đã học được nhiều bản lĩnh trong công việc.
+本质|n.|essence; nature|bản chất|我们 要 看 清楚 问题 的 本质 。|We need to see the essence of the problem clearly.|Chúng ta phải nhìn rõ bản chất của vấn đề.
+彼此|pron.|each other; one another|lẫn nhau, đôi bên|同事 之间 应该 彼此 尊重 。|Colleagues should respect each other.|Đồng nghiệp với nhau nên tôn trọng lẫn nhau.
+必然|adj./adv.|inevitable; certainly|tất nhiên, tất yếu|不 努力 的 人 必然 会 失败 。|People who make no effort will inevitably fail.|Người không nỗ lực tất yếu sẽ thất bại.
+必要|adj./n.|necessary; need|cần thiết; sự cần thiết|这 件 事 没有 必要 告诉 所有 人 。|There is no need to tell everyone about this.|Việc này không cần thiết phải nói với tất cả mọi người.
+毕竟|adv.|after all|dù sao, rốt cuộc|别 生 他 的 气 ， 他 毕竟 还是 个 孩子 。|Don't be angry with him; after all, he is still a child.|Đừng giận nó, dù sao nó vẫn là một đứa trẻ.
+避免|v.|to avoid|tránh, tránh khỏi|仔细 检查 可以 避免 很多 错误 。|Careful checking can avoid many mistakes.|Kiểm tra kỹ có thể tránh được nhiều sai sót.
+编辑|n./v.|editor; to edit|biên tập viên; biên tập|她 在 一 家 杂志 社 当 编辑 。|She works as an editor at a magazine.|Cô ấy làm biên tập viên ở một tòa soạn tạp chí.
+鞭炮|n.|firecrackers|pháo|过 春节 的 时候 ， 孩子 们 喜欢 放 鞭炮 。|During Spring Festival, children like to set off firecrackers.|Vào dịp Tết, bọn trẻ thích đốt pháo.
+便|adv.|then; as soon as (formal 就)|liền, thì (như 就, văn viết)|他 下 了 班 便 直接 回家 了 。|He went straight home as soon as he got off work.|Tan làm xong anh ấy liền về thẳng nhà.
+辩论|v./n.|to debate; debate|tranh luận, biện luận|他们 正在 辩论 加班 的 问题 。|They are debating the issue of overtime.|Họ đang tranh luận về vấn đề tăng ca.
+标志|n./v.|sign; symbol; to mark|ký hiệu, biểu tượng; đánh dấu|这里 有 禁止 抽烟 的 标志 。|There is a no-smoking sign here.|Ở đây có biển báo cấm hút thuốc.
+表达|v.|to express|bày tỏ, diễn đạt|我 不 知道 怎么 表达 我 的 感谢 。|I don't know how to express my thanks.|Tôi không biết bày tỏ lòng biết ơn của mình thế nào.
+表面|n.|surface; appearance|bề mặt, bề ngoài|这 张 桌子 的 表面 非常 光滑 。|The surface of this table is very smooth.|Bề mặt chiếc bàn này rất nhẵn.
+表明|v.|to show; to make clear|cho thấy, tỏ rõ|调查 结果 表明 员工 对 餐厅 很 满意 。|The survey results show that staff are satisfied with the canteen.|Kết quả khảo sát cho thấy nhân viên rất hài lòng với nhà ăn.
+表情|n.|facial expression|nét mặt, biểu cảm|看 他 的 表情 ， 好像 不 太 高兴 。|Judging by his expression, he doesn't seem very happy.|Nhìn nét mặt anh ấy, có vẻ không vui lắm.
+表现|v./n.|to perform; performance; behaviour|thể hiện; biểu hiện|新 同事 在 这个 月 表现 得 很 好 。|The new colleague has performed very well this month.|Đồng nghiệp mới tháng này thể hiện rất tốt.
+冰激凌|n.|ice cream|kem|夏天 孩子 们 都 爱 吃 冰激凌 。|In summer children all love eating ice cream.|Mùa hè bọn trẻ đều thích ăn kem.
+病毒|n.|virus|vi-rút|我 的 电脑 有 病毒 ， 打 不{bu} 开 文件 。|My computer has a virus and can't open files.|Máy tính của tôi bị vi-rút, không mở được tài liệu.
+玻璃|n.|glass|kính, thủy tinh|小心 ， 地上 有 很多 碎 玻璃 。|Careful, there is a lot of broken glass on the floor.|Cẩn thận, trên sàn có nhiều mảnh kính vỡ.
+播放|v.|to play; to broadcast|phát (nhạc, video)|电视 上 正在 播放 一 部 老 电影 。|An old film is being shown on TV.|Trên ti vi đang phát một bộ phim cũ.
+脖子|n.|neck|cổ|看 了 一 天 电脑 ， 我 的 脖子 很 疼 。|After a day at the computer, my neck hurts.|Nhìn máy tính cả ngày, cổ tôi rất đau.
+博物馆|n.|museum|bảo tàng|周末 我们 带 孩子 去 参观 博物馆 。|At the weekend we are taking the children to visit the museum.|Cuối tuần chúng tôi đưa con đi tham quan bảo tàng.
+补充|v.|to add; to supplement|bổ sung|关于 这个 计划 ， 我 想 补充 一 点 。|I'd like to add one point about this plan.|Về kế hoạch này, tôi muốn bổ sung một điểm.
+不安|adj.|uneasy; worried|bất an, lo lắng|等 面试 结果 的 时候 ， 他 心里 很 不安 。|He felt very uneasy while waiting for the interview result.|Trong lúc chờ kết quả phỏng vấn, anh ấy rất bất an.
+不得了|adj.|extremely; terrible|vô cùng; nguy quá|听说 要 涨 工资 ， 大家 高兴 得 不得了 。|Hearing about the pay rise, everyone was extremely happy.|Nghe nói sắp tăng lương, mọi người vui vô cùng.
+不断|adv.|continuously; constantly|không ngừng, liên tục|公司 的 规模 在 不断 扩大 。|The company's scale keeps expanding.|Quy mô của công ty đang không ngừng mở rộng.
+不见得|adv.|not necessarily|chưa chắc, không hẳn|价格 贵 的 东西 不见得 质量 好 。|Expensive things are not necessarily good quality.|Đồ đắt tiền chưa chắc chất lượng đã tốt.
+不耐烦|adj.|impatient|mất kiên nhẫn, sốt ruột|等 了 一 个 小时 ， 他 开始 不耐烦 了 。|After waiting an hour, he began to get impatient.|Đợi một tiếng đồng hồ, anh ấy bắt đầu mất kiên nhẫn.
+不然|conj.|otherwise|nếu không thì|快 点儿 走 吧 ， 不然 要 迟到 了 。|Let's hurry, otherwise we'll be late.|Đi nhanh lên, nếu không thì muộn mất.
+不如|v./conj.|not as good as; would be better to|không bằng; chi bằng|坐 地铁 不如 骑 自行车 方便 。|Taking the metro is not as convenient as cycling.|Đi tàu điện ngầm không tiện bằng đi xe đạp.
+不要紧|adj.|it doesn't matter; not serious|không sao, không nghiêm trọng|这 次 没 做好 不要紧 ， 下 次 再 努力 。|It doesn't matter that it didn't go well this time; try again next time.|Lần này làm chưa tốt không sao, lần sau cố gắng tiếp.
+不足|adj./n.|insufficient; shortcoming|không đủ; thiếu sót|由于 经验 不足 ， 他 出 了 一些 错误 。|Because of his lack of experience, he made some mistakes.|Do kinh nghiệm chưa đủ, anh ấy đã mắc một số lỗi.
+布|n.|cloth|vải|这 块 布 的 颜色 很 适合 做 窗帘 。|The colour of this cloth is just right for curtains.|Màu của tấm vải này rất hợp để may rèm cửa.
+步骤|n.|step; procedure|bước, trình tự|请 按照 下面 的 步骤 填写 表格 。|Please fill in the form following the steps below.|Vui lòng điền biểu mẫu theo các bước dưới đây.
+财产|n.|property; assets|tài sản|这 套 房子 是 他们 家 最 重要 的 财产 。|This flat is their family's most important asset.|Căn nhà này là tài sản quan trọng nhất của gia đình họ.
+采访|v./n.|to interview (for news); interview|phỏng vấn (báo chí)|记者 采访 了 这 家 公司 的 总裁 。|The reporter interviewed the president of this company.|Phóng viên đã phỏng vấn chủ tịch của công ty này.
+采取|v.|to adopt; to take (measures)|áp dụng, thực hiện (biện pháp)|公司 采取 了 新 的 办法 来 降低 成本 。|The company adopted a new method to reduce costs.|Công ty đã áp dụng cách làm mới để giảm chi phí.
+彩虹|n.|rainbow|cầu vồng|雨 停 了 以后 ， 天 上 出现 了 彩虹 。|After the rain stopped, a rainbow appeared in the sky.|Sau khi mưa tạnh, trên trời xuất hiện cầu vồng.
+踩|v.|to step on; to tread|giẫm, đạp|对不起 ， 我 不 小心 踩 了 你 的 脚 。|Sorry, I accidentally stepped on your foot.|Xin lỗi, tôi vô ý giẫm vào chân bạn.
+参考|v./n.|to refer to; reference|tham khảo|写 报告 的 时候 可以 参考 去年 的 数字 。|When writing the report you can refer to last year's figures.|Khi viết báo cáo có thể tham khảo số liệu năm ngoái.
+参与|v.|to take part in|tham gia, tham dự|我们 希望 每 个 人 都 参与 讨论 。|We hope everyone takes part in the discussion.|Chúng tôi hy vọng mọi người đều tham gia thảo luận.
+惭愧|adj.|ashamed|hổ thẹn, xấu hổ|没 能 帮 上 你 的 忙 ， 我 很 惭愧 。|I feel ashamed that I couldn't help you.|Không giúp được bạn, tôi thấy rất hổ thẹn.
+操场|n.|playground; sports field|sân vận động, sân tập|学生 们 每 天 下午 在 操场 上 跑步 。|The students run on the sports field every afternoon.|Chiều nào học sinh cũng chạy bộ trên sân tập.
+操心|v.|to worry about; to take pains|lo lắng, bận tâm|孩子 长大 了 ， 父母 不用 再 操心 了 。|The child has grown up, so the parents needn't worry any more.|Con lớn rồi, bố mẹ không cần bận tâm nữa.
+册|m.|volume; copy (of books)|quyển, tập (lượng từ)|这 套 书 一共 有 四 册 ， 我 只 看 了 一 册 。|This set has four volumes and I have only read one.|Bộ sách này có tất cả bốn tập, tôi mới đọc một tập.
+测验|n./v.|test; quiz; to test|bài kiểm tra; kiểm tra|明天 上午 有 一 个 听力 测验 。|There is a listening test tomorrow morning.|Sáng mai có một bài kiểm tra nghe.
+曾经|adv.|once; formerly|đã từng|我 曾经 在 上海 工作 过{guo} 两 年 。|I once worked in Shanghai for two years.|Tôi đã từng làm việc ở Thượng Hải hai năm.
+叉子|n.|fork|cái nĩa, cái dĩa|服务员 ， 请 再 给 我 一 把 叉子 。|Waiter, please give me another fork.|Phục vụ ơi, cho tôi thêm một cái nĩa.
+插|v.|to insert; to stick in|cắm, chen vào|她 把 花 插 在 桌子 上 的 瓶子 里 。|She put the flowers in the vase on the table.|Cô ấy cắm hoa vào chiếc bình trên bàn.
+拆|v.|to take apart; to tear down; to open|tháo, dỡ, bóc|这 座 老 房子 下 个 月 就要 拆 了 。|This old house will be torn down next month.|Ngôi nhà cũ này tháng sau sẽ bị dỡ bỏ.
+产品|n.|product|sản phẩm|这 家 工厂 的 产品 质量 很 好 。|This factory's products are of good quality.|Sản phẩm của nhà máy này chất lượng rất tốt.
+产生|v.|to produce; to arise|nảy sinh, sinh ra|他 对 中国 文化 产生 了 很 大 的 兴趣 。|He has developed a great interest in Chinese culture.|Anh ấy đã nảy sinh hứng thú rất lớn với văn hóa Trung Quốc.
+长途|adj./n.|long-distance|đường dài|他 经常 坐 长途 汽车 回 老家 。|He often takes the long-distance bus back to his hometown.|Anh ấy thường đi xe khách đường dài về quê.
+常识|n.|common sense; general knowledge|kiến thức phổ thông, lẽ thường|过 马路 要 看 红绿灯 ， 这 是 常识 。|Watching the traffic lights when crossing the road is common sense.|Qua đường phải nhìn đèn giao thông, đó là lẽ thường.
+抄|v.|to copy (by writing)|chép, sao chép|考试 的 时候 不 能 抄 别人 的 答案 。|You must not copy other people's answers in an exam.|Khi thi không được chép đáp án của người khác.
+超级|adj.|super|siêu, cực kỳ|这 家 超市 的 水果 超级 新鲜 。|The fruit at this supermarket is super fresh.|Hoa quả ở siêu thị này siêu tươi.
+朝|prep./v.|towards; to face|về phía, hướng về|他 朝 我 笑 了 笑 ， 没有 说话 。|He smiled at me and said nothing.|Anh ấy cười với tôi một cái, không nói gì.
+潮湿|adj.|damp; humid|ẩm ướt|南方 的 春天 经常 下雨 ， 很 潮湿 。|Spring in the south is often rainy and very humid.|Mùa xuân ở miền Nam hay mưa, rất ẩm ướt.
+吵|v./adj.|to quarrel; noisy|cãi nhau; ồn ào|外面 太 吵 了 ， 我 没 办法 睡觉 。|It's too noisy outside; I can't sleep.|Bên ngoài ồn quá, tôi không ngủ được.
+吵架|v.|to quarrel|cãi nhau|他们 两 个 人 经常 为 小 事 吵架 。|The two of them often quarrel over small things.|Hai người họ thường cãi nhau vì chuyện nhỏ.
+炒|v.|to stir-fry|xào, rang|妈妈 炒 的 菜 比 饭馆 的 好吃 。|The dishes Mum stir-fries taste better than the restaurant's.|Món mẹ xào ngon hơn ở quán ăn.
+车库|n.|garage|ga-ra, nhà để xe|他 把 车 停 在 楼 下 的 车库 里 。|He parked the car in the garage downstairs.|Anh ấy đỗ xe trong ga-ra dưới tầng.
+车厢|n.|carriage; compartment|toa xe|这 节 车厢 里 的 人 不 多 ， 很 安静 。|There aren't many people in this carriage; it's quiet.|Toa xe này không đông người, rất yên tĩnh.
+彻底|adj./adv.|thorough; completely|triệt để, hoàn toàn|这个 问题 必须 彻底 解决 。|This problem must be solved thoroughly.|Vấn đề này phải được giải quyết triệt để.
+沉默|adj./v.|silent; to keep silent|im lặng, trầm mặc|听 了 这个 消息 ， 大家 都 沉默 了 。|After hearing the news, everyone fell silent.|Nghe tin này xong, mọi người đều im lặng.
+趁|prep.|to take advantage of; while|nhân lúc, tranh thủ|趁 现在 不 忙 ， 我们 讨论 一下 吧 。|While we're not busy now, let's discuss it.|Nhân lúc bây giờ không bận, chúng ta thảo luận một chút đi.
+称|v.|to call; to weigh|gọi là; cân|同事 们 都 称 他 为{wéi} 老师 。|His colleagues all call him "teacher".|Các đồng nghiệp đều gọi anh ấy là thầy.
+称呼|v./n.|to call; form of address|xưng hô; cách xưng hô|请问 ， 我 应该 怎么 称呼 您 ？|Excuse me, how should I address you?|Xin hỏi, tôi nên xưng hô với ông thế nào?

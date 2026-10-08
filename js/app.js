@@ -1265,7 +1265,7 @@
       '<div class="actions"><button class="btn primary" id="play-all">▶ Play all</button><button class="btn" id="tog-tr" aria-pressed="false">Show translation</button></div></div>' +
       '<div class="chat" id="lines">' + r.lines.map(function (l) {
         var voice = l.speaker ? Audio2.voiceFor(l.speaker) : "F";
-        if (!l.speaker) return '<div class="para card"><div class="zh">' + linkWords(l.zh) + SAY(l.zh) + "</div>" + PY(l.py) + '<div class="tr">' + M(l) + "</div></div>";
+        if (!l.speaker) return '<div class="para card"><div class="zh"><span class="zh-t">'' + linkWords(l.zh) + "</span>" + SAY(l.zh) + "</div>" + PY(l.py) + '<div class="tr">' + M(l) + "</div></div>";
         var side = l.speaker === first ? "left" : "right";
         return '<div class="msg ' + side + '"><div class="ava ' + (voice === "M" ? "m" : "f") + '">' + esc(l.speaker.charAt(0)) + '</div><div class="bubble"><div class="spk">' + esc(l.speaker) + "</div>" +
           '<div class="zh">' + linkWords(l.zh) + "</div>" + PY(l.py) + '<div class="tr">' + M(l) + '</div><div class="b-say">' + SAY(l.zh, voice) + "</div></div></div>";

@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -452,6 +452,7 @@
     else if (v === "me" || v === "settings") viewMe();
     else if (v === "reports") viewReports();
     else if (v === "fixes") viewFixes();
+    else if (v === "learners") viewLearners(parts[1], parts[2]);
     else if (v === "track") viewTrack(parseInt(parts[1], 10) || 0, parseInt(parts[2], 10) || 0);
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "plan") viewPlan();
@@ -466,7 +467,7 @@
     }
     else viewHome();
     fillExtras();
-    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
+    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] || "C&B 中文";
     document.getElementById("page-title").textContent = title;
@@ -1670,6 +1671,7 @@
       '<p class="sub">About ' + suggestCore() + " lessons fit before your exam at 5 a week. The rest are planned for after it.</p>" +
       row("Problem reports", '<a class="btn small" href="#/reports">' + (s.reports || []).length + " saved</a>") +
       (window.AI && AI.configured() ? row("Content review", '<a class="btn small" href="#/fixes">Open</a>') : "") +
+      (window.AI && AI.configured() ? row("Learner tracking", '<a class="btn small" href="#/learners">Open</a>') : "") +
       row("App guide", '<button class="btn small" id="s-guide">Show again</button>') +
       row("Test voice", '<button class="btn small" id="s-test">🔊 Play</button>') + "</section>" +
       '<details class="more"><summary><span>AI, reminder, backup and data</span></summary>' +
@@ -1854,11 +1856,10 @@
     }
     var tabs = [["proposed", "Proposed"], ["needs_review", "Needs a look"], ["dismissed", "AI disagreed"], ["accepted", "Accepted"], ["learners", "👥 Learners"]];
     render(html0 + '<div id="fx-svc"></div><div class="fx-tabs">' + tabs.map(function (t) { return '<button class="btn small' + (t[0] === FIX_TAB ? " primary" : "") + '" data-fxtab="' + t[0] + '">' + t[1] + "</button>"; }).join("") + '</div><div id="fx-list"><p class="empty">Loading…</p></div><div class="actions"><button class="btn small" id="fx-forget">Forget reviewer code</button></div></section>', "me");
-    [].forEach.call(document.querySelectorAll("[data-fxtab]"), function (b) { b.onclick = function () { FIX_TAB = b.getAttribute("data-fxtab"); viewFixes(); }; });
+    [].forEach.call(document.querySelectorAll("[data-fxtab]"), function (b) { b.onclick = function () { var t = b.getAttribute("data-fxtab"); if (t === "learners") { location.hash = "#/learners"; return; } FIX_TAB = t; viewFixes(); }; });
     document.getElementById("fx-forget").onclick = function () { Content.setAdminCode(""); viewFixes(); };
     var list = document.getElementById("fx-list");
     serviceBlock(document.getElementById("fx-svc"));
-    if (FIX_TAB === "learners") { learnersList(list); return; }
     Content.admin("review_list", { status: FIX_TAB }).then(function (r) {
       if (!r.ok) { list.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(r.error)) + "</div>"; if (r.error === "bad_admin") { Content.setAdminCode(""); viewFixes(AI.errMsg("bad_admin")); } return; }
       var rows = r.result.rows || [];
@@ -1884,52 +1885,167 @@
       host.innerHTML = '<div class="fix svc" id="svc"><div class="sec-h"><b>Service</b><span class="muted">now</span></div>' + out + "</div>";
     });
   }
-  /* Admin: one card per phone that keeps a cloud backup. Numbers only; the server never sends the full progress here. */
+  /* ---------- Admin: learner tracking (Me → Learner tracking). Numbers only: the server never sends answers or notes. ----------
+     Reads the study summary each phone saves with its backup (see studySummary0). Older apps send less, so every block checks what it has. */
   function agoText(iso) {
     var ms = Date.now() - new Date(iso).getTime(); if (!isFinite(ms)) return "unknown";
     var h = Math.floor(ms / 36e5); return h < 1 ? "less than an hour ago" : h < 24 ? h + " h ago" : Math.floor(h / 24) + " d ago";
   }
-  function learnerCard(r, i) {
-    var m = r.meta || {}, sm = r.summary, name = m.label || "Learner " + String(r.id).slice(0, 6), out = "";
-    function hr(x) { return typeof x === "number" ? (x < 10 ? "0" : "") + x + ":00" : "not measured yet"; }
-    if (sm) {
-      var pg = sm.progress;
-      if (pg) {
-        out += '<h3 class="lrn-h">Progress</h3><p class="sub">Lessons <b>' + (pg.lessons || 0) + "/" + (pg.lessonsAll || 90) + "</b> · track sessions <b>" + (pg.track || 0) + "/" + (pg.trackAll || 72) + "</b> · " + (pg.due || 0) + " words due" + (pg.exam ? " · exam " + esc(pg.exam) : "") + "</p>" +
-          (pg.hsk5 ? '<p class="sub lrn-h5">HSK 5: ' + (pg.hsk5.started || pg.hsk5.words || pg.hsk5.grammar ? "<b>" + (pg.hsk5.started || 0) + "/" + (pg.hsk5.packs || 62) + "</b> packs started, <b>" + (pg.hsk5.done || 0) + "</b> finished · " + (pg.hsk5.words || 0) + " words in review · " + (pg.hsk5.grammar || 0) + " grammar points mastered" : "not started") + "</p>" : "") +
-          (pg.ready ? '<p class="sub">Readiness: <b>' + esc(pg.ready.verdict || "") + "</b>, about " + (pg.ready.total || 0) + "/300 (" + (pg.ready.lo || 0) + "–" + (pg.ready.hi || 0) + ", from " + (pg.ready.src === "mock" ? "mock exams" : "practice answers") + ")</p>" : '<p class="sub">Readiness: not enough answers yet.</p>') +
-          ((pg.mocks || []).length ? '<p class="sub">Last mocks: ' + pg.mocks.map(function (x) { return esc(String(x.d).slice(5)) + " <b>" + (x.t || 0) + "</b> (L" + (x.l || 0) + " R" + (x.r || 0) + " W" + (x.w || 0) + ")"; }).join(" · ") + "</p>" : '<p class="sub">No mock exam taken yet.</p>');
-      }
-      out += '<h3 class="lrn-h">Habit</h3>';
-      if (/^[01]{28}$/.test(sm.days28 || "")) out += '<div class="lrn-days" role="img" aria-label="Study days, last 28 days, oldest first: ' + sm.days28.split("").map(function (c) { return c === "1" ? "yes" : "no"; }).join(", ") + '">' + sm.days28.split("").map(function (c, j) { return '<i class="' + (c === "1" ? "on" : "") + (j === 27 ? " today" : "") + '"></i>'; }).join("") + '</div><p class="sub lrn-cap">Last 28 days, today on the right</p>';
-      if (Array.isArray(sm.week) && sm.week.some(function (x) { return x > 0; })) out += '<p class="sub">Minutes, last 7 days: ' + sm.week.map(function (x, j) { return j === 6 ? "<b>" + (+x || 0) + "</b>" : (+x || 0); }).join(" · ") + "</p>";
-      var hk = Object.keys(sm.hours || {}).sort(function (a, b) { return sm.hours[b] - sm.hours[a]; }).slice(0, 3);
-      if (hk.length) out += '<p class="sub">Starts studying at: ' + hk.map(function (h) { return hr(+h) + " (" + (+sm.hours[h] || 0) + " d)"; }).join(" · ") + "</p>";
-      out += '<p class="sub">Study days: <b>' + (sm.active28 || 0) + "</b> of the last " + (sm.span || 0) + " · longest gap " + (sm.longestGap || 0) + " d" + (sm.skipDay ? " · often skips " + esc(sm.skipDay) : "") + " · goal " + (sm.goalDays || 0) + " days a week</p>" +
-        '<p class="sub">Usually starts at ' + hr(sm.usualHour) + " (plan " + hr(sm.planHour) + ") · " + (sm.minutes == null ? "minutes not measured yet" : sm.minutes + " min per study day") + "</p>";
-      out += '<h3 class="lrn-h">Skills and plan</h3>';
-      if ((sm.trend || []).length) out += '<p class="sub">Weakest skills, last 14 days: ' + sm.trend.slice(0, 3).map(function (t) { return esc(t.skill) + " <b>" + t.acc + "%</b>" + (t.before == null ? "" : " (was " + t.before + "%)"); }).join(" · ") + "</p>";
-      if ((sm.patterns || []).length) out += '<p class="sub">Mistake patterns: ' + sm.patterns.map(function (p) { return (p.kind === "skill" ? esc(p.skill) : "same items missed again") + " ×" + p.n; }).join(" · ") + "</p>";
-      if (sm.plan && (sm.plan.actions || []).length) out += '<p class="sub">Coach\'s plan (week of ' + esc(sm.plan.w) + "): " + sm.plan.actions.filter(function (a) { return a.done; }).length + "/" + sm.plan.actions.length + ' done</p><ul class="plan-l">' +
-        sm.plan.actions.map(function (a) { return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">Done: </span>' : "") + esc(a.text) + "</span></li>"; }).join("") + "</ul>";
-      else out += '<p class="sub">No coach plan yet.</p>';
-    } else out = '<p class="sub">No study summary yet (this phone has an older app version).</p>';
-    return '<div class="fix lrn"><div class="sec-h"><b>' + esc(name) + '</b><span class="muted">saved ' + esc(agoText(r.updated_at)) + '</span></div><p class="sub"><b>' + (m.xp || 0) + " XP</b> · streak " + (m.streak || 0) + " · " + (m.words || 0) + " words · last study " + esc(m.last || "never") + "</p>" + out +
-      '<div class="actions"><button class="btn small" data-lrn="' + i + '">Rename</button></div></div>';
+  var DAYRE = /^\d{4}-\d{2}-\d{2}$/;
+  function lrnName(r) { var m = r.meta || {}; return m.label || "Learner " + String(r.id).slice(0, 6); }
+  function lrnKey(r) { return String(r.id).slice(0, 8); }
+  function lrnDay(iso) { var d = new Date(iso); if (!isFinite(d.getTime())) return Store.today(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function lrnIdle(r) { var l = (r.meta || {}).last; return DAYRE.test(l || "") ? Math.max(0, Store.daysBetween(l, Store.today())) : null; }
+  function lrnAlerts(r) {
+    var out = [], sm = r.summary || {}, d = lrnIdle(r), st = sm.streak, vo = sm.vocab, up = Math.floor((Date.now() - new Date(r.updated_at).getTime()) / 864e5);
+    if (d != null && d >= 3) out.push({ k: "No study", t: "Nothing for " + d + " days · last " + String(r.meta.last).slice(5), hot: true });
+    else if (st && st.n === 0 && st.best >= 3 && d != null && d >= 1) out.push({ k: "Streak", t: "Streak broken · best was " + num(st.best) + " days", hot: false });
+    if (vo && num(vo.overdue) >= 100) out.push({ k: "Reviews", t: num(vo.overdue) + " words waiting more than 3 days", hot: false });
+    if (isFinite(up) && up >= 3) out.push({ k: "Backup", t: "Last saved " + up + " days ago, so these numbers may be old", hot: false });
+    return out;
   }
-  function learnersList(list) {
-    Content.admin("learners_list", {}).then(function (r) {
-      if (!r.ok) { list.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(r.error)) + "</div>"; if (r.error === "bad_admin") { Content.setAdminCode(""); viewFixes(AI.errMsg("bad_admin")); } return; }
-      var rows = r.result.rows || [];
-      if (!rows.length) { list.innerHTML = '<p class="empty">No phone has saved a backup yet.</p>'; return; }
-      list.innerHTML = '<p class="sub">' + rows.length + " phone" + (rows.length === 1 ? "" : "s") + " with a cloud backup. You see numbers only, never answers or notes.</p>" + rows.map(learnerCard).join("");
-      [].forEach.call(list.querySelectorAll("[data-lrn]"), function (b) {
-        b.onclick = function () {
-          var row = rows[+b.getAttribute("data-lrn")], v = window.prompt("Name for this learner (only you see it)", (row.meta || {}).label || "");
-          if (v == null) return;
-          Content.admin("learner_label", { id: row.id, label: v.trim().slice(0, 30) }).then(function (x) { if (x.ok) learnersList(list); else UI.toast(AI.errMsg(x.error), "⚠️"); });
-        };
-      });
+  function lrnStatus(r) {
+    var sm = r.summary; if (!sm) return { t: "No data yet", c: "" };
+    var d = lrnIdle(r), p = sm.pace;
+    return (d != null && d >= 3) || (p && num(p.exp) - num(p.done) >= 2) ? { t: "Behind plan", c: "lt-late" } : { t: "On track", c: "lt-ok" };
+  }
+  function lrnDays(str, label) {
+    if (!/^[01]{28}$/.test(str || "")) return "";
+    return '<div class="lrn-days" role="img" aria-label="' + esc(label || "Study days, last 28 days, oldest first") + ": " + str.split("").map(function (c) { return c === "1" ? "yes" : "no"; }).join(", ") + '">' +
+      str.split("").map(function (c, i) { return '<i class="' + (c === "1" ? "on" : "") + (i === 27 ? " today" : "") + '"></i>'; }).join("") + "</div>";
+  }
+  function lrnTrend(sm) { // readiness change between the last two weekly snapshots
+    var t = (sm && sm.trk) || [], a = t[t.length - 2], b = t[t.length - 1];
+    return a && b && a[1] != null && b[1] != null ? num(b[1]) - num(a[1]) : null;
+  }
+  function lrnOverview(rows) {
+    var soon = null, html = "";
+    rows.forEach(function (r) {
+      var e = r.summary && r.summary.progress && r.summary.progress.exam;
+      if (DAYRE.test(e || "")) { var dl = Store.daysBetween(Store.today(), e); if (dl >= 0 && (!soon || dl < soon.dl)) soon = { dl: dl, d: e }; }
+    });
+    html += soon ? '<section class="card lt-exam"><small>HSK exam in</small><b>' + soon.dl + " days</b><span>" + esc(soon.d) + "</span></section>" : "";
+    var al = [];
+    rows.forEach(function (r) { lrnAlerts(r).forEach(function (a) { al.push({ r: r, a: a }); }); });
+    html += '<h3 class="sec">Needs attention</h3>' + (al.length ? al.map(function (x) {
+      return '<a class="card lt-al" href="#/learners/' + lrnKey(x.r) + '/habit"><span class="lt-badge' + (x.a.hot ? " hot" : "") + '">' + esc(x.a.k) + '</span><span class="lt-al-t"><b>' + esc(lrnName(x.r)) + "</b><small>" + esc(x.a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>';
+    }).join("") : '<p class="card sub">✓ Nothing needs attention.</p>');
+    html += '<h3 class="sec">Learners</h3>' + rows.map(function (r) {
+      var sm = r.summary || {}, pg = sm.progress || {}, rd = pg.ready, st = lrnStatus(r), tr = lrnTrend(sm), idle = lrnIdle(r), pl = sm.pace;
+      return '<a class="card lt-card" href="#/learners/' + lrnKey(r) + '/progress"><div class="lt-row"><b>' + esc(lrnName(r)) + '</b><span class="lt-chip ' + st.c + '">' + esc(st.t) + "</span></div>" +
+        '<div class="lt-row lt-end"><div><small>Readiness</small><div class="lt-big">' + (rd ? num(rd.total) : "–") + "<small> / 300</small></div></div>" +
+        (tr != null ? '<b class="' + (tr >= 0 ? "ok-text" : "bad-t") + '">' + (tr >= 0 ? "+" : "−") + Math.abs(tr) + " vs last week</b>" : "") + "</div>" +
+        '<p class="lt-meta">Streak <b>' + num((sm.streak || {}).n != null ? sm.streak.n : (r.meta || {}).streak) + ' d</b> · Last study <b>' + (idle == null ? "–" : idle === 0 ? "today" : idle + " d ago") + "</b> · Lessons <b>" + (pl ? num(pl.done) + "/" + num(pl.total) : num(pg.lessons) + "/" + num(pg.lessonsAll || 90)) + "</b></p>" +
+        lrnDays(sm.days28, "Study days, last 28 days, oldest first") + "</a>";
+    }).join("");
+    return html;
+  }
+  /* a bar with an optional tick for where the learner should be today */
+  function lrnBar(label, done, all, exp, unit) {
+    done = num(done); all = Math.max(1, num(all));
+    var gap = exp == null ? "" : num(exp) - done > 0 ? (num(exp) - done) + " " + unit + " behind" : done - num(exp) > 0 ? (done - num(exp)) + " " + unit + " ahead" : "on pace";
+    return '<div class="lt-pace"><div class="lt-row"><span>' + esc(label) + "</span><span><b>" + done + "/" + all + "</b>" + (gap ? " · " + gap : "") + '</span></div><div class="lt-track"><i class="' + (exp != null && num(exp) - done > 0 ? "late" : "") + '" style="width:' + Math.min(100, done / all * 100) + '%"></i>' +
+      (exp != null ? '<u style="left:calc(' + Math.min(100, num(exp) / all * 100) + '% - 1px)"></u>' : "") + "</div></div>";
+  }
+  function lrnProgress(r) {
+    var sm = r.summary, pg = sm.progress || {}, rd = pg.ready, html = "", tr = sm.trk || [], pl = sm.pace;
+    if (rd) {
+      var pts = tr.filter(function (e) { return e[1] != null; }).map(function (e) { return { x: String(e[0]).slice(3), y: num(e[1]) }; });
+      html += '<section class="card"><div class="lt-row"><b>Readiness</b><span class="lt-chip ' + (num(rd.lo) >= PASS ? "lt-ok" : num(rd.hi) < PASS ? "lt-late" : "") + '">' + esc(rd.verdict || "") + '</span></div><div class="lt-big">' + num(rd.total) + "<small> / 300 · range " + num(rd.lo) + "–" + num(rd.hi) + "</small></div>" +
+        (pts.length >= 2 ? lineChart(pts, { min: 100, max: 300, ref: PASS, refLabel: "pass " + PASS, h: 160 }) : '<p class="sub">The weekly line starts once there are two weeks of data.</p>') +
+        '<p class="sub">Estimate from ' + (rd.src === "mock" ? "mock exams" : "practice answers") + ". Dashed line = pass mark " + PASS + ".</p></section>";
+    } else html += '<section class="card"><b>Readiness</b><p class="sub">Not enough answers yet.</p></section>';
+    var ws = lrnDay(r.updated_at), xs = (sm.xpw || []).map(function (v, i, a) { return { x: Store.addDays(ws, -((new Date(ws + "T00:00:00").getDay() + 6) % 7) - 7 * (a.length - 1 - i)).slice(5), y: num(v) }; });
+    html += '<section class="card"><b>XP per week</b>' + (xs.length ? '<div class="lt-big">' + xs[xs.length - 1].y + "<small> this week</small></div>" + barChart(xs, { h: 130 }) : '<p class="sub">No data yet.</p>') + "</section>";
+    var wp = tr.filter(function (e) { return e[2] != null; }).map(function (e) { return { x: String(e[0]).slice(3), y: num(e[2]) }; });
+    html += '<section class="card"><b>Words that stuck</b><p class="sub">Words in the last two review boxes.</p>' + (wp.length >= 2 ? '<div class="lt-big">' + wp[wp.length - 1].y + "</div>" + lineChart(wp, { min: 0, h: 140 }) : '<div class="lt-big">' + (sm.vocab ? num(sm.vocab.mastered) : "–") + '</div><p class="sub">The weekly line starts once there are two weeks of data.</p>') + "</section>";
+    html += '<section class="card"><div class="lt-row"><b>Pace to the exam</b><small>tick = where they should be today</small></div>' +
+      (pl ? lrnBar("Lessons before the exam", pl.done, pl.total, pl.exp, "lessons") : lrnBar("Lessons", pg.lessons, pg.lessonsAll || 90, null, "")) +
+      lrnBar("24-week track sessions", pg.track, pg.trackAll || 72, null, "") +
+      (pg.hsk5 && (pg.hsk5.started || pg.hsk5.words) ? lrnBar("HSK 5 packs started", pg.hsk5.started, pg.hsk5.packs || 62, null, "") : "") + "</section>";
+    var ms = pg.mocks || [];
+    html += '<section class="card"><div class="lt-row"><b>Mock exams</b><small>each part out of 100</small></div>' + (ms.length ?
+      '<table class="lt-tab"><thead><tr><th>Date</th><th>Listen</th><th>Read</th><th>Write</th><th>Total</th></tr></thead><tbody>' + ms.map(function (m) { return "<tr><td>" + esc(String(m.d).slice(5)) + "</td><td>" + num(m.l) + "</td><td>" + num(m.r) + "</td><td>" + num(m.w) + "</td><td><b>" + num(m.t) + "</b></td></tr>"; }).join("") + "</tbody></table>" +
+      (ms.length >= 2 ? (function () {
+        var a = ms[0], b = ms[ms.length - 1], d = { Listening: num(b.l) - num(a.l), Reading: num(b.r) - num(a.r), Writing: num(b.w) - num(a.w) };
+        return '<p class="sub">Since the first mock shown: ' + Object.keys(d).map(function (k) { return k + " " + (d[k] >= 0 ? "+" : "−") + Math.abs(d[k]); }).join(" · ") + "</p>";
+      })() : "") : '<p class="sub">No mock exam taken yet.</p>') + "</section>";
+    return html;
+  }
+  function lrnPractice(r) {
+    var sm = r.summary, pg = sm.progress || {}, vo = sm.vocab, tk = sm.talk, html = "";
+    if (vo) {
+      var all = Math.max(1, num(vo.all), num(vo.mastered) + num(vo.learning)), m = num(vo.mastered), l = num(vo.learning);
+      html += '<section class="card"><div class="lt-row"><b>Vocabulary</b><small>' + all + " words in the course</small></div>" +
+        '<div class="lt-stack" role="img" aria-label="' + m + " mastered, " + l + " learning, " + Math.max(0, all - m - l) + ' not started"><i style="width:' + m / all * 100 + '%"></i><i class="b" style="width:' + l / all * 100 + '%"></i></div>' +
+        '<p class="lt-meta"><b>' + m + "</b> mastered · <b>" + l + "</b> learning · <b>" + Math.max(0, all - m - l) + "</b> not started</p>" +
+        '<div class="lt-boxes"><div><b>' + num(pg.due) + "</b><small>due now</small></div><div class=" + (num(vo.overdue) >= 100 ? '"hot"' : '""') + "><b>" + num(vo.overdue) + "</b><small>waiting over 3 days</small></div></div>" +
+        '<p class="sub">A growing pile of old reviews means reviews are being skipped.</p></section>';
+    }
+    if (tk) {
+      var ws = lrnDay(r.updated_at), wk = (tk.wk || []).map(function (v, i, a) { return { x: Store.addDays(ws, -((new Date(ws + "T00:00:00").getDay() + 6) % 7) - 7 * (a.length - 1 - i)).slice(5), y: num(v) }; });
+      var sc = null; (window.CB_TALK || []).forEach(function (x) { if (tk.last && x.id === tk.last.id) sc = x; });
+      html += '<section class="card"><div class="lt-row"><b>AI role-play</b><span class="lt-chip">Level HSK ' + (num(tk.lvl) === 5 ? 5 : 4) + "</span></div>" +
+        '<div class="lt-boxes"><div><b>' + (wk.length ? wk[wk.length - 1].y : 0) + "</b><small>talks this week</small></div><div><b>" + (tk.avg == null ? "–" : tk.avg) + "</b><small>average score /10</small></div><div><b>" + num(tk.tried) + "/" + num(tk.all || 16) + "</b><small>scenes tried</small></div></div>" +
+        (wk.length ? '<p class="sub">Talks per week</p>' + barChart(wk, { h: 110 }) : "") +
+        (tk.last ? '<p class="lt-meta">Last talk: <b>' + esc(sc ? sc.t.en : tk.last.id) + "</b>" + (tk.last.s != null ? " · " + num(tk.last.s) + "/10" : "") + " · " + esc(String(tk.last.d).slice(5)) + "</p>" : '<p class="sub">No role-play finished yet.</p>') + "</section>";
+    } else html += '<section class="card"><b>AI role-play</b><p class="sub">This phone has an older app version, so there are no role-play numbers.</p></section>';
+    var tr = sm.trend || [];
+    html += '<section class="card"><div class="lt-row"><b>Skill accuracy</b><small>last 14 days · weakest first</small></div>' + (tr.length ? tr.slice(0, 6).map(function (t) {
+      var d = t.before == null ? null : num(t.acc) - num(t.before);
+      return '<div class="lt-pace"><div class="lt-row"><span>' + esc(t.skill) + "</span><span><b>" + num(t.acc) + "%</b>" + (d == null ? "" : " · " + (d >= 0 ? "+" : "−") + Math.abs(d) + " pts") + '</span></div><div class="lt-track"><i class="' + (num(t.acc) < 60 ? "late" : "") + '" style="width:' + Math.min(100, num(t.acc)) + '%"></i></div></div>';
+    }).join("") : '<p class="sub">Not enough answers in the last 14 days.</p>') +
+      ((sm.patterns || []).length ? '<p class="sub">Mistake patterns: ' + sm.patterns.map(function (p) { return (p.kind === "skill" ? esc(p.skill) : "same items missed again") + " ×" + num(p.n); }).join(" · ") + "</p>" : "") + "</section>";
+    return html;
+  }
+  function lrnHabit(r) {
+    var sm = r.summary, html = "", end = lrnDay(r.updated_at), ds = sm.days28 || "", i;
+    if (/^[01]{28}$/.test(ds)) {
+      var first = Store.addDays(end, -27), lead = (new Date(first + "T00:00:00").getDay() + 6) % 7, cells = "";
+      for (i = 0; i < lead; i++) cells += "<i></i>";
+      for (i = 0; i < 28; i++) cells += '<i class="d' + (ds.charAt(i) === "1" ? " on" : "") + (i === 27 ? " today" : "") + '">' + Number(Store.addDays(first, i).slice(8)) + "</i>";
+      html += '<section class="card"><div class="lt-row"><b>Last 28 days</b><span><b>' + num(sm.active28) + "</b> study days of " + num(sm.span) + '</span></div><div class="lt-wd"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>' +
+        '<div class="lt-cal" role="img" aria-label="Study days, last 28 days, oldest first: ' + ds.split("").map(function (c) { return c === "1" ? "yes" : "no"; }).join(", ") + '">' + cells + '</div><p class="sub">Filled = studied · outline = missed · ring = last backup day</p></section>';
+    }
+    var wk = (sm.week || []).map(function (v, k, a) { var dd = Store.addDays(end, -(a.length - 1 - k)); return { x: WD[(new Date(dd + "T00:00:00").getDay() + 6) % 7], y: num(v) }; });
+    if (wk.some(function (x) { return x.y > 0; })) html += '<section class="card"><div class="lt-row"><b>Minutes, last 7 days</b><span>avg <b>' + Math.round(wk.reduce(function (a, x) { return a + x.y; }, 0) / wk.length) + "</b> min</span></div>" + barChart(wk, { h: 120 }) + "</section>";
+    var hk = Object.keys(sm.hours || {}).sort(function (a, b) { return sm.hours[b] - sm.hours[a]; }).slice(0, 3);
+    function hr(x) { return typeof x === "number" && isFinite(x) ? (x < 10 ? "0" : "") + x + ":00" : "not measured yet"; }
+    var rows = [["Usually starts at", hr(sm.usualHour) + (isFinite(sm.planHour) ? " (plan " + hr(sm.planHour) + ")" : "")],
+      ["Common start times", hk.length ? hk.map(function (h) { return hr(+h); }).join(" · ") : "not measured yet"], ["Minutes on a study day", sm.minutes == null ? "not measured yet" : sm.minutes + " min"],
+      ["Longest gap", num(sm.longestGap) + (num(sm.longestGap) === 1 ? " day" : " days")], ["Often skips", sm.skipDay || "no pattern"], ["Streak", num((sm.streak || {}).n) + (num((sm.streak || {}).n) === 1 ? " day" : " days") + " (best " + num((sm.streak || {}).best) + ")"]];
+    html += '<section class="card"><b>Rhythm</b>' + rows.map(function (x) { return '<div class="lt-kv"><span>' + esc(x[0]) + "</span><b>" + esc(x[1]) + "</b></div>"; }).join("") + "</section>";
+    var pl = sm.plan;
+    html += '<section class="card"><div class="lt-row"><b>Coach plan' + (pl ? " · week of " + esc(pl.w) : "") + "</b>" + (pl ? "<span><b>" + pl.actions.filter(function (a) { return a.done; }).length + "</b>/" + pl.actions.length + " done</span>" : "") + "</div>" +
+      (pl && pl.actions.length ? '<ul class="plan-l">' + pl.actions.map(function (a) { return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">Done: </span>' : '<span class="sr">Open: </span>') + esc(a.text) + "</span></li>"; }).join("") + "</ul>" : '<p class="sub">No coach plan yet.</p>') + "</section>";
+    return html;
+  }
+  var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"]];
+  function viewLearners(key, sec) {
+    var head = '<section class="card"><a class="pill" href="#/me">‹ Me</a><h2>👥 Learner tracking</h2><p class="sub">Numbers only, never answers or notes. Each phone sends them with its cloud backup.</p></section>';
+    if (!window.AI || !AI.configured()) { render(head + '<p class="empty">Turn on the AI assistant first (Me → AI assistant).</p>', "me"); return; }
+    if (!Content.adminCode()) {
+      render(head + '<section class="card"><label for="fx-code">Reviewer code</label><input id="fx-code" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" placeholder="ADMIN_CODE"><div class="actions"><button class="btn small primary" id="fx-save">Save on this phone</button></div><p class="sub" id="fx-msg"></p></section>', "me");
+      document.getElementById("fx-save").onclick = function () { var v = document.getElementById("fx-code").value.trim(); if (v.length < 12) { document.getElementById("fx-msg").textContent = "At least 12 characters."; return; } Content.setAdminCode(v); viewLearners(key, sec); };
+      return;
+    }
+    render(head + '<div id="lt-body"><p class="sub">Loading…</p></div>', "me");
+    Content.admin("learners_list", {}).then(function (res) {
+      var host = document.getElementById("lt-body"); if (!host) return;
+      if (!res.ok) { host.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + "</div>"; if (res.error === "bad_admin") { Content.setAdminCode(""); viewLearners(key, sec); } return; }
+      var rows = res.result.rows || [], cur = null;
+      if (!rows.length) { host.innerHTML = '<p class="empty">No phone has saved a backup yet.</p>'; return; }
+      rows.forEach(function (r) { if (key && lrnKey(r) === key) cur = r; });
+      var seg = '<nav class="seg" aria-label="Learner tracking views"><a href="#/learners"' + (cur ? "" : ' class="active" aria-current="page"') + '>Overview</a><a href="#/learners/' + lrnKey(cur || rows[0]) + '/progress"' + (cur ? ' class="active" aria-current="page"' : "") + ">Learner</a></nav>";
+      if (!cur) { host.innerHTML = seg + lrnOverview(rows); return; }
+      var chips = '<div class="lt-chips">' + rows.map(function (r) { return '<a class="lt-pick' + (r === cur ? " on" : "") + '" href="#/learners/' + lrnKey(r) + "/" + (sec || "progress") + '"' + (r === cur ? ' aria-current="page"' : "") + ">" + esc(lrnName(r)) + "</a>"; }).join("") + "</div>";
+      var tabs = '<nav class="seg seg3" aria-label="Sections">' + LRN_SECS.map(function (t) { return '<a href="#/learners/' + lrnKey(cur) + "/" + t[0] + '"' + (t[0] === (sec || "progress") ? ' class="active" aria-current="page"' : "") + ">" + t[1] + "</a>"; }).join("") + "</nav>";
+      var body = !cur.summary ? '<p class="card sub">No study summary yet (this phone has an older app version).</p>' : sec === "practice" ? lrnPractice(cur) : sec === "habit" ? lrnHabit(cur) : lrnProgress(cur);
+      host.innerHTML = seg + chips + tabs + '<p class="sub lt-saved">' + esc(lrnName(cur)) + " · saved " + esc(agoText(cur.updated_at)) + ' · <button class="btn small" id="lt-ren">Rename</button></p>' + body;
+      document.getElementById("lt-ren").onclick = function () {
+        var v = window.prompt("Name for this learner (only you see it)", (cur.meta || {}).label || ""); if (v == null) return;
+        Content.admin("learner_label", { id: cur.id, label: v.trim().slice(0, 30) }).then(function (x) { if (x.ok) viewLearners(key, sec); else UI.toast(AI.errMsg(x.error), "⚠️"); });
+      };
     });
   }
   function fixCard(r) {
@@ -3105,6 +3221,17 @@
     if (!lastTick || gap > 10 * 60000) { e.s++; e.m += 1; } else e.m += gap / 60000; // a pause over 10 minutes starts a new session
     e.m = Math.round(e.m * 10) / 10; lastTick = now;
     var old = Store.addDays(t, -56); Object.keys(L).forEach(function (d) { if (d < old) delete L[d]; });
+    Store.save(); try { trackWeek(); } catch (x) { /* never block a reward */ }
+  }
+  /* One snapshot a week for the teacher's charts: readiness, words that stuck, words in review. The current week is overwritten each time. */
+  function trackWeek() {
+    var s = Store.state, w = weekStart(Store.today()), L = s.trk || (s.trk = []), r = null, m = 0, c = 0;
+    try { var rd = readiness(); r = rd ? rd.total : null; } catch (e) { r = null; }
+    Object.keys(s.srs).forEach(function (id) { c++; if (s.srs[id].box >= 4) m++; });
+    if (!c) return;
+    var e = L.length ? L[L.length - 1] : null;
+    if (e && e.w === w) { if (e.r === r && e.m === m && e.c === c) return; e.r = r; e.m = m; e.c = c; }
+    else { L.push({ w: w, r: r, m: m, c: c }); if (L.length > 12) L.splice(0, L.length - 12); }
     Store.save();
   }
   /* HSK 5 in numbers, worked out from saved progress alone (ids h5-0001.. sit 20 to a pack), so it needs no HSK 5 data loaded */
@@ -3123,9 +3250,9 @@
     return '<a class="trackrow toolrow" id="h5-row" href="' + (next ? "#/pack/h5/" + next : "#/learn/h5") + '"><span class="t-ico">📗</span><span class="tr-t"><small>HSK 5 · ' + p.done + "/" + p.packs + " packs finished · " + p.words + " words in review</small><b>" +
       (next ? "Continue with pack " + next : "All packs finished") + '</b></span><span class="tr-go">›</span></a>';
   }
-  /* The server keeps a summary of at most 4,000 characters (a longer one is stored as nothing). Make it fit:
+  /* The server keeps a summary of at most 8,000 characters (a longer one is stored as nothing). Make it fit:
      shorten the plan texts first, then drop the less important lists. */
-  var SUMMARY_MAX = 3800;
+  var SUMMARY_MAX = 7500;
   function fitSummary(o) {
     var len = function () { return JSON.stringify(o).length; }, cuts = [120, 60, 20], i;
     for (i = 0; i < cuts.length && len() > SUMMARY_MAX; i++) if (o.plan && o.plan.actions) o.plan.actions.forEach(function (a) { a.text = String(a.text || "").slice(0, cuts[i]); });
@@ -3133,6 +3260,8 @@
     if (len() > SUMMARY_MAX) o.hours = {};
     if (len() > SUMMARY_MAX) o.patterns = [];
     if (len() > SUMMARY_MAX && o.trend) o.trend = o.trend.slice(0, 3);
+    if (len() > SUMMARY_MAX && o.trk) o.trk = o.trk.slice(-6);
+    if (len() > SUMMARY_MAX) o.xpw = [];
     return o;
   }
   function studySummary() { return fitSummary(studySummary0()); }
@@ -3163,10 +3292,24 @@
       week: (function () { var o = []; for (var j = 6; j >= 0; j--) { var e = L[Store.addDays(t, -j)]; o.push(e ? Math.round(e.m) : 0); } return o; })(), // minutes per day, today last
       progress: (function () {
         var r = null, due = 0; try { r = readiness(); due = SRS.dueIds(WORDMAP).length; } catch (e) { /* content not loaded yet */ }
-        var ms = byDate(s.mockHistory || []).slice(-3).map(function (h) { return { d: h.date, t: h.total, l: h.sections.listening, r: h.sections.reading, w: h.sections.writing }; });
+        var ms = byDate(s.mockHistory || []).slice(-5).map(function (h) { return { d: h.date, t: h.total, l: h.sections.listening, r: h.sections.reading, w: h.sections.writing }; });
         return { hsk5: h5Progress(), lessons: Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length, lessonsAll: DAYS.length, track: Object.keys(s.track || {}).filter(function (k) { return s.track[k]; }).length, trackAll: 72,
           due: due, ready: r ? { total: r.total, lo: r.lo, hi: r.hi, verdict: r.verdict[1], src: r.src } : null, mocks: ms, exam: s.settings.examDate || "", goal: s.settings.dailyGoal || 30 };
       })(),
+      streak: { n: Store.streak(), best: (s.streak && s.streak.best) || 0 },
+      xpw: (function () { var o = [], ws = weekStart(t); for (var j = 7; j >= 0; j--) { var a = Store.addDays(ws, -7 * j), sum = 0; for (var k = 0; k < 7; k++) sum += s.log[Store.addDays(a, k)] || 0; o.push(sum); } return o; })(), // XP per week, this week last
+      trk: (s.trk || []).slice(-8).map(function (e) { return [e.w.slice(2), e.r, e.m, e.c]; }), // [week start (yy-mm-dd), readiness, words in box 4-5, words in review]
+      vocab: (function () {
+        var m = 0, l = 0, od = 0, cut = Store.addDays(t, -3); Object.keys(s.srs).forEach(function (id) { var c = s.srs[id]; if (c.box >= 4) m++; else l++; if (c.due <= cut) od++; });
+        return { mastered: m, learning: l, all: Object.keys(WORDMAP).length, overdue: od };
+      })(),
+      talk: (function () {
+        var tl = s.talkLog || [], ws = weekStart(t), wk = [0, 0, 0, 0, 0, 0, 0, 0], sc = {}, rec = tl.filter(function (e) { return e.s != null; }).slice(-10), last = tl.length ? tl[tl.length - 1] : null;
+        tl.forEach(function (e) { sc[e.id] = 1; var i = 7 - Math.floor(Store.daysBetween(weekStart(e.d), ws) / 7); if (i >= 0 && i < 8) wk[i]++; });
+        return { wk: wk, avg: rec.length ? Math.round(rec.reduce(function (a, e) { return a + e.s; }, 0) / rec.length * 10) / 10 : null, tried: Object.keys(sc).length, all: (window.CB_TALK || []).length,
+          lvl: last ? last.l : 4, last: last ? { id: last.id, s: last.s, d: last.d } : null };
+      })(),
+      pace: (function () { try { var p = planInfo(); return { done: p.done, total: p.total, exp: p.expected, status: p.status }; } catch (e) { return null; } })(),
       plan: (function () { var c = coachLast(); return c ? { w: c.w, actions: coachStatus(c).map(function (a) { return { text: a.text.slice(0, 200), skill: AI.SKILL_NAMES[a.skill] || a.skill, done: a.done }; }) } : null; })() };
   }
 
@@ -3403,6 +3546,7 @@
     } else opening(sc.open);
     function finish(sm) {
       finished = true; var met = sm && sm.goal_met; Game.award(met ? 20 : 15); markWork();
+      try { var tl = Store.state.talkLog || (Store.state.talkLog = []); tl.push({ d: Store.today(), id: sc.id, s: sm && sm.score != null ? Math.max(0, Math.min(10, Math.round(sm.score))) : null, g: !!met, l: pr.level === "hsk5" ? 5 : 4 }); if (tl.length > 60) tl.splice(0, tl.length - 60); Store.save(); syncSoon(); } catch (e) { /* the log is only for the teacher's view */ }
       if (sm && sm.score != null && (pr.best[sc.id] == null || sm.score > pr.best[sc.id])) { pr.best[sc.id] = sm.score; saveTalkPrefs(pr); }
       log.insertAdjacentHTML("beforeend", '<div class="ai-card talk-end"><b>' + (sm ? (met ? "✅ Case solved" : "🟡 Case not fully solved") + " · " + sm.score + "/10" : "✅ Conversation done") + " · +" + (met ? 20 : 15) + " XP</b>" +
         (sm && sm.comment ? '<p class="ai-exp">' + esc(sm.comment) + "</p>" : "") +
@@ -3678,7 +3822,7 @@
       if (c.off) h = '<p class="sub">Off. Your progress is only on this phone.</p><div class="actions"><button class="btn primary small" id="y-on">Turn on</button><button class="btn small" id="y-code">Restore with a code</button></div>';
       else if (c.conflict) h = '<p class="warn">Another phone saved this backup on ' + esc(c.conflict.at ? new Date(c.conflict.at).toLocaleString() : "an unknown date") + " (" + (c.conflict.meta.xp || 0) + " XP). This phone has " + Store.state.xp + ' XP. Choose which one to keep; backup is paused until you do.</p><div class="actions"><button class="btn primary small" id="y-take">Use the cloud copy</button><button class="btn small" id="y-keep">Keep this phone</button></div>';
       else h = '<p class="sub">' + (c.code ? "On. " + (c.last ? "Last saved: " + esc(new Date(c.last).toLocaleString()) + "." : "Not saved yet.") : "On. The first backup is made after your first study session.") +
-        " A copy of your progress is saved on the app's server after you study. No account is needed.</p>" +
+        " A copy of your progress is saved on the app's server after you study. No account is needed. Your teacher can see progress numbers such as XP, streak, scores and study days, but never your answers or notes.</p>" +
         (c.err ? '<p class="warn">Last try failed: ' + esc(AI.errMsg(c.err)) + "</p>" : "") +
         (c.code ? '<p class="sub">Restore code: <b class="sync-code" id="y-show">' + esc(syncShow(c.code)) + "</b><br>Type it on a new phone to load your progress there. Keep it private: anyone with the code can open your backup.</p>" : "") +
         '<div class="actions">' + (c.code ? '<button class="btn primary small" id="y-up">☁️ Back up now</button>' : "") + '<button class="btn small" id="y-code">Restore with a code</button><button class="btn small" id="y-off">Turn off</button></div>';

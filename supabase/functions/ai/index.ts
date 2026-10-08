@@ -811,7 +811,7 @@ async function syncTask(task: string, body: any, req: Request, env: Record<strin
     const d = p.data;
     if (!d || typeof d !== "object" || Array.isArray(d) || !d.srs || typeof d.srs !== "object" || !d.settings || typeof d.settings !== "object") return reply(400, { ok: false, error: "bad_sync" }, h);
     const meta = cleanMeta(p.meta), now = new Date().toISOString();
-    let summary: unknown = null; try { const t = JSON.stringify(p.summary ?? null); if (t.length <= 4000 && p.summary && typeof p.summary === "object") summary = JSON.parse(t); } catch (_e) { summary = null; }
+    let summary: unknown = null; try { const t = JSON.stringify(p.summary ?? null); if (t.length <= 8000 && p.summary && typeof p.summary === "object") summary = JSON.parse(t); } catch (_e) { summary = null; }
     const rows = await deps.db("GET", where + "&select=rev,updated_at,meta&limit=1"), row = rows && rows[0];
     if (row && row.meta && typeof row.meta.label === "string") meta.label = row.meta.label.slice(0, 30); // the name the admin gave this learner survives every save
     if (!row) {

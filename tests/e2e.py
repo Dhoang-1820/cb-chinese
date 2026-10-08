@@ -492,6 +492,8 @@ async def t_talk(b):
     end = await pg.locator(".talk-end").inner_text()
     check("role-play: the case ends with a score, feedback, a phrase and 20 XP when solved", "8/10" in end and "按照规定" in end and await pg.evaluate("Store.state.xp") >= 20, end[:200])
     check("role-play: the best score is kept per scene", await pg.evaluate("JSON.parse(localStorage.getItem('cbChinese.talk')).best.overtime") == 8)
+    tl = await pg.evaluate("Store.state.talkLog")
+    check("role-play: a finished talk is logged for the teacher's view (scene, score, goal met, level)", len(tl) == 1 and tl[0]["id"] == "overtime" and tl[0]["s"] == 8 and tl[0]["g"] is True and tl[0]["l"] in (4, 5), tl)
     await ctx.close()
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})  # AI pointed at a dead address
     await go(pg, "#/talk/payslip", 1500)
@@ -513,15 +515,43 @@ async def t_sync(b):
     check("backup: Me shows the restore code in groups of four", shown.replace("-", "") == c["code"] and shown.count("-") == 3, shown)
     # the admin sees this phone, as numbers only
     await p1.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
-    await go(p1, "#/fixes", 500); await p1.click("[data-fxtab='learners']"); await p1.wait_for_selector(".lrn", timeout=10000)
-    card = await p1.locator(".lrn").first.inner_text()
-    check("admin: the learner is listed with XP and the study summary", "40 XP" in card and "Study days" in card and "No coach plan yet" in card, card[:200])
-    check("admin: the card shows progress and the habit strip", "Lessons 0/" in card and "words due" in card and "No mock exam taken yet" in card and await p1.locator(".lrn .lrn-days i").count() == 28 and await p1.locator(".lrn .lrn-days i.on").count() == 1, card[:300])
+    await go(p1, "#/fixes", 500); await p1.click("[data-fxtab='learners']"); await p1.wait_for_selector(".lt-card", timeout=10000)
+    check("admin: the Learners tab opens the learner tracking screen", p1.url.endswith("#/learners"), p1.url)
+    card = await p1.locator(".lt-card").first.inner_text()
+    check("admin: the overview card shows status, streak and lessons", ("On track" in card or "Behind plan" in card) and "Streak" in card and "Lessons 0/" in card and "Readiness" in card, card[:200])
+    check("admin: the overview card has the 28-day strip", await p1.locator(".lt-card .lrn-days i").count() == 28 and await p1.locator(".lt-card .lrn-days i.on").count() == 1)
     lid = await p1.evaluate("Content.admin('learners_list',{}).then(r=>r.result.rows[0].id)")
+    key = lid[:8]
     await p1.evaluate("Content.admin('learner_label',{id:%s,label:'Hoang'})" % json.dumps(lid)); await p1.wait_for_timeout(300)
     await p1.evaluate("Game.award(1)"); await p1.evaluate("Sync.now()")
-    await go(p1, "#/", 200); await go(p1, "#/fixes", 500); await p1.wait_for_selector(".lrn", timeout=10000)
-    check("admin: the name given to a learner survives the next backup", "Hoang" in await p1.locator(".lrn").first.inner_text())
+    await go(p1, "#/", 200); await go(p1, "#/learners", 500); await p1.wait_for_selector(".lt-card", timeout=10000)
+    check("admin: the name given to a learner survives the next backup", "Hoang" in await p1.locator(".lt-card").first.inner_text())
+    await go(p1, "#/learners/%s/progress" % key, 500); await p1.wait_for_selector(".lt-saved", timeout=10000)
+    t = await p1.locator("#lt-body").inner_text()
+    check("admin: Progress shows readiness, XP per week, pace and mocks", "Readiness" in t and "XP per week" in t and "Pace to the exam" in t and "No mock exam taken yet" in t and "Hoang" in t, t[:300])
+    await go(p1, "#/learners/%s/practice" % key, 500); await p1.wait_for_selector(".lt-saved", timeout=10000)
+    t = await p1.locator("#lt-body").inner_text()
+    check("admin: Practice shows vocabulary, role-play and skills", "Vocabulary" in t and "AI role-play" in t and "No role-play finished yet" in t and "Skill accuracy" in t, t[:300])
+    await go(p1, "#/learners/%s/habit" % key, 500); await p1.wait_for_selector(".lt-saved", timeout=10000)
+    t = await p1.locator("#lt-body").inner_text()
+    check("admin: Habit shows the calendar, rhythm and coach plan", "Last 28 days" in t and "Rhythm" in t and "No coach plan yet" in t and await p1.locator(".lt-cal i.d").count() == 28 and await p1.locator(".lt-cal i.d.on").count() == 1, t[:300])
+    check("admin: the section tabs are links with the current one marked", await p1.locator(".seg3 a[aria-current='page']").inner_text() == "Habit" and await p1.locator(".lt-pick[aria-current='page']").count() == 1)
+    # numbers the phone keeps for the teacher: role-play log, weekly snapshots, mocks
+    await p1.evaluate("""(()=>{const t=Store.today();Store.state.talkLog=[{d:t,id:'payslip',s:8,g:true,l:4},{d:t,id:'leave',s:6,g:false,l:5}];
+      Store.state.trk=[{w:Store.addDays(t,-14),r:150,m:10,c:30},{w:Store.addDays(t,-7),r:160,m:14,c:36},{w:t,r:170,m:20,c:40}];
+      Store.state.mockHistory=[{id:'m1',date:t,total:190,sections:{listening:70,reading:70,writing:50}}];Store.save()})()""")
+    sm = await p1.evaluate("Sync.summary()")
+    check("summary: role-play, vocabulary, streak, weekly XP and history are in it", sm["talk"]["tried"] == 2 and sm["talk"]["avg"] == 7 and sm["talk"]["wk"][7] == 2 and sm["talk"]["lvl"] == 5 and sm["vocab"]["all"] > 0 and len(sm["xpw"]) == 8 and len(sm["trk"]) == 3 and "n" in sm["streak"] and sm["pace"]["total"] > 0, sm)
+    check("summary: it stays well under the server's 8,000 characters", len(json.dumps(sm)) < 7500, len(json.dumps(sm)))
+    await p1.evaluate("Sync.now(true)")
+    await go(p1, "#/learners/%s/practice" % key, 500); await p1.wait_for_selector(".lt-saved", timeout=10000)
+    t = await p1.locator("#lt-body").inner_text()
+    check("admin: role-play numbers (talks, average, scenes tried, level, last talk)", "2/16" in t and "scenes tried" in t and "Level HSK 5" in t and "Last talk:" in t and "6/10" in t, t[:500])
+    await go(p1, "#/learners/%s/progress" % key, 500); await p1.wait_for_selector(".lt-saved", timeout=10000)
+    t = await p1.locator("#lt-body").inner_text()
+    check("admin: Progress draws the weekly lines and lists the mock", await p1.locator("#lt-body svg.chart").count() >= 2 and "190" in t and "Mock exams" in t, t[:300])
+    await go(p1, "#/learners", 500); await p1.wait_for_selector(".lt-card", timeout=10000)
+    check("admin: the overview shows the change since last week", "+10 vs last week" in await p1.locator(".lt-card").first.inner_text(), await p1.locator(".lt-card").first.inner_text())
     bad = await p1.evaluate("AI.call('learners_list',{},{'x-admin-code':'wrong-code-000000'}).then(r=>r.error)")
     check("admin: the list needs the reviewer code", bad == "bad_admin", bad)
     await p1.evaluate("localStorage.removeItem('cbChinese.ai.admin')")
@@ -1004,8 +1034,7 @@ async def t_admin(b):
     after = [await pg.inner_text("#svc-ai"), await pg.inner_text("#svc-rep"), await pg.inner_text("#svc-stale")]
     check("admin: the numbers follow what happens (2 more AI calls, 1 more report waiting, stale backups counted)",
           st in ("proposed", "needs_review") and after[0] == "%d/50" % (before["ai"]["today"] + 2) and after[1] == str(before["reports"]["waiting"] + 1) and int(after[2]) == before["backups"]["n"] >= 1, (st, after, before))
-    await pg.click("[data-fxtab='learners']"); await pg.wait_for_selector(".lrn", timeout=10000)
-    check("admin: the Service block stays on the Learners tab", await pg.locator("#svc").count() == 1)
+    check("admin: the Service block is on the content review screen", await pg.locator("#svc").count() == 1)
     bad = await pg.evaluate("AI.call('admin_stats',{},{'x-admin-code':'wrong-code-000000'}).then(r=>r.error)")
     check("admin: the numbers need the reviewer code", bad == "bad_admin", bad)
     # an older server does not know the task: no block, everything else still works
@@ -1016,8 +1045,10 @@ async def t_admin(b):
         else:
             await route.continue_()
     await ctx.route(AI_URL, old_server)
-    await go(pg, "#/", 300); await go(pg, "#/fixes", 400); await pg.click("[data-fxtab='learners']"); await pg.wait_for_selector(".lrn", timeout=10000); await pg.wait_for_timeout(500)
-    check("admin: with an older server there is no Service block and the screen still works", await pg.locator("#svc").count() == 0 and await pg.locator(".lrn").count() >= 1 and await pg.locator(".fx-tabs button").count() == 5)
+    await go(pg, "#/", 300); await go(pg, "#/fixes", 600); await pg.wait_for_timeout(500)
+    svc_none = await pg.locator("#svc").count() == 0 and await pg.locator(".fx-tabs button").count() == 5
+    await pg.click("[data-fxtab='learners']"); await pg.wait_for_selector(".lt-card", timeout=10000)
+    check("admin: with an older server there is no Service block and the screens still work", svc_none and await pg.locator(".lt-card").count() >= 1)
     await pg.evaluate("AI.call('sync_delete',{code:Sync.cfg().code})")  # leave no backup behind for the other groups
     await ctx.close()
 
@@ -1072,7 +1103,7 @@ async def t_state(b):
     check("heavy user: the server accepts the backup", r == "saved" and cfg.get("rev", 0) >= 1 and "err" not in cfg, (r, cfg))
     hs = await p1.evaluate("Sync.summary().progress.hsk5")
     check("heavy user: the study summary counts HSK 5", hs.get("started") == 62 and hs.get("done") == 62 and hs.get("words") == 1231 and hs.get("grammar") == 42, hs)
-    # the study summary must fit the server's 4,000 characters even at its largest: 8 trend rows, patterns, a plan with three long texts in two languages
+    # the study summary must fit the server's 8,000 characters even at its largest: 8 trend rows, patterns, a plan with three long texts in two languages
     big = await p1.evaluate("""(()=>{const t=Store.today(),txt='Luyện \\"lượng từ\\" mỗi ngày 10 phút / Practise \\"measure words\\" for 10 minutes every day. '.repeat(8);
       Store.state.coachLog=[{w:Store.addDays(t,-3),d:t,base:{skills:{},cards:0,mocks:0},actions:['measure','listen-sentence','word-order'].map(k=>({text:txt,minutes:15,skill:k}))}];
       for(let i=0;i<40;i++)Store.state.mlog.push({d:t,k:'w:d01-0'+(1+i%5),s:'vocab'},{d:t,k:'dr:measure:m'+i,s:'measure'},{d:t,k:'ls:'+i,s:'listen-sentence'});
@@ -1080,17 +1111,18 @@ async def t_state(b):
       for(let h=0;h<24;h++){const d=Store.addDays(t,-h);if(Store.state.slog[d])Store.state.slog[d].h=h}
       const sm=Sync.summary();return {len:JSON.stringify(sm).length,trend:sm.trend.length,patterns:sm.patterns.length,plan:sm.plan?sm.plan.actions.map(a=>a.text.length):null,hours:Object.keys(sm.hours).length,h5:!!sm.progress.hsk5}})()""")
     print("    largest study summary: %(len)d characters · %(trend)d trend rows · %(patterns)d patterns · %(hours)d start hours · plan texts %(plan)s" % big, flush=True)
-    check("study summary: at its largest it stays under the server's 4,000 characters, with the plan and the HSK 5 numbers", big["len"] < 4000 and big["trend"] == 8 and big["plan"] and len(big["plan"]) == 3 and min(big["plan"]) >= 20 and big["h5"], big)
+    check("study summary: at its largest it stays under the server's 8,000 characters, with the plan and the HSK 5 numbers", big["len"] < 7500 and big["trend"] == 8 and big["plan"] and len(big["plan"]) == 3 and min(big["plan"]) >= 20 and big["h5"], big)
     fit = await p1.evaluate("""(()=>{const mk=n=>({span:28,trend:[1,2,3,4,5,6,7,8].map(i=>({skill:'s'+i,acc:50,before:40,n:99})),patterns:[{kind:'skill',skill:'x',n:9}],hours:{20:9},progress:{hsk5:{started:1}},plan:{w:'2026-10-05',actions:[1,2,3].map(()=>({text:'字'.repeat(n),skill:'Measure words',done:false}))}});
-      const a=Sync._fit(mk(200)),b=Sync._fit(mk(1500)),c=Sync._fit(Object.assign(mk(10),{days28:'1'.repeat(5000)}));
+      const a=Sync._fit(mk(200)),b=Sync._fit(mk(3000)),c=Sync._fit(Object.assign(mk(10),{days28:'1'.repeat(9000)}));
       return [JSON.stringify(a).length,a.plan.actions[0].text.length,JSON.stringify(b).length,b.plan.actions[0].text.length,b.trend.length,c.plan,c.trend.length]})()""")
-    check("study summary: a short one is left alone; a too long one has its plan texts shortened first, then lists dropped", fit[0] < 3800 and fit[1] == 200 and fit[2] <= 3800 and 20 <= fit[3] < 1500 and fit[4] == 8 and fit[5] is None and fit[6] == 3, fit)
+    check("study summary: a short one is left alone; a too long one has its plan texts shortened first, then lists dropped", fit[0] < 7500 and fit[1] == 200 and fit[2] <= 7500 and 20 <= fit[3] < 3000 and fit[4] == 8 and fit[5] is None and fit[6] == 3, fit)
     hw = await p1.evaluate("[Games._hwSkill(App.WORDMAP['h5-0001']),Games._hwSkill(App.WORDMAP['d01-01']),Learn.exam(Games._hwSkill(App.WORDMAP['h5-0001'])),Learn.exam('handwriting'),!!Learn.SKILLS['h5-writing']]")
     check("handwriting: an HSK 5 word is recorded under the HSK 5 writing skill, not the HSK 4 exam skill", hw == ["h5-writing", "handwriting", False, True, True], hw)
     await p1.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
-    await go(p1, "#/fixes", 400); await p1.click("[data-fxtab='learners']"); await p1.wait_for_selector(".lrn-h5", timeout=10000)
-    line = await p1.locator(".lrn-h5").first.inner_text()
-    check("admin: the learner card shows the HSK 5 line", "HSK 5: 62/62 packs started, 62 finished" in line and "1231 words in review" in line and "42 grammar points mastered" in line, line)
+    hkey = await p1.evaluate("Content.admin('learners_list',{}).then(r=>r.result.rows[0].id.slice(0,8))")
+    await go(p1, "#/learners/%s/progress" % hkey, 500); await p1.wait_for_selector(".lt-saved", timeout=10000)
+    line = await p1.locator("#lt-body").inner_text()
+    check("admin: Progress shows the HSK 5 packs started", "HSK 5 packs started" in line and "62/62" in line, line[:400])
     c2, p2 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
     got = await p2.evaluate("AI.call('sync_get',{code:%s}).then(r=>{Store.importJSON(JSON.stringify(r.result.data));const s=Store.state;return [Object.keys(s.srs).length,s.srs['h5-1231'],s.settings.level,Object.keys(s.packs).length,s.grammar.h5g42.mastered]})" % json.dumps(cfg["code"]))
     mine = await p1.evaluate("Store.state.srs['h5-1231']")

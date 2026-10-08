@@ -26,6 +26,8 @@
       slog: {},       // study log, last 8 weeks: date -> { m: minutes, s: sessions, h: hour of the first one, k: { skill: [right, wrong] } }
       coachLog: [],   // weekly coach advice, newest last (max 6): [{ w: week start, d: date, actions: [{ text, minutes, skill }], base: {...} }]
       mlog: [],       // wrong answers, newest last: [{ d: date, k: key, s: skill }] (capped; feeds the pattern rules in js/learn.js)
+      trk: [],        // weekly snapshots for the teacher's charts, newest last (max 12): [{ w: week start, r: readiness total or null, m: words in box 4-5, c: words in review }]
+      talkLog: [],    // finished AI role-plays, newest last (max 60): [{ d: date, id: scene id, s: score 0-10 or null, g: goal met, l: 4|5 }]
       weekGoal: {},   // week-start date -> true once that week's study-days goal was met
       patternHide: {}, // pattern signature -> date it was dismissed (hidden for the rest of that day)
       patternAI: {},  // pattern signature -> saved AI explanation
@@ -125,6 +127,12 @@
     if (["quick", "std", "long"].indexOf(st.sessionMode) < 0) st.sessionMode = dflt.sessionMode;
     st.coreTarget = Math.max(1, Math.min(365, parseInt(st.coreTarget, 10) || dflt.coreTarget));
     st.level = +st.level === 5 ? 5 : 4; st.h5 = st.h5 === true || st.level === 5;
+    d.trk = (Array.isArray(d.trk) ? d.trk : []).filter(function (e) { return e && typeof e === "object" && DATE.test(e.w || ""); }).slice(-12).map(function (e) {
+      return { w: e.w, r: e.r == null ? null : Math.max(0, Math.min(300, Math.round(n(e.r)))), m: Math.max(0, Math.round(n(e.m))), c: Math.max(0, Math.round(n(e.c))) };
+    });
+    d.talkLog = (Array.isArray(d.talkLog) ? d.talkLog : []).filter(function (e) { return e && typeof e === "object" && DATE.test(e.d || "") && /^[a-z0-9]{2,20}$/.test(String(e.id || "")); }).slice(-60).map(function (e) {
+      return { d: e.d, id: String(e.id), s: e.s == null ? null : Math.max(0, Math.min(10, Math.round(n(e.s)))), g: e.g === true, l: +e.l === 5 ? 5 : 4 };
+    });
     if (!d.packs || typeof d.packs !== "object" || Array.isArray(d.packs)) d.packs = {};
     Object.keys(d.packs).forEach(function (k) { var v = d.packs[k]; if (!/^(h5|x4)-\d{1,2}$/.test(k) || !v || typeof v !== "object") delete d.packs[k]; else d.packs[k] = { b: Math.max(0, Math.min(10, Math.round(n(v.b)))), p: Math.max(0, Math.round(n(v.p))) }; });
     if (!d.games || typeof d.games !== "object" || Array.isArray(d.games)) d.games = {};

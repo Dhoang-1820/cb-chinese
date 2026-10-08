@@ -693,6 +693,8 @@
   function charLoader(ch, onLoad, onErr) {
     fetch("vendor/hanzi/" + encodeURIComponent(ch) + ".json").then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(onLoad).catch(onErr);
   }
+  /* handwriting counts towards the HSK 4 exam picture, except for an HSK 5 word: that goes to the HSK 5 writing skill */
+  function hwSkill(w) { return w && w._pk === "h5" ? "h5-writing" : "handwriting"; }
   function write(arg) {
     var App = A(), g = BY.write, dayN = parseInt(arg, 10), words;
     var cset = /^k\d+$/.test(arg || "") && App.COREMAP[parseInt(arg.slice(1), 10)];
@@ -715,7 +717,7 @@
             var ok = !skipped && miss <= chars.length; // about one slip per character is fine
             if (ok) score++;
             results.push({ w: w, ok: ok, miss: miss, skipped: skipped });
-            if (window.Learn && !skipped) Learn.record("hw:" + w.id, { skill: "handwriting", statsOnly: true }, ok);
+            if (window.Learn && !skipped) Learn.record("hw:" + w.id, { skill: hwSkill(w), statsOnly: true }, ok);
             (ok ? Audio2.sfx.good : Audio2.sfx.bad)();
             wi++; return drawWord();
           }
@@ -835,5 +837,5 @@
       c.wire();
     })();
   }
-  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _drillQ: drillQ, _drillItem: function (type, id) { return drillItems(type, /^h5/.test(id) ? 5 : 4).filter(function (x) { return x.id === id; })[0] || null; }, H5_DESC: H5_DESC, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
+  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _drillQ: drillQ, _drillItem: function (type, id) { return drillItems(type, /^h5/.test(id) ? 5 : 4).filter(function (x) { return x.id === id; })[0] || null; }, H5_DESC: H5_DESC, _hwSkill: hwSkill, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
 })();

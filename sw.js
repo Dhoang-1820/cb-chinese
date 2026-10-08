@@ -22,6 +22,19 @@ function refreshPacks() {
     });
   }).catch(function () { /* optional */ });
 }
+/* A cached pack of the same kind (any edition), for when the current one cannot be fetched. */
+function anyPack(c, pathname) {
+  var kind = packKind(pathname);
+  return c.keys().then(function (keys) {
+    var old = keys.filter(function (r) { return packKind(new URL(r.url).pathname) === kind; })[0];
+    return old ? c.match(old) : undefined;
+  });
+}
+/* refreshPacks, but never longer than PACK_WAIT_MS: a stalled download must not hold back the app update. */
+var PACK_WAIT_MS = 15000;
+function refreshPacksSoon() {
+  return Promise.race([refreshPacks(), new Promise(function (res) { setTimeout(res, PACK_WAIT_MS); })]);
+}
 function prunePacks() {
   if (!PACK_FILES.length) return Promise.resolve();
   return caches.open(PACKS).then(function (c) {
@@ -57,7 +70,7 @@ self.addEventListener("install", function (e) {
   // never gets stored with a stale copy of the previous version's files.
   e.waitUntil(caches.open(SHELL).then(function (c) {
     return c.addAll(PRECACHE.map(function (u) { return new Request(u, { cache: "reload" }); }));
-  }).then(refreshPacks).then(function () { return self.skipWaiting(); }));
+  }).then(refreshPacksSoon).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener("activate", function (e) {
@@ -91,11 +104,17 @@ self.addEventListener("fetch", function (e) {
     return;
   }
 
-  // Optional content packs: cache-first, stored on first use (see PACKS above).
+  // Optional content packs: cache-first, stored on first use (see PACKS above). When this edition cannot be fetched
+  // (offline, or the update could not download it), an older edition of the same pack on the phone is used instead.
   if (url.origin === location.origin && PACK_RE.test(url.pathname)) {
     e.respondWith(caches.open(PACKS).then(function (c) {
       return c.match(req, { ignoreSearch: true }).then(function (hit) {
-        return hit || fetch(req).then(function (r) { if (r.ok) c.put(req, r.clone()); return r; });
+        return hit || fetch(req).then(function (r) {
+          if (r.ok) { c.put(req, r.clone()); return r; }
+          return anyPack(c, url.pathname).then(function (old) { return old || r; });
+        }, function (err) {
+          return anyPack(c, url.pathname).then(function (old) { if (old) return old; throw err; });
+        });
       });
     }));
     return;

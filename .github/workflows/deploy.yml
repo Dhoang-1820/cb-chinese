@@ -19,6 +19,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # A normal run takes about 10 minutes. The first run after new content also records about 1,600 clips
+    # (six at a time, with retries) and installs the browser: allow for that, but stop a hung download or test.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 

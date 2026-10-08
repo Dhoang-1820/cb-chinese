@@ -20,7 +20,7 @@
 翅膀|n.|wing|cánh|那 只 小 鸟 的 翅膀 受伤 了 。|That little bird's wing is injured.|Cánh của chú chim nhỏ kia bị thương rồi.
 冲|v.|to rush; to rinse; to make (a drink)|xông, lao; xối, pha|下课 以后 ， 学生 们 都 冲 出 了 教室 。|After class, the students all rushed out of the classroom.|Tan học, học sinh đều lao ra khỏi lớp.
 充电器|n.|charger|bộ sạc, cục sạc|我 忘 了 带 手机 充电器 ， 能 借 一下 吗 ？|I forgot my phone charger; could I borrow one?|Tôi quên mang sạc điện thoại, cho tôi mượn một lát được không?
-充分|adj./adv.|full; ample; fully|đầy đủ, đầy đủ lý do|面试 以前 他 做 了 充分 的 准备 。|He prepared thoroughly before the interview.|Trước buổi phỏng vấn anh ấy đã chuẩn bị đầy đủ.
+充分|adj./adv.|full; ample; fully|đầy đủ; một cách đầy đủ|面试 以前 他 做 了 充分 的 准备 。|He prepared thoroughly before the interview.|Trước buổi phỏng vấn anh ấy đã chuẩn bị đầy đủ.
 充满|v.|to be full of|tràn đầy, chan chứa|他 对 新 工作 充满 了 信心 。|He is full of confidence about his new job.|Anh ấy tràn đầy tự tin với công việc mới.
 重复|v.|to repeat|lặp lại|对不起 ， 请 您 再 重复 一 遍 。|Sorry, could you please repeat that once more?|Xin lỗi, phiền ông nhắc lại một lần nữa.
 宠物|n.|pet|thú cưng|现在 很多 年轻 人 喜欢 养 宠物 。|Many young people now like keeping pets.|Bây giờ nhiều người trẻ thích nuôi thú cưng.
@@ -32,7 +32,7 @@
 出口|n./v.|exit; to export|lối ra; xuất khẩu|这 家 工厂 的 产品 主要 出口 到 欧洲 。|This factory's products are mainly exported to Europe.|Sản phẩm của nhà máy này chủ yếu xuất khẩu sang châu Âu.
 出色|adj.|outstanding; remarkable|xuất sắc|她 出色 地 完成 了 今年 的 任务 。|She completed this year's tasks outstandingly.|Cô ấy đã hoàn thành xuất sắc nhiệm vụ năm nay.
 出示|v.|to show; to produce (a document)|xuất trình|进 大楼 的 时候 请 出示 您 的 员工 卡 。|Please show your staff card when entering the building.|Khi vào tòa nhà xin xuất trình thẻ nhân viên của bạn.
-出席|v.|to attend; to be present|tham dự, có mặt|总裁 将 出席 明天 的 会议 。|The president will attend tomorrow's meeting.|Chủ tịch sẽ tham dự cuộc họp ngày mai.
+出席|v.|to attend; to be present|tham dự, có mặt|总裁 将 出席 明天 的 会议 。|The president will attend tomorrow's meeting.|Tổng giám đốc sẽ tham dự cuộc họp ngày mai.
 初级|adj.|elementary; primary|sơ cấp|我 上 个 月 参加 了 初级 汉语 班 。|Last month I joined an elementary Chinese class.|Tháng trước tôi tham gia lớp tiếng Trung sơ cấp.
 除非|conj.|unless; only if|trừ khi|除非 下 大 雨 ， 否则 比赛 按时 举行 。|The match will be held on time unless it rains heavily.|Trừ khi mưa to, nếu không trận đấu vẫn diễn ra đúng giờ.
 除夕|n.|Lunar New Year's Eve|đêm giao thừa|除夕 晚上 ， 全家 人 一起 吃 饺子 。|On New Year's Eve the whole family eats dumplings together.|Đêm giao thừa, cả nhà cùng ăn sủi cảo.
@@ -77,7 +77,7 @@
 担任|v.|to hold the post of; to serve as|đảm nhiệm, giữ chức|她 从 去年 开始 担任 部门 经理 。|She has served as department manager since last year.|Cô ấy đảm nhiệm chức trưởng phòng từ năm ngoái.
 单纯|adj.|simple; pure; merely|đơn thuần, trong sáng|她 刚 毕业 ， 想法 还 比较 单纯 。|She has just graduated, and her thinking is still rather simple.|Cô ấy vừa tốt nghiệp, suy nghĩ còn khá đơn thuần.
 单调|adj.|monotonous; dull|đơn điệu, tẻ nhạt|每 天 做 一样 的 事 ， 生活 太 单调 了 。|Doing the same thing every day makes life too monotonous.|Ngày nào cũng làm một việc giống nhau, cuộc sống đơn điệu quá.
-单独|adv.|alone; by oneself|riêng, một mình|经理 想 和 你 单独 谈 一 谈 。|The manager would like to talk with you alone.|Giám đốc muốn nói chuyện riêng với bạn.
+单独|adv.|alone; by oneself|riêng, một mình|经理 想 和 你 单独 谈 一{yi} 谈 。|The manager would like to talk with you alone.|Giám đốc muốn nói chuyện riêng với bạn.
 单元|n.|unit; entrance (of a building)|đơn nguyên; bài, chương (sách)|这 本 书 一共 有 十二 个 单元 。|This book has twelve units in all.|Cuốn sách này có tất cả mười hai bài.
 耽误|v.|to delay; to hold up|làm lỡ, làm chậm trễ|路 上 堵车 ， 耽误 了 半 个 小时 。|There was a traffic jam on the way, which cost half an hour.|Trên đường tắc xe, làm lỡ mất nửa tiếng.
 胆小鬼|n.|coward|kẻ nhát gan|他 连 小 狗 都 怕 ， 真 是 个 胆小鬼 。|He is afraid even of puppies; what a coward.|Đến chó con nó cũng sợ, đúng là đồ nhát gan.
@@ -87,7 +87,7 @@
 挡|v.|to block; to keep off|chắn, cản, che|请 让 一下 ， 你 挡 住 我 的 路 了 。|Excuse me, you are blocking my way.|Xin nhường một chút, bạn đang chắn đường tôi.
 导演|n./v.|director; to direct|đạo diễn|这 位 导演 的 新 电影 很 受 欢迎 。|This director's new film is very popular.|Bộ phim mới của vị đạo diễn này rất được yêu thích.
 导致|v.|to lead to; to cause|dẫn đến, gây ra|经常 熬夜 会 导致 很多 健康 问题 。|Often staying up late leads to many health problems.|Thường xuyên thức khuya sẽ dẫn đến nhiều vấn đề sức khỏe.
-岛屿|n.|islands|đảo, quần đảo|这个 国家 有 很多 美丽 的 岛屿 。|This country has many beautiful islands.|Đất nước này có rất nhiều hòn đảo đẹp.
+岛屿|n.|islands|đảo, các hòn đảo|这个 国家 有 很多 美丽 的 岛屿 。|This country has many beautiful islands.|Đất nước này có rất nhiều hòn đảo đẹp.
 倒霉|adj.|unlucky; to have bad luck|xui xẻo, đen đủi|今天 真 倒霉 ， 手机 和 钱包 都 丢 了 。|What bad luck today; I lost both my phone and my wallet.|Hôm nay xui thật, điện thoại và ví đều mất.
 到达|v.|to arrive at; to reach|đến, tới nơi|飞机 将 在 下午 三 点 到达 北京 。|The plane will arrive in Beijing at three in the afternoon.|Máy bay sẽ đến Bắc Kinh lúc ba giờ chiều.
 道德|n.|morality; ethics|đạo đức|他 这样 做 是 很 不 道德 的 。|What he did is very unethical.|Anh ấy làm như vậy là rất thiếu đạo đức.

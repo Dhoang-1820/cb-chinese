@@ -29,10 +29,10 @@
 背景|n.|background|bối cảnh, lai lịch, phông nền|面试 以前 ， 我 先 了解 了 公司 的 背景 。|Before the interview, I first learned about the company's background.|Trước buổi phỏng vấn, tôi đã tìm hiểu bối cảnh của công ty.
 被子|n.|quilt; blanket|chăn|天气 冷 了 ， 晚上 要 盖 厚 被子 。|It has turned cold, so use a thick quilt at night.|Trời lạnh rồi, buổi tối phải đắp chăn dày.
 本科|n.|undergraduate course; bachelor's degree|bậc đại học (hệ cử nhân)|这个 职位 要求 本科 以上 学历 。|This position requires a bachelor's degree or above.|Vị trí này yêu cầu trình độ đại học trở lên.
-本领|n.|skill; ability|bản lĩnh, tài năng|他 在 工作 中 学 到 了 很多 本领 。|He has learned many skills at work.|Anh ấy đã học được nhiều bản lĩnh trong công việc.
+本领|n.|skill; ability|kỹ năng, tài nghệ, năng lực|他 在 工作 中 学 到 了 很多 本领 。|He has learned many skills at work.|Anh ấy đã học được nhiều kỹ năng trong công việc.
 本质|n.|essence; nature|bản chất|我们 要 看 清楚 问题 的 本质 。|We need to see the essence of the problem clearly.|Chúng ta phải nhìn rõ bản chất của vấn đề.
 彼此|pron.|each other; one another|lẫn nhau, đôi bên|同事 之间 应该 彼此 尊重 。|Colleagues should respect each other.|Đồng nghiệp với nhau nên tôn trọng lẫn nhau.
-必然|adj./adv.|inevitable; certainly|tất nhiên, tất yếu|不 努力 的 人 必然 会 失败 。|People who make no effort will inevitably fail.|Người không nỗ lực tất yếu sẽ thất bại.
+必然|adj./adv.|inevitable; certainly|tất yếu, ắt hẳn|不 努力 的 人 必然 会 失败 。|People who make no effort will inevitably fail.|Người không nỗ lực tất yếu sẽ thất bại.
 必要|adj./n.|necessary; need|cần thiết; sự cần thiết|这 件 事 没有 必要 告诉 所有 人 。|There is no need to tell everyone about this.|Việc này không cần thiết phải nói với tất cả mọi người.
 毕竟|adv.|after all|dù sao, rốt cuộc|别 生 他 的 气 ， 他 毕竟 还是 个 孩子 。|Don't be angry with him; after all, he is still a child.|Đừng giận nó, dù sao nó vẫn là một đứa trẻ.
 避免|v.|to avoid|tránh, tránh khỏi|仔细 检查 可以 避免 很多 错误 。|Careful checking can avoid many mistakes.|Kiểm tra kỹ có thể tránh được nhiều sai sót.
@@ -65,14 +65,14 @@
 布|n.|cloth|vải|这 块 布 的 颜色 很 适合 做 窗帘 。|The colour of this cloth is just right for curtains.|Màu của tấm vải này rất hợp để may rèm cửa.
 步骤|n.|step; procedure|bước, trình tự|请 按照 下面 的 步骤 填写 表格 。|Please fill in the form following the steps below.|Vui lòng điền biểu mẫu theo các bước dưới đây.
 财产|n.|property; assets|tài sản|这 套 房子 是 他们 家 最 重要 的 财产 。|This flat is their family's most important asset.|Căn nhà này là tài sản quan trọng nhất của gia đình họ.
-采访|v./n.|to interview (for news); interview|phỏng vấn (báo chí)|记者 采访 了 这 家 公司 的 总裁 。|The reporter interviewed the president of this company.|Phóng viên đã phỏng vấn chủ tịch của công ty này.
+采访|v./n.|to interview (for news); interview|phỏng vấn (báo chí)|记者 采访 了 这 家 公司 的 总裁 。|The reporter interviewed the president of this company.|Phóng viên đã phỏng vấn tổng giám đốc của công ty này.
 采取|v.|to adopt; to take (measures)|áp dụng, thực hiện (biện pháp)|公司 采取 了 新 的 办法 来 降低 成本 。|The company adopted a new method to reduce costs.|Công ty đã áp dụng cách làm mới để giảm chi phí.
 彩虹|n.|rainbow|cầu vồng|雨 停 了 以后 ， 天 上 出现 了 彩虹 。|After the rain stopped, a rainbow appeared in the sky.|Sau khi mưa tạnh, trên trời xuất hiện cầu vồng.
 踩|v.|to step on; to tread|giẫm, đạp|对不起 ， 我 不 小心 踩 了 你 的 脚 。|Sorry, I accidentally stepped on your foot.|Xin lỗi, tôi vô ý giẫm vào chân bạn.
 参考|v./n.|to refer to; reference|tham khảo|写 报告 的 时候 可以 参考 去年 的 数字 。|When writing the report you can refer to last year's figures.|Khi viết báo cáo có thể tham khảo số liệu năm ngoái.
 参与|v.|to take part in|tham gia, tham dự|我们 希望 每 个 人 都 参与 讨论 。|We hope everyone takes part in the discussion.|Chúng tôi hy vọng mọi người đều tham gia thảo luận.
 惭愧|adj.|ashamed|hổ thẹn, xấu hổ|没 能 帮 上 你 的 忙 ， 我 很 惭愧 。|I feel ashamed that I couldn't help you.|Không giúp được bạn, tôi thấy rất hổ thẹn.
-操场|n.|playground; sports field|sân vận động, sân tập|学生 们 每 天 下午 在 操场 上 跑步 。|The students run on the sports field every afternoon.|Chiều nào học sinh cũng chạy bộ trên sân tập.
+操场|n.|playground; sports field|sân tập, sân thể dục (của trường)|学生 们 每 天 下午 在 操场 上 跑步 。|The students run on the sports field every afternoon.|Chiều nào học sinh cũng chạy bộ trên sân tập.
 操心|v.|to worry about; to take pains|lo lắng, bận tâm|孩子 长大 了 ， 父母 不用 再 操心 了 。|The child has grown up, so the parents needn't worry any more.|Con lớn rồi, bố mẹ không cần bận tâm nữa.
 册|m.|volume; copy (of books)|quyển, tập (lượng từ)|这 套 书 一共 有 四 册 ， 我 只 看 了 一 册 。|This set has four volumes and I have only read one.|Bộ sách này có tất cả bốn tập, tôi mới đọc một tập.
 测验|n./v.|test; quiz; to test|bài kiểm tra; kiểm tra|明天 上午 有 一 个 听力 测验 。|There is a listening test tomorrow morning.|Sáng mai có một bài kiểm tra nghe.

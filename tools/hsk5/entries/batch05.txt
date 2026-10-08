@@ -41,7 +41,7 @@
 坚决|adj.|firm; resolute|kiên quyết|对于 这个 决定 ， 他 坚决 不 同意 。|He firmly disagrees with this decision.|Đối với quyết định này, anh ấy kiên quyết không đồng ý.
 坚强|adj.|strong; staunch|kiên cường, mạnh mẽ|遇到 困难 的 时候 ， 我们 要 坚强 一点儿 。|When we meet difficulties, we should be a bit stronger.|Khi gặp khó khăn, chúng ta phải mạnh mẽ hơn một chút.
 肩膀|n.|shoulder|vai|他 拍 了 拍 我 的 肩膀 ， 让 我 别 担心 。|He patted me on the shoulder and told me not to worry.|Anh ấy vỗ vai tôi, bảo tôi đừng lo.
-艰巨|adj.|arduous; formidable|gian khổ, nặng nề, khó khăn|三 个 月 完成 这个 任务 非常 艰巨 。|Finishing this task in three months is very demanding.|Hoàn thành nhiệm vụ này trong ba tháng là vô cùng khó khăn.
+艰巨|adj.|arduous; formidable|gian khổ, nặng nề, khó khăn|这个 任务 非常 艰巨 ， 三 个 月 很 难 完成 。|This task is very demanding; it will be hard to finish in three months.|Nhiệm vụ này vô cùng nặng nề, ba tháng rất khó hoàn thành.
 兼职|n./v.|part-time job; to work part-time|việc làm thêm; kiêm chức|他 周末 在 一 家 咖啡 店 做 兼职 。|He works part-time at a café at weekends.|Cuối tuần anh ấy làm thêm ở một quán cà phê.
 捡|v.|to pick up|nhặt|我 在 楼梯 上 捡 到 了 一 张 员工 卡 。|I picked up a staff card on the stairs.|Tôi nhặt được một chiếc thẻ nhân viên trên cầu thang.
 剪刀|n.|scissors|cái kéo|请 把 剪刀 借 我 用 一下 ， 好 吗 ？|May I borrow the scissors for a moment?|Cho tôi mượn cái kéo dùng một lát được không?
@@ -92,7 +92,7 @@
 精力|n.|energy; vigour|tinh lực, sức lực|年轻 人 精力 好 ， 加班 也 不 觉得 累 。|Young people have plenty of energy and don't feel tired even working overtime.|Người trẻ nhiều sức lực, tăng ca cũng không thấy mệt.
 精神|n./adj.|spirit; mind; lively|tinh thần; có sức sống|睡 了 一 个 好 觉{jiào} ， 他 今天 很 有 精神 。|After a good night's sleep, he is full of energy today.|Ngủ một giấc ngon, hôm nay anh ấy rất có tinh thần.
 酒吧|n.|bar; pub|quán bar, quán rượu|下班 以后 ， 同事 们 常 去 酒吧 喝 一 杯 。|After work, colleagues often go to a bar for a drink.|Sau giờ làm, các đồng nghiệp thường ra quán bar uống một ly.
-救|v.|to save; to rescue|cứu|医生 们 努力 了 一 夜 ， 终于 把 他 救 了 。|The doctors worked all night and finally saved him.|Các bác sĩ nỗ lực suốt đêm, cuối cùng đã cứu được anh ấy.
+救|v.|to save; to rescue|cứu|医生 们 努力 了 一 夜 ， 终于 把 他 救 活 了 。|The doctors worked all night and finally saved him.|Các bác sĩ nỗ lực suốt đêm, cuối cùng đã cứu được anh ấy.
 救护车|n.|ambulance|xe cấp cứu|有 人 受伤 了 ， 快 打 电话 叫 救护车 ！|Someone is injured; quick, phone for an ambulance!|Có người bị thương, mau gọi điện kêu xe cấp cứu!
 舅舅|n.|uncle (mother's brother)|cậu (anh em trai của mẹ)|我 舅舅 在 上海 开 了 一 家 公司 。|My uncle has opened a company in Shanghai.|Cậu tôi mở một công ty ở Thượng Hải.
 居然|adv.|unexpectedly; to one's surprise|vậy mà, không ngờ lại|这么 重要 的 会议 ， 他 居然 忘 了 。|He actually forgot such an important meeting.|Cuộc họp quan trọng như vậy mà anh ấy lại quên mất.

@@ -1,3 +1,5 @@
+/* Test fixture, do not edit: js/storage.js exactly as it was live before the HSK 5 release (commit aa419cf).
+   tests/backup_test.mjs uses it to prove that a phone still running that version can restore a new cloud backup. */
 /* Progress storage: localStorage, XP log, streak (with freezes), export/import */
 (function () {
   "use strict";
@@ -13,7 +15,7 @@
   function defaults() {
     return {
       version: 2,
-      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std", level: 4, h5: false }, // level: 4 or 5 = the Learn level switch; h5: HSK 5 was opened once (its data is then kept ready)
+      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std" },
       srs: {},        // wordId -> { box, due, right, wrong, added, last }
       days: {},       // dayNo -> { quizBest, practice: {}, completed }
       streak: { count: 0, last: null, best: 0 },
@@ -34,8 +36,7 @@
       mockHistory: [], // [{ id, date, total, sections }]
       sessions: {},   // date -> true when Today's session was completed
       official: [],   // official past-paper results: [{ id, date, name, l, r, w }] (each section /100)
-      grammar: {},    // grammar point id (g01.. HSK 4, h5g01.. HSK 5) -> { best, passes, mastered }
-      packs: {},      // word-pack quiz results: "h5-<pack>" (HSK 5) or "x4-<pack>" (extra HSK 4 words) -> { b: best score out of 10, p: plays }
+      grammar: {},    // grammar point id -> { best, passes, mastered }
       reports: [],    // "Report a problem" notes: [{ id, date, route, text, ctx }]
       weekly: {},     // { cur: snapshot at the start of this week, last: summary of last week } (see weekly report in app.js)
       custom: [],     // learner's own words: [{ id: "u…", hanzi, pinyin, vi, en, example? }]
@@ -69,50 +70,10 @@
     clean(d);
     return d;
   }
-  /* Compact review deck for the cloud backup (the server takes at most 400,000 characters per backup).
-     A card { box, due, right, wrong, added, last, lapses, late } is sent as [box, due, right, wrong, added, last, lapses, late]:
-     dates as a day number (1 = 2020-01-01, 0 = none), trailing zeros left off. About a third of the size, so a learner
-     with every HSK 4 and HSK 5 word in review still fits. merge() turns such cards back into objects, wherever they come from. */
-  var EPOCH = "2020-01-01", DATE = /^\d{4}-\d{2}-\d{2}$/;
-  function dnum(s) { return DATE.test(s || "") ? Math.max(0, daysBetween(EPOCH, s)) + 1 : 0; }
-  function dstr(v) { v = Math.round(n(v)); return v > 0 && v < 60000 ? addDays(EPOCH, v - 1) : null; }
-  function packCard(c) {
-    var a = [Math.round(n(c.box)) || 1, dnum(c.due), n(c.right), n(c.wrong), dnum(c.added), dnum(c.last), n(c.lapses), c.late ? 1 : 0];
-    while (a.length > 2 && !a[a.length - 1]) a.pop();
-    return a;
-  }
-  function unpackCard(a) {
-    var c = { box: a[0], due: dstr(a[1]) || today(), right: n(a[2]), wrong: n(a[3]), added: dstr(a[4]) || today(), last: dstr(a[5]) };
-    if (n(a[6])) c.lapses = n(a[6]);
-    if (a[7]) c.late = true;
-    return c;
-  }
-  /* the progress as the cloud backup stores it: everything as it is, the review deck in its compact form */
-  function compact() {
-    var p = JSON.parse(JSON.stringify(state)), z = {};
-    Object.keys(p.srs).forEach(function (id) { if (p.srs[id] && typeof p.srs[id] === "object") z[id] = packCard(p.srs[id]); });
-    p.srs = z;
-    return p;
-  }
-  /* What the cloud backup sends. While the progress fits comfortably it goes exactly as it is saved on the phone, so a
-     phone that still runs an older version of the app can restore it too. Only a very large deck is sent compact. */
-  var BACKUP_PLAIN_MAX = 300000;
-  function backup() {
-    var plain = JSON.stringify(state);
-    return plain.length <= BACKUP_PLAIN_MAX ? JSON.parse(plain) : compact();
-  }
-
   /* Imported files are untrusted: keep numbers numeric and drop malformed entries. */
   function n(x) { x = +x; return isFinite(x) ? x : 0; }
   function clean(d) {
     var st = d.settings, dflt = defaults().settings;
-    Object.keys(d.srs).forEach(function (k) {
-      var c = d.srs[k];
-      if (Array.isArray(c)) c = d.srs[k] = unpackCard(c); // compact card from a cloud backup
-      if (!c || typeof c !== "object") { delete d.srs[k]; return; }
-      c.box = Math.max(1, Math.min(5, Math.round(n(c.box)) || 1)); c.right = n(c.right); c.wrong = n(c.wrong);
-      if (!DATE.test(c.due)) c.due = today();
-    });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(st.examDate)) st.examDate = dflt.examDate;
     if (!/^\d{2}:\d{2}$/.test(st.remindTime)) st.remindTime = dflt.remindTime;
     if (["both", "vi", "en"].indexOf(st.lang) < 0) st.lang = dflt.lang;
@@ -124,11 +85,6 @@
     st.mockRate = [0, 1, 1.15, 1.3].indexOf(+st.mockRate) >= 0 ? +st.mockRate : 0; // 0 = same as "Voice speed"
     if (["quick", "std", "long"].indexOf(st.sessionMode) < 0) st.sessionMode = dflt.sessionMode;
     st.coreTarget = Math.max(1, Math.min(365, parseInt(st.coreTarget, 10) || dflt.coreTarget));
-    st.level = +st.level === 5 ? 5 : 4; st.h5 = st.h5 === true || st.level === 5;
-    if (!d.packs || typeof d.packs !== "object" || Array.isArray(d.packs)) d.packs = {};
-    Object.keys(d.packs).forEach(function (k) { var v = d.packs[k]; if (!/^(h5|x4)-\d{1,2}$/.test(k) || !v || typeof v !== "object") delete d.packs[k]; else d.packs[k] = { b: Math.max(0, Math.min(10, Math.round(n(v.b)))), p: Math.max(0, Math.round(n(v.p))) }; });
-    if (!d.games || typeof d.games !== "object" || Array.isArray(d.games)) d.games = {};
-    Object.keys(d.games).forEach(function (k) { var v = d.games[k]; if (!/^[a-z0-9]{1,16}$/.test(k) || !v || typeof v !== "object") delete d.games[k]; else { v.best = n(v.best); v.plays = n(v.plays); } });
     d.reports = (Array.isArray(d.reports) ? d.reports : []).filter(function (r) { return r && typeof r === "object" && typeof r.text === "string"; }).slice(-100).map(function (r, i) {
       return { id: (String(r.id || Date.now()).replace(/[^0-9a-z]/gi, "").slice(0, 16) || String(Date.now())) + "x" + i, date: /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : today(),
         route: /^#\/[\w\/-]{0,78}$/.test(String(r.route || "")) ? String(r.route) : "#/", text: String(r.text).slice(0, 500), ctx: String(r.ctx || "").slice(0, 400) };
@@ -148,7 +104,7 @@
       return { id: String(o.id || Date.now()).replace(/[^0-9a-z]/gi, "").slice(0, 16) || String(Date.now()), date: /^\d{4}-\d{2}-\d{2}$/.test(o.date) ? o.date : today(),
         name: String(o.name || "Official paper").slice(0, 60), l: c(o.l), r: c(o.r), w: c(o.w) };
     });
-    Object.keys(d.grammar).forEach(function (k) { var g = d.grammar[k]; if (!/^(g|h5g)\d\d$/.test(k) || !g || typeof g !== "object") delete d.grammar[k]; else { g.best = n(g.best); g.passes = n(g.passes); g.mastered = !!g.mastered; } });
+    Object.keys(d.grammar).forEach(function (k) { var g = d.grammar[k]; if (!/^g\d\d$/.test(k) || !g || typeof g !== "object") delete d.grammar[k]; else { g.best = n(g.best); g.passes = n(g.passes); g.mastered = !!g.mastered; } });
     var sts = d.stats; ["cards", "correct", "perfectQuizzes", "bossWins", "nightOwl", "hearts", "ladderRun", "ladderMiss"].forEach(function (k) { if (sts[k] != null) sts[k] = n(sts[k]); });
     if (sts.ladder != null) sts.ladder = Math.max(0, Math.min(3, Math.round(n(sts.ladder)))); // stays unset until the first drill picks a start speed
     if (!d.weekly || typeof d.weekly !== "object" || Array.isArray(d.weekly)) d.weekly = {};
@@ -240,22 +196,6 @@
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
-  /* Export through the iOS share sheet (Save to Files, AirDrop, Mail) when the browser can share a file; otherwise download it. */
-  function shareJSON() {
-    var name = "cb-chinese-progress-" + today() + ".json", file = null, data = null;
-    try {
-      if (typeof File === "function" && navigator.canShare && navigator.share) {
-        file = new File([serialize(true)], name, { type: "application/json" });
-        data = { files: [file], title: "C&B Chinese progress" };
-        if (!navigator.canShare(data)) data = null;
-      }
-    } catch (e) { data = null; }
-    if (!data) { exportJSON(); return Promise.resolve("download"); }
-    return navigator.share(data).then(function () { return "shared"; }, function (e) {
-      if (e && e.name === "AbortError") return "cancelled"; // the learner closed the sheet
-      exportJSON(); return "download";
-    });
-  }
   function importJSON(text) {
     var obj = JSON.parse(text);
     var p = obj && obj.progress ? obj.progress : obj;
@@ -269,7 +209,7 @@
     get state() { return state; },
     load: load, save: save, touch: touch, streak: streak, day: day, game: game,
     today: today, addDays: addDays, daysBetween: daysBetween,
-    exportJSON: exportJSON, shareJSON: shareJSON, importJSON: importJSON, serialize: serialize, compact: compact, backup: backup, reset: reset,
+    exportJSON: exportJSON, importJSON: importJSON, serialize: serialize, reset: reset,
     get available() { return available; }
   };
   load();

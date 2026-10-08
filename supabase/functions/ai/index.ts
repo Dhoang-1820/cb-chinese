@@ -18,8 +18,9 @@
      APP_CODE            required — the access code you type into the app
      GEMINI_MODEL        optional, default gemini-3.8-flash
      GEMINI_FALLBACK     optional, default gemini-3.5-flash-lite (used on 404/429/5xx or a timeout from the main model;
-                         after a timeout/429/5xx the main model is skipped for 10 minutes on that server instance)
-     GEMINI_TIMEOUT_MS   optional, default 8000 — how long to wait for the main model, 3000..18000 (the fallback gets 15000)
+                         after two such failures in a row (timeout/429/5xx) the main model is skipped for 10 minutes
+                         on that server instance)
+     GEMINI_TIMEOUT_MS   optional, default 12000 — how long to wait for the main model, 3000..18000 (the fallback gets 15000)
      AI_DAILY_CAP        optional, default 150 calls a day in total
      ALLOWED_ORIGINS     optional, comma-separated, default https://dhoang-1820.github.io
      ADMIN_CODE          optional — turns on the content review screen (accept / reject / hide). 12+ random characters.
@@ -341,25 +342,30 @@ async function sameSecret(a: string, b: string): Promise<boolean> {
   return d === 0;
 }
 
-/* Per-call waits. The main model gets a short one (GEMINI_TIMEOUT_MS) because the fallback usually answers in ~2 s. */
-const MAIN_TIMEOUT_MS = 8000, FALLBACK_TIMEOUT_MS = 15000, MAX_TIMEOUT_MS = 18000;
+/* Per-call waits. The main model gets a shorter one (GEMINI_TIMEOUT_MS) because the fallback usually answers in ~2 s. */
+const MAIN_TIMEOUT_MS = 12000, FALLBACK_TIMEOUT_MS = 15000, MAX_TIMEOUT_MS = 18000;
 export function mainTimeoutMs(env: Record<string, string | undefined>): number {
   const n = parseInt(env.GEMINI_TIMEOUT_MS || "", 10);
   return isFinite(n) ? Math.min(MAX_TIMEOUT_MS, Math.max(3000, n)) : MAIN_TIMEOUT_MS;
 }
 
-/* Short memory of failure, per server instance: after the main model times out / throws, or answers 429 or 5xx, it is
-   skipped until `until` and requests go straight to the fallback. A 404 (wrong model name) never opens it. */
-const BREAKER_MS = 600000;
-const breaker = { model: "", until: 0 };
+/* Short memory of failure, per server instance: after the main model fails BREAKER_AFTER times in a row (timeout / throw,
+   429 or 5xx), it is skipped until `until` and requests go straight to the fallback. One slow answer alone does not open
+   it, and a good answer from the main model starts the count again. When the 10 minutes are over the main model is tried
+   once: if that fails too, it is skipped for another 10 minutes. A 404 (wrong model name) never counts. */
+const BREAKER_MS = 600000, BREAKER_AFTER = 2;
+const breaker = { model: "", until: 0, fails: 0 };
 let clock: () => number = Date.now;
 /** Forgets the remembered failure (tests call this between cases). */
-export function resetBreaker(): void { breaker.model = ""; breaker.until = 0; }
+export function resetBreaker(): void { breaker.model = ""; breaker.until = 0; breaker.fails = 0; }
 /** Test hook: replaces the breaker's clock; call with no argument to go back to Date.now. */
 export function setBreakerClock(fn?: () => number): void { clock = fn || Date.now; }
 /** Milliseconds the given model will still be skipped for (0 = it will be tried). */
 export function breakerRemaining(model: string): number { return breaker.model === model ? Math.max(0, breaker.until - clock()) : 0; }
-function trip(model: string) { breaker.model = model; breaker.until = clock() + BREAKER_MS; }
+function trip(model: string) {
+  if (breaker.model !== model) { breaker.model = model; breaker.until = 0; breaker.fails = 0; }
+  if (++breaker.fails >= BREAKER_AFTER) breaker.until = clock() + BREAKER_MS;
+}
 
 async function callGemini(deps: Deps, key: string, model: string, body: unknown, timeoutMs: number) {
   const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";

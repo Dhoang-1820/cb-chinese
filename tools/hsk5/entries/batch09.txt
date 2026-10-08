@@ -43,7 +43,7 @@
 数|v.|to count|đếm|请 你 数 一下 ， 今天 来 了 多少 人 。|Please count how many people have come today.|Bạn đếm thử xem hôm nay có bao nhiêu người đến.
 数码|n./adj.|digital|kỹ thuật số|他 买 了 一 台 新 的 数码 相机 。|He bought a new digital camera.|Anh ấy mua một chiếc máy ảnh kỹ thuật số mới.
 摔倒|v.|to fall down|ngã, té ngã|路 上 很 滑 ， 奶奶 不 小心 摔倒 了 。|The road was slippery and Grandma accidentally fell.|Đường rất trơn, bà không cẩn thận bị ngã.
-甩|v.|to swing; to fling; to dump (a partner)|vung, quăng, vẩy; đá (người yêu)|他 洗 完 手 以后 把 水 甩 干 了 。|After washing his hands he shook the water off.|Rửa tay xong anh ấy vẩy cho khô nước.
+甩|v.|to swing; to fling; to dump (a partner)|vung, quăng, vẩy; đá (người yêu)|他 洗 完 手 以后 把 水 甩 干{gān} 了 。|After washing his hands he shook the water off.|Rửa tay xong anh ấy vẩy cho khô nước.
 双方|n.|both sides; the two parties|đôi bên, hai bên|经过 讨论 ， 双方 都 同意 了 这个 价格 。|After discussion, both sides agreed to this price.|Qua thảo luận, hai bên đều đồng ý mức giá này.
 税|n.|tax|thuế|每 个 月 的 工资 都 要 交 税 。|Tax must be paid on every month's salary.|Tiền lương mỗi tháng đều phải nộp thuế.
 说不定|adv.|perhaps; maybe|không chừng, biết đâu|你 再 等 一会儿 ， 说不定 他 马上 就 来 。|Wait a little longer; maybe he'll be here any minute.|Bạn đợi thêm một lát, biết đâu anh ấy đến ngay.
@@ -82,7 +82,7 @@
 提纲|n.|outline|đề cương, dàn ý|写 报告 以前 ， 最好 先 写 一 个 提纲 。|Before writing a report, it's best to write an outline first.|Trước khi viết báo cáo, tốt nhất nên viết dàn ý trước.
 提问|v.|to ask a question|đặt câu hỏi|发言 结束 后 ， 大家 可以 自由 提问 。|After the talk, everyone is free to ask questions.|Sau khi phát biểu xong, mọi người có thể tự do đặt câu hỏi.
 题目|n.|title; topic; exam question|đề bài, đầu đề, câu hỏi|这 次 考试 的 题目 比 上 次 难 。|The questions in this exam are harder than last time.|Đề thi lần này khó hơn lần trước.
-体会|v./n.|to realise from experience; understanding|thể hội, cảm nhận, trải nghiệm|当 了 父母 才 能 体会 到 父母 的 辛苦 。|Only when you become a parent can you appreciate how hard parents work.|Làm bố mẹ rồi mới cảm nhận được nỗi vất vả của bố mẹ.
+体会|v./n.|to realise from experience; understanding|cảm nhận, thấm thía; điều cảm nhận được|当 了 父母 才 能 体会 到 父母 的 辛苦 。|Only when you become a parent can you appreciate how hard parents work.|Làm bố mẹ rồi mới cảm nhận được nỗi vất vả của bố mẹ.
 体贴|adj./v.|considerate; to show consideration for|chu đáo, ân cần, biết quan tâm|她 的 丈夫 非常 体贴 ， 经常 做 饭 。|Her husband is very considerate and often cooks.|Chồng cô ấy rất chu đáo, thường xuyên nấu cơm.
 体现|v.|to embody; to reflect|thể hiện|这个 福利 体现 了 公司 对 员工 的 关心 。|This benefit reflects the company's care for its staff.|Phúc lợi này thể hiện sự quan tâm của công ty đối với nhân viên.
 体验|v./n.|to experience (for oneself); experience|trải nghiệm|我 想 去 农村 体验 一下 那里 的 生活 。|I'd like to go to the countryside to experience life there.|Tôi muốn về nông thôn trải nghiệm cuộc sống ở đó.

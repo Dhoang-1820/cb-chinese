@@ -42,7 +42,7 @@
 发明|v./n.|to invent; invention|phát minh|电话 是 一 百 多 年 前 发明 的 。|The telephone was invented more than a hundred years ago.|Điện thoại được phát minh hơn một trăm năm trước.
 发言|v./n.|to speak (at a meeting); speech|phát biểu; bài phát biểu|明天 开会 的 时候 你 第一 个 发言 。|You will speak first at tomorrow's meeting.|Ngày mai họp bạn sẽ phát biểu đầu tiên.
 罚款|v./n.|to fine; fine|phạt tiền; tiền phạt|在 这里 乱 停车 要 罚款 两 百 块 。|Parking carelessly here means a fine of two hundred yuan.|Đỗ xe bừa bãi ở đây bị phạt hai trăm tệ.
-法院|n.|court of law|tòa án|这 件 事 最后 是 由 法院 判断 的 。|In the end this matter was decided by the court.|Việc này cuối cùng do tòa án phán quyết.
+法院|n.|court of law|tòa án|这 件 事 最后 是 由 法院 判决 的 。|In the end this matter was decided by the court.|Việc này cuối cùng do tòa án phán quyết.
 翻|v.|to turn over; to flip through; to translate|lật, giở; dịch|请 大家 把 书 翻 到 第 二十 页 。|Everyone, please turn to page twenty.|Mời mọi người giở sách đến trang hai mươi.
 繁荣|adj.|prosperous; flourishing|phồn vinh, thịnh vượng|这 几 年 这里 的 经济 越来越 繁荣 。|In recent years the economy here has become more and more prosperous.|Mấy năm nay kinh tế ở đây ngày càng phồn vinh.
 反而|adv.|on the contrary; instead|trái lại, ngược lại|吃 了 药 以后 ， 他 的 病 反而 更 重 了 。|After taking the medicine, his illness got worse instead.|Uống thuốc xong, bệnh của anh ấy trái lại còn nặng hơn.
@@ -60,7 +60,7 @@
 肥皂|n.|soap|xà phòng|吃饭 以前 要 用 肥皂 洗 手 。|Wash your hands with soap before eating.|Trước khi ăn cơm phải rửa tay bằng xà phòng.
 废话|n.|nonsense; superfluous words|lời thừa, lời vô ích|时间 不 多 了 ， 别 说 废话 了 。|There isn't much time left; stop talking nonsense.|Không còn nhiều thời gian nữa, đừng nói lời thừa.
 分别|v./adv.|to part; separately; respectively|chia tay; lần lượt, riêng rẽ|经理 分别 和 每 个 员工 谈 了 话 。|The manager talked with each employee separately.|Giám đốc đã lần lượt nói chuyện với từng nhân viên.
-分布|v.|to be distributed; to be spread|phân bố|我们 的 客户 分布 在 全国 各 地 。|Our clients are spread all over the country.|Khách hàng của chúng tôi phân bố khắp cả nước.
+分布|v.|to be distributed; to be spread|phân bố|我们 的 客户 分布 在 全国 各 地{dì} 。|Our clients are spread all over the country.|Khách hàng của chúng tôi phân bố khắp cả nước.
 分手|v.|to break up; to part|chia tay|他们 谈 了 三 年 恋爱 ， 最后 还是 分手 了 。|They dated for three years but broke up in the end.|Họ yêu nhau ba năm, cuối cùng vẫn chia tay.
 分析|v./n.|to analyse; analysis|phân tích|我们 需要 认真 分析 失败 的 原因 。|We need to analyse the causes of the failure carefully.|Chúng ta cần phân tích nghiêm túc nguyên nhân thất bại.
 纷纷|adv.|one after another; in succession|lần lượt, tới tấp|会议 结束 后 ， 大家 纷纷 离开 了 。|After the meeting ended, everyone left one after another.|Sau khi cuộc họp kết thúc, mọi người lần lượt ra về.

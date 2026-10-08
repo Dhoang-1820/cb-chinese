@@ -35,7 +35,7 @@
 位于|v.|to be located at|nằm ở, tọa lạc tại|我们 的 办公室 位于 城市 的 中心 。|Our office is located in the city centre.|Văn phòng của chúng tôi nằm ở trung tâm thành phố.
 位置|n.|position; place; seat|vị trí, chỗ|请 把 椅子 放 回 原来 的 位置 。|Please put the chair back in its original place.|Hãy đặt ghế về vị trí cũ.
 胃|n.|stomach|dạ dày|我 的 胃 不 太 好 ， 不 能 吃 辣 的 。|My stomach isn't very good; I can't eat spicy food.|Dạ dày của tôi không tốt lắm, không ăn được đồ cay.
-胃口|n.|appetite|khẩu vị, sự thèm ăn|天气 太 热 了 ， 我 没有 什么 胃口 。|It's too hot; I don't have much appetite.|Trời nóng quá, tôi chẳng muốn ăn gì.
+胃口|n.|appetite|sự thèm ăn, cảm giác ngon miệng|天气 太 热 了 ， 我 没有 什么 胃口 。|It's too hot; I don't have much appetite.|Trời nóng quá, tôi chẳng muốn ăn gì.
 温暖|adj./v.|warm; to warm|ấm áp; sưởi ấm|同事 们 的 关心 让 我 感到 很 温暖 。|My colleagues' concern made me feel very warm.|Sự quan tâm của đồng nghiệp khiến tôi cảm thấy rất ấm áp.
 温柔|adj.|gentle; tender|dịu dàng|她 说话 的 声音 非常 温柔 。|Her voice is very gentle when she speaks.|Giọng nói của cô ấy rất dịu dàng.
 文件|n.|document; file|tài liệu, văn bản, tệp|请 把 这 份 文件 复印 三 份 。|Please make three copies of this document.|Vui lòng phô tô tài liệu này thành ba bản.
@@ -69,7 +69,7 @@
 显然|adj./adv.|obvious; clearly|hiển nhiên, rõ ràng|他 一 句 话 也 不 说 ， 显然 是 生气 了 。|He isn't saying a word; clearly he is angry.|Anh ấy không nói một lời nào, rõ ràng là đã giận.
 显示|v.|to show; to display|hiển thị, cho thấy|调查 显示 ， 多数 员工 支持 这个 决定 。|The survey shows that most employees support this decision.|Khảo sát cho thấy đa số nhân viên ủng hộ quyết định này.
 县|n.|county|huyện|他 出生 在 南方 的 一 个 小 县 。|He was born in a small county in the south.|Anh ấy sinh ra ở một huyện nhỏ miền Nam.
-现代|n./adj.|modern times; modern|hiện đại|现代 人 的 生活 离 不 开 手机 。|Modern people cannot live without their mobile phones.|Cuộc sống của con người hiện đại không thể thiếu điện thoại.
+现代|n./adj.|modern times; modern|hiện đại|现代 人 的 生活 离 不{bu} 开 手机 。|Modern people cannot live without their mobile phones.|Cuộc sống của con người hiện đại không thể thiếu điện thoại.
 现实|n./adj.|reality; realistic|hiện thực, thực tế|我们 的 计划 要 符合 现实 情况 。|Our plan must fit the real situation.|Kế hoạch của chúng ta phải phù hợp với tình hình thực tế.
 现象|n.|phenomenon|hiện tượng|年轻 人 晚 结婚 是 很 普遍 的 现象 。|Young people marrying late is a very common phenomenon.|Người trẻ kết hôn muộn là hiện tượng rất phổ biến.
 限制|v./n.|to limit; restriction|hạn chế, giới hạn|这个 活动 不 限制 参加 的 人数 。|This event places no limit on the number of participants.|Hoạt động này không hạn chế số người tham gia.

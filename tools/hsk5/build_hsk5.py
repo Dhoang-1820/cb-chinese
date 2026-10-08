@@ -26,7 +26,7 @@ HEAD = {
     "便": "biàn", "划": "huá", "片": "piàn", "抢": "qiǎng", "切": "qiē", "数": "shǔ", "吐": "tù", "系": "xì",
     "涨": "zhǎng", "挣": "zhèng", "嗯": "èn", "元旦": "Yuándàn", "打交道": "dǎjiāodao", "干活儿": "gànhuór", "系领带": "jìlǐngdài",
     "不要紧": "búyàojǐn", "不见得": "bújiànde", "老婆": "lǎopo", "佩服": "pèifú", "痛快": "tòngkuài",
-    "秘书": "mìshū", "华裔": "huáyì", "使劲儿": "shǐjìnr",
+    "秘书": "mìshū", "华裔": "huáyì", "使劲儿": "shǐjìnr", "国庆节": "Guóqìngjié",
 }
 
 # ---- readings for single-character tokens (pypinyin default is used otherwise)
@@ -58,6 +58,11 @@ NAME = {
     "王": "Wáng", "李": "Lǐ", "刘": "Liú", "陈": "Chén", "赵": "Zhào",
 }
 exec(open(os.path.join(HERE, "overrides.py"), encoding="utf8").read()) if os.path.exists(os.path.join(HERE, "overrides.py")) else None
+
+# tokens after which 只 is a measure word
+MEASURE_BEFORE = set("一两二三四五六七八九十百千几这那哪每半") | {"好几", "这几", "那几"}
+# ... unless an adverbial 只 follows a demonstrative subject (这只是…, 那只能…)
+NOT_MEASURE_AFTER = {"是", "有", "要", "能", "想", "会", "用", "看", "听", "卖", "收", "给", "好", "不过"}
 
 # 一 keeps first tone in these tokens (ordinals, dates)
 YI_KEEP = {"一月", "一号", "一日", "一楼", "一流", "一等", "一一", "一级", "一年级"}
@@ -149,6 +154,13 @@ def sentence_pinyin(seg, where):
                 units.append(["p", part, PUNCT[part], False])
             else:
                 raise SystemExit(f"{where}: character not allowed in example: {part!r}")
+    # context readings (per-sentence overrides are written inline in the entries: 得{dé} 调{diào} 干{gān} 地{dì} 一{yi} 不{bu})
+    # 只 after a numeral or demonstrative is the measure word zhī (一只猫, 这只小鸟), not the adverb zhǐ
+    for k, u in enumerate(units):
+        if u[0] == "w" and u[1] == "只" and u[2] == ["zhǐ"] and k and units[k - 1][0] == "w" \
+                and units[k - 1][1] in MEASURE_BEFORE \
+                and not (k + 1 < len(units) and units[k + 1][1] in NOT_MEASURE_AFTER):
+            u[2] = ["zhī"]
     # sandhi for 一 / 不 at the start of a token
     for k, u in enumerate(units):
         if u[0] != "w" or u[2] is None or u[3]:

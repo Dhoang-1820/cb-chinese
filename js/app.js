@@ -3123,7 +3123,20 @@
     return '<a class="trackrow toolrow" id="h5-row" href="' + (next ? "#/pack/h5/" + next : "#/learn/h5") + '"><span class="t-ico">📗</span><span class="tr-t"><small>HSK 5 · ' + p.done + "/" + p.packs + " packs finished · " + p.words + " words in review</small><b>" +
       (next ? "Continue with pack " + next : "All packs finished") + '</b></span><span class="tr-go">›</span></a>';
   }
-  function studySummary() {
+  /* The server keeps a summary of at most 4,000 characters (a longer one is stored as nothing). Make it fit:
+     shorten the plan texts first, then drop the less important lists. */
+  var SUMMARY_MAX = 3800;
+  function fitSummary(o) {
+    var len = function () { return JSON.stringify(o).length; }, cuts = [120, 60, 20], i;
+    for (i = 0; i < cuts.length && len() > SUMMARY_MAX; i++) if (o.plan && o.plan.actions) o.plan.actions.forEach(function (a) { a.text = String(a.text || "").slice(0, cuts[i]); });
+    if (len() > SUMMARY_MAX) o.plan = null;
+    if (len() > SUMMARY_MAX) o.hours = {};
+    if (len() > SUMMARY_MAX) o.patterns = [];
+    if (len() > SUMMARY_MAX && o.trend) o.trend = o.trend.slice(0, 3);
+    return o;
+  }
+  function studySummary() { return fitSummary(studySummary0()); }
+  function studySummary0() {
     var s = Store.state, t = Store.today(), L = s.slog || {}, i, d, act28 = 0, gap = 0, longest = 0, miss = [0, 0, 0, 0, 0, 0, 0];
     var first = Object.keys(s.log).sort()[0] || t, span = Math.min(28, Store.daysBetween(first, t) + 1);
     for (i = span - 1; i >= 0; i--) {
@@ -3572,7 +3585,7 @@
     if (syncBusy) return syncBusy;
     var mark = syncMark(); if (!force && c.code && c.mark === mark) return Promise.resolve("same");
     var first = !c.code; if (first) { c.code = syncNewCode(); c.rev = 0; syncSave(c); }
-    var data = Store.compact(), size = 0; // the review deck goes in its compact form (see js/storage.js); restoring expands it again
+    var data = Store.backup(), size = 0; // as saved on the phone; only a very large deck goes in its compact form (see js/storage.js), and restoring reads both
     try { size = JSON.stringify(data).length; } catch (e) { size = 0; }
     syncBusy = AI.call("sync_put", { code: c.code, rev: c.rev || 0, force: !!force, data: data, meta: syncMeta(), summary: studySummary() }).then(function (r) {
       syncBusy = null; var n = syncCfg();
@@ -3603,7 +3616,7 @@
     document.addEventListener("visibilitychange", function () { if (document.hidden) { clearTimeout(syncTimer); syncNow(); } });
     setTimeout(function () { syncNow(); }, 8000); // catches a save that was cut off when the app was closed
   })();
-  window.Sync = { now: syncNow, cfg: syncCfg, summary: studySummary };
+  window.Sync = { now: syncNow, cfg: syncCfg, summary: studySummary, _fit: fitSummary };
   function wireSync() {
     var box = document.getElementById("sync-box"); if (!box) return;
     function draw() {

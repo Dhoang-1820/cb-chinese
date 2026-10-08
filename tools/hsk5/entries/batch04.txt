@@ -36,7 +36,7 @@
 观念|n.|notion; way of thinking|quan niệm|年轻 人 的 消费 观念 和 父母 不同 。|Young people's ideas about spending differ from their parents'.|Quan niệm tiêu dùng của người trẻ khác với bố mẹ.
 官|n.|official; officer|quan, quan chức|他 爷爷 以前 是 一 个 很 大 的 官 。|His grandfather used to be a very senior official.|Ông nội anh ấy trước đây là một vị quan rất lớn.
 管子|n.|pipe; tube|ống, đường ống|厨房 的 水 管子 坏 了 ， 得{děi} 找 人 修 。|The water pipe in the kitchen is broken; we must get someone to fix it.|Ống nước trong bếp hỏng rồi, phải tìm người sửa.
-冠军|n.|champion|quán quân, nhà vô địch|我们 部门 得 了 这 次 比赛 的 冠军 。|Our department won first place in this competition.|Bộ phận chúng tôi đã giành chức vô địch cuộc thi lần này.
+冠军|n.|champion|quán quân, nhà vô địch|我们 部门 得{dé} 了 这 次 比赛 的 冠军 。|Our department won first place in this competition.|Bộ phận chúng tôi đã giành chức vô địch cuộc thi lần này.
 光滑|adj.|smooth; glossy|nhẵn, trơn bóng|这 种 纸 的 表面 非常 光滑 。|The surface of this paper is very smooth.|Bề mặt loại giấy này rất nhẵn.
 光临|v.|to be present (honorific); to visit|ghé thăm, đến dự (kính ngữ)|欢迎 光临 ， 请问 您 几 位 ？|Welcome! How many are in your party?|Kính chào quý khách, xin hỏi quý khách đi mấy người?
 光明|adj./n.|bright; promising; light|sáng sủa, tươi sáng; ánh sáng|我 相信 这个 行业 的 未来 很 光明 。|I believe this industry has a bright future.|Tôi tin tương lai của ngành này rất tươi sáng.
@@ -72,7 +72,7 @@
 合影|v./n.|to take a group photo; group photo|chụp ảnh chung; ảnh chụp chung|会议 结束 后 ， 大家 一起 合影 。|After the meeting, everyone took a group photo together.|Sau khi cuộc họp kết thúc, mọi người cùng chụp ảnh chung.
 合作|v./n.|to cooperate; cooperation|hợp tác|我们 和 这 家 公司 合作 了 很多 年 。|We have worked with this company for many years.|Chúng tôi đã hợp tác với công ty này nhiều năm.
 何必|adv.|why bother; there is no need|hà tất, cần gì phải|这 点儿 小 事 ， 你 何必 生气 呢 ？|Why get angry over such a small thing?|Chuyện nhỏ thế này, bạn cần gì phải tức giận?
-何况|conj.|let alone; besides|huống chi, huống hồ|大人 都 搬 不 动 ， 何况 孩子 呢 ？|Even an adult can't move it, let alone a child.|Người lớn còn không bê nổi, huống chi là trẻ con?
+何况|conj.|let alone; besides|huống chi, huống hồ|大人 都 搬 不{bu} 动 ， 何况 孩子 呢 ？|Even an adult can't move it, let alone a child.|Người lớn còn không bê nổi, huống chi là trẻ con?
 和平|n./adj.|peace; peaceful|hòa bình|世界 上 的 人 都 希望 和平 。|People all over the world hope for peace.|Mọi người trên thế giới đều mong muốn hòa bình.
 核心|n.|core; heart|cốt lõi, hạt nhân|人才 是 一 家 公司 的 核心 。|Talent is the core of a company.|Nhân tài là cốt lõi của một công ty.
 恨|v.|to hate|hận, ghét|他 最 恨 别人 对 他 说 假 话 。|What he hates most is people lying to him.|Anh ấy ghét nhất là người khác nói dối mình.

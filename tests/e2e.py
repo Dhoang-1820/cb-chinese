@@ -941,7 +941,12 @@ async def t_extras(b):
     await pg.locator("#w-%s .w-x .wlink" % op["a"]).first.click(); await pg.wait_for_selector(".wsheet"); await pg.wait_for_timeout(250)
     sheet = await pg.inner_text(".wsheet")
     check("opposite: tapping it opens that word's sheet, which shows the pair from the other side", op["bh"] in await pg.inner_text(".wsheet .hz") and "OPPOSITE" in sheet.upper() and op["ah"] in sheet and await pg.evaluate("document.querySelector('.modal-wrap .modal').contains(document.activeElement)"), sheet[:200])
-    await pg.keyboard.press("Escape"); await pg.wait_for_timeout(400)
+    # a word opened from inside a word sheet replaces that sheet; closing it puts focus back where the first one was opened
+    await pg.locator(".wsheet .w-x .wlink").first.click(); await pg.wait_for_timeout(400)
+    check("word sheet opened from a word sheet: one sheet, now for the first word", await pg.locator(".modal-wrap").count() == 1 and op["ah"] in await pg.inner_text(".wsheet .hz") and await pg.evaluate("document.querySelector('.modal-wrap .modal').contains(document.activeElement)"))
+    await pg.keyboard.press("Escape"); await pg.wait_for_timeout(500)
+    back = await pg.evaluate("(()=>{const a=document.activeElement,o=document.querySelector('#w-%s .w-x .wlink');return [document.querySelectorAll('.modal-wrap').length,a===o,a&&a.tagName+'.'+a.className]})()" % op["a"])
+    check("word sheet opened from a word sheet: after closing, focus is back on the link that opened the first one", back[0] == 0 and back[1] is True, back)
     # families
     await go(pg, "#/families", 700)
     check("word families: 61 families, closed by default", await pg.locator("details.fam").count() == 61 and await pg.locator("details.fam[open]").count() == 0 and await pg.evaluate("document.activeElement&&document.activeElement.id") == "app")
@@ -1045,6 +1050,21 @@ async def t_state(b):
     check("heavy user: the server accepts the backup", r == "saved" and cfg.get("rev", 0) >= 1 and "err" not in cfg, (r, cfg))
     hs = await p1.evaluate("Sync.summary().progress.hsk5")
     check("heavy user: the study summary counts HSK 5", hs.get("started") == 62 and hs.get("done") == 62 and hs.get("words") == 1231 and hs.get("grammar") == 42, hs)
+    # the study summary must fit the server's 4,000 characters even at its largest: 8 trend rows, patterns, a plan with three long texts in two languages
+    big = await p1.evaluate("""(()=>{const t=Store.today(),txt='Luyện \\"lượng từ\\" mỗi ngày 10 phút / Practise \\"measure words\\" for 10 minutes every day. '.repeat(8);
+      Store.state.coachLog=[{w:Store.addDays(t,-3),d:t,base:{skills:{},cards:0,mocks:0},actions:['measure','listen-sentence','word-order'].map(k=>({text:txt,minutes:15,skill:k}))}];
+      for(let i=0;i<40;i++)Store.state.mlog.push({d:t,k:'w:d01-0'+(1+i%5),s:'vocab'},{d:t,k:'dr:measure:m'+i,s:'measure'},{d:t,k:'ls:'+i,s:'listen-sentence'});
+      Store.state.skills.measure={r:10,w:90};Store.state.skills['listen-sentence']={r:10,w:90};
+      for(let h=0;h<24;h++){const d=Store.addDays(t,-h);if(Store.state.slog[d])Store.state.slog[d].h=h}
+      const sm=Sync.summary();return {len:JSON.stringify(sm).length,trend:sm.trend.length,patterns:sm.patterns.length,plan:sm.plan?sm.plan.actions.map(a=>a.text.length):null,hours:Object.keys(sm.hours).length,h5:!!sm.progress.hsk5}})()""")
+    print("    largest study summary: %(len)d characters · %(trend)d trend rows · %(patterns)d patterns · %(hours)d start hours · plan texts %(plan)s" % big, flush=True)
+    check("study summary: at its largest it stays under the server's 4,000 characters, with the plan and the HSK 5 numbers", big["len"] < 4000 and big["trend"] == 8 and big["plan"] and len(big["plan"]) == 3 and min(big["plan"]) >= 20 and big["h5"], big)
+    fit = await p1.evaluate("""(()=>{const mk=n=>({span:28,trend:[1,2,3,4,5,6,7,8].map(i=>({skill:'s'+i,acc:50,before:40,n:99})),patterns:[{kind:'skill',skill:'x',n:9}],hours:{20:9},progress:{hsk5:{started:1}},plan:{w:'2026-10-05',actions:[1,2,3].map(()=>({text:'字'.repeat(n),skill:'Measure words',done:false}))}});
+      const a=Sync._fit(mk(200)),b=Sync._fit(mk(1500)),c=Sync._fit(Object.assign(mk(10),{days28:'1'.repeat(5000)}));
+      return [JSON.stringify(a).length,a.plan.actions[0].text.length,JSON.stringify(b).length,b.plan.actions[0].text.length,b.trend.length,c.plan,c.trend.length]})()""")
+    check("study summary: a short one is left alone; a too long one has its plan texts shortened first, then lists dropped", fit[0] < 3800 and fit[1] == 200 and fit[2] <= 3800 and 20 <= fit[3] < 1500 and fit[4] == 8 and fit[5] is None and fit[6] == 3, fit)
+    hw = await p1.evaluate("[Games._hwSkill(App.WORDMAP['h5-0001']),Games._hwSkill(App.WORDMAP['d01-01']),Learn.exam(Games._hwSkill(App.WORDMAP['h5-0001'])),Learn.exam('handwriting'),!!Learn.SKILLS['h5-writing']]")
+    check("handwriting: an HSK 5 word is recorded under the HSK 5 writing skill, not the HSK 4 exam skill", hw == ["h5-writing", "handwriting", False, True, True], hw)
     await p1.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
     await go(p1, "#/fixes", 400); await p1.click("[data-fxtab='learners']"); await p1.wait_for_selector(".lrn-h5", timeout=10000)
     line = await p1.locator(".lrn-h5").first.inner_text()

@@ -243,7 +243,10 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
 
   let o = await go(mainDown);
   t("main times out → fallback answers, main tried once only", o.j.ok && o.j.model === FB && seen.map((x) => x.m).join() === MAIN + "," + FB, JSON.stringify(seen));
-  t("per-model timeouts: main 8000, fallback 15000", seen[0].ms === 8000 && seen[1].ms === 15000, JSON.stringify(seen));
+  t("per-model timeouts: main 12000, fallback 15000", seen[0].ms === 12000 && seen[1].ms === 15000 && fn.mainTimeoutMs({}) === 12000, JSON.stringify(seen));
+  t("breaker: one failure alone does not open it", fn.breakerRemaining(MAIN) === 0);
+  o = await go(mainDown);
+  t("breaker: the second failure in a row is still a try of main, and opens it", o.j.ok && o.j.model === FB && seen.map((x) => x.m).join() === MAIN + "," + FB && fn.breakerRemaining(MAIN) === 600000, JSON.stringify(seen));
   o = await go(mainDown);
   t("breaker: the next request skips main and goes straight to the fallback", o.j.ok && o.j.model === FB && seen.length === 1 && seen[0].m === FB, JSON.stringify(seen));
   now += 599000; o = await go(mainDown);
@@ -254,11 +257,17 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
   t("breaker: stays closed after a good answer from main", o.j.model === MAIN && seen.length === 1);
 
   for (const st of [503, 500, 429]) {
-    fn.resetBreaker(); o = await go((m) => (m === MAIN ? code(st) : gemOk(goodGrade)));
-    const first = seen.map((x) => x.m).join(); o = await go(() => gemOk(goodGrade));
-    t("breaker: " + st + " on main opens it (no second try of main)", first === MAIN + "," + FB && seen.length === 1 && seen[0].m === FB && o.j.model === FB, first);
+    const bad = (m) => (m === MAIN ? code(st) : gemOk(goodGrade));
+    fn.resetBreaker(); o = await go(bad);
+    const first = seen.map((x) => x.m).join(), open1 = fn.breakerRemaining(MAIN); o = await go(bad);
+    const second = seen.map((x) => x.m).join(); o = await go(() => gemOk(goodGrade));
+    t("breaker: " + st + " on main twice in a row opens it (main is not tried twice in one request)", first === MAIN + "," + FB && open1 === 0 && second === MAIN + "," + FB && seen.length === 1 && seen[0].m === FB && o.j.model === FB, first + " / " + second);
   }
-  fn.resetBreaker(); await go(mainDown); now += 600000; await go(mainDown);
+  fn.resetBreaker(); await go(mainDown); o = await go(() => gemOk(goodGrade)); await go(mainDown);
+  t("breaker: a good answer from main between two failures starts the count again", o.j.model === MAIN && fn.breakerRemaining(MAIN) === 0 && seen[0].m === MAIN, JSON.stringify(seen));
+  o = await go(mainDown);
+  t("breaker: ... and the next failure in a row then opens it", fn.breakerRemaining(MAIN) === 600000 && seen[0].m === MAIN, JSON.stringify(seen));
+  fn.resetBreaker(); await go(mainDown); await go(mainDown); now += 600000; await go(mainDown);
   t("breaker: main failing again after expiry re-opens it for another 10 minutes", seen.length === 2 && fn.breakerRemaining(MAIN) === 600000, JSON.stringify(seen));
   o = await go(() => timeout());
   t("breaker open + fallback times out → one call, upstream_unreachable", o.s === 502 && o.j.error === "upstream_unreachable" && seen.length === 1 && seen[0].m === FB, JSON.stringify(o.j));
@@ -279,20 +288,20 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
 
   fn.resetBreaker();
   const tm = async (v) => { fn.resetBreaker(); await go(mainDown, { ...eb, GEMINI_TIMEOUT_MS: v }); return seen[0].ms; };
-  t("GEMINI_TIMEOUT_MS: used, clamped to 3000..18000, junk → 8000", (await tm("5000")) === 5000 && (await tm("100")) === 3000 && (await tm("99999")) === 18000 && (await tm("abc")) === 8000 && fn.mainTimeoutMs({}) === 8000);
+  t("GEMINI_TIMEOUT_MS: used, clamped to 3000..18000, junk → 12000", (await tm("5000")) === 5000 && (await tm("100")) === 3000 && (await tm("99999")) === 18000 && (await tm("abc")) === 12000 && fn.mainTimeoutMs({}) === 12000);
 
   // the skip is logged once per request, without the key, the question or the answer (logging is on only under Deno)
-  fn.resetBreaker(); await go(mainDown);
+  fn.resetBreaker(); await go(mainDown); await go(mainDown);
   const lines = [], realLog = console.log; globalThis.Deno = {}; console.log = (x) => lines.push(String(x));
   try { await go(mainDown); } finally { console.log = realLog; delete globalThis.Deno; }
   const skips = lines.map((l) => JSON.parse(l)).filter((l) => l.skipped === true);
   t("skip logged once with skipped:true, and no key / question / answer in the log", skips.length === 1 && skips[0].model === MAIN && skips[0].gemini === "grade" && lines.length === 2 && !/"k"|地铁|x-goog|我每天/.test(lines.join("")), lines.join(" | "));
 
   // content check keeps using both models (breaker ignored) and gets the same per-call timeouts
-  fn.resetBreaker(); await go(mainDown); seen = [];
+  fn.resetBreaker(); await go(mainDown); await go(mainDown); seen = [];
   const vd = { status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ verdict: "ok", reasoning: "Fine.", patch: { set: [] }, confidence: "high" }) }] } }] }) };
   const v = await fn.verifyReport({ ref: "drill:c01" }, "both", eb, { fetch: async (url, _i, ms) => { seen.push({ m: modelOf(url), ms }); return vd; }, bump: async () => 1 });
-  t("verifyReport: both models called while the breaker is open, timeouts 8000 / 15000", v && v.status === "dismissed" && seen.length === 2 && seen[0].m === MAIN && seen[0].ms === 8000 && seen[1].m === FB && seen[1].ms === 15000, JSON.stringify(seen));
+  t("verifyReport: both models called while the breaker is open, timeouts 12000 / 15000", v && fn.breakerRemaining(MAIN) > 0 && v.status === "dismissed" && seen.length === 2 && seen[0].m === MAIN && seen[0].ms === 12000 && seen[1].m === FB && seen[1].ms === 15000, JSON.stringify(seen));
   fn.resetBreaker(); fn.setBreakerClock();
   t("breaker reset leaves no state behind", fn.breakerRemaining(MAIN) === 0);
 }

@@ -468,7 +468,7 @@ async def t_hearts(b):
 async def t_talk(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
     await go(pg, "#/talk", 500)
-    check("role-play: 10 scenes in two groups (everyday HR, law & policy)", await pg.locator("a[href^='#/talk/']").count() == 10 and await pg.locator(".talk-grp").count() == 2)
+    check("role-play: 16 scenes in three groups (just chat, everyday HR, law & policy)", await pg.locator("a[href^='#/talk/']").count() == 16 and await pg.locator(".talk-grp").count() == 3)
     await pg.click("[data-lvl='hsk5']"); await pg.wait_for_timeout(200)
     check("role-play: the HSK 5 level is remembered", await pg.evaluate("JSON.parse(localStorage.getItem('cbChinese.talk')).level") == "hsk5")
     await go(pg, "#/talk/overtime", 300)
@@ -482,9 +482,13 @@ async def t_talk(b):
     await pg.wait_for_selector(".tb-fix", timeout=15000)
     check("role-play: the AI corrects a clumsy sentence", "我想问一下" in await pg.locator(".tb-fix").inner_text())
     check("role-play: a level-up version with its grammar point", "既然" in await pg.locator(".tb-up").first.inner_text() and "既然…就" in await pg.locator(".tb-up").first.inner_text())
+    check("role-play: no Finish button before 3 replies", await pg.locator("#t-fin").is_hidden())
     for t in ("我想看一下工资条。", "按照规定，周日是两倍。", "我们会在下个月补发。", "好的，谢谢。"):
         await pg.fill("#t-text", t); await pg.click("#t-send"); await pg.wait_for_timeout(1200)
+    check("role-play: the conversation keeps going after the case is discussed (no early end)", await pg.locator(".talk-end").count() == 0 and await pg.locator("#t-text").is_visible())
+    await pg.click("#t-fin")
     await pg.wait_for_selector(".talk-end", timeout=15000)
+    check("role-play: Finish ends with a goodbye from the character", "谢谢你" in await pg.locator(".tb-ai").last.inner_text())
     end = await pg.locator(".talk-end").inner_text()
     check("role-play: the case ends with a score, feedback, a phrase and 20 XP when solved", "8/10" in end and "按照规定" in end and await pg.evaluate("Store.state.xp") >= 20, end[:200])
     check("role-play: the best score is kept per scene", await pg.evaluate("JSON.parse(localStorage.getItem('cbChinese.talk')).best.overtime") == 8)

@@ -3359,14 +3359,14 @@
           return '<a class="grow" href="#/talk/' + t.id + '"><span class="g-ico">' + t.icon + '</span><span class="g-txt"><b>' + L(t.t) + "</b><small>" + L(t.d) + (best != null ? " · best " + best + "/10" : "") + '</small></span><span class="g-go">▶</span></a>';
         }).join("") + "</div>";
       };
-      render('<section class="card"><h2>🗣️ Role-play</h2><p class="sub">You are the HR person. The AI plays an employee, candidate or manager with a real problem, a mood and a detail you don\'t know yet. Use the company rules to solve the case. Each reply shows corrections, a level-up version of your sentence and new words.</p>' +
+      render('<section class="card"><h2>🗣️ Role-play</h2><p class="sub">You are the HR person. The AI plays an employee, candidate or manager with a real problem, a mood and a detail you don\'t know yet. Use the company rules to solve the case; after that the talk moves on to related topics, so you can keep practising as long as you like. Tap Finish for your score. Each reply shows corrections, a level-up version of your sentence and new words.</p>' +
         '<div class="seg talk-lvl" role="group" aria-label="Language level"><button type="button" class="chip' + (pr.level === "hsk4" ? " on" : "") + '" data-lvl="hsk4" aria-pressed="' + (pr.level === "hsk4") + '">HSK 4</button><button type="button" class="chip' + (pr.level === "hsk5" ? " on" : "") + '" data-lvl="hsk5" aria-pressed="' + (pr.level === "hsk5") + '">HSK 5</button></div></section>' +
-        grp("daily", "Everyday HR") + grp("law", "Law & policy") +
+        grp("chat", "Just chat") + grp("daily", "Everyday HR") + grp("law", "Law & policy") +
         (window.AI && AI.configured() ? "" : '<p class="warn">Set up AI first: Me → AI assistant.</p>'), "games");
       [].forEach.call(document.querySelectorAll("[data-lvl]"), function (bt) { bt.onclick = function () { pr.level = bt.getAttribute("data-lvl"); saveTalkPrefs(pr); viewTalk(); }; });
       return;
     }
-    var hist = [], turns = 0, busy = false, finished = false, lastHint = "", MAX = 12;
+    var hist = [], turns = 0, busy = false, finished = false, lastHint = "", MAX = 20;
     var variant = Math.floor(Math.random() * 1000), mood = Math.floor(Math.random() * 1000);
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     function bubbleAI(r, words) {
@@ -3384,8 +3384,9 @@
       '<div class="talk-row"><input id="t-text" class="zh" lang="zh-CN" maxlength="120" autocomplete="off" aria-label="Your reply in Chinese" placeholder="用中文回答…">' +
       (SR ? '<button type="button" class="btn small" id="t-mic" aria-label="Speak in Chinese">🎤</button>' : "") +
       '<button type="button" class="btn primary small" id="t-send">Send</button></div>' +
-      (SR ? "" : '<p class="sub">Voice input is not available in this browser. Use your pinyin keyboard.</p>') + "</div>", "games");
-    var log = document.getElementById("talk-log"), inp = document.getElementById("t-text");
+      (SR ? "" : '<p class="sub">Voice input is not available in this browser. Use your pinyin keyboard.</p>') +
+      '<div class="actions center"><button type="button" class="btn small" id="t-fin" hidden>🏁 Finish and get my score</button></div></div>', "games");
+    var log = document.getElementById("talk-log"), inp = document.getElementById("t-text"), fin = document.getElementById("t-fin");
     document.getElementById("t-read").onchange = function () { pr.read = this.checked; saveTalkPrefs(pr); if (!pr.read) Audio2.stop(); };
     document.getElementById("t-hint").onclick = function () { document.getElementById("t-hint-t").textContent = lastHint || "试试问：具体是哪一项？"; };
     function opening(r, words) {
@@ -3406,7 +3407,7 @@
       log.insertAdjacentHTML("beforeend", '<div class="ai-card talk-end"><b>' + (sm ? (met ? "✅ Case solved" : "🟡 Case not fully solved") + " · " + sm.score + "/10" : "✅ Conversation done") + " · +" + (met ? 20 : 15) + " XP</b>" +
         (sm && sm.comment ? '<p class="ai-exp">' + esc(sm.comment) + "</p>" : "") +
         (sm && sm.phrase ? '<p class="sub">Phrase to remember: <span class="zh">' + esc(sm.phrase.zh) + "</span>" + SAY(sm.phrase.zh) + " " + esc(sm.phrase.pinyin) + " · " + esc(sm.phrase.meaning) + "</p>" : "") +
-        '<p class="sub">' + turns + ' replies. Play it again: the details change every time.</p><div class="actions center"><a class="btn" href="#/talk">More scenes</a><button type="button" class="btn primary" id="t-again">Again</button></div></div>');
+        '<p class="sub">' + turns + ' replies. Play it again: the details and the mood change every time.</p><div class="actions center"><a class="btn" href="#/talk">More scenes</a><button type="button" class="btn primary" id="t-again">Again</button></div></div>');
       document.querySelector(".talk-in").hidden = true;
       document.getElementById("t-again").onclick = function () { viewTalk(sc.id); };
       paint();
@@ -3419,7 +3420,7 @@
       busy = true; inp.value = ""; turns++; document.getElementById("t-n").textContent = turns + "/" + MAX;
       var my = document.createElement("div"); my.className = "tb tb-me"; my.innerHTML = '<div class="zh">' + esc(text) + "</div>"; log.appendChild(my);
       var wait = document.createElement("div"); wait.className = "tb tb-ai"; wait.textContent = "…"; log.appendChild(wait); paint();
-      AI.call("roleplay", { scene: sc.id, text: text, history: hist.slice(-10), variant: variant, mood: mood, level: pr.level }).then(function (res) {
+      AI.call("roleplay", { scene: sc.id, text: text, history: hist.slice(-10), turns: turns, variant: variant, mood: mood, level: pr.level }).then(function (res) {
         busy = false; wait.remove();
         if (!res.ok) { turns--; document.getElementById("t-n").textContent = turns + "/" + MAX; my.remove(); inp.value = text; UI.toast(AI.errMsg(res.error), "⚠️"); return; }
         var r = res.result, fb = r.feedback || {};
@@ -3429,9 +3430,23 @@
         log.insertAdjacentHTML("beforeend", bubbleAI(r.reply, r.words));
         readAloud(r.reply.zh);
         lastHint = r.hint ? r.hint + (r.hint_pinyin ? " · " + r.hint_pinyin : "") : lastHint; document.getElementById("t-hint-t").textContent = "";
+        if (turns >= 3) fin.hidden = false;
         if (r.done || turns >= MAX) finish(r.summary || null); else { paint(); inp.focus(); }
       });
     }
+    // Finish at any point: the character says goodbye and the AI gives the score and feedback for the whole conversation.
+    fin.onclick = function () {
+      if (busy || finished || !turns) return;
+      if (pr.read) Audio2.unlock();
+      busy = true; fin.disabled = true;
+      var wait = document.createElement("div"); wait.className = "tb tb-ai"; wait.textContent = "…"; log.appendChild(wait); paint();
+      AI.call("roleplay", { scene: sc.id, wrap: true, history: hist.slice(-10), turns: turns, variant: variant, mood: mood, level: pr.level }).then(function (res) {
+        busy = false; fin.disabled = false; wait.remove();
+        if (!res.ok) { UI.toast(AI.errMsg(res.error), "⚠️"); return; }
+        log.insertAdjacentHTML("beforeend", bubbleAI(res.result.reply, res.result.words)); readAloud(res.result.reply.zh);
+        finish(res.result.summary || null);
+      });
+    };
     inp.addEventListener("focus", function () { setTimeout(function () { inp.scrollIntoView({ block: "center", behavior: "smooth" }); }, 300); });
     if (window.visualViewport) window.visualViewport.addEventListener("resize", function () { if (document.activeElement === inp) setTimeout(function () { inp.scrollIntoView({ block: "center" }); }, 50); });
     document.getElementById("t-send").onclick = send;

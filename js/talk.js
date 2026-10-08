@@ -113,6 +113,72 @@
         { en: "She returns to the same job, or an equal one, at the same salary.", vi: "Khi quay lại, được làm công việc cũ hoặc tương đương với mức lương như cũ." },
         { en: "Fathers get 5 working days of paternity leave; the year-end bonus is prorated for time worked.", vi: "Người cha được nghỉ 5 ngày làm việc; thưởng cuối năm tính theo thời gian làm việc thực tế." }
       ],
-      open: { zh: "我怀孕了，可是我有点儿担心，休产假会不会影响我的工作？", py: "Wǒ huáiyùn le, kěshì wǒ yǒu diǎnr dānxīn, xiū chǎnjià huì bu huì yǐngxiǎng wǒ de gōngzuò?", en: "I'm pregnant, but I'm a bit worried. Will taking maternity leave affect my job?", vi: "Em có thai rồi, nhưng em hơi lo, nghỉ thai sản có ảnh hưởng đến công việc của em không?" } }
-  ];
+      open: { zh: "我怀孕了，可是我有点儿担心，休产假会不会影响我的工作？", py: "Wǒ huáiyùn le, kěshì wǒ yǒu diǎnr dānxīn, xiū chǎnjià huì bu huì yǐngxiǎng wǒ de gōngzuò?", en: "I'm pregnant, but I'm a bit worried. Will taking maternity leave affect my job?", vi: "Em có thai rồi, nhưng em hơi lo, nghỉ thai sản có ảnh hưởng đến công việc của em không?" } },
+    { id: "expenses", group: "daily", icon: "🧳",
+      t: {"en": "Business trip expenses", "vi": "Chi phí công tác"},
+      d: {"en": "An employee's travel claim does not match the policy", "vi": "Đề nghị thanh toán công tác của nhân viên không khớp chính sách"},
+      goal: {"en": "Check the claim against the policy, explain what can be paid, and agree what to fix.", "vi": "Đối chiếu đề nghị với chính sách, giải thích khoản nào được thanh toán và thống nhất cần sửa gì."},
+      rules: [
+        { en: "Hotels up to 1.2 million VND a night in big cities, 800,000 elsewhere.", vi: "Khách sạn tối đa 1,2 triệu đồng/đêm ở thành phố lớn, 800.000 đồng ở nơi khác." },
+        { en: "Daily allowance of 300,000 VND covers meals; no meal receipts needed.", vi: "Phụ cấp 300.000 đồng/ngày cho ăn uống; không cần hóa đơn ăn uống." },
+        { en: "Claims need official VAT invoices and must be submitted within 30 days of the trip.", vi: "Đề nghị thanh toán cần hóa đơn VAT hợp lệ và nộp trong vòng 30 ngày sau chuyến đi." },
+        { en: "Taxis are allowed for business; private trips and family costs are not covered.", vi: "Được đi taxi cho công việc; chuyến đi cá nhân và chi phí gia đình không được thanh toán." }
+      ],
+      open: {"zh": "我上个月出差的报销怎么被退回来了？我都按时交了啊。", "py": "Wǒ shàng ge yuè chūchāi de bàoxiāo zěnme bèi tuì huílai le? Wǒ dōu ànshí jiāo le a.", "en": "Why was my business trip claim from last month sent back? I handed it in on time.", "vi": "Sao đề nghị thanh toán công tác tháng trước của em bị trả lại? Em nộp đúng hạn mà."} },
+    { id: "training", group: "daily", icon: "🎓",
+      t: {"en": "Training sponsorship", "vi": "Tài trợ đào tạo"},
+      d: {"en": "An employee wants the company to pay for a course", "vi": "Nhân viên muốn công ty trả tiền khóa học"},
+      goal: {"en": "Explain the training policy, the service commitment, and help the employee apply.", "vi": "Giải thích chính sách đào tạo, cam kết làm việc và giúp nhân viên đăng ký."},
+      rules: [
+        { en: "The company pays up to 30 million VND a year per employee for job-related training.", vi: "Công ty chi tối đa 30 triệu đồng/năm/nhân viên cho đào tạo liên quan công việc." },
+        { en: "Courses above 15 million need a service commitment of 1 year after the course.", vi: "Khóa học trên 15 triệu cần cam kết làm việc 1 năm sau khóa học." },
+        { en: "If the employee leaves early, they repay the cost in proportion to the months left.", vi: "Nếu nghỉ việc sớm, nhân viên hoàn trả chi phí theo số tháng còn lại." },
+        { en: "Applications need the manager's approval and must be sent before the course starts.", vi: "Đơn cần quản lý duyệt và phải gửi trước khi khóa học bắt đầu." }
+      ],
+      open: {"zh": "我报了一个HSK五级的培训班，公司能帮我出学费吗？", "py": "Wǒ bàole yí ge HSK wǔ jí de péixùnbān, gōngsī néng bāng wǒ chū xuéfèi ma?", "en": "I've signed up for an HSK 5 course. Can the company pay the fees for me?", "vi": "Em đã đăng ký một lớp HSK 5, công ty có thể trả học phí giúp em không?"} },
+    { id: "remote", group: "daily", icon: "🏠",
+      t: {"en": "Working from home", "vi": "Làm việc tại nhà"},
+      d: {"en": "An employee asks for more remote work", "vi": "Nhân viên xin làm việc từ xa nhiều hơn"},
+      goal: {"en": "Explain the hybrid policy, understand the reason, and find a fair arrangement.", "vi": "Giải thích chính sách làm việc kết hợp, hiểu lý do và tìm phương án hợp lý."},
+      rules: [
+        { en: "Staff may work from home up to 2 days a week after probation.", vi: "Sau thử việc, nhân viên được làm việc tại nhà tối đa 2 ngày/tuần." },
+        { en: "Core hours are 10:00 to 16:00; staff must be reachable online.", vi: "Giờ cốt lõi là 10:00 đến 16:00; nhân viên phải liên lạc được trực tuyến." },
+        { en: "More remote days need the manager's and HR's written approval, for up to 3 months.", vi: "Làm từ xa nhiều hơn cần quản lý và HR duyệt bằng văn bản, tối đa 3 tháng." },
+        { en: "Health or family reasons are considered first; documents may be requested.", vi: "Lý do sức khỏe hoặc gia đình được ưu tiên xem xét; có thể yêu cầu giấy tờ." }
+      ],
+      open: {"zh": "最近我家里有点儿情况，我想每周在家办公四天，可以吗？", "py": "Zuìjìn wǒ jiā lǐ yǒu diǎnr qíngkuàng, wǒ xiǎng měi zhōu zài jiā bàngōng sì tiān, kěyǐ ma?", "en": "Something has come up at home recently. Could I work from home four days a week?", "vi": "Gần đây nhà em có chút chuyện, em muốn mỗi tuần làm việc ở nhà bốn ngày, được không ạ?"} },
+    { id: "conflict", group: "daily", icon: "⚡",
+      t: {"en": "Conflict in a team", "vi": "Mâu thuẫn trong nhóm"},
+      d: {"en": "An employee complains about a colleague", "vi": "Nhân viên phàn nàn về đồng nghiệp"},
+      goal: {"en": "Listen, keep it fair and confidential, and agree on the next step.", "vi": "Lắng nghe, giữ công bằng và bảo mật, thống nhất bước tiếp theo."},
+      rules: [
+        { en: "Complaints are handled confidentially; only the people involved are told.", vi: "Khiếu nại được xử lý bảo mật; chỉ những người liên quan được biết." },
+        { en: "HR hears both sides before deciding anything.", vi: "HR nghe cả hai bên trước khi quyết định." },
+        { en: "Serious cases (harassment, threats) are investigated within 10 working days.", vi: "Trường hợp nghiêm trọng (quấy rối, đe dọa) được điều tra trong vòng 10 ngày làm việc." },
+        { en: "No one may be punished for raising a complaint in good faith.", vi: "Không ai bị phạt vì đã khiếu nại một cách thiện chí." }
+      ],
+      open: {"zh": "我真的受不了我们组的老王了，他总是把他的工作推给我。", "py": "Wǒ zhēn de shòu bu liǎo wǒmen zǔ de Lǎo Wáng le, tā zǒngshì bǎ tā de gōngzuò tuī gěi wǒ.", "en": "I really can't stand Lao Wang in my team any more. He always pushes his work onto me.", "vi": "Em thật sự chịu hết nổi anh Vương trong nhóm rồi, anh ấy toàn đẩy việc của mình cho em."} },
+    { id: "accident", group: "law", icon: "🩹",
+      t: {"en": "Work injury", "vi": "Tai nạn lao động"},
+      d: {"en": "An employee was hurt on the way to work", "vi": "Nhân viên bị thương trên đường đi làm"},
+      goal: {"en": "Explain what counts as a work accident, the documents, and the benefits.", "vi": "Giải thích thế nào là tai nạn lao động, giấy tờ cần có và quyền lợi."},
+      rules: [
+        { en: "An accident on the usual route to or from work, at a reasonable time, counts as a work accident.", vi: "Tai nạn trên tuyến đường đi làm và về thường ngày, trong thời gian hợp lý, được tính là tai nạn lao động." },
+        { en: "It must be reported to HR within 24 hours, with a police or hospital record.", vi: "Phải báo cho HR trong vòng 24 giờ, kèm biên bản của công an hoặc bệnh viện." },
+        { en: "The company pays medical costs not covered by health insurance and full salary during treatment.", vi: "Công ty trả chi phí y tế ngoài phần bảo hiểm y tế chi trả và trả đủ lương trong thời gian điều trị." },
+        { en: "Accidents caused by drinking alcohol or breaking traffic law are not covered.", vi: "Tai nạn do uống rượu bia hoặc vi phạm luật giao thông không được tính." }
+      ],
+      open: {"zh": "昨天早上我骑摩托车上班的路上摔倒了，腿受伤了。这算工伤吗？", "py": "Zuótiān zǎoshang wǒ qí mótuōchē shàngbān de lù shàng shuāidǎo le, tuǐ shòushāng le. Zhè suàn gōngshāng ma?", "en": "Yesterday morning I fell off my motorbike on the way to work and hurt my leg. Does that count as a work injury?", "vi": "Sáng hôm qua em ngã xe máy trên đường đi làm, bị thương ở chân. Như vậy có tính là tai nạn lao động không?"} },
+    { id: "freetalk", group: "chat", icon: "☕",
+      t: {"en": "Lunch chat with a colleague", "vi": "Trò chuyện giờ trưa với đồng nghiệp"},
+      d: {"en": "Small talk with a Chinese colleague, topics change as you go", "vi": "Nói chuyện phiếm với đồng nghiệp người Trung Quốc, chủ đề thay đổi liên tục"},
+      goal: {"en": "Keep a natural conversation going for as long as you can: ask questions back and share your own stories.", "vi": "Duy trì cuộc trò chuyện tự nhiên càng lâu càng tốt: hỏi lại và kể chuyện của mình."},
+      rules: [
+        { en: "Topics you can bring up: weekend plans, food, travel, family, hobbies.", vi: "Chủ đề có thể nói: kế hoạch cuối tuần, đồ ăn, du lịch, gia đình, sở thích." },
+        { en: "Work life: workload, a new project, the office, commuting.", vi: "Công việc: khối lượng việc, dự án mới, văn phòng, đi lại." },
+        { en: "Culture: differences between Vietnam and China, festivals, learning Chinese.", vi: "Văn hóa: khác biệt Việt Nam và Trung Quốc, lễ hội, học tiếng Trung." },
+        { en: "Good habits: ask a follow-up question, give a reason, tell a short story.", vi: "Thói quen tốt: hỏi tiếp, nêu lý do, kể một câu chuyện ngắn." }
+      ],
+      open: {"zh": "哎，你中午吃什么？我发现公司附近新开了一家越南米粉店。", "py": "Āi, nǐ zhōngwǔ chī shénme? Wǒ fāxiàn gōngsī fùjìn xīn kāile yì jiā Yuènán mǐfěn diàn.", "en": "Hey, what are you having for lunch? I noticed a new Vietnamese pho place opened near the office.", "vi": "Này, trưa nay cậu ăn gì? Mình thấy gần công ty mới mở một quán phở Việt Nam."} }
+  ];;
 })();

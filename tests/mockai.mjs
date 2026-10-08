@@ -24,9 +24,9 @@ const good = (c) => {
   const props = c.generationConfig.responseSchema.properties;
   if (props.reply) {
     const msg = d.learner_latest_message || "", n = d.learner_turns || 0;
-    const reply = msg ? { zh: "那为什么周日只按一点五倍算？", pinyin: "Nà wèishénme zhōurì zhǐ àn yī diǎn wǔ bèi suàn?", meaning: "Then why was Sunday paid at only 1.5 times?" }
+    const reply = d.wrap_up ? { zh: "好，那我先回去工作了，谢谢你！", pinyin: "Hǎo, nà wǒ xiān huíqu gōngzuò le, xièxie nǐ!", meaning: "OK, I'll get back to work then. Thanks!" } : msg ? { zh: "那为什么周日只按一点五倍算？", pinyin: "Nà wèishénme zhōurì zhǐ àn yī diǎn wǔ bèi suàn?", meaning: "Then why was Sunday paid at only 1.5 times?" }
       : { zh: "你好，我想问问加班费的事。", pinyin: "Nǐ hǎo, wǒ xiǎng wènwen jiābānfèi de shì.", meaning: "Hi, I want to ask about overtime pay." };
-    const done = n >= 5;
+    const done = d.wrap_up === true || n >= 20;
     return { reply, words: [{ zh: "加班费", pinyin: "jiābānfèi", meaning: "overtime pay" }],
       feedback: !msg ? { corrected: "", note: "", upgrade: "", upgrade_point: "" } : /我问/.test(msg) ? { corrected: "我想问一下。", note: "Add 想 before 问.", upgrade: "既然你有问题，我就帮你查一下。", upgrade_point: "既然…就" } : { corrected: msg, note: "", upgrade: "", upgrade_point: "" },
       hint: "请稍等。", hint_pinyin: "Qǐng shāo děng.", done, confidence: "high",

@@ -111,13 +111,13 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
   // ---- role-play ----
   const rres = { reply: { zh: "好的，我来解释一下。", pinyin: "Hǎo de, wǒ lái jiěshì yíxià.", meaning: "OK, let me explain." }, feedback: { corrected: "我想问工资条。", note: "Use 想 before the verb." }, hint: "请再说一遍", hint_pinyin: "Qǐng zài shuō yí biàn", done: true, confidence: "high" };
   j = await run({ task: "roleplay", payload: { scene: "payslip", text: "我问工资条", history: [{ role: "ai", zh: "你好" }] } }, rres);
-  t("roleplay: reply + correction, done ignored before 5 learner turns", j.ok && j.result.reply.zh && j.result.feedback.changed === true && j.result.done === false && j.result.summary === null, JSON.stringify(j));
-  const hist = [1, 2, 3, 4].flatMap(() => [{ role: "ai", zh: "你好" }, { role: "me", zh: "你好" }]);
+  t("roleplay: reply + correction, done ignored in a short conversation", j.ok && j.result.reply.zh && j.result.feedback.changed === true && j.result.done === false && j.result.summary === null, JSON.stringify(j));
+  const hist = Array.from({ length: 19 }).flatMap(() => [{ role: "ai", zh: "你好" }, { role: "me", zh: "你好" }]);
   const rdone = { ...rres, feedback: { corrected: "我想问工资条。", note: "x", upgrade: "既然你想问工资条，我就给你解释一下。", upgrade_point: "既然…就" },
     words: [{ zh: "扣款", pinyin: "kòukuǎn", meaning: "deduction" }, { zh: "个人所得税", pinyin: "gèrén suǒdéshuì", meaning: "income tax" }, { zh: "社保", pinyin: "shèbǎo", meaning: "social insurance" }],
     summary: { goal_met: true, score: 14, comment: "Clear explanation.", phrase: { zh: "按照规定", pinyin: "ànzhào guīdìng", meaning: "according to the rules" } } };
-  j = await run({ task: "roleplay", payload: { scene: "payslip", text: "我想问工资条。", history: hist } }, rdone);
-  t("roleplay: unchanged message → no note; done allowed from 5 turns, with a summary (score clamped)", j.ok && j.result.feedback.changed === false && j.result.feedback.note === "" && j.result.done === true && j.result.summary && j.result.summary.goal_met === true && j.result.summary.score === 10 && j.result.summary.phrase.zh === "按照规定", JSON.stringify(j));
+  j = await run({ task: "roleplay", payload: { scene: "payslip", text: "我想问工资条。", history: hist, turns: 20 } }, rdone);
+  t("roleplay: unchanged message → no note; done allowed from 20 turns, with a summary (score clamped)", j.ok && j.result.feedback.changed === false && j.result.feedback.note === "" && j.result.done === true && j.result.summary && j.result.summary.goal_met === true && j.result.summary.score === 10 && j.result.summary.phrase.zh === "按照规定", JSON.stringify(j));
   t("roleplay: level-up suggestion kept with its grammar point; at most 2 new words", j.result.feedback.upgrade.indexOf("既然") === 0 && j.result.feedback.upgrade_point === "既然…就" && j.result.words.length === 2, JSON.stringify(j.result));
   j = await run({ task: "roleplay", payload: { scene: "payslip", text: "我想问工资条。", history: [] } }, { ...rres, feedback: { corrected: "我想问工资条。", note: "", upgrade: "我想问工资条。", upgrade_point: "x" } });
   t("roleplay: an 'upgrade' that only repeats the sentence is dropped", j.ok && j.result.feedback.upgrade === "" && j.result.feedback.upgrade_point === "", JSON.stringify(j.result.feedback));
@@ -137,6 +137,13 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
     t("roleplay: the app's scenes and the server's scenes are the same list", app === srv, app + " | " + srv);
     const diff = w.CB_TALK.filter((x) => JSON.stringify(x.rules.map((r) => r.en)) !== JSON.stringify(fn.ROLEPLAY_SCENES[x.id].rules)).map((x) => x.id);
     t("roleplay: the rules card the learner sees is exactly what the AI is told", diff.length === 0, diff.join(","));
+    j = await run({ task: "roleplay", payload: { scene: "payslip", text: "我想问工资条。", history: hist.slice(0, 6) } }, rdone);
+    t("roleplay: the AI cannot end a conversation early on its own (6 turns)", j.ok && j.result.done === false && j.result.summary === null, JSON.stringify(j.result.done));
+    j = await run({ task: "roleplay", payload: { scene: "payslip", wrap: true, history: hist.slice(0, 6) } }, rdone);
+    t("roleplay: 'Finish' (wrap) ends at any point with a summary, without a new message", j.ok && j.result.done === true && j.result.summary && j.result.feedback.corrected === "", JSON.stringify(j));
+    j = await run({ task: "roleplay", payload: { scene: "payslip", wrap: true, history: [{ role: "ai", zh: "你好" }] } }, rdone);
+    t("roleplay: 'Finish' needs at least one learner reply", j.ok === false, JSON.stringify(j));
+    t("roleplay: every scene has follow-up topics for a long conversation", w.CB_TALK.every((x) => (fn.ROLEPLAY_SCENES[x.id].topics || []).length >= 3), "");
     t("roleplay: every scene has at least 3 hidden twists and a Vietnamese rules card", w.CB_TALK.every((x) => fn.ROLEPLAY_SCENES[x.id].twists.length >= 3 && x.rules.every((r) => r.vi)), "");
   }
   j = await run({ task: "roleplay", payload: { scene: "hack", text: "我问" } }, rres); t("roleplay: unknown scene rejected", j.ok === false && j.error === "bad_scene", JSON.stringify(j));

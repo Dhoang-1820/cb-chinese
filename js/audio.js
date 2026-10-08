@@ -31,13 +31,45 @@
     finish();
   });
 
+  /* ---- the phone's own Chinese voice, for text that has no recording (AI replies, your own words) ---- */
+  var zhVoice = null;
+  function sy() { return window.speechSynthesis || null; } // read each time, so a voice that appears later (or a test stub) is used
+  function pickVoice() {
+    var synth = sy(); if (!synth || !synth.getVoices) return null;
+    var vs = synth.getVoices().filter(function (v) { return /^zh[-_](CN|Hans)/i.test(v.lang) || /^cmn/i.test(v.lang); });
+    if (!vs.length) vs = synth.getVoices().filter(function (v) { return /^zh/i.test(v.lang) && !/HK|TW|yue/i.test(v.lang); });
+    vs.sort(function (a, b) { return (b.localService ? 1 : 0) - (a.localService ? 1 : 0); });
+    return vs[0] || null;
+  }
+  if (sy() && sy().addEventListener) try { sy().addEventListener("voiceschanged", function () { zhVoice = pickVoice(); }); } catch (e) { /* ignore */ }
+  function canSpeak() { return !!(sy() && window.SpeechSynthesisUtterance); }
+  /* iOS only lets speech start from a tap; call this inside the tap so a reply that arrives later can still be read. */
+  function unlock() {
+    if (!canSpeak() || unlock.done) return;
+    try { var u = new SpeechSynthesisUtterance(" "); u.volume = 0; sy().speak(u); unlock.done = true; } catch (e) { /* ignore */ }
+  }
+  function speak(text, cb, rate) {
+    if (!canSpeak()) { if (cb) cb(); return false; }
+    try {
+      var synth = sy(); synth.cancel();
+      var u = new SpeechSynthesisUtterance(String(text || "")), done = false;
+      u.lang = "zh-CN"; zhVoice = zhVoice || pickVoice(); if (zhVoice) u.voice = zhVoice;
+      u.rate = Math.max(0.6, Math.min(1.3, (rate || (window.Store && Store.state.settings.audioRate) || 1) * 0.95));
+      var end = function () { if (!done) { done = true; if (cb) cb(); } };
+      u.onend = end; u.onerror = end;
+      synth.speak(u);
+      return true;
+    } catch (e) { if (cb) cb(); return false; }
+  }
   function play(text, voice, cb, rate) {
     var f = file(text, voice);
     if (!f) {
-      if (window.UI) UI.toast(available() ? "No recording for this text yet." : "Audio isn't generated yet — it's created when you deploy (see README).");
+      if (speak(text, cb, rate)) return true;
+      if (window.UI) UI.toast(available() ? "No recording for this text, and this browser has no Chinese voice." : "Audio isn't generated yet — it's created when you deploy (see README).");
       if (cb) cb();
       return false;
     }
+    if (sy()) try { sy().cancel(); } catch (e) { /* ignore */ }
     onEnd = null;
     try { player.pause(); } catch (e) {}
     onEnd = cb || null;
@@ -60,7 +92,7 @@
     warmed[f] = 1;
     fetch("audio/" + f).catch(function () { delete warmed[f]; });
   }
-  function stop() { onEnd = null; try { player.pause(); } catch (e) {} stopNoise(); }
+  function stop() { onEnd = null; try { player.pause(); } catch (e) {} if (sy()) try { sy().cancel(); } catch (e) { /* ignore */ } stopNoise(); }
 
   /* ---- background noise for listening practice (synthesised, no files) ----
      Level 0 off · 1 light café hum · 2 busy room. Only runs while a clip plays, and only on screens that turn it on
@@ -140,5 +172,5 @@
   // Unlock WebAudio on the first touch (iOS requirement).
   document.addEventListener("touchstart", function unlock() { ac(); document.removeEventListener("touchstart", unlock); }, { passive: true });
 
-  window.Audio2 = { play: play, playAll: playAll, stop: stop, prefetch: prefetch, noise: setNoise, has: function (t, v) { return !!file(t, v); }, available: available, voiceFor: voiceFor, allFiles: allFiles, saved: saved, sfx: sfx };
+  window.Audio2 = { play: play, playAll: playAll, stop: stop, prefetch: prefetch, noise: setNoise, has: function (t, v) { return !!file(t, v); }, available: available, speak: speak, canSpeak: canSpeak, unlock: unlock, voiceFor: voiceFor, allFiles: allFiles, saved: saved, sfx: sfx };
 })();

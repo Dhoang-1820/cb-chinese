@@ -22,7 +22,16 @@ const good = (c) => {
       errors: bad ? [{ wrong: "每天我", fix: "我每天", reason: "The time word goes after the subject." }] : [], explanation: "Test explanation.", model: { zh: "他每天坐地铁上班。", pinyin: "tā měitiān zuò dìtiě shàngbān.", meaning: "He takes the subway to work." }, confidence: "high" };
   }
   const props = c.generationConfig.responseSchema.properties;
-  if (props.reply) return { reply: { zh: "好的，我马上帮您查。", pinyin: "Hǎo de, wǒ mǎshàng bāng nín chá.", meaning: "OK, I'll check for you right away." }, feedback: /我问/.test(d.learner_latest_message) ? { corrected: "我想问一下。", note: "Add 想 before 问." } : { corrected: d.learner_latest_message, note: "" }, hint: "请稍等。", hint_pinyin: "Qǐng shāo děng.", done: d.learner_turns >= 4, confidence: "high" };
+  if (props.reply) {
+    const msg = d.learner_latest_message || "", n = d.learner_turns || 0;
+    const reply = msg ? { zh: "那为什么周日只按一点五倍算？", pinyin: "Nà wèishénme zhōurì zhǐ àn yī diǎn wǔ bèi suàn?", meaning: "Then why was Sunday paid at only 1.5 times?" }
+      : { zh: "你好，我想问问加班费的事。", pinyin: "Nǐ hǎo, wǒ xiǎng wènwen jiābānfèi de shì.", meaning: "Hi, I want to ask about overtime pay." };
+    const done = n >= 5;
+    return { reply, words: [{ zh: "加班费", pinyin: "jiābānfèi", meaning: "overtime pay" }],
+      feedback: !msg ? { corrected: "", note: "", upgrade: "", upgrade_point: "" } : /我问/.test(msg) ? { corrected: "我想问一下。", note: "Add 想 before 问.", upgrade: "既然你有问题，我就帮你查一下。", upgrade_point: "既然…就" } : { corrected: msg, note: "", upgrade: "", upgrade_point: "" },
+      hint: "请稍等。", hint_pinyin: "Qǐng shāo děng.", done, confidence: "high",
+      summary: done ? { goal_met: true, score: 8, comment: "You applied the 200% rule correctly.", phrase: { zh: "按照规定", pinyin: "ànzhào guīdìng", meaning: "according to the rules" } } : undefined };
+  }
   if (props.answer) return { answer: "Test answer about " + d.subject + " (" + d.preset + ").", example: { zh: "我们公司有五险一金。", pinyin: "wǒmen gōngsī yǒu wǔ xiǎn yī jīn.", meaning: "Our company has social insurance." }, confidence: "high" };
   if (props.corrected_text) {
     const parts = d.learner_text.split(/(?<=[。！？])/).filter(Boolean);

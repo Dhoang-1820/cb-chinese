@@ -1210,3 +1210,19 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .fam .fam-t small { color: var(--muted); font-size: .82rem; }
 .fam .wl-row .tag { flex: 0 0 auto; }
 .wl-row .linklike.zh { font-weight: 800; text-decoration: none; }
+
+/* role-play: brief, rules card, level-up line and new words */
+.talk-grp { margin: 18px 4px 8px; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.talk-lvl { display: flex; gap: 8px; margin-top: 10px; }
+.talk-lvl .chip.on { background: var(--primary, #6c4cf1); color: #fff; border-color: transparent; }
+.talk-brief p { margin: 0 0 8px; }
+.talk-rules summary { cursor: pointer; font-weight: 700; }
+.talk-rules ul { margin: 8px 0 4px; padding-left: 20px; }
+.talk-rules li { margin: 4px 0; font-size: .92rem; }
+.talk-read { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: .9rem; }
+.tb-words { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tb-words .tw { font-size: .8rem; padding: 3px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
+.tb-up { margin-top: 6px; padding: 6px 8px; border-radius: 10px; border: 1px dashed var(--border); font-size: .92rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tb-up-l { display: block; width: 100%; font-size: .75rem; font-weight: 700; color: var(--muted); }
+.tb-me .tb-up { border-color: rgba(255, 255, 255, .55); }
+.tb-me .tb-up-l { color: inherit; opacity: .9; }

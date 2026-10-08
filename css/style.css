@@ -296,6 +296,8 @@ h3.sec { margin: 18px 4px 8px; color: var(--muted); text-transform: uppercase; f
 .chat .tr { display: none; }
 .chat.show-tr .tr { display: block; animation: enter .25s ease; }
 .para .zh { display: flex; justify-content: space-between; align-items: center; font-size: 1.08rem; }
+.para .zh .zh-t { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.para .zh .say { flex: 0 0 auto; margin-left: 10px; }
 
 .grammar .g-point { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
 .grammar .g-point .zh { font-size: 1.8rem; background: var(--g-violet); -webkit-background-clip: text; background-clip: text; color: transparent; }

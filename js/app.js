@@ -3516,7 +3516,9 @@
       return '<div class="tb tb-ai"><div class="tb-who">' + sc.icon + ' ' + L(sc.t) + '</div><div class="zh">' + esc(r.zh) + SAY(r.zh) + "</div>" + PY(r.py || r.pinyin || "") + '<div class="dim">' + (r.meaning ? esc(r.meaning) : M(r)) + "</div>" +
         ((words || []).length ? '<div class="tb-words">' + words.map(function (w) { return '<span class="tw"><b class="zh">' + esc(w.zh) + "</b> " + esc(w.pinyin) + " · " + esc(w.meaning) + "</span>"; }).join("") + "</div>" : "") + "</div>";
     }
-    function paint() { var el = document.getElementById("talk-log"); if (!el) return; el.scrollTop = el.scrollHeight; window.scrollTo(0, document.body.scrollHeight); }
+    function nearBottom() { var d = document.documentElement; return d.scrollHeight - (window.scrollY + window.innerHeight) < 160; }
+    var lastTouch = 0; document.addEventListener("touchmove", function () { lastTouch = Date.now(); }, { passive: true });
+    function paint(force) { var el = document.getElementById("talk-log"); if (!el) return; if (!force && !nearBottom()) return; el.scrollTop = el.scrollHeight; window.scrollTo(0, document.body.scrollHeight); }
     function readAloud(zh) { if (pr.read && zh) Audio2.play(zh); }
     render('<div class="ghead"><a class="pill" href="#/talk">✕</a><b>' + sc.icon + " " + L(sc.t) + '</b><span class="ghr" id="t-n">0/' + MAX + '</span></div>' +
       '<section class="card talk-brief"><p><b>Your goal:</b> ' + L(sc.goal) + ' <span class="tag">' + (pr.level === "hsk5" ? "HSK 5" : "HSK 4") + "</span></p>" +
@@ -3533,7 +3535,7 @@
     document.getElementById("t-read").onchange = function () { pr.read = this.checked; saveTalkPrefs(pr); if (!pr.read) Audio2.stop(); };
     document.getElementById("t-hint").onclick = function () { document.getElementById("t-hint-t").textContent = lastHint || "试试问：具体是哪一项？"; };
     function opening(r, words) {
-      hist.push({ role: "ai", zh: r.zh }); log.insertAdjacentHTML("beforeend", bubbleAI(r, words)); paint();
+      hist.push({ role: "ai", zh: r.zh }); log.insertAdjacentHTML("beforeend", bubbleAI(r, words)); paint(true);
     }
     // The AI writes its own opening (different every time); offline or on error, the scene's fixed opening is used.
     if (window.AI && AI.available()) {
@@ -3554,7 +3556,7 @@
         '<p class="sub">' + turns + ' replies. Play it again: the details and the mood change every time.</p><div class="actions center"><a class="btn" href="#/talk">More scenes</a><button type="button" class="btn primary" id="t-again">Again</button></div></div>');
       document.querySelector(".talk-in").hidden = true;
       document.getElementById("t-again").onclick = function () { viewTalk(sc.id); };
-      paint();
+      paint(true);
     }
     function send() {
       var text = inp.value.trim(); if (!text || busy || finished) return;
@@ -3563,7 +3565,7 @@
       if (pr.read) Audio2.unlock(); // inside the tap, so iPhone allows the reply to be read when it arrives
       busy = true; inp.value = ""; turns++; document.getElementById("t-n").textContent = turns + "/" + MAX;
       var my = document.createElement("div"); my.className = "tb tb-me"; my.innerHTML = '<div class="zh">' + esc(text) + "</div>"; log.appendChild(my);
-      var wait = document.createElement("div"); wait.className = "tb tb-ai"; wait.textContent = "…"; log.appendChild(wait); paint();
+      var wait = document.createElement("div"); wait.className = "tb tb-ai"; wait.textContent = "…"; log.appendChild(wait); paint(true);
       AI.call("roleplay", { scene: sc.id, text: text, history: hist.slice(-10), turns: turns, variant: variant, mood: mood, level: pr.level }).then(function (res) {
         busy = false; wait.remove();
         if (!res.ok) { turns--; document.getElementById("t-n").textContent = turns + "/" + MAX; my.remove(); inp.value = text; UI.toast(AI.errMsg(res.error), "⚠️"); return; }
@@ -3575,7 +3577,7 @@
         readAloud(r.reply.zh);
         lastHint = r.hint ? r.hint + (r.hint_pinyin ? " · " + r.hint_pinyin : "") : lastHint; document.getElementById("t-hint-t").textContent = "";
         if (turns >= 3) fin.hidden = false;
-        if (r.done || turns >= MAX) finish(r.summary || null); else { paint(); inp.focus(); }
+        if (r.done || turns >= MAX) finish(r.summary || null); else { paint(); if (nearBottom()) inp.focus({ preventScroll: true }); }
       });
     }
     // Finish at any point: the character says goodbye and the AI gives the score and feedback for the whole conversation.
@@ -3583,7 +3585,7 @@
       if (busy || finished || !turns) return;
       if (pr.read) Audio2.unlock();
       busy = true; fin.disabled = true;
-      var wait = document.createElement("div"); wait.className = "tb tb-ai"; wait.textContent = "…"; log.appendChild(wait); paint();
+      var wait = document.createElement("div"); wait.className = "tb tb-ai"; wait.textContent = "…"; log.appendChild(wait); paint(true);
       AI.call("roleplay", { scene: sc.id, wrap: true, history: hist.slice(-10), turns: turns, variant: variant, mood: mood, level: pr.level }).then(function (res) {
         busy = false; fin.disabled = false; wait.remove();
         if (!res.ok) { UI.toast(AI.errMsg(res.error), "⚠️"); return; }
@@ -3592,7 +3594,7 @@
       });
     };
     inp.addEventListener("focus", function () { setTimeout(function () { inp.scrollIntoView({ block: "center", behavior: "smooth" }); }, 300); });
-    if (window.visualViewport) window.visualViewport.addEventListener("resize", function () { if (document.activeElement === inp) setTimeout(function () { inp.scrollIntoView({ block: "center" }); }, 50); });
+    if (window.visualViewport) { var vh = window.visualViewport.height; window.visualViewport.addEventListener("resize", function () { var h = window.visualViewport.height, kb = Math.abs(h - vh) > 120; vh = h; if (kb && document.activeElement === inp && Date.now() - lastTouch > 1200) setTimeout(function () { inp.scrollIntoView({ block: "center" }); }, 50); }); }
     document.getElementById("t-send").onclick = send;
     inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); send(); } };
     var mic = document.getElementById("t-mic");

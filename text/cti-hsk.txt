@@ -1,0 +1,135 @@
+中文考试服务网
+中文考试服务网
+Chinese Tests Service Website
+HSK3.0
+正式开考通知 [/news/51336724]
+考试大纲 [https://hsk.cn-bj.ufileos.com/3.0/%E6%96%B0%E7%89%88HSK%E8%80%83%E8%AF%95%E5%A4%A7%E7%BA%B21219.pdf]
+样题包下载 [https://hsk-sample-1409982902.cos.ap-beijing.myqcloud.com/HSK3.0.zip]
+能力描述 [https://hsk.cn-bj.ufileos.com/3.0/HSK3.0%E8%80%83%E8%AF%95%E8%83%BD%E5%8A%9B%E6%8F%8F%E8%BF%B0.pdf]
+体验考试
+入口1
+[https://hsk3demo.chinesetest.cn]
+入口2
+[https://hsk3demo-intl.chinesetest.cn]
+考生
+关于考试
+[/HSK]
+[/HSKK]
+[/YCT]
+[/BCT]
+[/MCT]
+[/GYC]
+2026年考试日历
+[/news/50278976]
+考生须知
+[/regulation]
+成绩服务
+成绩查询 [/query-score]
+成绩复议 [/report-sketch]
+额外成绩报告
+[/extra-apply-score-server]
+成绩报告信息修改
+[/InfoEditServer]
+合作考试
+[/TestPartners]
+[https://ccsktest.org/]
+GIIP国际青年创新实习计划
+Global Innovation Internship Project
+下载报名资料
+[http://giip.chinesetest.cn/]
+教师
+国际中文教师证书 [https://www.chineseteacher.org.cn/]
+教师发展 [http://hr.chinesetest.cn/]
+CTC继续教育 [https://www.chineseteacher.org.cn/edu/]
+合作伙伴
+成为考点 [/Apply]
+中文学习测试中心 [/CLTC]
+考点登录 [https://admin.chinesetest.cn/acegilogin.jsp]
+研究者
+考试研究 [/research]
+标准与认证 [/Development]
+cn
+CN EN
+登录 [/login]
+首页
+考试
+[/suggest]
+HSK
+[/HSK]
+模拟考试 立即报名
+一级 [/HSK/1] 二级 [/HSK/2] 三级 [/HSK/3] 四级 [/HSK/4] 五级 [/HSK/5] 六级 [/HSK/6] 七—九级 [/HSK/7-9]
+关于HSK
+什么是HSK?
+中文水平考试/HSK是由专业化国际中文教育考试服务机构——汉考国际教育科技（北京）有限公司（简称“汉考国际”）组织实施的国际标准化考试，重点考查中文作为第二语言的考生在生活、学习和工作中运用中文进行交际的能力。考试实行统一命题、考试、评分，并统一颁发成绩报告。
+为什么选择HSK?
+HSK成绩已成为来华留学生申请入学、毕业及奖学金评审等必备的中文语言能力证明，并可作为外国人来华工作签证申请积分项。HSK成绩的用途可参考：
+院校招生、分班授课、课程免修、学分授予。
+用人机构录用、培训、晋升员工。
+院校及教学机构评价教学成效。
+中文学习者了解、提高自身中文水平。
+关于新HSK
+新HSK是对现行HSK的继承、优化和系统性升级。在《国际中文教育中文水平等级标准》指导下，新HSK从现行“一到六级”升级为“三等九级”新体系，全面涵盖初等、中等和高等水平，并综合考查考生在听、说、读、写、译（高等）等五项语言技能方面的能力。
+在题型设计、题目数量、考试时长及听力语速等多个方面，新HSK均作出科学调整与优化，带来全新的考试体验。
+新HSK考试大纲涵盖任务、话题、词汇、语法及汉字五个部分，清晰阐释了学习者应达到的具体交际任务目标，为师生教学与备考提供明确参考。
+具体考试大纲请点击以下链接查看：
+新HSK考试大纲查询
+[/syllabus]
+查询
+查询考试日期
+查找考点
+查询我的成绩
+验证成绩报告
+选择一个或多个选项以缩小搜索范围
+没有符合的选项
+没有符合的选项
+纸笔考
+机网考
+居家网考
+没有符合的选项
+从
+至
+查看
+新闻
+更多> [/news]
+通知
+更多> [/news]
+CTI
+关于我们 [/about]
+新闻 [/News]
+通知 [/News]
+联系我们 [/linkusm]
+考生
+2026年考试日历
+[/news/50278976]
+关于考试
+成绩服务
+教师
+国际中文教师证书 [https://www.chineseteacher.org.cn/]
+教师发展 [http://hr.chinesetest.cn/]
+CTC继续教育 [https://www.chineseteacher.org.cn/edu/]
+合作伙伴
+成为考点 [/Apply]
+中文学习测试中心 [/CLTC]
+考点登录 [https://admin.chinesetest.cn/acegilogin.jsp]
+研究者
+考试研究 [/research]
+标准与认证 [/Development]
+版权所有 © 汉考国际 2009-2018 京ICP备16003362号-1 [https://beian.miit.gov.cn/] 出版物经营许可证 新出发京零 字第西150040号
+京公网安备 11010202007018号
+隐私声明 [/privacy] | 法律声明 [/legal-notice]
+[https://xyt.xcc.cn/getpcInfo?sn=1534378606719897600&language=CN&certType=8&url=*.chinesetest.cn]
+在线
+咨询
+在线咨询（仅工作日）服务时间：9:00-11:30 13:30-18:00
+您好，客服系统正在升级优化。期间您可通过邮件或拨打客服电话与我们联系。
+E-mail：kaoshi@chinesetest.cn
+服务
+热线
++86(0)10 59307662（英文）
++86(0)10 59307668（中文）
+仅限工作日 9:00-11:30 13:30-18:00
+关注
+微信
+关注官方微信
+ 顶部
+[https://mall.chinesetest.cn/]

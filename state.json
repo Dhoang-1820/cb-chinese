@@ -5,51 +5,51 @@
       "url": "https://www.chinesetest.cn/",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-12T06:58:51.879Z",
+      "lastChecked": "2026-10-19T05:44:08.651Z",
       "lines": 156
     },
     "cti-hsk": {
       "url": "https://www.chinesetest.cn/HSK",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-12T06:58:51.879Z",
+      "lastChecked": "2026-10-19T05:44:08.651Z",
       "lines": 135
     },
     "cti-hsk4": {
       "url": "https://www.chinesetest.cn/HSK/4",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-12T06:58:51.879Z",
+      "lastChecked": "2026-10-19T05:44:08.651Z",
       "lines": 156
     },
     "cti-news": {
       "url": "https://www.chinesetest.cn/news",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-12T06:58:51.879Z",
+      "lastChecked": "2026-10-19T05:44:08.651Z",
       "lines": 98
     },
     "cti-calendar-2026": {
       "url": "https://www.chinesetest.cn/news/50278989",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-12T06:58:51.879Z",
+      "lastChecked": "2026-10-19T05:44:08.651Z",
       "lines": 99
     },
     "clec-home": {
       "url": "http://www.chinese.cn/",
-      "failures": 1,
+      "failures": 2,
       "failureReported": false,
       "lastError": "only 10 characters of text (page is probably drawn by JavaScript, or is a block page)",
-      "lastFailure": "2026-10-12T06:58:51.879Z"
+      "lastFailure": "2026-10-19T05:44:08.651Z"
     },
     "moe-standards-2021": {
       "url": "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/s5987/202103/t20210329_523304.html",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-12T06:58:51.879Z",
+      "lastChecked": "2026-10-19T05:44:08.651Z",
       "lines": 48
     }
   },
-  "lastRun": "2026-10-12T06:58:51.879Z"
+  "lastRun": "2026-10-19T05:44:08.651Z"
 }

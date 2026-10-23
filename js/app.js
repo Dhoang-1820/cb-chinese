@@ -354,7 +354,7 @@
   function missing(v, parts) {
     var m = [], a = parts[1] || "", b = parts[2] || "";
     if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes")) m.push("full");
-    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session")) m.push("mocks");
+    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam")) m.push("mocks");
     var hard5 = (v === "learn" && (a === "h5" || a === "h5p" || (!a && Store.state.settings.level === 5))) || (v === "pack" && a === "h5") || (v === "grammar" && /^h5/.test(a)) || (v === "game" && (b === "h5" || /^p-h5-/.test(b))) || (v === "cards" && /^p-h5-/.test(a));
     var hard4 = (v === "learn" && a === "extra") || (v === "pack" && a === "x4") || v === "families" || (v === "game" && /^p-x4-/.test(b)) || (v === "cards" && /^p-x4-/.test(a));
     /* screens that list or review words wait once for the packs this learner uses, so those words are there too */
@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -456,6 +456,7 @@
     else if (v === "track") viewTrack(parseInt(parts[1], 10) || 0, parseInt(parts[2], 10) || 0);
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "plan") viewPlan();
+    else if (v === "exam") viewExamPlan();
     else if (v === "ready") viewReady();
     else if (v === "read") viewRead();
     else if (v === "progress") viewProgress();
@@ -467,7 +468,7 @@
     }
     else viewHome();
     fillExtras();
-    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
+    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] || "C&B 中文";
     document.getElementById("page-title").textContent = title;
@@ -916,8 +917,9 @@
     /* final 14 days: readiness and the final-days plan come first; new lessons become a small link */
     var plan = planCard(), tip = tipCard(plan ? coachStatus(coachLast()) : [], fin);
     homeAt = Date.now(); homeDay = Store.today();
-    if (fin) html += readyCard() + todayCard() + tip + rescueCard() + sessionCTA() + shortLink() + patternCard() + '<a class="mini-link" href="#/day/' + nd.day + '">New lessons are paused · continue Day ' + nd.day + " anyway ›</a>";
-    else html += tip + cont0 + rescueCard() + sessionCTA() + shortLink() + patternCard() + readyCard();
+    var back = comebackCard(), ep = examPlanCard();
+    if (fin) html += back + readyCard() + todayCard() + ep + tip + (back ? "" : rescueCard()) + sessionCTA() + (back ? "" : shortLink()) + patternCard() + '<a class="mini-link" href="#/day/' + nd.day + '">New lessons are paused · continue Day ' + nd.day + " anyway ›</a>";
+    else html += back + ep + tip + cont0 + (back ? "" : rescueCard()) + sessionCTA() + (back ? "" : shortLink()) + patternCard() + readyCard();
     html += questsCard();
     var nMis = Learn.count();
     html += '<div class="tiles">' +
@@ -1932,11 +1934,11 @@
     }).join("") : '<p class="card sub">✓ Nothing needs attention.</p>');
     html += '<h3 class="sec">Learners</h3>' + rows.map(function (r) {
       var sm = r.summary || {}, pg = sm.progress || {}, rd = pg.ready, st = lrnStatus(r), tr = lrnTrend(sm), idle = lrnIdle(r), pl = sm.pace;
-      return '<a class="card lt-card" href="#/learners/' + lrnKey(r) + '/progress"><div class="lt-row"><b>' + esc(lrnName(r)) + '</b><span class="lt-chip ' + st.c + '">' + esc(st.t) + "</span></div>" +
+      return '<div class="card lt-card"><a class="lt-open" href="#/learners/' + lrnKey(r) + '/progress"><div class="lt-row"><b>' + esc(lrnName(r)) + '</b><span class="lt-chip ' + st.c + '">' + esc(st.t) + "</span></div>" +
         '<div class="lt-row lt-end"><div><small>Readiness</small><div class="lt-big">' + (rd ? num(rd.total) : "–") + "<small> / 300</small></div></div>" +
         (tr != null ? '<b class="' + (tr >= 0 ? "ok-text" : "bad-t") + '">' + (tr >= 0 ? "+" : "−") + Math.abs(tr) + " vs last week</b>" : "") + "</div>" +
         '<p class="lt-meta">Streak <b>' + num((sm.streak || {}).n != null ? sm.streak.n : (r.meta || {}).streak) + ' d</b> · Last study <b>' + (idle == null ? "–" : idle === 0 ? "today" : idle + " d ago") + "</b> · Lessons <b>" + (pl ? num(pl.done) + "/" + num(pl.total) : num(pg.lessons) + "/" + num(pg.lessonsAll || 90)) + "</b></p>" +
-        lrnDays(sm.days28, "Study days, last 28 days, oldest first") + "</a>";
+        lrnDays(sm.days28, "Study days, last 28 days, oldest first") + '</a><div class="lt-act"><button type="button" class="btn small" data-msg="' + lrnKey(r) + '">💬 Message ' + esc(lrnName(r)) + "</button></div></div>";
     }).join("");
     return html;
   }
@@ -2020,6 +2022,26 @@
       (pl && pl.actions.length ? '<ul class="plan-l">' + pl.actions.map(function (a) { return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">Done: </span>' : '<span class="sr">Open: </span>') + esc(a.text) + "</span></li>"; }).join("") + "</ul>" : '<p class="sub">No coach plan yet.</p>') + "</section>";
     return html;
   }
+  /* A ready-to-send nudge in Vietnamese, from the learner's own numbers. Sent from the teacher's phone (share sheet → Zalo, Messenger…). */
+  function lrnMsgText(r) {
+    var sm = r.summary || {}, pg = sm.progress || {}, idle = lrnIdle(r), name = (r.meta || {}).label || "bạn", weak = (sm.trend || [])[0], out = [];
+    var ex = DAYRE.test(pg.exam || "") ? Store.daysBetween(Store.today(), pg.exam) : null, away = idle != null && idle >= 2;
+    out.push("Chào " + name + "! 👋");
+    out.push(away ? "Đã " + idle + " ngày bạn chưa vào học rồi đó." : "Bạn đang giữ nhịp học tốt lắm!");
+    if (ex != null && ex >= 0) out.push("Còn " + ex + " ngày nữa là thi HSK.");
+    out.push(away ? "Hôm nay chỉ cần 5 phút: mở app C&B Chinese, bấm “5-minute restart” ở trang Home." : "Hôm nay nhớ làm Today's session nhé (khoảng 15 phút).");
+    if (weak && num(weak.acc) < 70) out.push("Kỹ năng nên luyện thêm: " + weak.skill + " (" + num(weak.acc) + "%).");
+    out.push("加油！💪", location.origin + location.pathname);
+    return out.join("\n");
+  }
+  function lrnMessage(r) {
+    var text = lrnMsgText(r);
+    function copy() {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { UI.toast("Message copied · paste it in Zalo or Messenger", "📋"); }, function () { window.prompt("Copy this message", text); });
+      else window.prompt("Copy this message", text);
+    }
+    if (navigator.share) navigator.share({ text: text }).catch(function (e) { if (!e || e.name !== "AbortError") copy(); }); else copy();
+  }
   var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"]];
   function viewLearners(key, sec) {
     var head = '<section class="card"><a class="pill" href="#/me">‹ Me</a><h2>👥 Learner tracking</h2><p class="sub">Numbers only, never answers or notes. Each phone sends them with its cloud backup.</p></section>';
@@ -2037,11 +2059,16 @@
       if (!rows.length) { host.innerHTML = '<p class="empty">No phone has saved a backup yet.</p>'; return; }
       rows.forEach(function (r) { if (key && lrnKey(r) === key) cur = r; });
       var seg = '<nav class="seg" aria-label="Learner tracking views"><a href="#/learners"' + (cur ? "" : ' class="active" aria-current="page"') + '>Overview</a><a href="#/learners/' + lrnKey(cur || rows[0]) + '/progress"' + (cur ? ' class="active" aria-current="page"' : "") + ">Learner</a></nav>";
-      if (!cur) { host.innerHTML = seg + lrnOverview(rows); return; }
+      if (!cur) {
+        host.innerHTML = seg + lrnOverview(rows);
+        [].forEach.call(host.querySelectorAll("[data-msg]"), function (b) { b.onclick = function () { rows.forEach(function (r) { if (lrnKey(r) === b.getAttribute("data-msg")) lrnMessage(r); }); }; });
+        return;
+      }
       var chips = '<div class="lt-chips">' + rows.map(function (r) { return '<a class="lt-pick' + (r === cur ? " on" : "") + '" href="#/learners/' + lrnKey(r) + "/" + (sec || "progress") + '"' + (r === cur ? ' aria-current="page"' : "") + ">" + esc(lrnName(r)) + "</a>"; }).join("") + "</div>";
       var tabs = '<nav class="seg seg3" aria-label="Sections">' + LRN_SECS.map(function (t) { return '<a href="#/learners/' + lrnKey(cur) + "/" + t[0] + '"' + (t[0] === (sec || "progress") ? ' class="active" aria-current="page"' : "") + ">" + t[1] + "</a>"; }).join("") + "</nav>";
       var body = !cur.summary ? '<p class="card sub">No study summary yet (this phone has an older app version).</p>' : sec === "practice" ? lrnPractice(cur) : sec === "habit" ? lrnHabit(cur) : lrnProgress(cur);
-      host.innerHTML = seg + chips + tabs + '<p class="sub lt-saved">' + esc(lrnName(cur)) + " · saved " + esc(agoText(cur.updated_at)) + ' · <button class="btn small" id="lt-ren">Rename</button></p>' + body;
+      host.innerHTML = seg + chips + tabs + '<p class="sub lt-saved">' + esc(lrnName(cur)) + " · saved " + esc(agoText(cur.updated_at)) + ' · <button class="btn small" id="lt-ren">Rename</button> <button class="btn small" id="lt-msg">💬 Message</button></p>' + body;
+      document.getElementById("lt-msg").onclick = function () { lrnMessage(cur); };
       document.getElementById("lt-ren").onclick = function () {
         var v = window.prompt("Name for this learner (only you see it)", (cur.meta || {}).label || ""); if (v == null) return;
         Content.admin("learner_label", { id: cur.id, label: v.trim().slice(0, 30) }).then(function (x) { if (x.ok) viewLearners(key, sec); else UI.toast(AI.errMsg(x.error), "⚠️"); });
@@ -3929,10 +3956,20 @@
   };
   function sessionCfg() { return SESSION_MODES[Store.state.settings.sessionMode] || SESSION_MODES.std; }
   function plural(n, w) { return n + " " + w + (n === 1 ? "" : "s"); }
-  function sessionPlan(rescue) {
+  function sessionPlan(mode) {
+    var rescue = mode === true || mode === "rescue", back = mode === "comeback";
     var cfg = sessionCfg(), cs = nextCoreSet() || nextCoreSet("found");
     var due = SRS.dueIds(WORDMAP).slice(0, rescue ? 5 : cfg.due), fresh = cs ? cs.words.filter(function (w) { return !SRS.has(w.id); }).slice(0, rescue ? 5 : cfg.fresh) : [];
     var steps = [];
+    if (back) { // 5 minutes after a break: the oldest overdue words first, a couple of mistakes, then a short listening
+      var old = SRS.dueIds(WORDMAP).sort(function (a, b) { var x = (SRS.get(a) || {}).due || "", y = (SRS.get(b) || {}).due || ""; return x < y ? -1 : x > y ? 1 : 0; }).slice(0, 8);
+      if (old.length) steps.push({ id: "review", icon: "🔁", name: "Review " + plural(old.length, "overdue word"), ids: old });
+      else if (fresh.length) steps.push({ id: "new", icon: "📘", name: plural(fresh.length, "new word"), words: fresh });
+      if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: "Fix up to 2 mistakes", n: 2 });
+      if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: "Listen to 2 sentences", n: 2 });
+      else steps.push({ id: "type", icon: "⌨️", name: "Type 1 sentence", n: 1 });
+      return steps;
+    }
     if (rescue) { // 2 minutes: five cards (due ones, otherwise five new words), then one short listening or typing step
       if (due.length) steps.push({ id: "review", icon: "🔁", name: "Review " + plural(due.length, "due word"), ids: due });
       else if (fresh.length) steps.push({ id: "new", icon: "📘", name: plural(fresh.length, "new word"), words: fresh });
@@ -3964,6 +4001,71 @@
     if (Store.streak() < 1 || (s.log[t] || 0) > 0 || hour < atRiskHour()) return "";
     return '<a class="cta card g-coral" href="#/session/rescue"><span class="cta-l"><small>🔥 ' + Store.streak() + '-day streak at risk</small><b>⏱ 2-minute rescue</b><em>Five cards and a short listening — keeps your streak alive</em></span><span class="cta-go">▶</span></a>';
   }
+  /* The last day with study before today (null if none). */
+  function lastStudyDay() {
+    var t = Store.today(), L = Store.state.log, ds = Object.keys(L).filter(function (d) { return L[d] > 0 && d < t; }).sort();
+    return ds.length ? ds[ds.length - 1] : null;
+  }
+  /* Back after 2+ days away and nothing studied yet today: a 5-minute restart, first thing on Home. */
+  function comebackCard() {
+    var s = Store.state, t = Store.today(), last = lastStudyDay(), gap = last ? Store.daysBetween(last, t) : 0;
+    if (!last || gap < 2 || (s.log[t] || 0) > 0) return "";
+    return '<a class="cta card g-coral comeback" href="#/session/comeback"><span class="cta-l"><small>👋 Welcome back · ' + gap + ' days away</small><b>⏱ 5-minute restart</b><em>Your oldest reviews first, then a short listening. Small steps count.</em></span><span class="cta-go">▶</span></a>';
+  }
+
+  /* ---------- exam countdown plan: the last EXAM_PLAN_DAYS days, one focus per day ----------
+     Mock exam every third day (counted back from two days before the exam), the other days rotate through the
+     exam sections weakest first (weakest twice as often), the day before is light, then exam day.
+     Each date keeps the same focus as the days pass (it depends on the days left, not on today). */
+  var EXAM_PLAN_DAYS = 21;
+  function secOrder() {
+    var r = null; try { r = readiness(); } catch (e) { r = null; }
+    if (r && r.secs) return r.secs.slice().sort(function (a, b) { return a.score - b.score; }).map(function (x) { return x.k; });
+    return ["L", "R", "W"];
+  }
+  function secFocus(k) {
+    var lang = Store.state.settings.lang === "vi" ? "vi" : "en", w = Learn.report(5).filter(function (x) { return SEC_OF[x.info.sec] === k && x.acc < 0.9; })[0];
+    return w ? { txt: SEC_NAME[k] + " · " + w.info[lang] + " (" + Math.round(w.acc * 100) + "%)", href: w.open ? "#/mistakes/" + w.skill : SKILL_LINK[w.skill] || SEC_GO[k] }
+      : { txt: SEC_NAME[k] + " practice", href: SEC_GO[k] };
+  }
+  function nextMockHref(full) {
+    var s = Store.state;
+    if (!MOCK.length) return "#/mock";
+    var m = MOCK.slice().sort(function (a, b) { return ((s.mocks[a.id] || {}).plays || 0) - ((s.mocks[b.id] || {}).plays || 0) || (full ? (b.full ? 1 : 0) - (a.full ? 1 : 0) : 0); })[0];
+    return "#/mock/" + m.id;
+  }
+  function examSchedule() {
+    var s = Store.state, t = Store.today(), exam = s.settings.examDate || "2026-11-14", left0 = Store.daysBetween(t, exam), out = [], order = secOrder(), pat = [order[0], order[1], order[0], order[2] || order[1]];
+    if (left0 < 0 || left0 > EXAM_PLAN_DAYS) return [];
+    for (var i = 0; i <= left0; i++) {
+      var d = Store.addDays(t, i), left = left0 - i, e;
+      if (left === 0) e = { ico: "🎓", txt: "Exam day · 加油!", href: "#/ready", kind: "exam" };
+      else if (left === 1) e = { ico: "🌙", txt: "Light review only, then sleep early", href: "#/review", kind: "light" };
+      else if ((left - 2) % 3 === 0) e = { ico: "📝", txt: left <= 8 ? "Full mock exam, timed" : "Mock exam", href: nextMockHref(left <= 8), kind: "mock" };
+      else { var f = secFocus(pat[left % 4]); e = { ico: "🎯", txt: f.txt, href: f.href, kind: "focus" }; }
+      e.d = d; e.left = left;
+      e.done = d === t && (e.kind === "mock" ? s.mockHistory.some(function (h) { return h.date === t; }) : e.kind === "exam" ? false : (s.log[t] || 0) > 0);
+      out.push(e);
+    }
+    return out;
+  }
+  function examPlanCard() {
+    var sc = examSchedule(); if (!sc.length) return "";
+    var td = sc[0], n = sc.length - 1;
+    return '<section class="card exam-plan"><div class="sec-h"><h2>🎓 Exam plan</h2><span class="tag t-sun">' + (n === 0 ? "Today" : n + " day" + (n === 1 ? "" : "s") + " left") + "</span></div>" +
+      '<a class="task' + (td.done ? " done" : "") + '" href="' + td.href + '"><span class="tk-box">' + (td.done ? "✓" : "") + '</span><span class="tk-ico">' + td.ico + "</span><span><small class=\"sub\">Today</small><br>" + esc(td.txt) + "</span></a>" +
+      (sc[1] ? '<p class="sub ep-next">Tomorrow: ' + sc[1].ico + " " + esc(sc[1].txt) + "</p>" : "") + '<div class="sec-h"><span class="muted">Plus your due reviews each day</span><a href="#/exam">All ' + (n + 1) + " days ›</a></div></section>";
+  }
+  function viewExamPlan() {
+    var sc = examSchedule(), s = Store.state, from = Store.addDays(Store.today(), -EXAM_PLAN_DAYS), mocks = s.mockHistory.filter(function (h) { return h.date >= from; }).length;
+    if (!sc.length) { render('<section class="card"><h2>🎓 Exam plan</h2><p class="sub">The day-by-day plan starts ' + EXAM_PLAN_DAYS + " days before your exam (" + esc(s.settings.examDate || "") + '). Until then, follow Today\'s plan on Home.</p><a class="btn" href="#/plan">Study plan</a></section>', "home"); return; }
+    var html = '<section class="card g-sun"><h2>🎓 Exam plan</h2><p class="score-big">' + sc[0].left + ' <small>day' + (sc[0].left === 1 ? "" : "s") + ' left</small></p><p class="sub">One focus a day, plus your due reviews. Mock exams every third day; your weakest section comes up most. ' + mocks + " mock" + (mocks === 1 ? "" : "s") + " taken in the last " + EXAM_PLAN_DAYS + " days.</p></section>" +
+      '<section class="card"><ol class="ep-list">' + sc.map(function (e, i) {
+        var dt = new Date(e.d + "T00:00:00"), lab = WD[(dt.getDay() + 6) % 7] + " " + e.d.slice(8) + "/" + e.d.slice(5, 7);
+        return '<li class="ep-' + e.kind + (i === 0 ? " ep-today" : "") + (e.done ? " done" : "") + '"><span class="ep-d">' + (i === 0 ? "Today" : lab) + '</span><a href="' + e.href + '"><span class="tk-ico" aria-hidden="true">' + e.ico + "</span>" + (e.done ? '<span class="sr">Done: </span>' : "") + esc(e.txt) + "</a></li>";
+      }).join("") + "</ol></section>";
+    render(html, "home");
+  }
   function sessionBar(st) {
     var el = document.getElementById("session-bar");
     if (!st) { if (el) el.remove(); return; }
@@ -3971,8 +4073,8 @@
     el.innerHTML = '<span>' + st.icon + " Step " + st.n + "/" + st.of + " · " + esc(st.name) + '</span><i style="width:' + Math.round((st.n - 1) / st.of * 100) + '%"></i>';
   }
   function viewSession(arg) {
-    var rescue = arg === "rescue", myHash = rescue ? "#/session/rescue" : "#/session";
-    var steps = sessionPlan(rescue), k = 0, s = Store.state, start = { xp: s.xp, hearts: s.stats.hearts || 0, srs: Object.keys(s.srs).length, mis: Learn.count() };
+    var rescue = arg === "rescue", back = arg === "comeback", light = rescue || back, myHash = light ? "#/session/" + arg : "#/session";
+    var steps = sessionPlan(light ? arg : null), k = 0, s = Store.state, start = { xp: s.xp, hearts: s.stats.hearts || 0, srs: Object.keys(s.srs).length, mis: Learn.count() };
     var log = [];
     function next(result) {
       Audio2.noise(0); // the listening step switches it on again; nothing else should play over noise
@@ -3988,18 +4090,18 @@
     }
     function summary() {
       sessionBar(null);
-      s.sessions = s.sessions || {}; var first = !rescue && !s.sessions[Store.today()];
-      if (!rescue) s.sessions[Store.today()] = true; // a rescue keeps the streak but does not count as Today's session
+      s.sessions = s.sessions || {}; var first = !light && !s.sessions[Store.today()];
+      if (!light) s.sessions[Store.today()] = true; // a rescue or a restart keeps the streak but does not count as Today's session
       Store.save();
       if (first) Game.award(10, { silent: true });
       var xp = s.xp - start.xp, hearts = (s.stats.hearts || 0) - start.hearts, added = Object.keys(s.srs).length - start.srs, cleared = Math.max(0, start.mis - Learn.count());
-      render('<div class="card result">' + UI.anim("cat-love", 150, UI.mascot("cheer", 96)) + "<h2>" + (rescue ? "Streak saved! 🔥" : "Session complete! 🎉") + "</h2>" +
+      render('<div class="card result">' + UI.anim("cat-love", 150, UI.mascot("cheer", 96)) + "<h2>" + (rescue ? "Streak saved! 🔥" : back ? "Welcome back! 🎉" : "Session complete! 🎉") + "</h2>" +
         '<div class="sum-grid"><div><b>+' + xp + '</b><span>XP' + (first ? " (incl. +10 bonus)" : "") + '</span></div><div><b>' + hearts + '</b><span>❤️ hearts</span></div><div><b>' + added + '</b><span>new words</span></div><div><b>' + cleared + '</b><span>mistakes cleared</span></div></div>' +
-        '<p class="sub">🔥 Streak: ' + Store.streak() + " day" + (Store.streak() === 1 ? "" : "s") + '</p><div class="actions center"><a class="btn primary" href="#/">Home</a>' + (rescue ? '<a class="btn" href="#/session">▶ Full session</a>' : '<a class="btn" href="#/listen-mode">🎧 Keep listening</a>') + "</div></div>", "home");
+        '<p class="sub">🔥 Streak: ' + Store.streak() + " day" + (Store.streak() === 1 ? "" : "s") + '</p><div class="actions center"><a class="btn primary" href="#/">Home</a>' + (light ? '<a class="btn" href="#/session">▶ Full session</a>' : '<a class="btn" href="#/listen-mode">🎧 Keep listening</a>') + "</div></div>", "home");
       UI.confetti(140);
     }
     if (!steps.length) { render('<div class="card result"><h2>Nothing to do right now</h2><a class="btn primary" href="#/learn">Learn</a></div>', "home"); return; }
-    render('<div class="card result"><h2>' + (rescue ? "2-minute rescue" : "Today\'s session") + '</h2><div class="tasks">' + steps.map(function (x) { return '<div class="task"><span class="tk-ico">' + x.icon + "</span><span>" + esc(x.name) + "</span></div>"; }).join("") +
+    render('<div class="card result"><h2>' + (rescue ? "2-minute rescue" : back ? "5-minute restart" : "Today\'s session") + '</h2>' + (back ? '<p class="sub">Overdue words first. Five minutes today is enough to get going again.</p>' : "") + '<div class="tasks">' + steps.map(function (x) { return '<div class="task"><span class="tk-ico">' + x.icon + "</span><span>" + esc(x.name) + "</span></div>"; }).join("") +
       '</div><button class="btn primary big" id="ss-go">▶ Start</button></div>', "home");
     document.getElementById("ss-go").onclick = function () { next(); };
   }

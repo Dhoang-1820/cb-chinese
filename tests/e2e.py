@@ -552,6 +552,10 @@ async def t_sync(b):
     check("admin: Progress draws the weekly lines and lists the mock", await p1.locator("#lt-body svg.chart").count() >= 2 and "190" in t and "Mock exams" in t, t[:300])
     await go(p1, "#/learners", 500); await p1.wait_for_selector(".lt-card", timeout=10000)
     check("admin: the overview shows the change since last week", "+10 vs last week" in await p1.locator(".lt-card").first.inner_text(), await p1.locator(".lt-card").first.inner_text())
+    await p1.evaluate("window._shared=null;Object.defineProperty(navigator,'share',{configurable:true,value:t=>{window._shared=t.text;return Promise.resolve()}})")
+    await p1.click(".lt-card [data-msg]"); await p1.wait_for_timeout(200)
+    msg = await p1.evaluate("window._shared") or ""
+    check("admin: Message opens the share sheet with a Vietnamese nudge for that learner", "Chào Hoang" in msg and "ngày nữa là thi HSK" in msg and "加油" in msg and "http" in msg, msg)
     bad = await p1.evaluate("AI.call('learners_list',{},{'x-admin-code':'wrong-code-000000'}).then(r=>r.error)")
     check("admin: the list needs the reviewer code", bad == "bad_admin", bad)
     await p1.evaluate("localStorage.removeItem('cbChinese.ai.admin')")
@@ -1205,9 +1209,50 @@ async def offline_checks(b):
     await ctx.close()
 
 
+async def t_engage(b):
+    # back after 4 days away: the 5-minute restart is the first card on Home
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "log": {day(-4): 30, day(-5): 20}, "xp": 50})
+    await go(pg, "#/", 900)
+    first = await pg.evaluate("(()=>{const a=document.querySelector('#app a.cta');return a?a.getAttribute('href'):null})()")
+    check("comeback: after 4 days away the 5-minute restart is the first card on Home", first == "#/session/comeback" and "4 days away" in (await pg.locator("a.comeback").inner_text()).lower(), first)
+    check("comeback: the 2-minute shortcut is not offered at the same time", await pg.locator("a[href='#/session/rescue']").count() == 0)
+    await pg.evaluate("(()=>{const ids=App.WORDS.slice(0,12).map(w=>w.id);ids.forEach((id,i)=>{Store.state.srs[id]={box:2,due:Store.addDays(Store.today(),-(i+1)),right:1,wrong:0,added:Store.addDays(Store.today(),-20),last:null}});Store.save()})()")
+    await go(pg, "#/session/comeback", 1200); await pg.wait_for_selector("#ss-go", timeout=10000)
+    t = await pg.locator(".result").inner_text()
+    check("comeback: the restart reviews the 8 oldest overdue words, then one short step", "5-minute restart" in t and "Review 8 overdue words" in t, t[:300])
+    await pg.evaluate("Game.award(5)"); await go(pg, "#/learn"); await go(pg, "#/", 900)
+    check("comeback: gone once something is studied today", await pg.locator("a.comeback").count() == 0)
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "log": {day(-1): 30}, "xp": 30})
+    await go(pg, "#/", 700)
+    check("comeback: not shown after only one day away", await pg.locator("a.comeback").count() == 0)
+    await ctx.close()
+    # the exam countdown plan
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(10)), "srs": {}})
+    await go(pg, "#/", 700)
+    check("exam plan: on Home 10 days before the exam", await pg.locator(".exam-plan").count() == 1 and "10 days left" in await pg.locator(".exam-plan").inner_text())
+    await go(pg, "#/exam", 1200); await pg.wait_for_selector(".ep-list li", timeout=10000)
+    rows = await pg.evaluate("[...document.querySelectorAll('.ep-list li')].map(l=>l.className.split(' ')[0]+'|'+l.innerText.replace(/\\s+/g,' '))")
+    kinds = [r.split("|")[0] for r in rows]
+    check("exam plan: the page counts the days left", "10 days left" in await pg.locator(".score-big").inner_text())
+    check("exam plan: one row per day, the light day, then exam day last", len(rows) == 11 and kinds[-1] == "ep-exam" and kinds[-2] == "ep-light", rows)
+    mocks = [10 - i for i, k in enumerate(kinds) if k == "ep-mock"]
+    check("exam plan: a mock every third day, counted back from 2 days before (8, 5, 2 days left)", mocks == [8, 5, 2], mocks)
+    check("exam plan: every other day is a section focus", all(k == "ep-focus" for i, k in enumerate(kinds) if 10 - i not in (0, 1, 2, 5, 8)), kinds)
+    check("exam plan: the final-week mock is the full timed one", "Full mock exam" in rows[kinds.index("ep-mock")], rows)
+    check("exam plan: links go to real screens", await pg.evaluate("[...document.querySelectorAll('.ep-list a')].every(a=>/^#\\/[a-z]/.test(a.getAttribute('href')))"))
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(30)), "srs": {}})
+    await go(pg, "#/", 700)
+    check("exam plan: not on Home a month before", await pg.locator(".exam-plan").count() == 0)
+    await go(pg, "#/exam", 700)
+    check("exam plan: the page says when it starts", "starts 21 days before" in await pg.locator("#app").inner_text())
+    await ctx.close()
+
+
 GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage)]
 PW = None
 
 

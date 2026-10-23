@@ -1289,3 +1289,22 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 :root[data-theme="dark"] .lt-badge, :root[data-theme="dark"] .lt-chip.lt-late, :root[data-theme="dark"] .lt-boxes > div.hot { background: #3a2f18; color: #ffe1a6; }
 :root[data-theme="dark"] .lt-badge.hot { background: #4a2028; color: #ffc9d1; }
 :root[data-theme="dark"] .lt-chip.lt-ok { background: #17382c; color: #8be3bf; }
+
+/* learner tracking: card link + message button */
+.lt-open { display: block; color: var(--text); }
+.lt-act { display: flex; justify-content: flex-end; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.lt-act .btn { min-height: 44px; }
+
+/* exam countdown plan */
+.exam-plan .task small { font-weight: 800; }
+.ep-next { margin: 8px 4px 0; }
+.ep-list { list-style: none; margin: 0; padding: 0; }
+.ep-list li { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
+.ep-list li:first-child { border-top: 0; }
+.ep-list .ep-d { font-size: .8rem; font-weight: 800; color: var(--muted); }
+.ep-list a { display: flex; align-items: center; gap: 8px; min-height: 44px; color: var(--text); font-weight: 700; }
+.ep-list .ep-today .ep-d { color: var(--primary-text, var(--primary)); }
+.ep-list .ep-today a { font-weight: 900; }
+.ep-list .ep-mock a { color: var(--primary-text, var(--primary)); }
+.ep-list li.done a { color: var(--muted); text-decoration: line-through; }
+.ep-list .ep-exam .ep-d, .ep-list .ep-exam a { color: var(--bad); font-weight: 900; }

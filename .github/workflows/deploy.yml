@@ -19,9 +19,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # A normal run takes about 10 minutes. The first run after new content also records about 1,600 clips
-    # (six at a time, with retries) and installs the browser: allow for that, but stop a hung download or test.
-    timeout-minutes: 45
+    # A normal run takes about 10-25 minutes. When the audio cache is gone (GitHub drops caches unused for 7 days)
+    # every clip is recorded again (about 35 minutes), then the tests run: allow for that, but stop a hung run.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -37,19 +37,31 @@ jobs:
         run: node tools/validate.js
 
       # Reuse MP3s from earlier runs; only new or changed sentences are generated.
+      # Restore and save are separate steps so the recordings are kept even when a later step (the tests) fails
+      # or the run is cancelled; each run saves under its own key, the newest one is restored next time.
       - name: Restore audio cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: audio
-          key: audio-${{ hashFiles('data/*.js', 'data/hsk5/*.js', 'data/hsk4x/*.js', 'tools/gen_audio.py', 'tools/collect_texts.js') }}
-          restore-keys: audio-
+          key: audio-${{ hashFiles('data/*.js', 'data/hsk5/*.js', 'data/hsk4x/*.js', 'tools/gen_audio.py', 'tools/collect_texts.js') }}-${{ github.run_id }}
+          restore-keys: |
+            audio-${{ hashFiles('data/*.js', 'data/hsk5/*.js', 'data/hsk4x/*.js', 'tools/gen_audio.py', 'tools/collect_texts.js') }}-
+            audio-
 
       - name: Generate audio (edge-tts)
+        timeout-minutes: 50
         run: |
           pip install edge-tts
           command -v ffmpeg >/dev/null || (sudo apt-get update -q && sudo apt-get install -y -q ffmpeg)
           node tools/collect_texts.js > audio_texts.json
           python tools/gen_audio.py audio_texts.json
+
+      - name: Save audio cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: audio
+          key: audio-${{ hashFiles('data/*.js', 'data/hsk5/*.js', 'data/hsk4x/*.js', 'tools/gen_audio.py', 'tools/collect_texts.js') }}-${{ github.run_id }}
 
       # Bundles + minifies (esbuild), splits start-up data from lazy data, stamps the version.
       - name: Build site

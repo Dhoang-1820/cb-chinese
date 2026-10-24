@@ -1699,7 +1699,84 @@ async def t_knowledge2(b):
     await ctx.close()
 
 
-GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+async def t_writing2(b):
+    """Mock writing part 2 is scored by the AI examiner: Check with AI in practice, automatic scoring with partial points
+    in the timed exam, a per-sentence breakdown on the result; offline it falls back to the model answer."""
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await go(pg, "#/mock/1", 1200); await pg.wait_for_selector("#m-practice", timeout=15000); await pg.click("#m-practice")
+    for _ in range(2):
+        await pg.wait_for_selector("#m-next", timeout=10000); await pg.wait_for_timeout(300); await pg.click("#m-next"); await pg.wait_for_timeout(500)
+    await pg.wait_for_function("location.hash==='#/mock/1/writing'", timeout=10000)
+    ids = await pg.evaluate("[...document.querySelectorAll('.w2-input')].map(e=>e.id.slice(3))")
+    words = await pg.evaluate("[...document.querySelectorAll('.w2-scene b')].map(e=>e.textContent)")
+    check("writing2: practice mode offers Check with AI on every part 2 sentence", len(ids) == 3 and await pg.locator("[id^=w2ai-]").count() == 3, ids)
+    await pg.fill("#w2-" + ids[0], "我今天" + words[0] + "了。")
+    await pg.click("#w2ai-" + ids[0]); await pg.wait_for_selector("#w2out-%s .w2-verdict" % ids[0], timeout=10000)
+    t = await pg.inner_text("#w2out-" + ids[0])
+    check("writing2: Check with AI shows a score out of 5 and counts 4+ as right", "5/5" in t and "Counts as right" in t, t[:200])
+    await pg.fill("#w2-" + ids[0], "我今天" + words[0] + "了吗。")
+    check("writing2: editing a scored sentence clears the score", await pg.inner_text("#w2out-" + ids[0]) == "")
+    await ctx.close()
+    # timed exam: sentences are scored when the exam ends; a 3/5 sentence gives partial points
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await go(pg, "#/mock/1", 1200); await pg.wait_for_selector("#m-exam", timeout=15000); await pg.click("#m-exam")
+    for _ in range(2):
+        await pg.wait_for_selector("#m-next", timeout=10000); await pg.wait_for_timeout(300); await pg.click("#m-next"); await pg.wait_for_timeout(500)
+    await pg.wait_for_function("location.hash==='#/mock/1/writing'", timeout=10000); await pg.wait_for_timeout(300)
+    check("writing2: the timed exam hides the model answer and says AI scores at the end",
+          await pg.locator("[id^=w2show-]").count() == 0 and await pg.locator("[id^=w2ai-]").count() == 0 and "when you finish" in await pg.inner_text("#app"))
+    await pg.fill("#w2-" + ids[0], "我今天" + words[0] + "了。")       # full marks
+    await pg.fill("#w2-" + ids[1], "每天我" + words[1] + "。")          # grammar 1, natural 1 -> 3/5
+    cnt = await pg.inner_text("#exam-count")
+    check("writing2: a typed sentence counts as answered in the timed exam", cnt.startswith("2/"), cnt)
+    await pg.click("#m-next"); await pg.wait_for_function("location.hash==='#/mock/1/result'", timeout=20000); await pg.wait_for_timeout(500)
+    t = await pg.inner_text("#app")
+    check("writing2: the result lists AI scores per sentence", "Writing part 2" in t and "5/5" in t and "3/5" in t, t[:600])
+    h = await pg.evaluate("Store.state.mockHistory[0].sections.writing")
+    # mock 1 writing: 5 ordering + 3 sentences = 8 items; nothing ordered, 1 + 0.6 sentence points = 1.6/8 = 20
+    check("writing2: the writing score uses partial points (1.6 of 8 = 20)", h == 20, h)
+    await pg.click(".w2-row summary >> nth=1"); await pg.wait_for_timeout(200)
+    check("writing2: a row opens the full AI feedback with the correction", "我每天坐地铁去公司" in await pg.inner_text(".w2-row >> nth=1"))
+    await no_dialogs(pg)
+    await ctx.close()
+    # offline: the old way (model answer and self-marking) still works
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await go(pg, "#/mock/1", 1200); await pg.wait_for_selector("#m-exam", timeout=15000)
+    await ctx.set_offline(True); await pg.click("#m-exam")
+    for _ in range(2):
+        await pg.wait_for_selector("#m-next", timeout=10000); await pg.wait_for_timeout(300); await pg.click("#m-next"); await pg.wait_for_timeout(500)
+    await pg.wait_for_function("location.hash==='#/mock/1/writing'", timeout=10000); await pg.wait_for_timeout(300)
+    check("writing2: offline, the model answer and self-marking stay", await pg.locator("[id^=w2show-]").count() == 3 and "when you finish" not in await pg.inner_text("#app"))
+    await ctx.close()
+
+async def t_admin_group(b):
+    """Admin overview: one card per learner holding all of that learner's alerts; tiny idle backups fold into a test group."""
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await pg.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
+    now = datetime.datetime.now(datetime.timezone.utc)
+    old = (now - datetime.timedelta(days=7)).isoformat()
+    nhi = {"id": "d" * 64, "updated_at": old, "rev": 9, "meta": {"label": "Nhi", "last": day(-7), "xp": 3000, "streak": 0},
+           "summary": {"vocab": {"mastered": 40, "learning": 200, "all": 1200, "overdue": 31}, "patterns": [{"kind": "repeat", "skill": "", "n": 16}], "progress": {"exam": day(21)}}}
+    tst = {"id": "e" * 64, "updated_at": (now - datetime.timedelta(days=20)).isoformat(), "rev": 1, "meta": {"last": day(-20), "xp": 16}, "summary": {"progress": {"exam": day(21)}}}
+    async def rows(route):
+        if '"learners_list"' not in (route.request.post_data or ""):
+            await route.continue_(); return
+        res = await route.fetch(); body = await res.json()
+        body["result"]["rows"] = [nhi, tst]
+        await route.fulfill(response=res, body=json.dumps(body))
+    await ctx.route(AI_URL, rows)
+    await go(pg, "#/learners", 500); await pg.wait_for_selector(".lt-card", timeout=10000)
+    groups = await pg.locator(".lt-alg").all_inner_texts()
+    check("admin_group: one attention card per learner", len(groups) == 1 and groups[0].count("Nhi") == 1, groups)
+    g = groups[0] if groups else ""
+    check("admin_group: the card holds no-study, reviews and mistakes; a stale backup is not repeated next to no-study",
+          "Nothing for 7 days" in g and "31 words" in g and "16 misses" in g and "Last saved" not in g, g)
+    check("admin_group: the idle 16 XP backup is folded away, not alerted", await pg.locator(".lt-test").count() == 1 and await pg.locator(".lt-card").count() == 1 and "(1)" in await pg.inner_text(".lt-test summary"))
+    small = await pg.evaluate("[...document.querySelectorAll('.lt-alg .lt-al, .lt-test summary')].filter(e=>e.getBoundingClientRect().height<44).length")
+    check("admin_group: alert lines are at least 44px tall", small == 0, small)
+    await ctx.close()
+
+GROUPS = [("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2)]
 PW = None

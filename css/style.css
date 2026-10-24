@@ -1346,3 +1346,19 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .learnit #li-go { margin-top: 14px; }
 #learn-reading { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; margin: 8px 0 12px; }
 .talk-in #t-skip { min-height: 44px; }
+
+/* learner tracking: alerts grouped per learner; inactive/test backups folded away */
+.lt-alg { padding: 10px 14px; }
+.lt-alg-n { display: block; margin-bottom: 2px; }
+.lt-alg .lt-al { padding: 8px 0; min-height: 44px; border-top: 1px solid var(--border); }
+.lt-alg .lt-al:first-of-type { border-top: 0; }
+.lt-test summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+.lt-test .lt-al { padding: 8px 0; border-top: 1px solid var(--border); }
+/* mock writing part 2: AI scores */
+.w2-note { margin: 0 0 8px; }
+.w2-ai:not(:empty) { margin-top: 10px; }
+.w2-res h3 { margin: 0 0 8px; }
+.w2-row { border-top: 1px solid var(--border); padding: 8px 0; }
+.w2-row summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; min-height: 44px; }
+.w2-mine { flex-basis: 100%; color: var(--muted); }
+.w2-sc { margin-left: auto; }

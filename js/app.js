@@ -1933,7 +1933,7 @@
       out.push({ k: "Mistakes", t: (p.k ? num(p.k) + (num(p.k) === 1 ? " item keeps" : " items keep") + " being missed · " : "The same items keep being missed · ") + num(p.n) + " misses in 14 days", hot: false });
     });
     if (ew) out.push({ k: "Exam date", t: ew, hot: false });
-    if (isFinite(up) && up >= 3) out.push({ k: "Backup", t: "Last saved " + up + " days ago, so these numbers may be old", hot: false });
+    if (isFinite(up) && up >= 3 && !(d != null && d >= 3 && up <= d + 1)) out.push({ k: "Backup", t: "Last saved " + up + " days ago, so these numbers may be old", hot: false });
     return out;
   }
   function lrnStatus(r) {
@@ -1950,6 +1950,7 @@
     var t = (sm && sm.trk) || [], a = t[t.length - 2], b = t[t.length - 1];
     return a && b && a[1] != null && b[1] != null ? num(b[1]) - num(a[1]) : null;
   }
+  function lrnTest(r) { var d = lrnIdle(r); return num((r.meta || {}).xp) < 100 && (d == null || d >= 14); }
   function lrnOverview(rows) {
     var soon = null, html = "";
     rows.forEach(function (r) {
@@ -1957,12 +1958,18 @@
       if (DAYRE.test(e || "")) { var dl = Store.daysBetween(Store.today(), e); if (dl >= 0 && (!soon || dl < soon.dl)) soon = { dl: dl, d: e }; }
     });
     html += soon ? '<section class="card lt-exam"><small>HSK exam in</small><b>' + soon.dl + " days</b><span>" + esc(soon.d) + "</span></section>" : "";
-    var al = [];
-    rows.forEach(function (r) { lrnAlerts(r).forEach(function (a) { al.push({ r: r, a: a }); }); });
+    var test = rows.filter(lrnTest); rows = rows.filter(function (r) { return !lrnTest(r); });
+    var al = []; // one card per learner, every alert a line inside it; learners with an urgent alert first
+    rows.forEach(function (r) { var a = lrnAlerts(r); if (a.length) al.push({ r: r, a: a, hot: a.some(function (x) { return x.hot; }) }); });
+    al.sort(function (x, y) { return (y.hot ? 1 : 0) - (x.hot ? 1 : 0); });
     html += '<h3 class="sec">Needs attention</h3>' + (al.length ? al.map(function (x) {
-      var to = x.a.k === "Reviews" || x.a.k === "Mistakes" ? "practice" : x.a.k === "Exam date" ? "progress" : "habit";
-      return '<a class="card lt-al" href="#/learners/' + lrnKey(x.r) + "/" + to + '"><span class="lt-badge' + (x.a.hot ? " hot" : "") + '">' + esc(x.a.k) + '</span><span class="lt-al-t"><b>' + esc(lrnName(x.r)) + "</b><small>" + esc(x.a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>';
+      return '<section class="card lt-alg"><b class="lt-alg-n">' + esc(lrnName(x.r)) + "</b>" + x.a.map(function (a) {
+        var to = a.k === "Reviews" || a.k === "Mistakes" ? "practice" : a.k === "Exam date" ? "progress" : "habit";
+        return '<a class="lt-al" href="#/learners/' + lrnKey(x.r) + "/" + to + '"><span class="lt-badge' + (a.hot ? " hot" : "") + '">' + esc(a.k) + '</span><span class="lt-al-t"><small>' + esc(a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>';
+      }).join("") + "</section>";
     }).join("") : '<p class="card sub">✓ Nothing needs attention.</p>');
+    if (test.length) html += '<details class="card lt-test"><summary>Inactive or test backups (' + test.length + ")</summary><p class=\"sub\">Under 100 XP and nothing for 14+ days: usually a test device or a backup started without the restore code. Hidden from alerts.</p>" +
+      test.map(function (r) { return '<a class="lt-al" href="#/learners/' + lrnKey(r) + '/progress"><span class="lt-al-t"><b>' + esc(lrnName(r)) + "</b><small>" + num((r.meta || {}).xp) + " XP · last " + esc(String((r.meta || {}).last || "–")) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>'; }).join("") + "</details>";
     html += '<h3 class="sec">Learners</h3>' + rows.map(function (r) {
       var sm = r.summary || {}, pg = sm.progress || {}, rd = pg.ready, st = lrnStatus(r), tr = lrnTrend(sm), idle = lrnIdle(r), pl = sm.pace;
       return '<div class="card lt-card"><a class="lt-open" href="#/learners/' + lrnKey(r) + '/progress"><div class="lt-row"><b>' + esc(lrnName(r)) + '</b><span class="lt-chip ' + st.c + '">' + esc(st.t) + "</span></div>" +
@@ -2321,7 +2328,7 @@
   }
 
   function startExam(id, mode, strict) {
-    EXAM = { id: id, test: MOCKMAP[id], mode: mode, strict: !!strict, section: "listening", answers: {}, timer: null, finished: false, result: null };
+    EXAM = { id: id, test: MOCKMAP[id], mode: mode, strict: !!strict, section: "listening", answers: {}, timer: null, finished: false, result: null, w2t: {}, w2s: {}, w2r: {} };
     location.hash = "#/mock/" + id + "/listening";
   }
 
@@ -2468,14 +2475,42 @@
         (mode === "practice" ? '<span class="w1-check" id="wcheck-' + esc(it.id) + '"></span>' : "") + "</div>";
     });
     html += '<h3 class="exam-part">Part 2 · Write a sentence using the word and scene</h3>';
+    var ai = w2AI();
+    if (ai) html += '<p class="sub w2-note">' + (mode === "exam" ? "🤖 AI scores these sentences out of 5 when you finish, like a real examiner." : "🤖 Tap Check with AI for a score out of 5 and corrections.") + "</p>";
     W.p2.forEach(function (it) {
       i++;
       html += '<div class="card q"><div class="qn">' + i + '</div><p class="w2-scene">' + it.emoji + ' <b class="zh">' + esc(it.word) + '</b></p>' +
-        '<textarea class="w2-input" id="w2-' + esc(it.id) + '" rows="2" placeholder="写一个句子…"></textarea>' +
-        '<button type="button" class="btn small" id="w2show-' + esc(it.id) + '">Show a model answer</button>' +
-        '<div class="w2-model" id="w2model-' + esc(it.id) + '" hidden></div></div>';
+        '<textarea class="w2-input" id="w2-' + esc(it.id) + '" rows="2" placeholder="写一个句子…">' + esc((EXAM.w2t || {})[it.id] || "") + "</textarea>" +
+        (mode === "practice" && ai ? '<button type="button" class="btn small primary" id="w2ai-' + esc(it.id) + '">🤖 Check with AI</button> ' : "") +
+        (mode === "exam" && ai ? "" : '<button type="button" class="btn small" id="w2show-' + esc(it.id) + '">Show a model answer</button>') +
+        '<div class="w2-ai" id="w2out-' + esc(it.id) + '"></div><div class="w2-model" id="w2model-' + esc(it.id) + '" hidden></div></div>';
     });
     return html;
+  }
+  /* Writing part 2 is scored by the AI examiner (0-5 a sentence) when AI is set up; otherwise the learner marks it against the model. */
+  function w2AI() { return !!(window.AI && AI.configured()) && navigator.onLine !== false; }
+  function w2Item(it) { return { word: it.word, scene: "Picture shown as emoji: " + it.emoji }; }
+  function w2Set(it, res) { EXAM.w2s[it.id] = res.result.total; EXAM.w2r[it.id] = res; EXAM.answers[it.id] = res.result.total >= 4 ? 1 : 0; }
+  /* timed exam: score every unscored sentence before the result, at most ~30 s; a sentence the AI couldn't score counts 0 */
+  function w2GradeAll(done) {
+    var items = EXAM.mode === "exam" && w2AI() ? EXAM.test.writing.p2.filter(function (it) { return (EXAM.w2t[it.id] || "").trim() && EXAM.w2s[it.id] == null; }) : [];
+    if (!items.length) { done(); return; }
+    var ex = EXAM;
+    render('<section class="card center w2-wait">' + UI.mascot("think", 72) + "<h2>Scoring your writing…</h2><p class=\"sub\">The AI examiner is checking " + plural(items.length, "sentence") + ". This takes a few seconds.</p></section>", "mock");
+    var timeout = new Promise(function (r) { setTimeout(function () { r("timeout"); }, 30000); });
+    Promise.race([Promise.all(items.map(function (it) {
+      return AI.call("grade", { word: it.word, scene: w2Item(it).scene, sentence: (ex.w2t[it.id] || "").trim().slice(0, 150) }).then(function (res) { if (res && res.ok && ex === EXAM) w2Set(it, res); }, function () {});
+    })), timeout]).then(function () { if (ex === EXAM) done(); });
+  }
+  function w2ResultHTML() {
+    var t = EXAM.test; if (!t || !EXAM.w2t) return "";
+    var rows = t.writing.p2.filter(function (it) { return (EXAM.w2t[it.id] || "").trim(); });
+    if (!rows.length || !(w2AI() || Object.keys(EXAM.w2s).length)) return "";
+    return '<section class="card w2-res"><h3>✍️ Writing part 2 · AI scores</h3>' + rows.map(function (it) {
+      var res = EXAM.w2r[it.id], sc = EXAM.w2s[it.id];
+      return '<details class="w2-row"><summary><span class="zh">' + esc(it.word) + '</span> <b class="w2-sc">' + (sc != null ? sc + "/5" : "not scored") + '</b><span class="zh w2-mine">' + esc(EXAM.w2t[it.id].trim()) + "</span></summary>" +
+        (res ? AI._gradeCard(res, EXAM.w2t[it.id]) : '<p class="sub">The AI couldn\'t score this one (offline or busy), so it counted 0. Model: <span class="zh">' + esc(it.sample) + "</span></p>") + "</details>";
+    }).join("") + '<p class="sub">Each sentence is out of 5: using the word, grammar and naturalness. Your writing score uses these points.</p></section>';
   }
   function wireWriting(m, mode) {
     if (!EXAM.w1) EXAM.w1 = {};
@@ -2498,8 +2533,28 @@
       check();
       refresh();
     });
+    if (!EXAM.w2t) { EXAM.w2t = {}; EXAM.w2s = {}; EXAM.w2r = {}; }
+    var ai = w2AI();
     m.writing.p2.forEach(function (it) {
-      document.getElementById("w2show-" + it.id).onclick = function () {
+      var ta = document.getElementById("w2-" + it.id), aib = document.getElementById("w2ai-" + it.id), out = document.getElementById("w2out-" + it.id);
+      ta.oninput = function () {
+        EXAM.w2t[it.id] = ta.value; markWork();
+        if (EXAM.w2s[it.id] != null) { delete EXAM.w2s[it.id]; delete EXAM.w2r[it.id]; delete EXAM.answers[it.id]; out.innerHTML = ""; } // edited after scoring: check again
+        if (mode === "exam" && ai) { if (ta.value.trim()) EXAM.answers[it.id] = 0; else delete EXAM.answers[it.id]; } // scored by AI at the end
+        updateCount();
+      };
+      if (aib) aib.onclick = function () {
+        var v = ta.value.trim(); if (!v) { UI.toast("Write a sentence first.", "✍️"); return; }
+        aib.disabled = true;
+        AI.grade(out, w2Item(it), v).then(function (res) {
+          aib.disabled = false;
+          if (!res || !res.ok || ta.value.trim() !== v) return;
+          w2Set(it, res);
+          out.insertAdjacentHTML("beforeend", '<p class="sub w2-verdict">' + (res.result.total >= 4 ? "✔ Counts as right" : "✘ Counts as wrong") + " · 4/5 or more counts as right</p>");
+          updateCount();
+        });
+      };
+      var sb = document.getElementById("w2show-" + it.id); if (sb) sb.onclick = function () {
         var box = document.getElementById("w2model-" + it.id);
         box.hidden = false;
         box.innerHTML = '<p class="model-t">Model: <span class="zh">' + esc(it.sample) + '</span></p><div class="tf-btns">' +
@@ -2563,7 +2618,8 @@
     var rItems = t.reading.p1.concat(t.reading.p2).concat(t.reading.p3.reduce(function (s, p) { return s.concat(p.questions); }, []));
     var rt = rItems.length, rc = tally(rItems, function (it) { return ans[it.id] === it.answer; });
     var wt = t.writing.p1.length + t.writing.p2.length;
-    var wc = tally(t.writing.p1, function (it) { return orderOk(it, ans[it.id]); }) + tally(t.writing.p2, function (it) { return ans[it.id] === 1; });
+    var wc = tally(t.writing.p1, function (it) { return orderOk(it, ans[it.id]); }) + t.writing.p2.reduce(function (sum, it) { var sc = (EXAM.w2s || {})[it.id]; return sum + (sc != null ? sc / 5 : ans[it.id] === 1 ? 1 : 0); }, 0);
+    wc = Math.round(wc * 10) / 10;
     var lS = Math.round(lc / lt * 100), rS = Math.round(rc / rt * 100), wS = Math.round(wc / wt * 100);
     return { listening: { score: lS, correct: lc, total: lt }, reading: { score: rS, correct: rc, total: rt }, writing: { score: wS, correct: wc, total: wt }, total: lS + rS + wS, pass: (lS + rS + wS) >= 180 };
   }
@@ -2594,8 +2650,9 @@
     return per;
   }
   function finishExam() {
-    if (!EXAM || EXAM.finished) return;
+    if (!EXAM || EXAM.finished || EXAM.grading) return;
     clearExamTimer();
+    if (!EXAM.w2done) { EXAM.grading = true; w2GradeAll(function () { EXAM.grading = false; EXAM.w2done = true; finishExam(); }); return; }
     var result = scoreExam();
     result.skills = recordMock();
     EXAM.result = result; EXAM.finished = true;
@@ -2634,7 +2691,7 @@
     var html = '<section class="card ' + (pass ? "g-teal" : "g-coral") + '">' + (pass ? UI.anim("noto-trophy", 84, UI.mascot("cheer", 64)) : UI.mascot("wow", 64)) +
       '<h2>' + (pass ? "Pass! 🎉" : "Keep practicing") + '</h2>' + (EXAM.strict ? '<p><span class="tag t-hsk">🎯 Exam simulator</span></p>' : "") + '<p class="score-big">' + r.total + "/300</p>" +
       "<p>" + secBar("Listening", r.listening.score) + secBar("Reading", r.reading.score) + secBar("Writing", r.writing.score) + "</p>" +
-      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p>" + (EXAM.rep ? REP_NOTE : "") + "</section>" + weakHTML(r.skills) + focusCard() +
+      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p>" + (EXAM.rep ? REP_NOTE : "") + "</section>" + w2ResultHTML() + weakHTML(r.skills) + focusCard() +
       '<a class="btn primary big" href="#/mock/' + id + '">Try again</a><a class="btn big" href="#/mock" style="margin-top:10px">All mock exams</a>';
     render(html, "mock");
   }
@@ -2789,8 +2846,19 @@
     }
     if (x.kind === "write") {
       return { html: '<div class="card qcard" id="qcard">' + head + '<p class="w2-scene">' + it.emoji + ' <b class="zh">' + esc(it.word) + '</b></p><textarea class="w2-input" id="dw" rows="2" placeholder="写一个句子…"></textarea>' +
-          '<button class="btn wide" id="dw-show">Show a model answer</button><div id="qfb"></div></div>',
+          (w2AI() ? '<button class="btn wide primary" id="dw-ai">🤖 Check with AI</button>' : "") + '<button class="btn wide" id="dw-show">Show a model answer</button><div id="qfb"></div></div>',
         wire: function (done) {
+          var aib = document.getElementById("dw-ai");
+          if (aib) aib.onclick = function () {
+            var v = document.getElementById("dw").value.trim(); if (!v) { UI.toast("Write a sentence first.", "✍️"); return; }
+            aib.disabled = true;
+            AI.grade(document.getElementById("qfb"), w2Item(it), v).then(function (res) {
+              aib.disabled = false; if (!res || !res.ok) return;
+              var ok = res.result.total >= 4; aib.hidden = true; document.getElementById("dw-show").hidden = true;
+              document.getElementById("qfb").insertAdjacentHTML("beforeend", '<button class="btn primary wide" id="dw-next">' + (ok ? "✔ " : "✘ ") + res.result.total + "/5 · Next ›</button>");
+              document.getElementById("dw-next").onclick = function () { Learn.record(e.key, e, ok); done(ok); };
+            });
+          };
           document.getElementById("dw-show").onclick = function () {
             this.hidden = true;
             document.getElementById("qfb").innerHTML = '<p class="model-t">Model: <span class="zh">' + esc(it.sample) + '</span></p><div class="tf-btns"><button class="btn good-btn" id="dw-ok">I got it ✔</button><button class="btn bad-btn" id="dw-no">Not quite ✘</button></div>';

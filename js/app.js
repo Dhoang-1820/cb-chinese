@@ -2705,7 +2705,7 @@
     if (e.kind === "quiz") {
       var d = DAYMAP[e.day], qq = d && d.quiz && d.quiz[e.idx]; if (!qq) return null;
       var order = shuffle(qq.options.map(function (_, k) { return k; }));
-      return { html: '<div class="card qcard" id="qcard"><p class="sub">Day ' + e.day + ' quiz</p><p class="q zh">' + esc(qq.q) + '</p><div class="opts">' +
+      return { html: '<div class="card qcard" id="qcard"><p class="sub">Day ' + e.day + ' quiz</p>' + (/^根据短文/.test(qq.q) && d.reading && d.reading.lines ? '<p class="zh passage">' + esc(d.reading.lines.map(function (l) { return l.zh; }).join("")) + "</p>" : "") + '<p class="q zh">' + esc(qq.q) + '</p><div class="opts">' +
           order.map(function (k, n) { return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[n] + "</span>" + optHTML(qq.options[k]) + "</button>"; }).join("") + '</div><div id="qfb"></div></div>',
         wire: function (done) { wireMC(qq.answer, function (ok) { Learn.record(e.key, e, ok); return (qq.explain ? M(qq.explain) : ""); }, done); } };
     }
@@ -2881,7 +2881,7 @@
     }
     else if (e.kind === "mock") {
       var x = findMockItem(e.mock, e.item); if (!x) return null; it = x.it;
-      if (x.kind === "sent") d.zh = it.parts ? it.answer.split("").map(function (k) { return it.parts[k]; }).join("") : gapFill(it.sentence, it.options[it.answer]);
+      if (x.kind === "sent") d.zh = it.parts ? (it.orderKey || ORDERS[it.answer] || "").split("").map(function (k) { return it.parts[k]; }).join("") : gapFill(it.sentence, it.options[it.answer]);
       else if (x.kind === "order") d.zh = it.answer;
       else if (x.kind === "write") d.zh = it.sample;
       else if (x.kind === "tf") { d.zh = it.audio.text; d.hints.push('<span class="zh">' + esc(it.statement) + "</span> → " + (it.answer ? "true" : "false")); }
@@ -2990,7 +2990,7 @@
       }
       var head = '<div class="ghead"><a class="pill" href="' + (o.exit || "#/mistakes") + '">✕</a><b>📒 ' + esc(title) + '</b><span class="ghr">' + (i + 1) + "/" + items.length + "</span></div>" +
         '<div class="bar"><span style="width:' + (i / items.length * 100) + '%"></span></div>';
-      var reps = Learn.repeats(e.key), seenKey = Store.today() + "|" + e.key, li = reps && !learnItSeen[seenKey] ? learnItCard(e, reps) : null;
+      var reps = Learn.repeats(e.key), seenKey = Store.today() + "|" + e.key, li = null; try { li = reps && !learnItSeen[seenKey] ? learnItCard(e, reps) : null; } catch (er) { li = null; }
       if (li) { learnItSeen[seenKey] = 1; render(head + li.html, "review"); li.wire(draw); return; } // teach first, then the same item is asked
       render(head + q.html, "review");
       q.wire(function (ok) { if (ok) right++; i++; draw(); });
@@ -3794,7 +3794,7 @@
       [].forEach.call(document.querySelectorAll("[data-lvl]"), function (bt) { bt.onclick = function () { pr.level = bt.getAttribute("data-lvl"); saveTalkPrefs(pr); viewTalk(); }; });
       return;
     }
-    var hist = [], turns = 0, busy = false, finished = false, lastHint = "", MAX = o.mini || 20;
+    var hist = [], turns = 0, busy = false, finished = false, dead = false, lastHint = "", MAX = o.mini || 20;
     var variant = Math.floor(Math.random() * 1000), mood = Math.floor(Math.random() * 1000);
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     function bubbleAI(r, words) {
@@ -3826,7 +3826,7 @@
     // The AI writes its own opening (different every time); offline or on error, the scene's fixed opening is used.
     if (window.AI && AI.available()) {
       var w0 = document.createElement("div"); w0.className = "tb tb-ai"; w0.textContent = "…"; log.appendChild(w0); busy = true;
-      AI.call("roleplay", { scene: sc.id, start: true, history: [], variant: variant, mood: mood, level: pr.level }).then(function (res) {
+      AI.call("roleplay", { scene: sc.id, start: true, history: [], variant: variant, mood: mood, level: pr.level }).then(function (res) { if (dead || !log.isConnected) return;
         busy = false; w0.remove();
         if (res.ok && res.result.reply) { opening(res.result.reply, res.result.words); lastHint = res.result.hint ? res.result.hint + (res.result.hint_pinyin ? " · " + res.result.hint_pinyin : "") : ""; }
         else opening(sc.open);
@@ -3842,7 +3842,7 @@
         (o.onDone ? '<p class="sub">' + turns + ' replies.</p><div class="actions center"><button type="button" class="btn primary" id="t-cont">Continue ▶</button></div></div>'
           : '<p class="sub">' + turns + ' replies. Play it again: the details and the mood change every time.</p><div class="actions center"><a class="btn" href="#/talk">More scenes</a><button type="button" class="btn primary" id="t-again">Again</button></div></div>'));
       document.querySelector(".talk-in").hidden = true;
-      if (o.onDone) document.getElementById("t-cont").onclick = function () { o.onDone(sm && sm.score != null ? sm.score : 0); };
+      if (o.onDone) document.getElementById("t-cont").onclick = function () { this.disabled = true; o.onDone(sm && sm.score != null ? sm.score : 0); };
       else document.getElementById("t-again").onclick = function () { viewTalk(sc.id); };
       paint(true);
     }
@@ -3854,7 +3854,7 @@
       busy = true; inp.value = ""; turns++; document.getElementById("t-n").textContent = turns + "/" + MAX;
       var my = document.createElement("div"); my.className = "tb tb-me"; my.innerHTML = '<div class="zh">' + esc(text) + "</div>"; log.appendChild(my);
       var wait = document.createElement("div"); wait.className = "tb tb-ai"; wait.textContent = "…"; log.appendChild(wait); paint(true);
-      AI.call("roleplay", { scene: sc.id, text: text, history: hist.slice(-10), turns: turns, variant: variant, mood: mood, level: pr.level }).then(function (res) {
+      AI.call("roleplay", { scene: sc.id, text: text, history: hist.slice(-10), turns: turns, variant: variant, mood: mood, level: pr.level }).then(function (res) { if (dead || !log.isConnected) return;
         busy = false; wait.remove();
         if (!res.ok) { turns--; document.getElementById("t-n").textContent = turns + "/" + MAX; my.remove(); inp.value = text; UI.toast(AI.errMsg(res.error), "⚠️"); return; }
         var r = res.result, fb = r.feedback || {};
@@ -3876,7 +3876,7 @@
       if (pr.read) Audio2.unlock();
       busy = true; fin.disabled = true;
       var wait = document.createElement("div"); wait.className = "tb tb-ai"; wait.textContent = "…"; log.appendChild(wait); paint(true);
-      AI.call("roleplay", { scene: sc.id, wrap: true, history: hist.slice(-10), turns: turns, variant: variant, mood: mood, level: pr.level }).then(function (res) {
+      AI.call("roleplay", { scene: sc.id, wrap: true, history: hist.slice(-10), turns: turns, variant: variant, mood: mood, level: pr.level }).then(function (res) { if (dead || !log.isConnected) return;
         busy = false; fin.disabled = false; wait.remove();
         if (!res.ok) { UI.toast(AI.errMsg(res.error), "⚠️"); return; }
         log.insertAdjacentHTML("beforeend", bubbleAI(res.result.reply, res.result.words)); readAloud(res.result.reply.zh);
@@ -3886,7 +3886,7 @@
     inp.addEventListener("focus", function () { setTimeout(function () { inp.scrollIntoView({ block: "center", behavior: "smooth" }); }, 300); });
     if (window.visualViewport) { var vh = window.visualViewport.height; window.visualViewport.addEventListener("resize", function () { var h = window.visualViewport.height, kb = Math.abs(h - vh) > 120; vh = h; if (kb && document.activeElement === inp && Date.now() - lastTouch > 1200) setTimeout(function () { inp.scrollIntoView({ block: "center" }); }, 50); }); }
     document.getElementById("t-send").onclick = send;
-    var skip = document.getElementById("t-skip"); if (skip) skip.onclick = function () { if (!finished) { finished = true; o.onDone(null); } };
+    var skip = document.getElementById("t-skip"); if (skip) skip.onclick = function () { if (!finished) { finished = true; dead = true; o.onDone(null); } };
     inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); send(); } };
     var mic = document.getElementById("t-mic");
     if (mic) mic.onclick = function () {
@@ -4697,7 +4697,7 @@
         '<button type="button" class="btn' + (pass || !last ? " primary" : "") + '" id="cu-on">' + (last ? "Finish" : "Next lesson ›") + "</button></div></div>", "home");
       var rt = document.getElementById("cu-retry"); if (rt) rt.onclick = function () { check(d, ws); };
       document.getElementById("cu-on").onclick = function () { k++; lesson(); };
-      Game.award(right * 2, { silent: true });
+      if (pass && !rec.cuPaid) { rec.cuPaid = true; Store.save(); Game.award(right * 2, { silent: true }); }
     }
     function summary() {
       var p = planInfo();

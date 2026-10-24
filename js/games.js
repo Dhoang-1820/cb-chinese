@@ -19,7 +19,8 @@
     { id: "coach", icon: "🧑‍🏫", name: "Paragraph Coach", desc: "Write 2-4 sentences · AI feedback & recurring mistakes · Writing practice", cls: "g-coral" },
     { id: "measure", icon: "📏", name: "Measure Words", desc: "一份合同 · 办手续 · 提出意见", cls: "g-violet" },
     { id: "bank", icon: "🗃️", name: "Word Bank", desc: "Six words, five gaps · Reading part 1", cls: "g-blue" },
-    { id: "wordorder", icon: "🧱", name: "Arrange the Words", desc: "Tap the words into a sentence · Writing part 1", cls: "g-teal" }
+    { id: "wordorder", icon: "🧱", name: "Arrange the Words", desc: "Tap the words into a sentence · Writing part 1", cls: "g-teal" },
+    { id: "reading", icon: "📖", name: "Reading Drill", desc: "A short passage + 3 questions · Reading part 3", cls: "g-blue" }
   ];
   /* skill each drill set counts towards; the HSK 5 sets use the same names with "h5-" in front (see js/learn.js) */
   var DRILL_SKILL = { confuse: "confusable", order: "ordering", picture: "writing", measure: "measure", bank: "fill-word", wordorder: "word-order" };
@@ -36,7 +37,7 @@
   var GROUPS = [
     ["Words", ["speed", "race", "quick", "listen", "boss"]],
     ["Listening and writing", ["drill", "write", "type", "picture", "coach"]],
-    ["Grammar and exam skills", ["builder", "wordorder", "order", "bank", "confuse", "measure"]]
+    ["Grammar and exam skills", ["reading", "builder", "wordorder", "order", "bank", "confuse", "measure"]]
   ];
   function hub() {
     var App = A(), ch = challenge(), s = Store.state, chDone = !!s.challenges[Store.today()];
@@ -60,7 +61,7 @@
     RUN = opts || {};
     if (!RUN.onDone && A().resetWork) A().resetWork(); // "Play again" starts a new round
     ({ builder: builder, listen: listen, speed: speed, race: race, boss: boss, quick: quick, drill: drill, write: write, type: typeGame,
-       confuse: drillGame, order: drillGame, picture: drillGame, measure: drillGame, bank: drillGame, wordorder: drillGame, coach: coachGame })[id](arg, id);
+       confuse: drillGame, order: drillGame, picture: drillGame, measure: drillGame, bank: drillGame, wordorder: drillGame, coach: coachGame, reading: readingGame })[id](arg, id);
   }
 
   /* ---------- shared ---------- */
@@ -681,6 +682,42 @@
     })();
   }
 
+  /* ---------- 11. Reading Drill: a passage and its questions (the set comes from App.readingSet, see js/app.js) ---------- */
+  function readingGame() {
+    var App = A(), esc = App.esc, g = BY.reading, items = App.readingSet ? App.readingSet(RUN.count || 3) : [], i = 0, score = 0, review = [];
+    if (!items.length) {
+      if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; cb(0); return; }
+      App.render(header(g) + '<p class="empty">No reading passages yet. Finish lesson 5 or take a mock exam first.</p>', "game"); return;
+    }
+    function opt(o) { return typeof o === "string" ? '<span class="zh">' + esc(o) + "</span>" : App.M(o); }
+    (function draw() {
+      if (i >= items.length) return finish("reading", score, score * 3, { title: score + " / " + items.length + " correct", mood: score === items.length ? "cheer" : score >= items.length / 2 ? "happy" : "sad",
+        review: '<div class="card akey">' + review.map(function (r) { return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "✗") + '</span><div class="zh">' + esc(r.t) + "</div></div>"; }).join("") + "</div>" });
+      var it = items[i], order = App.shuffle(it.options.map(function (_, k) { return k; })), same = i > 0 && items[i - 1].passage === it.passage;
+      App.render(header(g, (i + 1) + "/" + items.length) + bar(i, items.length) +
+        '<div class="card qcard rd-drill" id="qcard"><p class="sub">📖 ' + esc(it.src) + (same ? " · same passage" : "") + '</p><div class="passage-in zh" lang="zh-CN">' + esc(it.passage) + "</div>" +
+        '<p class="q zh">' + esc(it.q) + '</p><div class="opts">' + order.map(function (k, n) { return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[n] + "</span>" + opt(it.options[k]) + "</button>"; }).join("") +
+        '</div><div id="qfb"></div></div>', "game");
+      var answered = false;
+      document.querySelector(".opts").onclick = function (e) {
+        var b = e.target.closest(".opt"); if (!b || answered) return; answered = true;
+        var ok = b.getAttribute("data-k") === String(it.answer);
+        document.querySelectorAll(".opts .opt").forEach(function (o) { o.disabled = true; if (o.getAttribute("data-k") === String(it.answer)) o.classList.add("right"); else if (o === b) o.classList.add("wrong"); });
+        (ok ? Audio2.sfx.good : Audio2.sfx.bad)(); if (!ok) UI.shake(document.getElementById("qcard"));
+        if (App.markWork) App.markWork();
+        if (window.Learn) Learn.record(it.key, it.meta, ok);
+        if (ok) score++;
+        review.push({ ok: ok, t: it.q });
+        /* lesson passages carry a line-by-line translation: shown after answering, never before */
+        document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Answer: ") + (ok ? "" : opt(it.options[it.answer])) + "</div>" +
+          (it.lines ? '<details class="hint-d"><summary>📖 Passage translation</summary>' + it.lines.map(function (l) { return '<p class="zh">' + esc(l.zh) + "</p>" + '<div class="tr">' + App.M(l) + "</div>"; }).join("") + "</details>" : "") +
+          '<button class="btn primary wide" id="qnext">Next ›</button>';
+        if (!ok && window.AI) AI.attachExplain(document.getElementById("qfb"));
+        document.getElementById("qnext").onclick = function () { i++; draw(); };
+      };
+    })();
+  }
+
   /* ---------- 8. Stroke Writing (Hanzi Writer, MIT · stroke data Arphic PL, bundled in vendor/) ---------- */
   var hwLoading = null;
   function loadHW() {
@@ -771,6 +808,7 @@
   /* one round. it = { core, end, py, vi, en } (arrange) or { word, model, vi, en, free: true } (free sentence) */
   function typeCard(it, onDone, opts) {
     var App = A(); opts = opts || {};
+    if (!dict) buildDict(); // the mistake notebook calls this directly, before any typing round has built the word list
     var parts = it.free ? null : (function () { var c = chunk(it.core); var o = App.shuffle(c.slice()); if (o.join("") === c.join("")) o.reverse(); return o; })();
     var html = '<div class="card qcard" id="qcard">' +
       (it.free

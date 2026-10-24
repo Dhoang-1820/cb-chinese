@@ -501,6 +501,125 @@ async def t_talk(b):
     await ctx.close()
 
 
+async def t_practice2(b):
+    # --- "Learn it" card: an item missed 3+ times in 14 days is taught before it is asked again; others are asked straight away
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    ws = await pg.evaluate("App.WORDS.filter(w=>w._day===1&&w.example).slice(0,2).map(w=>({id:w.id,hz:w.hanzi,py:w.pinyin}))")
+    await ctx.close()
+    rep, one = ws[0], ws[1]
+    mis = {"w:" + rep["id"]: {"kind": "word", "id": rep["id"], "skill": "vocab", "added": day(-5), "wrong": 3, "streak": 0},
+           "w:" + one["id"]: {"kind": "word", "id": one["id"], "skill": "vocab", "added": day(-5), "wrong": 1, "streak": 0}}
+    mlog = [{"d": day(-i), "k": "w:" + rep["id"], "s": "vocab"} for i in (1, 3, 6)] + [{"d": day(-2), "k": "w:" + one["id"], "s": "vocab"}]
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mistakes": mis, "mlog": mlog})
+    await pg.evaluate("Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>false})")  # offline: the card is built from local data only
+    await go(pg, "#/mistakes/vocab", 800); await pg.wait_for_selector("#learnit, #qcard", timeout=10000)
+    card = await pg.locator("#learnit").inner_text() if await pg.locator("#learnit").count() else ""
+    check("learn it: a word missed 3 times gets a teaching card first (word, pinyin, meaning, example, hint)",
+          rep["hz"] in card and "missed 3 times" in card and "Memory hint" in card and await pg.locator("#learnit .w-ex").count() == 1 and await pg.locator("#learnit .py").count() >= 1, card[:300])
+    check("learn it: offline the card is complete and has no AI button", await pg.locator("#li-ai").count() == 0 and await pg.locator("#learnit .li-hints li").count() >= 1)
+    box = await pg.locator("#li-go").bounding_box()
+    check("learn it: the continue button is a full touch target", box and box["height"] >= 44, box)
+    await pg.click("#li-go"); await pg.wait_for_selector("#qcard")
+    check("learn it: then the same item is asked", await pg.locator("#learnit").count() == 0 and await pg.locator("#qcard .opt").count() >= 2)
+    await pg.locator("#qcard .opt").first.click(); await pg.click("#qnext"); await pg.wait_for_timeout(300)
+    check("learn it: an item missed once is asked without a card", await pg.locator("#learnit").count() == 0 and await pg.locator("#qcard").count() == 1)
+    await ctx.close()
+    # every kind of notebook item gets a card: typed sentence, drill, mock, grammar and lesson quiz
+    kinds = {"ty:我每天坐地铁上班": ({"kind": "type", "skill": "typing", "core": "我每天坐地铁上班", "end": "。", "py": "Wǒ měitiān zuò dìtiě shàngbān.", "vi": "Tôi đi tàu điện đi làm mỗi ngày.", "en": "I take the metro to work every day."}, "我每天坐地铁上班"),
+             "dr:confuse:c01": ({"kind": "drill", "skill": "confusable", "d": "confuse", "id": "c01"}, "我以为他今天不来上班"),
+             "m:1:R1-1": ({"kind": "mock", "skill": "fill-word", "mock": 1, "item": "R1-1"}, "他每天按时去公司"),
+             "gr:g01:0": ({"kind": "gram", "skill": "grammar", "g": "g01", "i": 0}, "他把那封邮件删了"),
+             "q:20:4": ({"kind": "quiz", "skill": "quiz", "day": 20, "idx": 4}, "两个月")}
+    mis2 = {k: dict(v[0], added=day(-5), wrong=3, streak=0) for k, v in kinds.items()}
+    mlog2 = [{"d": day(-i), "k": k, "s": v[0]["skill"]} for k, v in kinds.items() for i in (1, 2, 4)]
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mistakes": mis2, "mlog": mlog2})
+    for k, v in kinds.items():
+        await go(pg, "#/mistakes/" + v[0]["skill"], 800); await pg.wait_for_selector("#learnit, #qcard", timeout=10000)
+        txt = await pg.locator("#learnit").inner_text() if await pg.locator("#learnit").count() else ""
+        check("learn it: a card for a repeated " + v[0]["kind"] + " item", v[1] in txt and "Memory hint" in txt, txt[:200])
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mistakes": mis, "mlog": mlog}, ai=True)
+    await go(pg, "#/mistakes/vocab", 800); await pg.wait_for_selector("#li-ai", timeout=10000)
+    await pg.click("#li-ai"); await pg.wait_for_selector("#li-out .ai-card:not(.ai-wait)", timeout=15000)
+    check("learn it: with the AI on, Explain with AI answers on the card", "Test answer" in await pg.locator("#li-out").inner_text())
+    await ctx.close()
+
+    # --- reading drill: questions from mocks already taken and lesson passages, never from a mock not yet taken
+    st = {"settings": settings(), "srs": {}, "mocks": {"1": {"best": 150, "plays": 1}},
+          "mockHistory": [{"id": 1, "date": day(-3), "mode": "exam", "total": 150, "sections": {"listening": 60, "reading": 40, "writing": 50}}]}
+    ctx, pg = await open_app(b, st)
+    await go(pg, "#/games", 400)
+    check("reading drill: listed in Games", await pg.locator(".grow[href='#/game/reading']").count() == 1)
+    await go(pg, "#/learn", 600)
+    check("reading drill: linked from Learn", await pg.locator("#learn-reading[href='#/game/reading']").count() == 1)
+    await go(pg, "#/game/reading", 800); await pg.wait_for_selector(".rd-drill .passage-in", timeout=10000)
+    srcs, right = [], 0
+    for i in range(3):
+        await pg.wait_for_selector(".rd-drill .opts .opt")
+        srcs.append(await pg.locator(".rd-drill .sub").first.inner_text())
+        if i == 0:
+            check("reading drill: a passage, a question and four choices", len((await pg.locator(".passage-in").inner_text()).strip()) > 30 and await pg.locator(".rd-drill .opts .opt").count() == 4)
+        await pg.locator(".rd-drill .opts .opt").first.click()
+        ok = await pg.locator(".rd-drill .opt.wrong").count() == 0
+        right += 1 if ok else 0
+        if i == 0:
+            check("reading drill: graded, with the right answer marked", await pg.locator(".rd-drill .opt.right").count() == 1 and await pg.locator("#qfb .qexp").count() == 1)
+        await pg.click("#qnext"); await pg.wait_for_timeout(200)
+    res = await pg.locator(".result h2").inner_text()
+    check("reading drill: three questions, then the score", ("%d / 3" % right) in res, res)
+    check("reading drill: only from mock 1 (taken) or lessons", all(("Mock test 1" in x) or x.startswith("📖 Day") for x in srcs), srcs)
+    sk = await pg.evaluate("Store.state.skills.passage")
+    check("reading drill: answers count towards reading passages", sk and sk["r"] + sk["w"] == 3, sk)
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    await go(pg, "#/game/reading", 800); await pg.wait_for_selector(".rd-drill .passage-in", timeout=10000)  # lessons and mocks load on demand
+    n_mock = await pg.evaluate("App.readingSet(40).filter(q=>/^m:/.test(q.key)).length")
+    check("reading drill: no mock questions before any mock is taken", n_mock == 0 and await pg.evaluate("App.readingSet(3).length") == 3, n_mock)
+    await ctx.close()
+
+    # --- weak-skill steps in Today's session: typing / word order under 75% with 10+ answers
+    async def plan(state, ai=False, offline=False):
+        c, p = await open_app(b, dict({"settings": settings(), "srs": {}}, **state), ai=ai)
+        if offline:  # the AI is "off" when the phone is offline (there is always a built-in AI address)
+            await p.evaluate("Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>false})")
+        await go(p, "#/session", 1200); await p.wait_for_selector("#ss-go", timeout=10000)
+        steps = await p.evaluate("[...document.querySelectorAll('.task[data-step]')].map(e=>[e.dataset.step,e.innerText])")
+        await c.close()
+        return dict(steps), [x[0] for x in steps]
+    d, ids = await plan({"skills": {"typing": {"r": 6, "w": 6}, "word-order": {"r": 5, "w": 6}}})
+    check("session: weak typing (50%, 12 answers) becomes a typing focus step, not a second typing step", "weak-type" in d and "type" not in ids and "3 sentences" in d["weak-type"], d)
+    check("session: weak word order (45%, 11 answers) adds a 3-sentence word order step", "weak-order" in d and "3 sentences" in d["weak-order"], d)
+    d, ids = await plan({"skills": {"typing": {"r": 5, "w": 3}, "word-order": {"r": 9, "w": 3}}})
+    check("session: no focus steps with too few answers (8) or at 75%", "weak-type" not in ids and "weak-order" not in ids and "type" in ids, ids)
+    d, ids = await plan({"settings": settings(sessionMode="quick"), "skills": {"typing": {"r": 6, "w": 6}, "word-order": {"r": 5, "w": 6}}})
+    check("session: quick sessions keep the focus steps short (2 sentences)", "2 sentences" in d.get("weak-type", "") and "2 sentences" in d.get("weak-order", ""), d)
+    low_r = [{"id": 1, "date": day(-3), "mode": "exam", "total": 170, "sections": {"listening": 65, "reading": 45, "writing": 60}}]
+    low_l = [{"id": 1, "date": day(-3), "mode": "exam", "total": 170, "sections": {"listening": 45, "reading": 65, "writing": 60}}]
+    d, ids = await plan({"mockHistory": low_r, "mocks": {"1": {"plays": 1, "best": 170}}})
+    check("session: a reading step while reading is the weakest section", "reading" in ids, ids)
+    d, ids = await plan({"mockHistory": low_l, "mocks": {"1": {"plays": 1, "best": 170}}})
+    check("session: no reading step when another section is weaker", "reading" not in ids, ids)
+
+    # --- role-play step: only with the AI on; scene matches the current lesson, else the least-tried scene
+    d, ids = await plan({"days": {"4": {"completed": True}}}, ai=True)
+    check("session: with the AI on, an optional 3-minute talk is the last step, on the lesson topic (day 4 overtime)", ids[-1] == "talk" and "Overtime" in d["talk"] and "optional" in d["talk"], d)
+    d, ids = await plan({"days": {"27": {"completed": True}}, "talkLog": [{"d": day(-1), "id": "payslip", "s": 7, "g": True, "l": 4}]}, ai=True)
+    check("session: a lesson with no matching scene gets the least-tried scene", "talk" in d and "Annual leave" in d["talk"], d)
+    d, ids = await plan({"days": {"4": {"completed": True}}}, ai=True, offline=True)
+    check("session: no talk step when the AI is off (offline)", "talk" not in ids and "type" in ids, ids)
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await pg.evaluate("App._talk('overtime',{mini:3,exit:'#/',onDone:function(s){window.__talkDone=s}})")
+    await pg.wait_for_selector(".tb-ai .zh", timeout=15000)
+    check("mini talk: says it is 3 replies and can be skipped", await pg.locator("#t-mini").count() == 1 and await pg.locator("#t-skip").count() == 1)
+    for t in ("我想看一下工资条。", "按照规定，周日是两倍。", "我们会在下个月补发。"):
+        await pg.fill("#t-text", t); await pg.click("#t-send"); await pg.wait_for_timeout(1200)
+    await pg.wait_for_selector(".talk-end", timeout=15000)
+    check("mini talk: after 3 replies it ends with the score by itself", "8/10" in await pg.locator(".talk-end").inner_text())
+    await pg.click("#t-cont"); await pg.wait_for_timeout(200)
+    check("mini talk: Continue hands the score back to the session", await pg.evaluate("window.__talkDone") == 8)
+    await ctx.close()
+
+
 async def t_sync(b):
     opened = "document.getElementById('sync-box').closest('details').open=true"
     cfg = "JSON.parse(localStorage.getItem('cbChinese.sync')||'{}')"
@@ -1582,7 +1701,7 @@ async def t_knowledge2(b):
 
 GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2)]
 PW = None
 
 

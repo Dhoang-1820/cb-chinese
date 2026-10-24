@@ -114,5 +114,13 @@
     return out.slice(0, max || 2);
   }
 
-  window.Learn = { SKILLS: SKILLS, exam: exam, CLEAR_AFTER: CLEAR_AFTER, record: record, list: list, count: count, report: report, patterns: patterns };
+  /* How often one item was missed in the last 14 days, when that is REPEAT_N+ (the same rule as a "repeat" pattern),
+     otherwise 0. patterns() only names the top five; this answers for any item (used by the "Learn it" cards). */
+  function repeats(key) {
+    var s = S(), from14 = Store.addDays(Store.today(), -13), n = 0;
+    s.mlog.forEach(function (e) { if (e.k === key && e.d >= from14) n++; });
+    return n >= REPEAT_N ? n : 0;
+  }
+
+  window.Learn = { SKILLS: SKILLS, exam: exam, CLEAR_AFTER: CLEAR_AFTER, record: record, list: list, count: count, report: report, patterns: patterns, repeats: repeats, REPEAT_N: REPEAT_N };
 })();

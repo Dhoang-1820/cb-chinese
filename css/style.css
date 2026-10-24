@@ -1308,3 +1308,20 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .ep-list .ep-mock a { color: var(--primary-text, var(--primary)); }
 .ep-list li.done a { color: var(--muted); text-decoration: line-through; }
 .ep-list .ep-exam .ep-d, .ep-list .ep-exam a { color: var(--bad); font-weight: 900; }
+
+/* admin: exam-date warning on a learner card, week-by-week table (deltas use text and arrows, colour only adds to them) */
+.lt-warn { margin: 6px 0 0; padding: 6px 10px; border-radius: 10px; font-size: .82rem; font-weight: 700; background: #fff0d6; color: #7a4300; }
+.lt-wk th[scope="row"] { color: var(--text); font-size: .85rem; font-weight: 700; padding: 8px 4px 8px 0; border-top: 1px solid var(--border); }
+.lt-wk td { white-space: nowrap; }
+.lt-wk .lt-so { font-weight: 700; text-transform: none; }
+.lt-d { font-weight: 800; color: var(--muted); }
+.lt-d.lt-up { color: #14684a; }
+.lt-d.lt-dn { color: #9a1f23; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lt-warn { background: #3a2f18; color: #ffe1a6; }
+  :root:not([data-theme="light"]) .lt-d.lt-up { color: #8be3bf; }
+  :root:not([data-theme="light"]) .lt-d.lt-dn { color: #ffc9d1; }
+}
+:root[data-theme="dark"] .lt-warn { background: #3a2f18; color: #ffe1a6; }
+:root[data-theme="dark"] .lt-d.lt-up { color: #8be3bf; }
+:root[data-theme="dark"] .lt-d.lt-dn { color: #ffc9d1; }

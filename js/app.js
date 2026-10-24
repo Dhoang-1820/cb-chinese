@@ -1898,11 +1898,35 @@
   function lrnKey(r) { return String(r.id).slice(0, 8); }
   function lrnDay(iso) { var d = new Date(iso); if (!isFinite(d.getTime())) return Store.today(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function lrnIdle(r) { var l = (r.meta || {}).last; return DAYRE.test(l || "") ? Math.max(0, Store.daysBetween(l, Store.today())) : null; }
+  /* A skill as a readable name. Phones before this fix sent some raw ids ("fill-word", "listen-tf"), so map those here too. */
+  function lrnSkill(x) { x = String(x || ""); return Learn.SKILLS[x] || Object.prototype.hasOwnProperty.call(AI.SKILL_NAMES, x) ? tipSkillName(x) : x; }
+  var LRN_MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function lrnDate(d) { return Number(d.slice(8, 10)) + " " + LRN_MON[Number(d.slice(5, 7)) - 1] + " " + d.slice(0, 4); }
+  /* An exam date that is missing, past or more than ~4 months away is most likely a wrong setting, and then the countdown
+     and the pace numbers mean nothing. The course plan is about 3 months, hence 120 days. */
+  var LRN_EXAM_FAR = 120;
+  function lrnExamWarn(r) {
+    var pg = r.summary && r.summary.progress; if (!pg) return null;
+    var e = pg.exam || "";
+    if (!DAYRE.test(e)) return "No exam date set, so the app uses its default · check it";
+    var dl = Store.daysBetween(Store.today(), e);
+    if (dl < 0) return "Exam date " + lrnDate(e) + " has passed · set the next one";
+    if (dl > LRN_EXAM_FAR) return "Exam date is " + lrnDate(e) + " (" + dl + " days away) · check it";
+    return null;
+  }
+  /* Stale reviews: 30+ words waiting more than 3 days is already several skipped review days at this course's pace
+     (the old 100 fired far too late); 100+ is marked urgent. */
+  var LRN_OVERDUE = 30, LRN_OVERDUE_HOT = 100, LRN_REPEAT = 10;
   function lrnAlerts(r) {
-    var out = [], sm = r.summary || {}, d = lrnIdle(r), st = sm.streak, vo = sm.vocab, up = Math.floor((Date.now() - new Date(r.updated_at).getTime()) / 864e5);
+    var out = [], sm = r.summary || {}, d = lrnIdle(r), st = sm.streak, vo = sm.vocab, up = Math.floor((Date.now() - new Date(r.updated_at).getTime()) / 864e5), ew = lrnExamWarn(r);
     if (d != null && d >= 3) out.push({ k: "No study", t: "Nothing for " + d + " days · last " + String(r.meta.last).slice(5), hot: true });
     else if (st && st.n === 0 && st.best >= 3 && d != null && d >= 1) out.push({ k: "Streak", t: "Streak broken · best was " + num(st.best) + " days", hot: false });
-    if (vo && num(vo.overdue) >= 100) out.push({ k: "Reviews", t: num(vo.overdue) + " words waiting more than 3 days", hot: false });
+    if (vo && num(vo.overdue) >= LRN_OVERDUE) out.push({ k: "Reviews", t: num(vo.overdue) + " words waiting more than 3 days", hot: num(vo.overdue) >= LRN_OVERDUE_HOT });
+    (sm.patterns || []).forEach(function (p) {
+      if (p.kind !== "repeat" || num(p.n) < LRN_REPEAT) return; // n = misses of the same few items in 14 days; k = how many items (newer phones)
+      out.push({ k: "Mistakes", t: (p.k ? num(p.k) + (num(p.k) === 1 ? " item keeps" : " items keep") + " being missed · " : "The same items keep being missed · ") + num(p.n) + " misses in 14 days", hot: false });
+    });
+    if (ew) out.push({ k: "Exam date", t: ew, hot: false });
     if (isFinite(up) && up >= 3) out.push({ k: "Backup", t: "Last saved " + up + " days ago, so these numbers may be old", hot: false });
     return out;
   }
@@ -1930,15 +1954,16 @@
     var al = [];
     rows.forEach(function (r) { lrnAlerts(r).forEach(function (a) { al.push({ r: r, a: a }); }); });
     html += '<h3 class="sec">Needs attention</h3>' + (al.length ? al.map(function (x) {
-      return '<a class="card lt-al" href="#/learners/' + lrnKey(x.r) + '/habit"><span class="lt-badge' + (x.a.hot ? " hot" : "") + '">' + esc(x.a.k) + '</span><span class="lt-al-t"><b>' + esc(lrnName(x.r)) + "</b><small>" + esc(x.a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>';
+      var to = x.a.k === "Reviews" || x.a.k === "Mistakes" ? "practice" : x.a.k === "Exam date" ? "progress" : "habit";
+      return '<a class="card lt-al" href="#/learners/' + lrnKey(x.r) + "/" + to + '"><span class="lt-badge' + (x.a.hot ? " hot" : "") + '">' + esc(x.a.k) + '</span><span class="lt-al-t"><b>' + esc(lrnName(x.r)) + "</b><small>" + esc(x.a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>';
     }).join("") : '<p class="card sub">✓ Nothing needs attention.</p>');
     html += '<h3 class="sec">Learners</h3>' + rows.map(function (r) {
       var sm = r.summary || {}, pg = sm.progress || {}, rd = pg.ready, st = lrnStatus(r), tr = lrnTrend(sm), idle = lrnIdle(r), pl = sm.pace;
       return '<div class="card lt-card"><a class="lt-open" href="#/learners/' + lrnKey(r) + '/progress"><div class="lt-row"><b>' + esc(lrnName(r)) + '</b><span class="lt-chip ' + st.c + '">' + esc(st.t) + "</span></div>" +
         '<div class="lt-row lt-end"><div><small>Readiness</small><div class="lt-big">' + (rd ? num(rd.total) : "–") + "<small> / 300</small></div></div>" +
-        (tr != null ? '<b class="' + (tr >= 0 ? "ok-text" : "bad-t") + '">' + (tr >= 0 ? "+" : "−") + Math.abs(tr) + " vs last week</b>" : "") + "</div>" +
+        (tr != null ? '<b class="lt-d ' + (tr > 0 ? "lt-up" : tr < 0 ? "lt-dn" : "") + '"><span aria-hidden="true">' + (tr > 0 ? "▲ " : tr < 0 ? "▼ " : "") + "</span>" + (tr >= 0 ? "+" : "−") + Math.abs(tr) + " vs last week</b>" : "") + "</div>" +
         '<p class="lt-meta">Streak <b>' + num((sm.streak || {}).n != null ? sm.streak.n : (r.meta || {}).streak) + ' d</b> · Last study <b>' + (idle == null ? "–" : idle === 0 ? "today" : idle + " d ago") + "</b> · Lessons <b>" + (pl ? num(pl.done) + "/" + num(pl.total) : num(pg.lessons) + "/" + num(pg.lessonsAll || 90)) + "</b></p>" +
-        lrnDays(sm.days28, "Study days, last 28 days, oldest first") + '</a><div class="lt-act"><button type="button" class="btn small" data-msg="' + lrnKey(r) + '">💬 Message ' + esc(lrnName(r)) + "</button></div></div>";
+        lrnDays(sm.days28, "Study days, last 28 days, oldest first") + (lrnExamWarn(r) ? '<p class="lt-warn"><span aria-hidden="true">⚠ </span>' + esc(lrnExamWarn(r)) + "</p>" : "") + '</a><div class="lt-act"><button type="button" class="btn small" data-msg="' + lrnKey(r) + '">💬 Message ' + esc(lrnName(r)) + "</button></div></div>";
     }).join("");
     return html;
   }
@@ -1977,11 +2002,13 @@
   function lrnPractice(r) {
     var sm = r.summary, pg = sm.progress || {}, vo = sm.vocab, tk = sm.talk, html = "";
     if (vo) {
-      var all = Math.max(1, num(vo.all), num(vo.mastered) + num(vo.learning)), m = num(vo.mastered), l = num(vo.learning);
-      html += '<section class="card"><div class="lt-row"><b>Vocabulary</b><small>' + all + " words in the course</small></div>" +
+      var all = Math.max(1, num(vo.all), num(vo.mastered) + num(vo.learning)), m = num(vo.mastered), l = num(vo.learning), h4 = vo.hsk === 4;
+      // newer phones count HSK 4 course words only; older ones counted every word on the phone (HSK 5 and extra packs too)
+      html += '<section class="card"><div class="lt-row"><b>Vocabulary' + (h4 ? " · HSK 4" : "") + "</b><small>" + all + (h4 ? " HSK 4 course words" : " words on the phone (older app: HSK 5 and extra words included)") + "</small></div>" +
         '<div class="lt-stack" role="img" aria-label="' + m + " mastered, " + l + " learning, " + Math.max(0, all - m - l) + ' not started"><i style="width:' + m / all * 100 + '%"></i><i class="b" style="width:' + l / all * 100 + '%"></i></div>' +
         '<p class="lt-meta"><b>' + m + "</b> mastered · <b>" + l + "</b> learning · <b>" + Math.max(0, all - m - l) + "</b> not started</p>" +
-        '<div class="lt-boxes"><div><b>' + num(pg.due) + "</b><small>due now</small></div><div class=" + (num(vo.overdue) >= 100 ? '"hot"' : '""') + "><b>" + num(vo.overdue) + "</b><small>waiting over 3 days</small></div></div>" +
+        (h4 && (num(vo.h5) || num(vo.ex)) ? '<p class="lt-meta">Also in review, not counted above: <b>' + num(vo.h5) + "</b> HSK 5 · <b>" + num(vo.ex) + "</b> extra or own words</p>" : "") +
+        '<div class="lt-boxes"><div><b>' + num(pg.due) + "</b><small>due now</small></div><div class=" + (num(vo.overdue) >= LRN_OVERDUE ? '"hot"' : '""') + "><b>" + num(vo.overdue) + "</b><small>waiting over 3 days</small></div></div>" +
         '<p class="sub">A growing pile of old reviews means reviews are being skipped.</p></section>';
     }
     if (tk) {
@@ -1995,9 +2022,9 @@
     var tr = sm.trend || [];
     html += '<section class="card"><div class="lt-row"><b>Skill accuracy</b><small>last 14 days · weakest first</small></div>' + (tr.length ? tr.slice(0, 6).map(function (t) {
       var d = t.before == null ? null : num(t.acc) - num(t.before);
-      return '<div class="lt-pace"><div class="lt-row"><span>' + esc(t.skill) + "</span><span><b>" + num(t.acc) + "%</b>" + (d == null ? "" : " · " + (d >= 0 ? "+" : "−") + Math.abs(d) + " pts") + '</span></div><div class="lt-track"><i class="' + (num(t.acc) < 60 ? "late" : "") + '" style="width:' + Math.min(100, num(t.acc)) + '%"></i></div></div>';
+      return '<div class="lt-pace"><div class="lt-row"><span>' + esc(lrnSkill(t.skill)) + "</span><span><b>" + num(t.acc) + "%</b>" + (d == null ? "" : " · " + (d >= 0 ? "+" : "−") + Math.abs(d) + " pts") + '</span></div><div class="lt-track"><i class="' + (num(t.acc) < 60 ? "late" : "") + '" style="width:' + Math.min(100, num(t.acc)) + '%"></i></div></div>';
     }).join("") : '<p class="sub">Not enough answers in the last 14 days.</p>') +
-      ((sm.patterns || []).length ? '<p class="sub">Mistake patterns: ' + sm.patterns.map(function (p) { return (p.kind === "skill" ? esc(p.skill) : "same items missed again") + " ×" + num(p.n); }).join(" · ") + "</p>" : "") + "</section>";
+      ((sm.patterns || []).length ? '<p class="sub">Mistake patterns: ' + sm.patterns.map(function (p) { return (p.kind === "skill" ? esc(lrnSkill(p.skill)) : "same items missed again") + " ×" + num(p.n); }).join(" · ") + "</p>" : "") + "</section>";
     return html;
   }
   function lrnHabit(r) {
@@ -2022,6 +2049,35 @@
       (pl && pl.actions.length ? '<ul class="plan-l">' + pl.actions.map(function (a) { return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">Done: </span>' : '<span class="sr">Open: </span>') + esc(a.text) + "</span></li>"; }).join("") + "</ul>" : '<p class="sub">No coach plan yet.</p>') + "</section>";
     return html;
   }
+  /* Week tab: the week the backup was saved in (so far) next to the week before, with the change as text and an arrow,
+     never colour alone. Built from summary.wk (newer phones) plus xpw, trk and talk.wk, which older phones also send. */
+  function lrnDelta(a, b, unit) {
+    if (a == null || b == null) return '<td class="lt-d">–</td>';
+    var d = Math.round((b - a) * 10) / 10;
+    return '<td class="lt-d ' + (d > 0 ? "lt-up" : d < 0 ? "lt-dn" : "") + '">' + (d > 0 ? '<span aria-hidden="true">▲ </span>+' + d + unit : d < 0 ? '<span aria-hidden="true">▼ </span>−' + Math.abs(d) + unit : "same") + "</td>";
+  }
+  function lrnWeek(r) {
+    var sm = r.summary, wk = sm.wk && Array.isArray(sm.wk.w) ? sm.wk : null, saved = lrnDay(r.updated_at);
+    var ws = wk && /^\d{2}-\d{2}-\d{2}$/.test(wk.s || "") ? "20" + wk.s : Store.addDays(saved, -((new Date(saved + "T00:00:00").getDay() + 6) % 7)), lw = Store.addDays(ws, -7);
+    function two(a) { a = Array.isArray(a) ? a : []; return [a.length >= 2 ? num(a[a.length - 2]) : null, a.length ? num(a[a.length - 1]) : null]; }
+    var w = wk ? [wk.w.length >= 2 ? wk.w[wk.w.length - 2] : null, wk.w.length ? wk.w[wk.w.length - 1] : null] : [null, null];
+    function col(i) { return [w[0] ? num(w[0][i]) : null, w[1] ? num(w[1][i]) : null]; }
+    function acc(x) { return x && num(x[2]) + num(x[3]) >= 5 ? Math.round(num(x[2]) / (num(x[2]) + num(x[3])) * 100) : null; } // 5+ answers, as on the phone
+    var trk = {}; (sm.trk || []).forEach(function (e) { if (e && e[0]) trk["20" + e[0]] = e; });
+    function tk(d, i) { var e = trk[d]; return e && e[i] != null ? num(e[i]) : null; }
+    function stuck(d) { var a = tk(Store.addDays(d, -7), 2), b = tk(d, 2); return a != null && b != null ? b - a : null; } // change in words in box 4–5
+    var rows = [["Study days", col(0), ""], ["Minutes", col(1), ""], ["XP", two(sm.xpw), ""], ["Accuracy (HSK 4 answers)", [acc(w[0]), acc(w[1])], "%"],
+      ["Readiness /300", [tk(lw, 1), tk(ws, 1)], ""], ["HSK 4 words added", col(4), ""], ["Words mastered (net)", [stuck(lw), stuck(ws)], ""], ["Role-play talks", two((sm.talk || {}).wk), ""]];
+    var sofar = Math.max(1, Math.min(7, Store.daysBetween(ws, saved) + 1));
+    var html = '<section class="card" id="lt-week"><div class="lt-row"><b>Week by week</b><small>weeks start Monday</small></div>' +
+      '<table class="lt-tab lt-wk"><thead><tr><th scope="col">Last 2 weeks</th><th scope="col">' + esc(lrnDate(lw).slice(0, -5)) + '</th><th scope="col">' + esc(lrnDate(ws).slice(0, -5)) + ' <span class="lt-so">so far</span></th><th scope="col">Change</th></tr></thead><tbody>' +
+      rows.map(function (x) {
+        var v = x[1];
+        return '<tr><th scope="row">' + esc(x[0]) + "</th><td>" + (v[0] == null ? "–" : v[0] + x[2]) + "</td><td><b>" + (v[1] == null ? "–" : v[1] + x[2]) + "</b></td>" + lrnDelta(v[0], v[1], x[2] === "%" ? " pts" : "") + "</tr>";
+      }).join("") + "</tbody></table>" +
+      '<p class="sub">The newer week has ' + sofar + (sofar === 1 ? " day" : " days") + " so far (up to the last backup), so totals can still grow." + (wk ? "" : " Study days, minutes, accuracy and words added need the newer app on this phone.") + "</p></section>";
+    return html;
+  }
   /* A ready-to-send nudge in Vietnamese, from the learner's own numbers. Sent from the teacher's phone (share sheet → Zalo, Messenger…). */
   function lrnMsgText(r) {
     var sm = r.summary || {}, pg = sm.progress || {}, idle = lrnIdle(r), name = (r.meta || {}).label || "bạn", weak = (sm.trend || [])[0], out = [];
@@ -2030,7 +2086,7 @@
     out.push(away ? "Đã " + idle + " ngày bạn chưa vào học rồi đó." : "Bạn đang giữ nhịp học tốt lắm!");
     if (ex != null && ex >= 0) out.push("Còn " + ex + " ngày nữa là thi HSK.");
     out.push(away ? "Hôm nay chỉ cần 5 phút: mở app C&B Chinese, bấm “5-minute restart” ở trang Home." : "Hôm nay nhớ làm Today's session nhé (khoảng 15 phút).");
-    if (weak && num(weak.acc) < 70) out.push("Kỹ năng nên luyện thêm: " + weak.skill + " (" + num(weak.acc) + "%).");
+    if (weak && num(weak.acc) < 70) out.push("Kỹ năng nên luyện thêm: " + lrnSkill(weak.skill) + " (" + num(weak.acc) + "%).");
     out.push("加油！💪", location.origin + location.pathname);
     return out.join("\n");
   }
@@ -2042,7 +2098,7 @@
     }
     if (navigator.share) navigator.share({ text: text }).catch(function (e) { if (!e || e.name !== "AbortError") copy(); }); else copy();
   }
-  var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"]];
+  var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"], ["week", "Week"]];
   function viewLearners(key, sec) {
     var head = '<section class="card"><a class="pill" href="#/me">‹ Me</a><h2>👥 Learner tracking</h2><p class="sub">Numbers only, never answers or notes. Each phone sends them with its cloud backup.</p></section>';
     if (!window.AI || !AI.configured()) { render(head + '<p class="empty">Turn on the AI assistant first (Me → AI assistant).</p>', "me"); return; }
@@ -2066,7 +2122,7 @@
       }
       var chips = '<div class="lt-chips">' + rows.map(function (r) { return '<a class="lt-pick' + (r === cur ? " on" : "") + '" href="#/learners/' + lrnKey(r) + "/" + (sec || "progress") + '"' + (r === cur ? ' aria-current="page"' : "") + ">" + esc(lrnName(r)) + "</a>"; }).join("") + "</div>";
       var tabs = '<nav class="seg seg3" aria-label="Sections">' + LRN_SECS.map(function (t) { return '<a href="#/learners/' + lrnKey(cur) + "/" + t[0] + '"' + (t[0] === (sec || "progress") ? ' class="active" aria-current="page"' : "") + ">" + t[1] + "</a>"; }).join("") + "</nav>";
-      var body = !cur.summary ? '<p class="card sub">No study summary yet (this phone has an older app version).</p>' : sec === "practice" ? lrnPractice(cur) : sec === "habit" ? lrnHabit(cur) : lrnProgress(cur);
+      var body = !cur.summary ? '<p class="card sub">No study summary yet (this phone has an older app version).</p>' : sec === "practice" ? lrnPractice(cur) : sec === "habit" ? lrnHabit(cur) : sec === "week" ? lrnWeek(cur) : lrnProgress(cur);
       host.innerHTML = seg + chips + tabs + '<p class="sub lt-saved">' + esc(lrnName(cur)) + " · saved " + esc(agoText(cur.updated_at)) + ' · <button class="btn small" id="lt-ren">Rename</button> <button class="btn small" id="lt-msg">💬 Message</button></p>' + body;
       document.getElementById("lt-msg").onclick = function () { lrnMessage(cur); };
       document.getElementById("lt-ren").onclick = function () {
@@ -3289,9 +3345,29 @@
     if (len() > SUMMARY_MAX && o.trend) o.trend = o.trend.slice(0, 3);
     if (len() > SUMMARY_MAX && o.trk) o.trk = o.trk.slice(-6);
     if (len() > SUMMARY_MAX) o.xpw = [];
+    if (len() > SUMMARY_MAX) o.wk = null; // the admin's Week tab then shows only what is left
     return o;
   }
   function studySummary() { return fitSummary(studySummary0()); }
+  function hsk4Word(id) { var w = WORDMAP[id]; return !!w && !w._pk && !w._mine; }
+  /* Per week for the admin's weekly report, oldest first and this week (so far) last, weeks starting Monday:
+     [study days, minutes, right answers, wrong answers, HSK 4 words added]. Answers count HSK 4 exam skills only.
+     Minutes come from the study log, which keeps 8 weeks. s = this week's start (yy-mm-dd), so the admin can line weeks up. */
+  function weekNumbers(t, n) {
+    var s = Store.state, L = s.slog || {}, ws = weekStart(t), out = [], j, k, d, e, row;
+    var added = {}; Object.keys(s.srs).forEach(function (id) { var a = s.srs[id].added; if (a && hsk4Word(id)) added[a] = (added[a] || 0) + 1; });
+    for (j = n - 1; j >= 0; j--) {
+      row = [0, 0, 0, 0, 0];
+      for (k = 0; k < 7; k++) {
+        d = Store.addDays(ws, k - 7 * j); if (d > t) break;
+        if (s.log[d] > 0) row[0]++;
+        e = L[d]; if (e) { row[1] += e.m || 0; Object.keys(e.k || {}).forEach(function (x) { if (Learn.exam(x)) { row[2] += e.k[x][0]; row[3] += e.k[x][1]; } }); }
+        row[4] += added[d] || 0;
+      }
+      row[1] = Math.round(row[1]); out.push(row);
+    }
+    return { s: ws.slice(2), w: out };
+  }
   function studySummary0() {
     var s = Store.state, t = Store.today(), L = s.slog || {}, i, d, act28 = 0, gap = 0, longest = 0, miss = [0, 0, 0, 0, 0, 0, 0];
     var first = Object.keys(s.log).sort()[0] || t, span = Math.min(28, Store.daysBetween(first, t) + 1);
@@ -3309,11 +3385,12 @@
     });
     var trend = Object.keys(now).filter(function (k) { return Learn.exam(k) && now[k][0] + now[k][1] >= 5; }).map(function (k) {
       var a = now[k], b = bef[k], nb = b ? b[0] + b[1] : 0;
-      return { skill: AI.SKILL_NAMES[k] || k, acc: Math.round(a[0] / (a[0] + a[1]) * 100), before: nb >= 5 ? Math.round(b[0] / nb * 100) : null, n: a[0] + a[1] };
+      return { skill: tipSkillName(k), acc: Math.round(a[0] / (a[0] + a[1]) * 100), before: nb >= 5 ? Math.round(b[0] / nb * 100) : null, n: a[0] + a[1] };
     }).sort(function (a, b) { return a.acc - b.acc; }).slice(0, 8);
     return { span: span, active28: act28, longestGap: longest, skipDay: span >= 14 && miss[worst] >= 2 ? WD[worst] : "", usualHour: usual, planHour: parseInt(String(s.settings.remindTime || "").slice(0, 2), 10),
       minutes: days.length ? Math.round(mins / days.length) : null, sessions: days.length ? Math.round(ses / days.length * 10) / 10 : null, logDays: days.length, goalDays: s.settings.weeklyDays || 5, trend: trend,
-      patterns: Learn.patterns(3).map(function (p) { return { kind: p.type, skill: p.skill ? (AI.SKILL_NAMES[p.skill] || p.skill) : "", n: p.n }; }),
+      // readable names (not ids like "fill-word"); a repeat pattern also says how many different items (k) make up its n misses
+      patterns: Learn.patterns(3).map(function (p) { var o = { kind: p.type, skill: p.skill ? tipSkillName(p.skill) : "", n: p.n }; if (p.keys) o.k = p.keys.length; return o; }),
       days28: (function () { var o = ""; for (var j = 27; j >= 0; j--) o += s.log[Store.addDays(t, -j)] > 0 ? "1" : "0"; return o; })(), // oldest first, today last
       hours: hrs, // start hour -> number of study days that began in it
       week: (function () { var o = []; for (var j = 6; j >= 0; j--) { var e = L[Store.addDays(t, -j)]; o.push(e ? Math.round(e.m) : 0); } return o; })(), // minutes per day, today last
@@ -3326,10 +3403,19 @@
       streak: { n: Store.streak(), best: (s.streak && s.streak.best) || 0 },
       xpw: (function () { var o = [], ws = weekStart(t); for (var j = 7; j >= 0; j--) { var a = Store.addDays(ws, -7 * j), sum = 0; for (var k = 0; k < 7; k++) sum += s.log[Store.addDays(a, k)] || 0; o.push(sum); } return o; })(), // XP per week, this week last
       trk: (s.trk || []).slice(-8).map(function (e) { return [e.w.slice(2), e.r, e.m, e.c]; }), // [week start (yy-mm-dd), readiness, words in box 4-5, words in review]
+      /* HSK 4 course words only (hsk: 4 tells the admin screen so): the lesson words, HSK 4 Core and HSK 1–3 Foundation,
+         which are built into every phone, so the total is the same everywhere. HSK 5 packs (h5) and the optional extra
+         packs and own words (ex) are only counted, because WORDMAP holds them only once loaded. */
       vocab: (function () {
-        var m = 0, l = 0, od = 0, cut = Store.addDays(t, -3); Object.keys(s.srs).forEach(function (id) { var c = s.srs[id]; if (c.box >= 4) m++; else l++; if (c.due <= cut) od++; });
-        return { mastered: m, learning: l, all: Object.keys(WORDMAP).length, overdue: od };
+        var m = 0, l = 0, od = 0, all = 0, h5 = 0, ex = 0, cut = Store.addDays(t, -3);
+        Object.keys(WORDMAP).forEach(function (id) { if (hsk4Word(id)) all++; });
+        Object.keys(s.srs).forEach(function (id) {
+          var c = s.srs[id]; if (/^h5-/.test(id)) { h5++; return; } if (!hsk4Word(id)) { ex++; return; }
+          if (c.box >= 4) m++; else l++; if (c.due <= cut) od++;
+        });
+        return { hsk: 4, all: all, mastered: m, learning: l, overdue: od, h5: h5, ex: ex };
       })(),
+      wk: weekNumbers(t, 8),
       talk: (function () {
         var tl = s.talkLog || [], ws = weekStart(t), wk = [0, 0, 0, 0, 0, 0, 0, 0], sc = {}, rec = tl.filter(function (e) { return e.s != null; }).slice(-10), last = tl.length ? tl[tl.length - 1] : null;
         tl.forEach(function (e) { sc[e.id] = 1; var i = 7 - Math.floor(Store.daysBetween(weekStart(e.d), ws) / 7); if (i >= 0 && i < 8) wk[i]++; });
@@ -3337,7 +3423,7 @@
           lvl: last ? last.l : 4, last: last ? { id: last.id, s: last.s, d: last.d } : null };
       })(),
       pace: (function () { try { var p = planInfo(); return { done: p.done, total: p.total, exp: p.expected, status: p.status }; } catch (e) { return null; } })(),
-      plan: (function () { var c = coachLast(); return c ? { w: c.w, actions: coachStatus(c).map(function (a) { return { text: a.text.slice(0, 200), skill: AI.SKILL_NAMES[a.skill] || a.skill, done: a.done }; }) } : null; })() };
+      plan: (function () { var c = coachLast(); return c ? { w: c.w, actions: coachStatus(c).map(function (a) { return { text: a.text.slice(0, 200), skill: tipSkillName(a.skill), done: a.done }; }) } : null; })() };
   }
 
   /* ---------- AI weekly coach (Progress), with memory of its last advice ---------- */

@@ -1057,6 +1057,117 @@ async def t_admin(b):
     await ctx.close()
 
 
+MON3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def admin2_state():
+    """A learner with numbers this week and last week (weeks start Monday), for the admin's HSK 4 totals, alerts and Week tab."""
+    mon = TODAY - datetime.timedelta(days=TODAY.weekday()); iso = lambda d: d.isoformat(); lmon = mon - datetime.timedelta(days=7)
+    wd = TODAY.weekday() + 1  # days of this week so far
+    log = {iso(mon + datetime.timedelta(days=i)): 20 for i in range(wd)}
+    log.update({iso(lmon + datetime.timedelta(days=i)): 30 for i in range(5)})
+    slog = {iso(TODAY): {"m": 12.4, "s": 1, "h": 20, "k": {"fill-word": [6, 4], "listen-tf": [8, 2], "h5-vocab": [5, 5]}},
+            iso(lmon + datetime.timedelta(days=2)): {"m": 30, "s": 2, "h": 19, "k": {"quiz": [9, 1]}}}
+    srs = {"d01-01": {"box": 5, "due": day(9), "right": 6, "wrong": 0, "added": iso(mon), "last": day(0)},
+           "d01-02": {"box": 1, "due": day(1), "right": 0, "wrong": 0, "added": day(0), "last": None},
+           "h5-0001": {"box": 2, "due": day(2), "right": 1, "wrong": 0, "added": day(0), "last": day(0)},
+           "x4-0001": {"box": 2, "due": day(2), "right": 1, "wrong": 0, "added": day(0), "last": day(0)},
+           "u1abc": {"box": 1, "due": day(1), "right": 0, "wrong": 0, "added": day(0), "last": None}}
+    for i in range(1, 31):  # 30 HSK 4 Core words added last week and left waiting: the stale-review alert
+        srs["k%03d" % i] = {"box": 2, "due": day(-10), "right": 1, "wrong": 1, "added": iso(lmon + datetime.timedelta(days=1)), "last": day(-12)}
+    trk = [{"w": iso(lmon - datetime.timedelta(days=7)), "r": 140, "m": 4, "c": 10}, {"w": iso(lmon), "r": 150, "m": 10, "c": 30}, {"w": iso(mon), "r": 165, "m": 14, "c": 40}]
+    mlog = [{"d": day(-1), "k": "dr:confuse:c0%d" % (i % 3 + 1), "s": "confusable"} for i in range(12)]  # 3 items, 12 misses
+    talk = [{"d": iso(lmon + datetime.timedelta(days=1)), "id": "payslip", "s": 7, "g": True, "l": 4}, {"d": day(0), "id": "leave", "s": 8, "g": True, "l": 4}, {"d": day(0), "id": "payslip", "s": 9, "g": True, "l": 4}]
+    st = {"settings": settings(examDate=day(430)), "srs": srs, "log": log, "slog": slog, "trk": trk, "mlog": mlog, "talkLog": talk, "xp": sum(log.values()),
+          "custom": [{"id": "u1abc", "hanzi": "年终奖金", "pinyin": "niánzhōng jiǎngjīn", "vi": "thưởng cuối năm", "en": "year-end bonus"}],
+          "skills": {"fill-word": {"r": 6, "w": 4}, "listen-tf": {"r": 8, "w": 2}, "quiz": {"r": 9, "w": 1}, "confusable": {"r": 2, "w": 12}}}
+    return st, wd
+
+
+async def t_admin2(b):
+    st, wd = admin2_state()
+    ctx, pg = await open_app(b, st, ai=True)
+    sm = await pg.evaluate("Sync.summary()")
+    course = await pg.evaluate("App.DAYS.reduce((a,d)=>a+(d.words||[]).length,0)+App.CORE.reduce((a,s)=>a+s.words.length,0)")
+    vo = sm["vocab"]
+    check("summary: vocabulary counts HSK 4 course words only (lessons, Core, Foundation), HSK 5 and extra/own words apart",
+          vo == {"hsk": 4, "all": course, "mastered": 1, "learning": 31, "overdue": 30, "h5": 1, "ex": 2} and course < 2000, (vo, course))
+    names = [t["skill"] for t in sm["trend"]]
+    check("summary: skill names are readable, never raw ids", "Choosing the right word" in names and "True/false listening" in names and not any(n in ("fill-word", "listen-tf", "quiz") for n in names), names)
+    rep = [p for p in sm["patterns"] if p["kind"] == "repeat"]
+    check("summary: a repeat-mistake pattern says how many items and how many misses", rep and rep[0]["n"] == 12 and rep[0]["k"] == 3, sm["patterns"])
+    w = sm["wk"]["w"]
+    check("summary: per-week study days, minutes, right/wrong HSK 4 answers and HSK 4 words added, this week last",
+          len(w) == 8 and w[-1] == [wd, 12, 14, 6, 2] and w[-2] == [5, 30, 9, 1, 30] and sm["wk"]["s"] == (TODAY - datetime.timedelta(days=TODAY.weekday())).isoformat()[2:], sm["wk"])
+    full = await pg.evaluate("(()=>{const s=Sync.summary();s.wk.w=s.wk.w.map(()=>[7,999,9999,9999,999]);return [JSON.stringify(s).length,Sync._fit(Object.assign(s,{days28:'1'.repeat(7300)})).wk]})()")
+    check("summary: the week numbers are small, and a summary that is still too long drops them", full[0] < 4000 and full[1] is None, full)
+    r = await pg.evaluate("Sync.now(true)")
+    check("summary: the server accepts the backup with the new fields", r == "saved", r)
+    await pg.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
+    real = await pg.evaluate("Content.admin('learners_list',{}).then(r=>r.result.rows[0])")
+    check("server: the summary comes back as sent (no server change needed)", real["summary"].get("wk") == sm["wk"] and real["summary"]["vocab"]["hsk"] == 4, real.get("summary", {}).get("vocab"))
+    # an older phone (raw skill ids, every word counted, a past exam) and one without an exam date, next to the real one
+    old = {"id": "b" * 64, "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "rev": 1, "meta": {"label": "Old phone", "last": day(0), "streak": 2},
+           "summary": {"trend": [{"skill": "fill-word", "acc": 40, "before": None, "n": 10}, {"skill": "listen-tf", "acc": 55, "before": None, "n": 9}],
+                       "patterns": [{"kind": "skill", "skill": "handwriting", "n": 7}, {"kind": "repeat", "skill": "", "n": 16}],
+                       "vocab": {"mastered": 40, "learning": 200, "all": 3135, "overdue": 31}, "progress": {"exam": day(-3), "lessons": 3}, "xpw": [0, 0, 0, 0, 0, 0, 40, 60], "streak": {"n": 2, "best": 4}}}
+    none = {"id": "c" * 64, "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "rev": 1, "meta": {"label": "No date", "last": day(0)}, "summary": {"progress": {"exam": ""}}}
+    async def rows(route):
+        if '"learners_list"' not in (route.request.post_data or ""):
+            await route.continue_(); return
+        res = await route.fetch(); body = await res.json()
+        body["result"]["rows"] = body["result"]["rows"][:1] + [old, none]
+        await route.fulfill(response=res, body=json.dumps(body))
+    await ctx.route(AI_URL, rows)
+    key = real["id"][:8]
+    await go(pg, "#/learners", 500); await pg.wait_for_selector(".lt-card", timeout=10000)
+    al = await pg.locator(".lt-al").all_inner_texts()
+    far = TODAY + datetime.timedelta(days=430); past = TODAY - datetime.timedelta(days=3)
+    fmt = lambda d: "%d %s %d" % (d.day, MON3[d.month - 1], d.year)
+    alt = " | ".join(al)
+    check("admin alert: an exam date far away, in the past or missing is flagged",
+          ("Exam date is %s (430 days away)" % fmt(far)) in alt and ("Exam date %s has passed" % fmt(past)) in alt and "No exam date set" in alt, al)
+    check("admin alert: items that keep being missed (with the item count from newer phones, without it from older ones)",
+          "3 items keep being missed · 12 misses in 14 days" in alt and "The same items keep being missed · 16 misses in 14 days" in alt, al)
+    check("admin alert: 30+ reviews waiting more than 3 days is flagged (was 100+)", "30 words waiting more than 3 days" in alt and "31 words waiting more than 3 days" in alt, al)
+    card = await pg.locator(".lt-card").first.inner_text()
+    check("admin: the learner card says to check the exam date", ("Exam date is %s" % fmt(far)) in card and "check it" in card, card)
+    check("admin: a Mistakes or Reviews alert opens Practice", await pg.locator(".lt-al[href$='/practice']").count() >= 3 and await pg.locator(".lt-al[href$='/progress']").count() == 3)
+    await go(pg, "#/learners/%s/practice" % key, 500); await pg.wait_for_selector(".lt-saved", timeout=10000)
+    t = await pg.locator("#lt-body").inner_text()
+    check("admin Practice: the vocabulary card counts HSK 4 course words and lists HSK 5 / extra words apart",
+          ("%d HSK 4 course words" % course) in t and "1 mastered" in t.replace("\n", " ") and "Also in review, not counted above: 1 HSK 5 · 2 extra or own words" in t.replace("\n", " ") and "3135" not in t, t[:500])
+    check("admin Practice: skill names are readable", "Choosing the right word" in t and "fill-word" not in t, t[:600])
+    await go(pg, "#/learners/bbbbbbbb/practice", 500); await pg.wait_for_selector(".lt-saved", timeout=10000)
+    t = await pg.locator("#lt-body").inner_text()
+    check("admin Practice: an older phone's raw skill ids are shown as names, and its word total is labelled as all words",
+          "Choosing the right word" in t and "True/false listening" in t and "Handwriting (stroke order)" in t and "fill-word" not in t and "listen-tf" not in t and "words on the phone" in t, t[:600])
+    await go(pg, "#/learners/%s/week" % key, 500); await pg.wait_for_selector("#lt-week", timeout=10000)
+    tab = await pg.evaluate("[...document.querySelectorAll('#lt-week tbody tr')].map(r=>[...r.children].map(c=>c.innerText.trim()))")
+    got = {r[0]: r[1:] for r in tab}
+    exp = {"Study days": ["5", str(wd)], "Minutes": ["30", "12"], "XP": ["150", str(20 * wd)], "Accuracy (HSK 4 answers)": ["90%", "70%"], "Readiness /300": ["150", "165"],
+           "HSK 4 words added": ["30", "2"], "Words mastered (net)": ["6", "4"], "Role-play talks": ["1", "2"]}
+    check("admin Week: last week and this week side by side for every number", all(got.get(k, [None, None])[:2] == v for k, v in exp.items()), got)
+    check("admin Week: changes are written out with arrows, not colour alone",
+          got["Accuracy (HSK 4 answers)"][2] == "▼ −20 pts" and got["Readiness /300"][2] == "▲ +15" and got["Role-play talks"][2] == "▲ +1" and got["Words mastered (net)"][2] == "▼ −2", got)
+    check("admin Week: the tab is the fourth section and marked current", await pg.locator(".seg3 a").count() == 4 and await pg.locator(".seg3 a[aria-current='page']").inner_text() == "Week")
+    await go(pg, "#/learners/bbbbbbbb/week", 500); await pg.wait_for_selector("#lt-week", timeout=10000)
+    t = await pg.locator("#lt-week").inner_text()
+    check("admin Week: an older phone shows what it has and says what needs the newer app", "need the newer app" in t and "60" in t, t)
+    faint = []
+    for theme in ("light", "dark"):
+        await pg.evaluate("document.documentElement.setAttribute('data-theme',%s)" % json.dumps(theme)); await pg.wait_for_timeout(150)
+        for h in ("#/learners/%s/week" % key, "#/learners"):
+            await go(pg, h, 500); await pg.wait_for_selector("#lt-body section, #lt-body .lt-card", timeout=10000)
+            faint += await pg.evaluate(CONTRAST_JS)
+    await pg.evaluate("document.documentElement.setAttribute('data-theme','light')")
+    check("admin: the Week tab, alerts and exam-date line are readable in both themes", not faint, faint[:4])
+    small = await pg.evaluate("[...document.querySelectorAll('.seg3 a, .lt-al, .lt-pick')].filter(e=>{const r=e.getBoundingClientRect();return r.height<44}).length")
+    check("admin: tabs, alerts and learner chips are at least 44px tall", small == 0, small)
+    await pg.evaluate("AI.call('sync_delete',{code:Sync.cfg().code})")  # leave no backup behind for the other groups
+    await ctx.close()
+
+
 def heavy_state():
     """A learner who has used everything for a year: every log at its cap. The review deck is added in the page."""
     skills = ["vocab", "pinyin", "listen-word", "listen-tf", "listen-short", "listen-long", "listen-sentence", "quiz", "fill-word", "connectors", "passage", "word-order", "writing", "ordering",
@@ -1250,7 +1361,7 @@ async def t_engage(b):
     await ctx.close()
 
 
-GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage)]
 PW = None

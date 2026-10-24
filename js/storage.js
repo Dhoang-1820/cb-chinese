@@ -33,7 +33,7 @@
       patternAI: {},  // pattern signature -> saved AI explanation
       mistakes: {},   // key -> { kind, skill, wrong, streak, added, last, ...refs }  (see js/learn.js)
       skills: {},     // skillId -> { r: right, w: wrong }
-      mockHistory: [], // [{ id, date, total, sections }]
+      mockHistory: [], // [{ id, date, mode, strict, total, sections, rep }]
       sessions: {},   // date -> true when Today's session was completed
       official: [],   // official past-paper results: [{ id, date, name, l, r, w }] (each section /100)
       grammar: {},    // grammar point id (g01.. HSK 4, h5g01.. HSK 5) -> { best, passes, mastered }
@@ -149,7 +149,7 @@
     d.mockHistory = (Array.isArray(d.mockHistory) ? d.mockHistory : []).filter(function (h) { return h && typeof h === "object"; }).map(function (h) {
       var sec = h.sections || {};
       return { id: n(h.id), date: /^\d{4}-\d{2}-\d{2}$/.test(h.date) ? h.date : today(), mode: h.mode === "practice" ? "practice" : "exam", strict: !!h.strict, total: n(h.total),
-        sections: { listening: n(sec.listening), reading: n(sec.reading), writing: n(sec.writing) } };
+        sections: { listening: n(sec.listening), reading: n(sec.reading), writing: n(sec.writing) }, rep: h.rep === true }; // rep: retake of a seen set (older entries: derived from order)
     });
     d.official = (Array.isArray(d.official) ? d.official : []).filter(function (o) { return o && typeof o === "object"; }).map(function (o) {
       var c = function (x) { x = n(x); return Math.max(0, Math.min(100, Math.round(x))); };

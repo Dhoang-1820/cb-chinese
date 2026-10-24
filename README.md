@@ -73,7 +73,7 @@ index.html  sw.js  manifest.webmanifest  icons/
 css/style.css
 js/storage.js  srs.js  audio.js  gamify.js  learn.js  ai.js  content.js  games.js  app.js
 supabase/  setup.sql, SETUP.md, functions/ai/index.ts (Edge Function)
-data/day01.js … day90.js, manifest.js, core01–25.js, found.js (HSK 1–3), core-manifest.js, grammar.js, drills.js, drills_extra.js, mock1–6.js, mock-manifest.js, track_w*.js
+data/day01.js … day90.js, manifest.js, core01–25.js, found.js (HSK 1–3), core-manifest.js, grammar.js, drills.js, drills_extra.js, mock1–8.js, mock-manifest.js, track_w*.js
 data/hsk5/   words01–62.js, grammar.js, drills.js (+ README.md, GRAMMAR.md, DRILLS.md)   loaded on demand, one built file
 data/hsk4x/  missing01–05.js, extra_collocations01–04.js, extra_families.js, extra_opposites.js, manifest.js   loaded on demand, one built file
 fonts/ Nunito subsets (SIL OFL 1.1, from @fontsource-variable/nunito) · icons/icon-64.png for the top bar

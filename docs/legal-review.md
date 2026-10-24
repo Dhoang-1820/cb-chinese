@@ -122,6 +122,16 @@ No claims about HSK exam format, section counts, time limits or replay counts we
 - mock6.js L2-9: "五险一金" benefits mentioned as a Chinese-company welfare (general).
 - mock6.js R3-4 and L3-8: annual leave / probation terms are a fictional company's policy, not a legal claim.
 
+## mock7 / mock8 (new, machine-written, checked: false)
+
+- mock7.js L2-4: two days of sick leave mean part of the month's pay is deducted "按照规定" (a fictional company rule; in Vietnam sick days are usually paid by social insurance, not salary; no law named).
+- mock7.js L3-1: flexible start time between 8 and 10, eight hours a day (fictional company policy).
+- mock7.js R3-1..3: year-end appraisal decides the year-end bonus and a training trip abroad (fictional company policy).
+- mock8.js L1-5: one free health check a year, time chosen by the employee (fictional company policy).
+- mock8.js L2-2: year-end bonus paid with January's salary; L2-4: changing department needs a form signed by the department manager (fictional company practice).
+- mock8.js L3-1: quarterly best-employee award of 1,000 yuan (fictional figure).
+- mock8.js L3-2: two weeks of leave to look after a parent in hospital, granted by the manager (fictional scene; no leave law named).
+
 ## track01
 
 - track_w01-06.js, week 1 model: salary has social insurance and personal income tax deducted (general statement); overtime pay and bonus may be paid with next month's salary (company practice, not law).

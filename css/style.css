@@ -1185,6 +1185,10 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .h5-note { margin: 0 0 12px; padding: 8px 12px; border-radius: 12px; background: #fff7e0; color: #6b4a00; font-size: .85rem; font-weight: 700; }
 [data-theme="dark"] .h5-note { background: #3a2f18; color: #ffe1a6; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .h5-note { background: #3a2f18; color: #ffe1a6; } }
+/* retaken mock set: same warm box as h5-note, readable on the coloured result cards too */
+.rep-note { margin: 8px 0; padding: 8px 12px; border-radius: 12px; background: #fff7e0; color: #6b4a00; font-size: .85rem; text-align: left; }
+[data-theme="dark"] .rep-note { background: #3a2f18; color: #ffe1a6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rep-note { background: #3a2f18; color: #ffe1a6; } }
 .w-flag { display: inline-block; margin-top: 8px; min-height: 32px; font-size: .82rem; }
 .g-filter { display: grid; gap: 8px; margin: 0 0 8px; }
 .g-filter .search { margin: 0; }
@@ -1263,6 +1267,7 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .lt-tab { width: 100%; border-collapse: collapse; font-size: .9rem; margin-top: 6px; }
 .lt-tab th { text-align: left; color: var(--muted); font-size: .72rem; font-weight: 800; padding: 4px 2px; }
 .lt-tab td { padding: 8px 2px; border-top: 1px solid var(--border); }
+.lt-rep { color: var(--muted); font-size: .72rem; font-weight: 800; text-transform: uppercase; }
 .lt-stack { display: flex; height: 14px; margin: 10px 0 6px; border-radius: 7px; overflow: hidden; background: var(--surface-2); }
 .lt-stack i { display: block; background: var(--primary); }
 .lt-stack i.b { background: #a99be6; }

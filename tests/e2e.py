@@ -416,7 +416,7 @@ async def t_pages(b):
                 if len(t) < 40 or "not available" in t or "Something broke" in t: bad.append("day %d %s" % (n, tab))
     check("every lesson tab renders (90 days x 5 tabs)", not bad, bad[:8])
     bad = []
-    for route in ["#/mock/%d" % m for m in range(1, 7)] + ["#/games", "#/review", "#/me", "#/progress", "#/grammar", "#/mistakes", "#/official", "#/search", "#/talk", "#/track", "#/learn/core", "#/learn/mine", "#/reports"]:
+    for route in ["#/mock/%d" % m for m in range(1, 9)] + ["#/games", "#/review", "#/me", "#/progress", "#/grammar", "#/mistakes", "#/official", "#/search", "#/talk", "#/track", "#/learn/core", "#/learn/mine", "#/reports"]:
         await go(pg, route, 500)
         t = await pg.inner_text("#app")
         empty = await pg.locator("#q").count() == 0 if route == "#/search" else len(t) < 60
@@ -1250,9 +1250,95 @@ async def t_engage(b):
     await ctx.close()
 
 
+async def t_mocks2(b):
+    """Repeated mock sets: the forecast is built from first attempts, learners and the admin see which scores are repeats,
+    the exam plan picks sets not taken yet, and the two new sets (7, 8) are well-formed."""
+    sec = lambda l, r, w: {"listening": l, "reading": r, "writing": w}
+    # saved before this version: no rep flag, so the repeat comes from the order
+    rep_hist = [{"id": 1, "date": day(-3), "mode": "exam", "total": 200, "sections": sec(60, 70, 70)},
+                {"id": 1, "date": day(-1), "mode": "exam", "total": 280, "sections": sec(95, 95, 90)}]
+    two_sets = [dict(rep_hist[0]), dict(rep_hist[1], id=2)]
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mockHistory": two_sets, "mocks": {"1": {"best": 200, "plays": 1, "lastScore": 200}, "2": {"best": 280, "plays": 1, "lastScore": 280}}})
+    await go(pg, "#/ready", 900)
+    t = await pg.inner_text("#app")
+    check("mocks2: two different sets both count fully (~244)", "~244" in t and "2 first-attempt mocks" in t, t[:300])
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mockHistory": rep_hist, "mocks": {"1": {"best": 280, "plays": 2, "lastScore": 280}}})
+    await go(pg, "#/ready", 900)
+    t = await pg.inner_text("#app")
+    # first attempt 200 at weight 1, the retake 280 at 0.3: (200 + 0.3*280) / 1.3 ≈ 218, not 244
+    check("mocks2: a retake of the same set counts much less in readiness (~218)", "~218" in t, t[:300])
+    check("mocks2: readiness says it is based on 1 first attempt + 1 repeat", "1 first-attempt mock + 1 repeat (count less)" in t, t[:400])
+    await go(pg, "#/mock", 900)
+    row1 = await pg.locator("a.cta[href='#/mock/1']").inner_text(); row2 = await pg.locator("a.cta[href='#/mock/2']").inner_text()
+    check("mocks2: the mock list marks a taken set as a repeat and an untaken one as new", "Repeat" in row1 and "counts less" in row1 and "Repeat" not in row2 and "New" in row2, (row1, row2))
+    await go(pg, "#/mock/1", 700)
+    check("mocks2: the intro of a taken set says the questions were seen", "you have seen these questions" in await pg.inner_text("#app"))
+    await go(pg, "#/mock/1/result", 700)
+    check("mocks2: the saved result of a retake says it counts less", await pg.locator(".rep-note").count() == 1)
+    faint = []
+    for theme in ("light", "dark"):
+        await pg.evaluate("t=>document.documentElement.setAttribute('data-theme',t)", theme)
+        for route in ("#/mock", "#/mock/1", "#/mock/1/result"):
+            await go(pg, route, 500); faint += [theme + " " + route + ": " + x for x in await pg.evaluate(CONTRAST_JS)]
+    check("mocks2: repeat notes and labels are readable in both themes", not faint, faint)
+    await go(pg, "#/mock/1/result", 500)
+    sm = await pg.evaluate("Sync.summary()")
+    ms = sm["progress"]["mocks"]
+    check("mocks2: the summary marks the repeat (rep:1) and gives the first-attempt average", len(ms) == 2 and "rep" not in ms[0] and ms[1].get("rep") == 1 and sm["progress"]["mfa"] == [1, 200], sm["progress"])
+    check("mocks2: the summary stays well under 7,500 characters", len(json.dumps(sm)) < 7500, len(json.dumps(sm)))
+    await ctx.close()
+    # the admin's Progress table for that phone
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mockHistory": rep_hist, "mocks": {"1": {"best": 280, "plays": 2, "lastScore": 280}}}, ai=True)
+    await pg.evaluate("Game.award(40)"); await no_dialogs(pg)
+    r = await pg.evaluate("Sync.now()")
+    await pg.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
+    # other groups' phones are in the same list: pick this one by its summary
+    lid = await pg.evaluate("Content.admin('learners_list',{}).then(r=>(r.result.rows.filter(x=>x.summary&&x.summary.progress&&x.summary.progress.mfa&&x.summary.progress.mfa[1]===200&&(x.summary.progress.mocks||[]).length===2)[0]||r.result.rows[0]).id)")
+    await go(pg, "#/learners/%s/progress" % lid[:8], 500); await pg.wait_for_selector(".lt-saved", timeout=10000)
+    rws = await pg.evaluate("[...document.querySelectorAll('#lt-body .lt-tab tbody tr')].map(r=>r.innerText.toLowerCase())")
+    t = await pg.locator("#lt-body").inner_text()
+    check("mocks2: admin Progress marks the repeated row in text and shows the first-attempt average", r == "saved" and len(rws) == 2 and "repeat" not in rws[0] and "repeat" in rws[1] and "First-attempt average: 200/300 over 1 set" in t, (r, rws, t[-300:]))
+    await ctx.close()
+    # a new attempt stores the flag: take set 7 twice in practice mode (skipping every question)
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    await go(pg, "#/mock/7", 1200); await pg.wait_for_selector("#m-practice", timeout=15000)
+    check("mocks2: new set 7 says it is not yet checked by a teacher", "not yet checked by a teacher" in await pg.inner_text("#app") and await pg.locator(".rep-note").count() == 0)
+    for attempt in range(2):
+        await go(pg, "#/mock/7", 700); await pg.click("#m-practice")
+        for _ in range(3):
+            await pg.wait_for_selector("#m-next", timeout=10000); await pg.wait_for_timeout(300); await pg.click("#m-next"); await pg.wait_for_timeout(500)
+        await pg.wait_for_function("location.hash==='#/mock/7/result'", timeout=10000); await pg.wait_for_timeout(400); await no_dialogs(pg)
+        if attempt == 0:
+            check("mocks2: a first attempt has no repeat note", await pg.locator(".rep-note").count() == 0)
+    h = await pg.evaluate("Store.state.mockHistory.map(x=>x.rep)")
+    check("mocks2: new entries store rep (first false, retake true)", h == [False, True], h)
+    check("mocks2: the result of a retake says it counts less", "counts less" in await pg.locator(".rep-note").inner_text())
+    await pg.reload(); await pg.wait_for_selector("#app > *:not(.skel)")
+    check("mocks2: the rep flag survives a reload (storage clean keeps it)", await pg.evaluate("Store.state.mockHistory.map(x=>x.rep)") == [False, True])
+    await ctx.close()
+    # the exam plan: untaken sets first, then the one taken longest ago, marked as a repeat
+    taken = [{"id": i, "date": day(-21 + i), "mode": "exam", "total": 220, "sections": sec(70, 75, 75)} for i in range(1, 7)]
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(10)), "srs": {}, "mockHistory": taken, "mocks": {str(i): {"best": 220, "plays": 1, "lastScore": 220} for i in range(1, 7)}})
+    await go(pg, "#/exam", 1200); await pg.wait_for_selector(".ep-list li", timeout=10000)
+    rows = await pg.evaluate("[...document.querySelectorAll('.ep-list li.ep-mock a')].map(a=>[a.getAttribute('href'),a.innerText.replace(/\\s+/g,' ')])")
+    check("mocks2: the plan uses the untaken sets 7 and 8 first, not as repeats", [r[0] for r in rows[:2]] == ["#/mock/7", "#/mock/8"] and not any("repeat" in r[1] for r in rows[:2]), rows)
+    check("mocks2: once every set is taken, the plan picks the oldest full set and says (repeat)", len(rows) == 3 and rows[2][0] == "#/mock/4" and "(repeat)" in rows[2][1], rows)
+    # the new sets are loaded and shaped like the other shortened tests
+    shape = await pg.evaluate("""(()=>{const c=m=>[m.listening.p1.length,m.listening.p2.length,m.listening.p3.length,m.reading.p1.length,m.reading.p2.length,
+      m.reading.p3.reduce((a,p)=>a+p.questions.length,0),m.writing.p1.length,m.writing.p2.length].join(',');
+      const by={};(window.CB_MOCK||[]).forEach(m=>by[m.id]=c(m));return by})()""")
+    check("mocks2: sets 7 and 8 load, with the same parts and counts as set 1", shape.get("7") == shape.get("1") and shape.get("8") == shape.get("1") and len(shape) == 8, shape)
+    await ctx.close()
+    import subprocess
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    out = subprocess.run(["node", "tools/validate.js"], cwd=root, capture_output=True, text=True)
+    check("mocks2: the content validator passes with 8 mock exams", out.returncode == 0 and "Mock exams        : 8" in out.stdout and "PASS  Mock exams well-formed" in out.stdout, out.stdout[-400:] + out.stderr[-400:])
+
+
 GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2)]
 PW = None
 
 

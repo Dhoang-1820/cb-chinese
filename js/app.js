@@ -758,7 +758,7 @@
   function readiness() {
     var f = forecast(), out;
     if (f) out = { src: "mock", total: f.total, lo: f.lo, hi: f.hi, L: f.L, R: f.R, W: f.W,
-      basis: (f.nOff ? f.nOff + " official paper" + (f.nOff > 1 ? "s" : "") : "") + (f.nOff && f.nApp ? " + " : "") + (f.nApp ? f.nApp + " app mock" + (f.nApp > 1 ? "s" : "") : "") };
+      basis: fcBasis(f) };
     else {
       var acc = { L: [0, 0], R: [0, 0], W: [0, 0] }, sk = Store.state.skills || {};
       Object.keys(sk).forEach(function (k) { var info = Learn.SKILLS[k], sec = info && SEC_OF[info.sec]; if (sec) { acc[sec][0] += sk[k].r; acc[sec][1] += sk[k].r + sk[k].w; } });
@@ -1967,11 +1967,14 @@
       (pg.hsk5 && (pg.hsk5.started || pg.hsk5.words) ? lrnBar("HSK 5 packs started", pg.hsk5.started, pg.hsk5.packs || 62, null, "") : "") + "</section>";
     var ms = pg.mocks || [];
     html += '<section class="card"><div class="lt-row"><b>Mock exams</b><small>each part out of 100</small></div>' + (ms.length ?
-      '<table class="lt-tab"><thead><tr><th>Date</th><th>Listen</th><th>Read</th><th>Write</th><th>Total</th></tr></thead><tbody>' + ms.map(function (m) { return "<tr><td>" + esc(String(m.d).slice(5)) + "</td><td>" + num(m.l) + "</td><td>" + num(m.r) + "</td><td>" + num(m.w) + "</td><td><b>" + num(m.t) + "</b></td></tr>"; }).join("") + "</tbody></table>" +
+      '<table class="lt-tab"><thead><tr><th>Date</th><th>Listen</th><th>Read</th><th>Write</th><th>Total</th></tr></thead><tbody>' + ms.map(function (m) { return "<tr><td>" + esc(String(m.d).slice(5)) + (m.rep ? ' <small class="lt-rep">repeat</small>' : "") + "</td><td>" + num(m.l) + "</td><td>" + num(m.r) + "</td><td>" + num(m.w) + "</td><td><b>" + num(m.t) + "</b></td></tr>"; }).join("") + "</tbody></table>" +
       (ms.length >= 2 ? (function () {
         var a = ms[0], b = ms[ms.length - 1], d = { Listening: num(b.l) - num(a.l), Reading: num(b.r) - num(a.r), Writing: num(b.w) - num(a.w) };
         return '<p class="sub">Since the first mock shown: ' + Object.keys(d).map(function (k) { return k + " " + (d[k] >= 0 ? "+" : "−") + Math.abs(d[k]); }).join(" · ") + "</p>";
-      })() : "") : '<p class="sub">No mock exam taken yet.</p>') + "</section>";
+      })() : "") +
+      // mfa comes from phones with this version; older ones only have the table
+      (pg.mfa ? '<p class="sub">First-attempt average: <b>' + num(pg.mfa[1]) + "/300</b> over " + num(pg.mfa[0]) + " set" + (num(pg.mfa[0]) === 1 ? "" : "s") + ". Repeats (seen questions) count less in readiness.</p>" : "")
+      : '<p class="sub">No mock exam taken yet.</p>') + "</section>";
     return html;
   }
   function lrnPractice(r) {
@@ -2205,12 +2208,12 @@
   function num(x) { x = +x; return isFinite(x) ? Math.round(x) : 0; }
   function viewMockList() {
     var s = Store.state;
-    var html = '<section class="card"><h2>Mock HSK 4 Exams</h2><p class="sub">Original questions in the real exam format. Tests 1–3 are shortened to about 40% (~30 minutes); the <b>full-length</b> test has all 100 questions and the real timing (~100 minutes) to train your stamina. Scored /300 like the real test — 180+ is a pass.</p></section>';
+    var html = '<section class="card"><h2>Mock HSK 4 Exams</h2><p class="sub">Original questions in the real exam format. The shorter tests are about 40% of the real length (~30 minutes); a <b>full-length</b> test has all 100 questions and the real timing (~100 minutes) to train your stamina. Scored /300 like the real test — 180+ is a pass.</p></section>';
     if (!MOCK.length) html += '<p class="warn">No mock exams loaded.</p>';
     MOCK.forEach(function (m) {
       var rec = s.mocks[m.id];
       html += '<a class="cta card' + (rec && rec.best >= 180 ? " g-teal" : " g-blue") + '" href="#/mock/' + m.id + '">' +
-        '<span class="cta-l">' + (m.full ? "<small>Full length · 100 questions · ~100 min</small>" : "") + '<b>' + esc(m.title) + '</b><em>' + (rec ? "Best " + num(rec.best) + "/300 (" + num(rec.plays) + " attempt" + (rec.plays > 1 ? "s" : "") + ")" + (rec.best >= 180 ? " · Pass ✓" : "") : "Not attempted yet") + "</em></span><span class=\"cta-go\">▶</span></a>";
+        '<span class="cta-l">' + (m.full ? "<small>Full length · 100 questions · ~100 min</small>" : "") + '<b>' + esc(m.title) + '</b><em>' + (rec ? "Best " + num(rec.best) + "/300 (" + num(rec.plays) + " attempt" + (rec.plays > 1 ? "s" : "") + ")" + (rec.best >= 180 ? " · Pass ✓" : "") + " · Repeat: a retake counts less" : "New · not attempted yet") + "</em></span><span class=\"cta-go\">▶</span></a>";
     });
     html += '<a class="cta card g-blue" href="#/official"><span class="cta-l"><small>Done an official paper?</small><b>📄 Log your official score</b><em>Improves your score forecast</em></span><span class="cta-go">▶</span></a>';
     html += '<section class="card"><h2>More practice</h2><p class="sub">Want the real official questions too? These are legitimate free resources:</p>' +
@@ -2230,6 +2233,8 @@
       '<div class="exam-sec"><b>🎧 Listening</b><span>' + lc + ' questions · ~' + Math.round(m.listening.time / 60) + ' min</span></div>' +
       '<div class="exam-sec"><b>📖 Reading</b><span>' + rc + ' questions · ~' + Math.round(m.reading.time / 60) + ' min</span></div>' +
       '<div class="exam-sec"><b>✍️ Writing</b><span>' + wc + ' questions · ~' + Math.round(m.writing.time / 60) + ' min</span></div></div>' +
+      (m.checked === false ? '<p class="h5-note" role="note">⚑ This test is new and not yet checked by a teacher. Use the flag button to report mistakes.</p>' : "") +
+      ((Store.state.mocks[id] || {}).plays > 0 ? '<p class="rep-note"><b>Repeat</b> — you have seen these questions, so this score counts less in your forecast.</p>' : "") +
       '<p class="sub">' + (m.full ? "Full length: the same number of questions, parts and timing as the real HSK 4 (100 questions, ~100 minutes). Tip: do it in one sitting, in exam mode." : "Real HSK 4 has 100 questions over ~105 minutes, scored /300 (pass 180). This shortened mock keeps the same format, item types and proportions.") + "</p></section>" +
       '<button class="btn primary big" id="m-practice">📝 Practice mode</button><p class="sub center">Instant feedback after each answer, no timer.</p>' +
       '<button class="btn big" id="m-exam" style="margin-top:10px">⏱ Exam mode</button><p class="sub center">Timed per section, no feedback until the end — like the real test. You can leave and come back.</p>' +
@@ -2532,9 +2537,12 @@
     var result = scoreExam();
     result.skills = recordMock();
     EXAM.result = result; EXAM.finished = true;
-    Store.state.mockHistory.push({ id: EXAM.id, date: Store.today(), mode: EXAM.mode, strict: !!EXAM.strict, total: result.total,
-      sections: { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score } });
     var s = Store.state, rec = s.mocks[EXAM.id] || { best: 0, plays: 0 };
+    // rep: this set was seen before (in any mode), so the forecast counts the score less
+    var rep = rec.plays > 0 || s.mockHistory.some(function (h) { return h.id === EXAM.id; });
+    s.mockHistory.push({ id: EXAM.id, date: Store.today(), mode: EXAM.mode, strict: !!EXAM.strict, total: result.total,
+      sections: { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score }, rep: rep });
+    EXAM.rep = rep;
     rec.plays = (rec.plays || 0) + 1; rec.lastScore = result.total;
     rec.lastSections = { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score };
     if (result.total > (rec.best || 0)) rec.best = result.total;
@@ -2542,6 +2550,7 @@
     location.hash = "#/mock/" + EXAM.id + "/result";
   }
 
+  var REP_NOTE = '<p class="rep-note"><b>Repeat</b> — you have seen these questions, so this score counts less in your forecast. A new set gives a truer number.</p>';
   function secBar(label, sc) {
     sc = Math.max(0, Math.min(100, num(sc)));
     return '<div class="score-row"><span>' + label + "</span><div class=\"score-bar\"><span style=\"width:" + sc + "%\"></span></div><b>" + sc + "/100</b></div>";
@@ -2553,7 +2562,7 @@
       if (!rec) { location.replace("#/mock/" + idStr); return; }
       render('<section class="card ' + (rec.best >= 180 ? "g-teal" : "g-coral") + '"><h2>' + esc((MOCKMAP[id] || {}).title || "Mock test") + '</h2><p class="score-big">' + num(rec.lastScore) + "/300</p>" +
         '<p>' + (rec.lastSections ? secBar("Listening", rec.lastSections.listening) + secBar("Reading", rec.lastSections.reading) + secBar("Writing", rec.lastSections.writing) : "") +
-        '</p><p class="sub">Best so far: ' + num(rec.best) + "/300 over " + num(rec.plays) + " attempt" + (rec.plays > 1 ? "s" : "") + '.</p></section>' +
+        '</p><p class="sub">Best so far: ' + num(rec.best) + "/300 over " + num(rec.plays) + " attempt" + (rec.plays > 1 ? "s" : "") + '.</p>' + (rec.plays > 1 ? REP_NOTE : "") + "</section>" +
         '<a class="btn primary big" href="#/mock/' + id + '">Try again</a><a class="btn big" href="#/mock" style="margin-top:10px">All mock exams</a>', "mock");
       return;
     }
@@ -2563,7 +2572,7 @@
     var html = '<section class="card ' + (pass ? "g-teal" : "g-coral") + '">' + (pass ? UI.anim("noto-trophy", 84, UI.mascot("cheer", 64)) : UI.mascot("wow", 64)) +
       '<h2>' + (pass ? "Pass! 🎉" : "Keep practicing") + '</h2>' + (EXAM.strict ? '<p><span class="tag t-hsk">🎯 Exam simulator</span></p>' : "") + '<p class="score-big">' + r.total + "/300</p>" +
       "<p>" + secBar("Listening", r.listening.score) + secBar("Reading", r.reading.score) + secBar("Writing", r.writing.score) + "</p>" +
-      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p></section>" + weakHTML(r.skills) + focusCard() +
+      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p>" + (EXAM.rep ? REP_NOTE : "") + "</section>" + weakHTML(r.skills) + focusCard() +
       '<a class="btn primary big" href="#/mock/' + id + '">Try again</a><a class="btn big" href="#/mock" style="margin-top:10px">All mock exams</a>';
     render(html, "mock");
   }
@@ -3319,9 +3328,11 @@
       week: (function () { var o = []; for (var j = 6; j >= 0; j--) { var e = L[Store.addDays(t, -j)]; o.push(e ? Math.round(e.m) : 0); } return o; })(), // minutes per day, today last
       progress: (function () {
         var r = null, due = 0; try { r = readiness(); due = SRS.dueIds(WORDMAP).length; } catch (e) { /* content not loaded yet */ }
-        var ms = byDate(s.mockHistory || []).slice(-5).map(function (h) { return { d: h.date, t: h.total, l: h.sections.listening, r: h.sections.reading, w: h.sections.writing }; });
+        var mh = mockHist(), ms = mh.slice(-5).map(function (x) { var h = x.h, o = { d: h.date, t: h.total, l: h.sections.listening, r: h.sections.reading, w: h.sections.writing }; if (x.rep) o.rep = 1; return o; });
+        var fa = mh.filter(function (x) { return !x.rep; }); // first attempts over the whole history: [count, average total]
+        fa = fa.length ? [fa.length, Math.round(fa.reduce(function (a, x) { return a + num(x.h.total); }, 0) / fa.length)] : null;
         return { hsk5: h5Progress(), lessons: Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length, lessonsAll: DAYS.length, track: Object.keys(s.track || {}).filter(function (k) { return s.track[k]; }).length, trackAll: 72,
-          due: due, ready: r ? { total: r.total, lo: r.lo, hi: r.hi, verdict: r.verdict[1], src: r.src } : null, mocks: ms, exam: s.settings.examDate || "", goal: s.settings.dailyGoal || 30 };
+          due: due, ready: r ? { total: r.total, lo: r.lo, hi: r.hi, verdict: r.verdict[1], src: r.src } : null, mocks: ms, mfa: fa, exam: s.settings.examDate || "", goal: s.settings.dailyGoal || 30 };
       })(),
       streak: { n: Store.streak(), best: (s.streak && s.streak.best) || 0 },
       xpw: (function () { var o = [], ws = weekStart(t); for (var j = 7; j >= 0; j--) { var a = Store.addDays(ws, -7 * j), sum = 0; for (var k = 0; k < 7; k++) sum += s.log[Store.addDays(a, k)] || 0; o.push(sum); } return o; })(), // XP per week, this week last
@@ -4028,20 +4039,34 @@
     return w ? { txt: SEC_NAME[k] + " · " + w.info[lang] + " (" + Math.round(w.acc * 100) + "%)", href: w.open ? "#/mistakes/" + w.skill : SKILL_LINK[w.skill] || SEC_GO[k] }
       : { txt: SEC_NAME[k] + " practice", href: SEC_GO[k] };
   }
-  function nextMockHref(full) {
-    var s = Store.state;
-    if (!MOCK.length) return "#/mock";
-    var m = MOCK.slice().sort(function (a, b) { return ((s.mocks[a.id] || {}).plays || 0) - ((s.mocks[b.id] || {}).plays || 0) || (full ? (b.full ? 1 : 0) - (a.full ? 1 : 0) : 0); })[0];
-    return "#/mock/" + m.id;
+  /* Which set to take next: a never-taken set first (fresh questions give a true score), otherwise the one
+     taken longest ago. plan: ids already planned for earlier days; they count as taken "later than anything",
+     so the exam plan rotates through the sets instead of showing the same one every third day. */
+  function nextMock(full, plan) {
+    var s = Store.state, last = {};
+    if (!MOCK.length) return null;
+    (s.mockHistory || []).forEach(function (h) { if (!last[h.id] || h.date > last[h.id]) last[h.id] = h.date; });
+    (plan || []).forEach(function (id, i) { last[id] = "9" + (1000 + i); }); // sorts after every real date, in plan order
+    var taken = function (m) { return last[m.id] != null || ((s.mocks[m.id] || {}).plays || 0) > 0; };
+    var m = MOCK.slice().sort(function (a, b) {
+      var la = last[a.id] || "", lb = last[b.id] || "";
+      return (taken(a) ? 1 : 0) - (taken(b) ? 1 : 0) || (full ? (b.full ? 1 : 0) - (a.full ? 1 : 0) : 0) || (la < lb ? -1 : la > lb ? 1 : 0) || a.id - b.id;
+    })[0];
+    return { m: m, rep: taken(m) };
   }
+  function nextMockHref(full) { var n = nextMock(full); return n ? "#/mock/" + n.m.id : "#/mock"; }
   function examSchedule() {
-    var s = Store.state, t = Store.today(), exam = s.settings.examDate || "2026-11-14", left0 = Store.daysBetween(t, exam), out = [], order = secOrder(), pat = [order[0], order[1], order[0], order[2] || order[1]];
+    var s = Store.state, t = Store.today(), exam = s.settings.examDate || "2026-11-14", left0 = Store.daysBetween(t, exam), out = [], order = secOrder(), pat = [order[0], order[1], order[0], order[2] || order[1]], planned = [];
     if (left0 < 0 || left0 > EXAM_PLAN_DAYS) return [];
     for (var i = 0; i <= left0; i++) {
       var d = Store.addDays(t, i), left = left0 - i, e;
       if (left === 0) e = { ico: "🎓", txt: "Exam day · 加油!", href: "#/ready", kind: "exam" };
       else if (left === 1) e = { ico: "🌙", txt: "Light review only, then sleep early", href: "#/review", kind: "light" };
-      else if ((left - 2) % 3 === 0) e = { ico: "📝", txt: left <= 8 ? "Full mock exam, timed" : "Mock exam", href: nextMockHref(left <= 8), kind: "mock" };
+      else if ((left - 2) % 3 === 0) {
+        var nm = nextMock(left <= 8, planned);
+        if (nm) planned.push(nm.m.id);
+        e = { ico: "📝", txt: (left <= 8 ? (nm && !nm.m.full ? "Mock exam, timed" : "Full mock exam, timed") : "Mock exam") + (nm ? " · Test " + nm.m.id + (nm.rep ? " (repeat)" : "") : ""), href: nm ? "#/mock/" + nm.m.id : "#/mock", kind: "mock" };
+      }
       else { var f = secFocus(pat[left % 4]); e = { ico: "🎯", txt: f.txt, href: f.href, kind: "focus" }; }
       e.d = d; e.left = left;
       e.done = d === t && (e.kind === "mock" ? s.mockHistory.some(function (h) { return h.date === t; }) : e.kind === "exam" ? false : (s.log[t] || 0) > 0);
@@ -4246,10 +4271,18 @@
   }
   /* Forecast: recency-weighted average per section. Official papers count 2.5×, app mocks in exam mode 1×,
      practice mode 0.6×. The range widens when there's little data or scores vary a lot. */
+  /* Repeats: a retaken mock set measures memory of its answers as much as ability, so the forecast is built
+     from first attempts. The last 3 repeats still count at 0.3× (REP_W) so recent progress shows a little,
+     but a few retakes can never outweigh one fresh set. Official papers are not affected. */
+  var REP_W = 0.3;
   function forecast() {
-    var s = Store.state, pts = [];
+    var s = Store.state, pts = [], hist = mockHist();
+    var firsts = hist.filter(function (x) { return !x.rep; }).slice(-6).reverse(), reps = hist.filter(function (x) { return x.rep; }).slice(-3).reverse();
+    var appPt = function (w) { return function (x, k) { var h = x.h; pts.push({ w: w * (h.mode === "practice" ? 0.6 : 1) * Math.pow(0.8, k), l: num(h.sections.listening), r: num(h.sections.reading), wr: num(h.sections.writing), src: "app" }); }; };
     byDate(s.official || []).slice(-6).reverse().forEach(function (o, k) { pts.push({ w: 2.5 * Math.pow(0.8, k), l: o.l, r: o.r, wr: o.w, src: "official" }); });
-    byDate(s.mockHistory || []).slice(-6).reverse().forEach(function (h, k) { pts.push({ w: (h.mode === "practice" ? 0.6 : 1) * Math.pow(0.8, k), l: num(h.sections.listening), r: num(h.sections.reading), wr: num(h.sections.writing), src: "app" }); });
+    firsts.forEach(appPt(1));
+    if (firsts.length) reps.forEach(appPt(REP_W)); else reps = []; // with no first attempt at all (old odd data) nothing is discounted
+    if (!firsts.length) hist.slice(-6).reverse().forEach(appPt(1));
     if (!pts.length) return null;
     var W = pts.reduce(function (a, p) { return a + p.w; }, 0);
     var avg = function (f) { return pts.reduce(function (a, p) { return a + p.w * p[f]; }, 0) / W; };
@@ -4258,14 +4291,25 @@
     var spread = Math.round(Math.max(pts.length === 1 ? 25 : 12, sd * 1.2));
     var weakest = [["Listening", L], ["Reading", R], ["Writing", Wr]].sort(function (a, b) { return a[1] - b[1]; })[0];
     return { total: Math.round(T), lo: Math.max(0, Math.round(T - spread)), hi: Math.min(300, Math.round(T + spread)), L: Math.round(L), R: Math.round(R), W: Math.round(Wr), weakest: weakest[0],
-      nOff: Math.min(6, (s.official || []).length), nApp: Math.min(6, (s.mockHistory || []).length) };
+      nOff: Math.min(6, (s.official || []).length), nApp: firsts.length || Math.min(6, hist.length), nRep: reps.length };
+  }
+  /* "2 official + 3 first-attempt mocks + 1 repeat (counts less)" */
+  function fcBasis(f) {
+    return (f.nOff ? f.nOff + " official paper" + (f.nOff > 1 ? "s" : "") : "") + (f.nOff && f.nApp ? " + " : "") +
+      (f.nApp ? f.nApp + " first-attempt mock" + (f.nApp > 1 ? "s" : "") : "") + (f.nRep ? " + " + f.nRep + " repeat" + (f.nRep > 1 ? "s" : "") + " (count less)" : "");
+  }
+  /* Mock history in date order, each marked as a first attempt or a repeat of a set seen before (in any mode).
+     New entries store rep; older saved entries get it from the order, so old data needs no migration. */
+  function mockHist() {
+    var seen = {};
+    return byDate(Store.state.mockHistory || []).map(function (h) { var rep = h.rep === true || !!seen[h.id]; seen[h.id] = 1; return { h: h, rep: rep }; });
   }
   function byDate(a) { return a.map(function (x, i) { return [x, i]; }).sort(function (p, q) { return p[0].date < q[0].date ? -1 : p[0].date > q[0].date ? 1 : p[1] - q[1]; }).map(function (p) { return p[0]; }); }
   function forecastCard(compact) {
     var f = forecast();
     if (!f) return compact ? "" : '<section class="card"><h2>🔮 Score forecast</h2><p class="sub">Take a mock exam or log an official paper to see your forecast.</p></section>';
     var verdict = f.lo >= 180 ? ["t-hsk", "Likely pass"] : f.hi < 180 ? ["t-warn", "Needs work"] : ["t-dom", "Borderline"];
-    var basis = (f.nOff ? f.nOff + " official" : "") + (f.nOff && f.nApp ? " + " : "") + (f.nApp ? f.nApp + " app mock" + (f.nApp > 1 ? "s" : "") : "");
+    var basis = fcBasis(f);
     if (compact) return '<a class="cta card g-teal fc-mini" href="#/official"><span class="cta-l"><small>Score forecast · ' + esc(basis) + "</small><b>🔮 ~" + f.total + '/300</b><em>' + f.lo + "–" + f.hi + " · focus: " + f.weakest + '</em></span><span class="tag ' + verdict[0] + '">' + verdict[1] + "</span></a>";
     return '<section class="card"><div class="sec-h"><h2>🔮 Score forecast</h2><span class="tag ' + verdict[0] + '">' + verdict[1] + '</span></div>' +
       '<p class="score-big">~' + f.total + ' <small>/300 · likely ' + f.lo + "–" + f.hi + "</small></p>" +

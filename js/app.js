@@ -353,7 +353,7 @@
   /* What a screen still needs before it can be drawn: "full", "mocks", "h5", "x4". */
   function missing(v, parts) {
     var m = [], a = parts[1] || "", b = parts[2] || "";
-    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes")) m.push("full");
+    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes" || v === "weekly" || v === "catchup")) m.push("full");
     if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam")) m.push("mocks");
     var hard5 = (v === "learn" && (a === "h5" || a === "h5p" || (!a && Store.state.settings.level === 5))) || (v === "pack" && a === "h5") || (v === "grammar" && /^h5/.test(a)) || (v === "game" && (b === "h5" || /^p-h5-/.test(b))) || (v === "cards" && /^p-h5-/.test(a));
     var hard4 = (v === "learn" && a === "extra") || (v === "pack" && a === "x4") || v === "families" || (v === "game" && /^p-x4-/.test(b)) || (v === "cards" && /^p-x4-/.test(a));
@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -447,6 +447,8 @@
     else if (v === "listen-mode") viewListenMode();
     else if (v === "talk") viewTalk(parts[1]);
     else if (v === "session") viewSession(parts[1]);
+    else if (v === "weekly") viewWeeklyQuiz();
+    else if (v === "catchup") viewCatchup();
     else if (v === "grammar") { if (parts[1] === "h5") viewGrammarList(5); else if (parts[1]) viewGrammarPoint(parts[1], parts[2]); else viewGrammarList(4); }
     else if (v === "official") viewOfficial();
     else if (v === "me" || v === "settings") viewMe();
@@ -468,7 +470,7 @@
     }
     else viewHome();
     fillExtras();
-    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me" }[v] || "home";
+    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] || "C&B 中文";
     document.getElementById("page-title").textContent = title;
@@ -918,8 +920,11 @@
     var plan = planCard(), tip = tipCard(plan ? coachStatus(coachLast()) : [], fin);
     homeAt = Date.now(); homeDay = Store.today();
     var back = comebackCard(), ep = examPlanCard();
-    if (fin) html += back + readyCard() + todayCard() + ep + tip + (back ? "" : rescueCard()) + sessionCTA() + (back ? "" : shortLink()) + patternCard() + '<a class="mini-link" href="#/day/' + nd.day + '">New lessons are paused · continue Day ' + nd.day + " anyway ›</a>";
-    else html += back + ep + tip + cont0 + (back ? "" : rescueCard()) + sessionCTA() + (back ? "" : shortLink()) + patternCard() + readyCard();
+    var cu = fin ? [] : cuLessons(), wq = wqCard();
+    /* behind plan: the catch-up card takes the place of "Continue", with the full lesson one tap away */
+    if (cu.length) cont0 = cuCard(cu) + '<a class="mini-link" href="#/day/' + nd.day + '">Or open Day ' + nd.day + " in full ›</a>";
+    if (fin) html += back + readyCard() + todayCard() + ep + tip + wq + (back ? "" : rescueCard()) + sessionCTA() + (back ? "" : shortLink()) + patternCard() + '<a class="mini-link" href="#/day/' + nd.day + '">New lessons are paused · continue Day ' + nd.day + " anyway ›</a>";
+    else html += back + ep + tip + cont0 + wq + (back ? "" : rescueCard()) + sessionCTA() + (back ? "" : shortLink()) + patternCard() + readyCard();
     html += questsCard();
     var nMis = Learn.count();
     html += '<div class="tiles">' +
@@ -1082,7 +1087,7 @@
         var cls = "pnode" + (rec.completed ? " done" : "") + (isNext ? " next" : "") + (review ? " review" : "") + (d ? "" : " soon");
         var ico = rec.completed ? "✓" : review ? "🎁" : isNext ? "★" : String(p.day);
         html += '<div class="pn" style="--x:' + x + 'px">' + (isNext ? '<span class="pstart">START</span>' : "") +
-          (d ? '<a class="' + cls + '" href="#/day/' + p.day + '" style="--pct:' + Math.round(pct * 100) + '" aria-label="Day ' + p.day + ": " + esc(p.en) + (rec.completed ? ", done" : "") + '"><i>' + ico + "</i></a>" : '<span class="' + cls + '"><i>' + p.day + "</i></span>") +
+          (d ? '<a class="' + cls + '" href="#/day/' + p.day + '" style="--pct:' + Math.round(pct * 100) + '" aria-label="Day ' + p.day + ": " + esc(p.en) + (rec.completed ? (rec.cu ? ", done as a short catch-up lesson" : ", done") : "") + '"><i>' + ico + "</i></a>" : '<span class="' + cls + '"><i>' + p.day + "</i></span>") +
           '<span class="plab zh">' + esc(p.zh) + "</span></div>";
       });
       html += "</div>";
@@ -1101,7 +1106,7 @@
         if (d) {
           var ws = dayWords(d), inSrs = ws.filter(function (x) { return SRS.has(x.id); }).length;
           var pct = p.type === "review" ? (rec.quizBest || 0) / 10 : inSrs / Math.max(1, ws.length);
-          meta = (p.type === "review" ? "Review" : inSrs + "/" + ws.length + " words") + (rec.quizBest != null ? " · " + rec.quizBest + "/10" : "");
+          meta = (p.type === "review" ? "Review" : inSrs + "/" + ws.length + " words") + (rec.quizBest != null ? " · " + rec.quizBest + "/10" : "") + (rec.completed && rec.cu ? " · catch-up" : "");
           inner = '<span class="dnum">' + (rec.completed ? "✓ " : "") + "Day " + p.day + '</span><span class="dzh zh">' + esc(p.zh) + '</span><span class="dmean">' + M(p) + '</span><span class="dbar"><i style="width:' + Math.round(pct * 100) + '%"></i></span><span class="dmeta">' + meta + "</span>";
           html += '<a class="daycard card' + (p.type === "review" ? " review" : "") + (rec.completed ? " done" : "") + '" href="#/day/' + p.day + '">' + inner + "</a>";
         } else {
@@ -1190,7 +1195,7 @@
     if (sub === "extra") return viewExtraList();
     var st = Store.state, plan = window.CB_PLAN || [], mode = learnMode();
     var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb") +
-      '<a class="cta card g-violet" href="#/track"><span class="cta-l"><small>6-month track · mixed in, never locked</small><b>🎓 C&amp;B Professional Chinese</b><em>Writing templates, role-plays, Vietnam vs China cards, HSK 5 reading</em></span><span class="cta-go">▶</span></a>' +
+      '<a class="cta card g-violet" href="#/track"><span class="cta-l"><small>6-month track · mixed in, never locked</small><b>🎓 C&amp;B Professional Chinese</b><em>Writing templates, role-plays, Vietnam vs China cards, HSK 5 reading</em></span><span class="cta-go">▶</span></a>' + wqRow() +
       '<div class="vtoggle" role="group" aria-label="Lesson view"><button type="button" data-lv="path" class="' + (mode === "path" ? "on" : "") + '" aria-pressed="' + (mode === "path") + '">Path</button><button type="button" data-lv="grid" class="' + (mode === "grid" ? "on" : "") + '" aria-pressed="' + (mode === "grid") + '">Grid</button></div>';
     html += mode === "path" ? learnPath(plan, st) : learnGrid(plan, st);
     render(html, "learn");
@@ -1449,7 +1454,7 @@
     function finish() {
       var first = rec.quizBest == null;
       rec.quizBest = Math.max(rec.quizBest || 0, score);
-      if (score >= 7) { if (!rec.completed) rec.completedOn = Store.today(); rec.completed = true; }
+      if (score >= 7) { if (!rec.completed) rec.completedOn = Store.today(); rec.completed = true; delete rec.cu; } // the full quiz makes a catch-up lesson a full one
       if (score === qs.length) Store.state.stats.perfectQuizzes++;
       var xp = score * 2 + (score === qs.length ? 10 : 0);
       var mood = score === qs.length ? "cheer" : score >= 7 ? "happy" : "sad";
@@ -2974,7 +2979,8 @@
     var status = !dates.length ? "new" : done >= total ? "done" : done - expected >= 2 ? "ahead" : expected - done >= 2 ? "behind" : "on";
     var p2weeks = Math.max(PART2_WEEKS, Math.ceil(p2.length / 5)), courseEnd = Store.addDays(exam, p2weeks * 7), p2done = p2.filter(isDone).length;
     var p2from = daysLeft >= 0 ? Store.addDays(exam, 1) : t, p2left = Math.max(1, Store.daysBetween(p2from, courseEnd) + 1);
-    return { exam: exam, daysLeft: daysLeft, done: done, total: total, remaining: remaining, finishBy: finishBy, studyLeft: studyLeft, perDay: remaining / studyLeft, expected: expected, status: status,
+    var cu = p1.filter(function (d) { var r = s.days[d.day] || {}; return r.completed && r.cu; }).length; // done as a short catch-up lesson, full quiz not passed yet
+    return { exam: exam, daysLeft: daysLeft, done: done, cu: cu, total: total, remaining: remaining, finishBy: finishBy, studyLeft: studyLeft, perDay: remaining / studyLeft, expected: expected, status: status,
       inBuffer: Store.daysBetween(t, finishBy) < 0 && daysLeft >= 0, afterExam: daysLeft < 0,
       p2: { weeks: p2weeks, done: p2done, total: p2.length, remaining: p2.length - p2done, end: courseEnd, perDay: (p2.length - p2done) / p2left, next: p2.filter(function (d) { return !isDone(d); })[0] || null } };
   }
@@ -2997,11 +3003,13 @@
       if (nMis) tasks.push({ ico: "📒", txt: "Fix mistakes (" + nMis + " open)", href: "#/mistakes/all", done: false });
       var weak = Learn.report(5)[0];
       if (weak && weak.acc < 0.85) tasks.push({ ico: "🎯", txt: "Weakest skill: " + (s.settings.lang === "vi" ? weak.info.vi : weak.info.en) + " (" + Math.round(weak.acc * 100) + "%)", href: weak.open ? "#/mistakes/" + weak.skill : SKILL_LINK[weak.skill] || "#/mistakes", done: false });
-      var g = (window.CB_GRAMMAR || []).filter(function (x) { return !(s.grammar[x.id] || {}).mastered; })[0];
-      if (g) tasks.push({ ico: "📐", txt: "Grammar: " + g.title.zh, href: "#/grammar/" + g.id, done: false });
+      var ga = grammarAct();
+      if (ga) tasks.push({ ico: "📐", txt: ga.txt, href: ga.href, done: false });
       if (nd) tasks.push({ ico: "📖", txt: "Day " + nd.day + " (only if you have time)", href: "#/day/" + nd.day, done: studiedToday });
     } else {
-      if (nd && !p.afterExam) tasks.push({ ico: "📖", txt: "Finish Day " + nd.day + (p.perDay > 1.05 ? " (+" + (Math.ceil(p.perDay) - 1) + " more to keep pace)" : ""), href: "#/day/" + nd.day, done: studiedToday });
+      var cu = nd && !p.afterExam ? cuLessons() : [];
+      if (cu.length) tasks.push({ ico: "⏳", txt: "Catch up: " + plural(cu.length, "short lesson") + " (Day " + cu.map(function (d) { return d.day; }).join(", ") + ")", href: "#/catchup", done: false });
+      else if (nd && !p.afterExam) tasks.push({ ico: "📖", txt: "Finish Day " + nd.day + (p.perDay > 1.05 ? " (+" + (Math.ceil(p.perDay) - 1) + " more to keep pace)" : ""), href: "#/day/" + nd.day, done: studiedToday });
       else if (p.p2.next) tasks.push({ ico: "📖", txt: "Part 2 · Day " + p.p2.next.day + (p.p2.perDay > 1.05 ? " (+" + (Math.ceil(p.p2.perDay) - 1) + " more to keep pace)" : ""), href: "#/day/" + p.p2.next.day, done: studiedToday });
       if (!p.afterExam) {
         var cs = nextCoreSet(), fs = nextCoreSet("found");
@@ -3046,8 +3054,8 @@
     if (out.length < 3 && due) add({ ico: "🔁", txt: "Review " + plural(due, "due word"), why: "Words you review on time are the ones you keep.", href: "#/review" });
     var nMis = Learn.count();
     if (out.length < 3 && nMis) add({ ico: "📒", txt: "Clear " + nMis + " mistake" + (nMis === 1 ? "" : "s"), why: "Get each right twice in a row to clear it.", href: "#/mistakes/all" });
-    var g = (window.CB_GRAMMAR || []).filter(function (x) { return !(s.grammar[x.id] || {}).mastered; })[0];
-    if (out.length < 3 && g) add({ ico: "📐", txt: "Grammar: " + g.title.zh, why: "5 questions; 4/5 twice masters it.", href: "#/grammar/" + g.id });
+    var ga = grammarAct();
+    if (out.length < 3 && ga) add({ ico: "📐", txt: ga.txt, why: "5 questions; 4/5 twice masters it.", href: ga.href });
     if (out.length < 3) add({ ico: "▶", txt: "Run Today's session", why: sessionCfg().label + " of mixed practice.", href: "#/session" });
     return out;
   }
@@ -3082,7 +3090,7 @@
     var p = planInfo(), st = STATUS[p.status], s = Store.state;
     var pace = p.remaining ? (p.perDay >= 1 ? p.perDay.toFixed(1) + " lessons a day" : "about " + Math.max(1, Math.ceil(p.perDay * 7)) + " lessons a week") : "All lessons done";
     var html = '<section class="card g-sun"><h2>🗓️ Road to HSK 4</h2><p class="score-big">' + (p.daysLeft >= 0 ? p.daysLeft : 0) + ' <small>days left</small></p>' +
-      '<p><b>' + st[0] + " " + st[1] + "</b> · " + p.done + "/" + p.total + " days done" + (p.status !== "new" && p.status !== "done" ? " (plan: " + p.expected + ")" : "") + "</p>" +
+      '<p><b>' + st[0] + " " + st[1] + "</b> · " + p.done + "/" + p.total + " days done" + (p.status !== "new" && p.status !== "done" ? " (plan: " + p.expected + ")" : "") + (p.cu ? " · " + p.cu + " of them as short catch-up lessons" : "") + "</p>" +
       '<div class="xpbar"><span style="width:' + Math.round(p.done / p.total * 100) + '%"></span></div>' +
       (p.afterExam ? '<p class="sub">Your exam date has passed. Keep going with Part 2 below, or set a new exam date in Settings.</p>' :
         '<p class="sub">Pace needed: <b>' + pace + "</b> to finish by " + esc(p.finishBy) + ", leaving the last " + BUFFER_DAYS + " days for mock exams and review.</p>") + corePaceHTML(p) + "</section>";
@@ -4113,32 +4121,35 @@
   function gHome(lvl) { return lvl === 5 ? "#/grammar/h5" : "#/grammar"; }
   function GRAMMAP() { var n = GLIST(4).length + GLIST(5).length; if (!_gm || _gm.n !== n) { _gm = { n: n }; GLIST(4).concat(GLIST(5)).forEach(function (g) { _gm[g.id] = g; }); } return _gm; }
   function gState(id) { var g = Store.state.grammar; return g[id] || (g[id] = { best: 0, passes: 0, mastered: false }); }
+  /* three states: mastered (also when marked by hand), practised at least one round, or never practised */
   function gStatus(id) {
     var st = Store.state.grammar[id];
-    if (!st) return ["new", "Not started"];
-    if (st.mastered) return ["done", "✓ Mastered"];
-    return st.best ? ["prog", "Best " + st.best + "/5"] : ["new", "Not started"];
+    if (st && st.mastered) return ["done", "✓ Mastered"];
+    if (!st || !(st.n > 0)) return ["new", "Never practised"];
+    return ["prog", "Best " + (st.best || 0) + "/5"];
   }
   function viewGrammarList(lvl) {
     lvl = lvl === 5 ? 5 : 4;
     if (gFilter.lvl !== lvl) gFilter = { q: "", st: "all", lvl: lvl }; // each level starts with its own, empty filter
     var G = GLIST(lvl), mastered = G.filter(function (g) { return (Store.state.grammar[g.id] || {}).mastered; }).length;
+    var never = G.filter(function (g) { return gStatus(g.id)[0] === "new"; }).length;
     var html = (lvl === 5 ? h5Seg("grammar") : learnSeg("grammar")) + '<section class="card g-teal"><h2>📐 HSK ' + lvl + ' grammar checklist</h2><p class="sub">The grammar points tested at HSK ' + lvl + ". Read the pattern, do 5 questions; get 5/5 (or 4/5 twice) to master it.</p>" +
-      '<div class="xpbar"><span style="width:' + Math.round(mastered / Math.max(1, G.length) * 100) + '%"></span></div><p class="xp-t">' + mastered + " / " + G.length + " mastered</p></section>";
+      '<div class="xpbar"><span style="width:' + Math.round(mastered / Math.max(1, G.length) * 100) + '%"></span></div><p class="xp-t">' + mastered + " / " + G.length + " mastered</p>" +
+      '<p class="sub g-cov" id="g-cov"><b>' + never + "</b> never practised · <b>" + (G.length - never - mastered) + "</b> practised, not mastered · <b>" + mastered + "</b> mastered</p></section>";
     /* a long list needs a way in: filter by text (Chinese, pinyin-free Vietnamese or English) and by status */
     html += '<div class="g-filter"><input id="g-q" class="search" type="search" inputmode="search" placeholder="Filter: 把 · compare · so sánh" aria-label="Filter grammar points" value="' + esc(gFilter.q) + '" autocomplete="off" autocapitalize="off" spellcheck="false">' +
-      '<div class="vtoggle" role="group" aria-label="Show">' + [["all", "All"], ["todo", "To do"], ["done", "Mastered"]].map(function (x) { return '<button type="button" data-gf="' + x[0] + '" class="' + (gFilter.st === x[0] ? "on" : "") + '" aria-pressed="' + (gFilter.st === x[0]) + '">' + x[1] + "</button>"; }).join("") + '</div></div><p class="sub" id="g-count" role="status"></p>';
+      '<div class="vtoggle" role="group" aria-label="Show">' + [["all", "All"], ["never", "Never practised"], ["todo", "To do"], ["done", "Mastered"]].map(function (x) { return '<button type="button" data-gf="' + x[0] + '" class="' + (gFilter.st === x[0] ? "on" : "") + '" aria-pressed="' + (gFilter.st === x[0]) + '">' + x[1] + "</button>"; }).join("") + '</div></div><p class="sub" id="g-count" role="status"></p>';
     html += '<div class="glist">' + G.map(function (g, i) {
       var s = gStatus(g.id);
-      return '<a class="gitem card ' + s[0] + '" href="#/grammar/' + g.id + '" data-t="' + esc(norm(g.title.zh + " " + g.title.vi + " " + g.title.en + " " + g.pattern)) + '" data-z="' + esc(g.title.zh + " " + g.pattern) + '"><span class="gnum">' + (i + 1) + '</span><span class="gtxt"><b class="zh">' + esc(g.title.zh) + "</b><small>" + M(g.title) + '</small></span><span class="gst">' + s[1] + "</span></a>";
+      return '<a class="gitem card ' + s[0] + '" data-st="' + s[0] + '" href="#/grammar/' + g.id + '" data-t="' + esc(norm(g.title.zh + " " + g.title.vi + " " + g.title.en + " " + g.pattern)) + '" data-z="' + esc(g.title.zh + " " + g.pattern) + '"><span class="gnum">' + (i + 1) + '</span><span class="gtxt"><b class="zh">' + esc(g.title.zh) + "</b><small>" + M(g.title) + '</small></span><span class="gst">' + s[1] + "</span></a>";
     }).join("") + "</div>";
     render(html, "learn");
     var q = document.getElementById("g-q"), cnt = document.getElementById("g-count");
     function apply() {
       var raw = gFilter.q.trim(), nq = norm(raw), n = 0;
       [].forEach.call(document.querySelectorAll(".glist .gitem"), function (el) {
-        var done = el.classList.contains("done");
-        var ok = (gFilter.st === "all" || (gFilter.st === "done") === done) && (!raw || el.getAttribute("data-z").indexOf(raw) >= 0 || (nq && el.getAttribute("data-t").indexOf(nq) >= 0));
+        var st = el.getAttribute("data-st"), f = gFilter.st;
+        var ok = (f === "all" || (f === "done" ? st === "done" : f === "never" ? st === "new" : st !== "done")) && (!raw || el.getAttribute("data-z").indexOf(raw) >= 0 || (nq && el.getAttribute("data-t").indexOf(nq) >= 0));
         el.hidden = !ok; if (ok) n++;
       });
       cnt.textContent = raw || gFilter.st !== "all" ? (n ? n + " of " + G.length + " grammar points" : "No grammar point matches.") : "";
@@ -4179,6 +4190,7 @@
       if (i >= order.length) {
         var st = gState(g.id), before = st.mastered;
         st.best = Math.max(st.best || 0, right); if (right >= 4) st.passes = (st.passes || 0) + 1;
+        st.n = (st.n || 0) + 1; st.d = Store.today(); // practised: feeds "Never practised" and the weekly review quiz
         if (right === 5 || (right >= 4 && st.passes >= 2)) st.mastered = true;
         Store.save(); Game.award(right * 2);
         render('<div class="card result">' + UI.mascot(right >= 4 ? "cheer" : "happy", 88) + "<h2>" + right + " / 5</h2>" +
@@ -4200,6 +4212,203 @@
         return M(q.explain);
       }, function () { i++; draw(); });
     })();
+  }
+
+  /* ---------- knowledge checks: grammar coverage, the weekly review quiz, lesson catch-up ---------- */
+  /* Which HSK 4 grammar points a lesson's grammar box teaches, matched on the pattern's parts (按照 -> g33 根据 / 按照).
+     A two-part pattern (只要……就……) only matches a point with the same parts in order, so a lone 就 or 也 never matches. */
+  var _dg = {};
+  function gClean(t) { return String(t || "").replace(/^关联词/, "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, ""); }
+  function gSegOk(seg, piece) { return seg.split("/").some(function (a) { return a === piece || (piece.length >= 2 && a.indexOf(piece) === 0); }); }
+  function gMatch(point, g) {
+    var segs = gClean(point).split(/…+/).filter(Boolean);
+    return gClean(g.title.zh).split("/").some(function (alt) {
+      var pieces = alt.split(/…+/).filter(Boolean), j = 0;
+      if (!pieces.length || (pieces.length === 1) !== (segs.length === 1)) return false;
+      return pieces.every(function (pc) { while (j < segs.length && !gSegOk(segs[j], pc)) j++; return j++ < segs.length; });
+    });
+  }
+  function dayGrammarIds(d) {
+    if (!d || !d.grammar || !d.grammar.point || !GLIST(4).length) return [];
+    var key = d.day + ":" + d.grammar.point;
+    return _dg[key] || (_dg[key] = GLIST(4).filter(function (g) { return gMatch(d.grammar.point, g); }).map(function (g) { return g.id; }));
+  }
+  function gTried(id) { var st = Store.state.grammar[id]; return !!st && st.n > 0; }
+  /* The grammar point to suggest: first one never practised from a lesson already done (its pattern is fresh), else the first not mastered. */
+  function nextGrammar() {
+    var s = Store.state, G = GLIST(4), fromDay = {}, open = function (g) { return !(s.grammar[g.id] || {}).mastered; };
+    DAYS.forEach(function (d) { if ((s.days[d.day] || {}).completed) dayGrammarIds(d).forEach(function (id) { if (!fromDay[id]) fromDay[id] = d.day; }); });
+    var g = G.filter(function (x) { return fromDay[x.id] && open(x) && !gTried(x.id); })[0];
+    if (g) return { g: g, day: fromDay[g.id] };
+    g = G.filter(open)[0];
+    return g ? { g: g } : null;
+  }
+  function grammarAct() {
+    var x = nextGrammar(); if (!x) return null;
+    return { txt: "Grammar: " + x.g.title.zh + (x.day ? " · from Day " + x.day + ", never practised" : ""), href: "#/grammar/" + x.g.id };
+  }
+
+  /* Weekly review quiz: about 10 questions only on what came in during the last 7 days, the words added to review
+     (word meaning, both ways) and the grammar points practised. Offered on Home from Friday (the 5th day of the week),
+     or earlier once 10 new words came in that week, until it is done that week (state.wquiz[week start]). */
+  var WQ_N = 10;
+  function wqWeek() { return weekStart(Store.today()); }
+  function wqPool() {
+    var s = Store.state, from = Store.addDays(Store.today(), -6);
+    var words = Object.keys(s.srs).filter(function (id) { var c = s.srs[id]; return c && c.added && c.added >= from && WORDMAP[id]; }).map(function (id) { return WORDMAP[id]; });
+    var gram = GLIST(4).concat(GLIST(5)).filter(function (g) { var st = s.grammar[g.id]; return st && st.d && st.d >= from && g.quiz && g.quiz.length; });
+    return { from: from, words: words, gram: gram };
+  }
+  function wqOffer() {
+    var s = Store.state, t = Store.today(), ws = wqWeek();
+    if ((s.wquiz || {})[ws]) return null;
+    var p = wqPool(), fresh = p.words.filter(function (w) { return s.srs[w.id].added >= ws; }).length;
+    if (p.words.length + p.gram.length < 4) return null; // too little for a quiz
+    if (Store.daysBetween(ws, t) < 4 && fresh < 10) return null;
+    return p;
+  }
+  function wqCard() {
+    var p = wqOffer(); if (!p) return "";
+    return '<a class="cta card g-teal wq-cta" href="#/weekly"><span class="cta-l"><small>Weekly review · once a week</small><b>🧠 Quiz on this week\'s words</b><em>' +
+      plural(p.words.length, "new word") + (p.gram.length ? " · " + plural(p.gram.length, "grammar point") : "") + " from the last 7 days</em></span><span class=\"cta-go\">▶</span></a>";
+  }
+  function wqRow() {
+    var r = (Store.state.wquiz || {})[wqWeek()], p = wqPool(), n = p.words.length + p.gram.length;
+    return '<a class="trackrow toolrow wq-row" href="#/weekly"><span class="t-ico">🧠</span><span class="tr-t"><small>' + (r ? "Weekly review · done this week ✓ " + r.s + "/" + r.n : "Weekly review quiz") + "</small><b>" +
+      (n ? plural(p.words.length, "word") + (p.gram.length ? " · " + plural(p.gram.length, "grammar point") : "") + " from the last 7 days" : "Words and grammar from the last 7 days") + '</b></span><span class="tr-go">›</span></a>';
+  }
+  function wqQuestions(p) {
+    var per = shuffle(p.gram).map(function (g) { return shuffle(g.quiz.map(function (q, k) { return { g: g, k: k }; })).slice(0, 2); }), gq = [];
+    [0, 1].forEach(function (r) { per.forEach(function (l) { if (l[r]) gq.push(l[r]); }); }); // one question per point first, then a second one
+    var words = shuffle(p.words), nG = Math.min(gq.length, Math.max(Math.min(4, gq.length), WQ_N - words.length)), nW = Math.min(words.length, WQ_N - nG);
+    return shuffle(gq.slice(0, nG).map(function (x) { return { kind: "g", g: x.g, k: x.k }; }).concat(words.slice(0, nW).map(function (w) { return { kind: "w", w: w }; })));
+  }
+  function viewWeeklyQuiz() {
+    var qs = wqQuestions(wqPool()), i = 0, right = 0, ws = wqWeek();
+    workDone = false;
+    if (!qs.length) {
+      render('<div class="card result">' + UI.mascot("think", 88) + '<h2>Nothing to review yet</h2><p class="sub">The weekly quiz asks about the words you added to review and the grammar you practised in the last 7 days. Add a lesson\'s words or practise a grammar point first.</p><div class="actions center"><a class="btn primary" href="#/learn">Learn</a></div></div>', "learn");
+      return;
+    }
+    function head() {
+      return '<div class="ghead"><a class="pill" href="#/learn" aria-label="Close quiz">✕</a><b>🧠 Weekly review</b><span class="ghr">' + (i + 1) + "/" + qs.length + "</span></div>" +
+        '<div class="bar"><span style="width:' + (i / qs.length * 100) + '%"></span></div>';
+    }
+    function finish() {
+      var s = Store.state; s.wquiz = s.wquiz || {};
+      var prev = s.wquiz[ws];
+      s.wquiz[ws] = { s: Math.max(prev ? prev.s : 0, right), n: qs.length };
+      Store.save();
+      render('<div class="card result wq-result">' + UI.mascot(right >= qs.length * 0.8 ? "cheer" : right >= qs.length / 2 ? "happy" : "sad", 96) + "<h2>" + right + " / " + qs.length + "</h2>" +
+        '<p class="sub">' + (prev ? "Practised again · best this week " + s.wquiz[ws].s + "/" + qs.length : "Weekly review done ✓ · the next one comes next week") + "</p>" +
+        '<p class="xp-earn">+' + right * 2 + ' XP</p><div class="actions center"><a class="btn primary" href="#/">Home</a><a class="btn" href="#/weekly" id="wq-again">↻ Again</a></div></div>', "learn");
+      document.getElementById("wq-again").onclick = function (ev) { ev.preventDefault(); viewWeeklyQuiz(); };
+      if (right >= qs.length * 0.8) UI.confetti(90);
+      Game.award(right * 2); // like the other quizzes: 2 XP a right answer
+    }
+    (function draw() {
+      if (i >= qs.length) return finish();
+      var x = qs[i];
+      if (x.kind === "w") { // reuse the Quick Quiz question: a miss brings the word back for review today
+        var q = Games._q.makeQ(x.w, ["h2m", "m2h"]);
+        render(head() + Games._q.qHTML(q), "learn");
+        Games._q.wireQ(q, function (ok) { if (ok) right++; markWork(); i++; draw(); });
+        return;
+      }
+      var gq = x.g.quiz[x.k], ord = shuffle(gq.options.map(function (o, k) { return k; }));
+      render(head() + '<div class="card qcard" id="qcard"><p class="sub">📐 <span class="zh">' + esc(x.g.title.zh) + '</span></p><p class="q zh">' + esc(gq.q) + '</p><div class="opts">' +
+        ord.map(function (o, n) { return '<button class="opt" data-k="' + o + '"><span class="opt-n">' + "ABCD"[n] + '</span><span class="zh">' + esc(gq.options[o]) + "</span></button>"; }).join("") + '</div><div id="qfb"></div></div>', "learn");
+      wireMC(gq.answer, function (ok) {
+        if (ok) right++; markWork();
+        Learn.record("gr:" + x.g.id + ":" + x.k, { kind: "gram", skill: gLvl(x.g.id) === 5 ? "h5-grammar" : "grammar", g: x.g.id, i: x.k }, ok);
+        return M(gq.explain);
+      }, function () { i++; draw(); });
+    })();
+  }
+
+  /* Lesson catch-up. While the plan says "behind" and new lessons still run (not in the final 14 days, not after the exam),
+     Home offers up to CU_PER_DAY short lessons a day: the next open lessons, each cut to its key words (flashcards),
+     its grammar box and a 5-question word check, with no dialogue, exercises or full quiz.
+     Pace: passing the check (4/5) marks the lesson completed, so it counts toward the plan, and flags it cu = date.
+     The Study plan says how many were catch-ups, and the flag goes when the full lesson quiz is passed.
+     A failed check counts for nothing (the words still go into review), so pace only moves when the words were known. */
+  var CU_PER_DAY = 2, CU_WORDS = 6;
+  /* key words: the lesson's HSK words first (what the exam tests), topped up with its C&B words; a review day takes its weakest words */
+  function cuWords(d) {
+    var ws = dayWords(d).slice();
+    if (d.type === "review") ws.sort(function (a, b) { return ((SRS.get(a.id) || {}).box || 0) - ((SRS.get(b.id) || {}).box || 0); });
+    var hsk = ws.filter(function (w) { return /^HSK[1-6]$/.test(w.level || ""); });
+    return hsk.concat(ws.filter(function (w) { return hsk.indexOf(w) < 0; })).slice(0, CU_WORDS);
+  }
+  function cuToday() { var s = Store.state, t = Store.today(); return Object.keys(s.days).filter(function (k) { return s.days[k] && s.days[k].cu === t; }).length; }
+  function cuLessons() {
+    var p = planInfo(), s = Store.state, left = CU_PER_DAY - cuToday();
+    if (p.status !== "behind" || p.inBuffer || p.afterExam || left <= 0) return [];
+    return DAYS.filter(function (d) { return d.day <= coreCut() && !(s.days[d.day] || {}).completed && dayWords(d).length; }).slice(0, left);
+  }
+  function cuCard(list) {
+    var p = planInfo();
+    return '<a class="cta card g-coral cu-cta" href="#/catchup"><span class="cta-l"><small>⏳ Behind plan · ' + plural(p.done, "lesson") + " done, " + p.expected + " planned by now</small><b>Catch up: " + plural(list.length, "short lesson") + " today</b><em>Day " +
+      list.map(function (d) { return d.day; }).join(" + Day ") + ': key words and the grammar point, no long dialogue</em></span><span class="cta-go">▶</span></a>';
+  }
+  function viewCatchup() {
+    var list = cuLessons(), k = 0, myHash = "#/catchup", res = [];
+    workDone = false;
+    if (!list.length) {
+      render('<div class="card result">' + UI.mascot("happy", 88) + '<h2>No catch-up needed today</h2><p class="sub">Short catch-up lessons are offered while you are behind the study plan, up to ' + CU_PER_DAY + ' a day, until the last ' + BUFFER_DAYS + ' days before the exam.</p><div class="actions center"><a class="btn primary" href="#/">Home</a><a class="btn" href="#/plan">Study plan</a></div></div>', "home");
+      return;
+    }
+    function head(d, what) { return '<div class="ghead"><a class="pill" href="#/" aria-label="Stop catch-up">✕</a><b>⏳ Day ' + d.day + " · " + what + '</b><span class="ghr">' + (k + 1) + "/" + list.length + "</span></div>"; }
+    function lesson() {
+      if (location.hash !== myHash) return;
+      if (k >= list.length) return summary();
+      var d = list[k], ws = cuWords(d);
+      SRS.addMany(ws.map(function (w) { return w.id; }));
+      runDeck({ title: "Day " + d.day + " · key words", words: ws, mode: "learn", back: "#/", onDone: function () { grammar(d, ws); } });
+    }
+    function grammar(d, ws) {
+      if (location.hash !== myHash) return;
+      var g = d.grammar; if (!g) return check(d, ws);
+      render(head(d, "grammar") + '<div class="card grammar cu-gram"><div class="g-point"><span class="zh">' + esc(g.point) + "</span>" + PY(g.py) + '</div><p class="g-mean">' + M(g.meaning) + "</p>" +
+        '<pre class="structure zh">' + esc(g.structure) + '</pre><p class="g-exp">' + M(g.explain) + "</p></div>" +
+        (g.examples || []).slice(0, 2).map(function (e) { return '<div class="card ex"><div class="ex-zh"><span class="zh">' + esc(e.zh) + "</span>" + SAY(e.zh) + "</div>" + PY(e.py) + '<div class="tr">' + M(e) + "</div></div>"; }).join("") +
+        '<div class="actions center"><button type="button" class="btn primary big" id="cu-next">Got it · 5-question check ›</button></div>', "learn");
+      document.getElementById("cu-next").onclick = function () { check(d, ws); };
+    }
+    function check(d, ws) {
+      var qs = shuffle(ws).slice(0, 5), i = 0, right = 0;
+      (function draw() {
+        if (location.hash !== myHash) return;
+        if (i >= qs.length) return result(d, ws, right, qs.length);
+        var q = Games._q.makeQ(qs[i], ["h2m", "m2h"]);
+        render(head(d, "check " + (i + 1) + "/" + qs.length) + '<div class="bar"><span style="width:' + (i / qs.length * 100) + '%"></span></div>' + Games._q.qHTML(q), "learn");
+        Games._q.wireQ(q, function (ok) { if (ok) right++; markWork(); i++; draw(); });
+      })();
+    }
+    function result(d, ws, right, n) {
+      var pass = right >= Math.ceil(n * 0.8), rec = Store.day(d.day), last = k + 1 >= list.length;
+      if (pass && !rec.completed) { rec.completed = true; rec.completedOn = Store.today(); rec.cu = Store.today(); }
+      Store.save();
+      if (pass) res.push(d.day);
+      render('<div class="card result cu-result">' + UI.mascot(pass ? "cheer" : "think", 88) + "<h2>Day " + d.day + ": " + right + " / " + n + "</h2>" +
+        '<p class="sub">' + (pass ? "Counts as done ✓ (catch-up). The dialogue and the full quiz stay open for later." : "Not counted yet: get " + Math.ceil(n * 0.8) + " of " + n + ". The words are in your review deck.") + "</p>" +
+        '<div class="actions center">' + (pass ? "" : '<button type="button" class="btn' + (last ? " primary" : "") + '" id="cu-retry">↻ Check again</button>') +
+        '<button type="button" class="btn' + (pass || !last ? " primary" : "") + '" id="cu-on">' + (last ? "Finish" : "Next lesson ›") + "</button></div></div>", "home");
+      var rt = document.getElementById("cu-retry"); if (rt) rt.onclick = function () { check(d, ws); };
+      document.getElementById("cu-on").onclick = function () { k++; lesson(); };
+      Game.award(right * 2, { silent: true });
+    }
+    function summary() {
+      var p = planInfo();
+      render('<div class="card result">' + UI.mascot(res.length ? "cheer" : "happy", 96) + "<h2>" + (res.length ? "Caught up " + plural(res.length, "lesson") + " 🎉" : "Catch-up finished") + "</h2>" +
+        '<p class="sub">' + p.done + " of " + p.total + " lessons done · " + p.expected + " planned by now.</p>" +
+        '<div class="actions center"><a class="btn primary" href="#/">Home</a><a class="btn" href="#/plan">Study plan</a></div></div>', "home");
+      if (res.length) UI.confetti(100);
+    }
+    render('<div class="card result"><h2>⏳ Catch-up · ' + plural(list.length, "short lesson") + '</h2><p class="sub">For each lesson: its key words as flashcards, the grammar point, then a 5-question check. Get 4 of 5 and the lesson counts as done; the dialogue and the full quiz stay open for later.</p><div class="tasks">' +
+      list.map(function (d) { return '<div class="task"><span class="tk-ico">📖</span><span>Day ' + d.day + ' · <span class="zh">' + esc(d.title.zh) + "</span> · " + plural(cuWords(d).length, "word") + (d.grammar || d._g ? " + grammar" : "") + "</span></div>"; }).join("") +
+      '</div><button type="button" class="btn primary big" id="cu-go">▶ Start</button></div>', "home");
+    document.getElementById("cu-go").onclick = lesson;
   }
 
   /* ---------- official practice log + score forecast ---------- */

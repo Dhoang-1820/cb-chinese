@@ -15,7 +15,7 @@
       version: 2,
       settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std", level: 4, h5: false }, // level: 4 or 5 = the Learn level switch; h5: HSK 5 was opened once (its data is then kept ready)
       srs: {},        // wordId -> { box, due, right, wrong, added, last }
-      days: {},       // dayNo -> { quizBest, practice: {}, completed }
+      days: {},       // dayNo -> { quizBest, practice: {}, completed, completedOn, cu: date it was done as a short catch-up lesson (cleared when its full quiz is passed) }
       streak: { count: 0, last: null, best: 0 },
       log: {},        // date -> XP earned that day
       xp: 0,
@@ -36,7 +36,8 @@
       mockHistory: [], // [{ id, date, mode, strict, total, sections, rep }]
       sessions: {},   // date -> true when Today's session was completed
       official: [],   // official past-paper results: [{ id, date, name, l, r, w }] (each section /100)
-      grammar: {},    // grammar point id (g01.. HSK 4, h5g01.. HSK 5) -> { best, passes, mastered }
+      grammar: {},    // grammar point id (g01.. HSK 4, h5g01.. HSK 5) -> { best, passes, mastered, n: practice rounds, d: last practised date }
+      wquiz: {},      // week-start date (Monday) -> { s: best score, n: questions } once that week's review quiz was done
       packs: {},      // word-pack quiz results: "h5-<pack>" (HSK 5) or "x4-<pack>" (extra HSK 4 words) -> { b: best score out of 10, p: plays }
       reports: [],    // "Report a problem" notes: [{ id, date, route, text, ctx }]
       weekly: {},     // { cur: snapshot at the start of this week, last: summary of last week } (see weekly report in app.js)
@@ -156,7 +157,18 @@
       return { id: String(o.id || Date.now()).replace(/[^0-9a-z]/gi, "").slice(0, 16) || String(Date.now()), date: /^\d{4}-\d{2}-\d{2}$/.test(o.date) ? o.date : today(),
         name: String(o.name || "Official paper").slice(0, 60), l: c(o.l), r: c(o.r), w: c(o.w) };
     });
-    Object.keys(d.grammar).forEach(function (k) { var g = d.grammar[k]; if (!/^(g|h5g)\d\d$/.test(k) || !g || typeof g !== "object") delete d.grammar[k]; else { g.best = n(g.best); g.passes = n(g.passes); g.mastered = !!g.mastered; } });
+    Object.keys(d.grammar).forEach(function (k) {
+      var g = d.grammar[k]; if (!/^(g|h5g)\d\d$/.test(k) || !g || typeof g !== "object") { delete d.grammar[k]; return; }
+      g.best = n(g.best); g.passes = n(g.passes); g.mastered = !!g.mastered;
+      /* n and d came later: an older entry with a score counts as practised once, with no date (so it is never "this week") */
+      g.n = Math.max(0, Math.round(n(g.n))) || (g.best > 0 || g.passes > 0 ? 1 : 0);
+      if (!DATE.test(g.d || "")) delete g.d;
+    });
+    if (!d.wquiz || typeof d.wquiz !== "object" || Array.isArray(d.wquiz)) d.wquiz = {};
+    Object.keys(d.wquiz).sort().reverse().forEach(function (k, i) { // keep the last 12 weeks
+      var v = d.wquiz[k]; if (i >= 12 || !DATE.test(k) || !v || typeof v !== "object") { delete d.wquiz[k]; return; }
+      d.wquiz[k] = { s: Math.max(0, Math.min(20, Math.round(n(v.s)))), n: Math.max(0, Math.min(20, Math.round(n(v.n)))) };
+    });
     var sts = d.stats; ["cards", "correct", "perfectQuizzes", "bossWins", "nightOwl", "hearts", "ladderRun", "ladderMiss"].forEach(function (k) { if (sts[k] != null) sts[k] = n(sts[k]); });
     if (sts.ladder != null) sts.ladder = Math.max(0, Math.min(3, Math.round(n(sts.ladder)))); // stays unset until the first drill picks a start speed
     if (!d.weekly || typeof d.weekly !== "object" || Array.isArray(d.weekly)) d.weekly = {};

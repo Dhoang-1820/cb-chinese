@@ -1335,10 +1335,143 @@ async def t_mocks2(b):
     out = subprocess.run(["node", "tools/validate.js"], cwd=root, capture_output=True, text=True)
     check("mocks2: the content validator passes with 8 mock exams", out.returncode == 0 and "Mock exams        : 8" in out.stdout and "PASS  Mock exams well-formed" in out.stdout, out.stdout[-400:] + out.stderr[-400:])
 
+# ----------------------------------------------------------------------------------------------------------------------
+HOOK_Q = "(()=>{if(window.__qh)return;window.__qh=1;const o=Games._q.makeQ;Games._q.makeQ=function(w,t){const q=o(w,t);window.__q=q;return q}})()"
+
+
+async def answer_q(pg, right=True):
+    """Answer the current word question (Quick Quiz style) right or wrong, using the question the app just built."""
+    k = await pg.evaluate("(r=>{const q=window.__q,i=q.opts.findIndex(o=>o.id===q.w.id);return r?i:(i+1)%%q.opts.length})(%s)" % ("true" if right else "false"))
+    await pg.click(".opt[data-k='%d']" % k); await pg.click("#qnext"); await pg.wait_for_timeout(80)
+
+
+async def t_knowledge2(b):
+    # --- weekly review quiz: only words added and grammar practised in the last 7 days
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
+    pick = await pg.evaluate("(()=>{const seen={},out=[];App.WORDS.filter(w=>w._day).forEach(w=>{if(!seen[w.hanzi]){seen[w.hanzi]=1;out.push(w.id)}});return out.slice(0,14)})()")
+    await ctx.close()
+    new, old = pick[:10], pick[10:]
+    srs = {i: {"box": 1, "due": day(0), "right": 0, "wrong": 0, "added": day(0), "last": None} for i in new}
+    srs.update({i: {"box": 3, "due": day(5), "right": 2, "wrong": 0, "added": day(-10), "last": day(-3)} for i in old})
+    gram = {"g01": {"best": 3, "passes": 0, "mastered": False, "n": 1, "d": day(-1)}, "g02": {"best": 4, "passes": 1, "mastered": False, "n": 2, "d": day(-12)},
+            "g03": {"best": 3, "passes": 0, "mastered": False}}
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": srs, "grammar": gram})
+    g3 = await pg.evaluate("Store.state.grammar.g03")
+    check("weekly quiz: older grammar progress counts as practised once, with no date", g3.get("n") == 1 and "d" not in g3, g3)
+    check("weekly quiz: offered on Home once 10 new words came in this week", await pg.locator("a.wq-cta").count() == 1)
+    await go(pg, "#/learn", 600)
+    check("weekly quiz: reachable from Learn", await pg.locator("a.wq-row[href='#/weekly']").count() == 1)
+    await pg.evaluate(HOOK_Q)
+    await go(pg, "#/weekly", 900); await pg.wait_for_selector(".opts", timeout=15000)
+    total = int((await pg.locator(".ghr").inner_text()).split("/")[1])
+    g01 = await pg.evaluate("CB_GRAMMAR.find(g=>g.id==='g01').title.zh")
+    words, grams, xp0 = [], [], await pg.evaluate("Store.state.xp")
+    for _ in range(total):
+        await no_dialogs(pg)
+        gt = pg.locator(".qcard > p.sub .zh")
+        if await gt.count():
+            grams.append(await gt.inner_text())
+            await pg.click(".opts .opt >> nth=0"); await pg.click("#qnext"); await pg.wait_for_timeout(80)
+        else:
+            words.append(await pg.evaluate("window.__q.w.id")); await answer_q(pg, True)
+    check("weekly quiz: about 10 questions mixing words and grammar", total == 10 and len(words) == 8 and len(grams) == 2, (total, len(words), len(grams)))
+    check("weekly quiz: words only from the last 7 days", words and all(w in new for w in words), words)
+    check("weekly quiz: grammar only from points practised in the last 7 days", grams and all(g == g01 for g in grams), grams)
+    await pg.wait_for_selector(".wq-result")
+    st = await pg.evaluate("Store.state.wquiz")
+    check("weekly quiz: completion is recorded for this week, with XP like other quizzes", len(st) == 1 and list(st.values())[0]["n"] == 10 and await pg.evaluate("Store.state.xp") - xp0 >= 16, (st, xp0))
+    await no_dialogs(pg)
+    await go(pg, "#/", 800)
+    check("weekly quiz: hidden on Home once done this week", await pg.locator("a.wq-cta").count() == 0)
+    await go(pg, "#/learn", 500)
+    check("weekly quiz: Learn says it is done this week", "done this week" in (await pg.locator("a.wq-row").inner_text()).lower())
+    # practising a grammar point records the round and the date
+    await go(pg, "#/grammar/g05/practice", 900); await pg.wait_for_selector(".opts")
+    for _ in range(5):
+        await no_dialogs(pg); await pg.click(".opts .opt >> nth=0"); await pg.click("#qnext"); await pg.wait_for_timeout(80)
+    g5 = await pg.evaluate("Store.state.grammar.g05")
+    check("grammar practice: records one round and today's date", g5.get("n") == 1 and g5.get("d") == await pg.evaluate("Store.today()"), g5)
+    await ctx.close()
+    # offered from the 5th day of the week; on Monday with only a few new words it waits
+    monday = TODAY - datetime.timedelta(days=TODAY.weekday())
+    for off, want in ((0, 0), (4, 1)):
+        d = (monday + datetime.timedelta(days=off)).isoformat()
+        srs = {i: {"box": 1, "due": d, "right": 0, "wrong": 0, "added": d, "last": None} for i in new[:5]}
+        ctx, pg = await open_app(b, {"settings": settings(), "srs": srs})
+        await pg.clock.install(time=datetime.datetime.combine(monday + datetime.timedelta(days=off), datetime.time(10, 0)))
+        await pg.reload(); await pg.wait_for_selector(".quests")
+        check("weekly quiz: %s with 5 new words" % ("not offered on Monday" if not want else "offered on Friday"), await pg.locator("a.wq-cta").count() == want)
+        await ctx.close()
+
+    # --- lesson catch-up: only when behind plan and not in the final 14 days
+    behind = {"settings": settings(examDate=day(30), coreTarget=30), "srs": {}, "log": {day(-20): 30, day(-1): 20},
+              "days": {str(n): {"quizBest": 8, "practice": {}, "completed": True, "completedOn": day(-20)} for n in (1, 2, 3)}}
+    ctx, pg = await open_app(b, behind)
+    await go(pg, "#/", 800)
+    cta = pg.locator("a.cu-cta")
+    txt = await cta.inner_text() if await cta.count() else ""
+    check("catch-up: offered on Home when behind plan", "Catch up: 2 short lessons today" in txt and "Day 4 + Day 5" in txt, txt)
+    check("catch-up: takes the place of Continue (no duplicate card)", await pg.locator("a.cta[href^='#/day/']").count() == 0 and await pg.locator("a.mini-link[href='#/day/4']").count() == 1)
+    plan_txt = await pg.locator(".today").text_content()
+    check("catch-up: Today's plan uses the same wording", "Catch up: 2 short lessons" in plan_txt and "Finish Day" not in plan_txt, plan_txt[:200])
+    await pg.evaluate(HOOK_Q)
+    await cta.click(); await pg.wait_for_selector("#cu-go", timeout=15000)
+    await pg.click("#cu-go"); await pg.wait_for_selector(".fcard")
+    n = int((await pg.locator(".deck-top span").last.inner_text()).split("/")[1])
+    check("catch-up: only the lesson's key words as flashcards", n == 6, n)
+    for _ in range(n):
+        await pg.click("#flip"); await pg.click("#gotit"); await pg.wait_for_timeout(350)
+    await pg.wait_for_selector("#cu-next", timeout=5000)
+    check("catch-up: the grammar point, no dialogue", await pg.locator(".cu-gram .g-point").count() == 1 and await pg.locator(".chat, .msg").count() == 0)
+    await pg.click("#cu-next"); await pg.wait_for_selector(".opts")
+    for _ in range(5):
+        await no_dialogs(pg); await answer_q(pg, True)
+    await pg.wait_for_selector(".cu-result")
+    rec = await pg.evaluate("Store.state.days[4]")
+    check("catch-up: a passed check counts the lesson as done, flagged as catch-up", rec.get("completed") and rec.get("cu") == await pg.evaluate("Store.today()"), rec)
+    await no_dialogs(pg)
+    await pg.click("#cu-on"); await pg.wait_for_selector(".fcard")
+    for _ in range(int((await pg.locator(".deck-top span").last.inner_text()).split("/")[1])):
+        await pg.click("#flip"); await pg.click("#gotit"); await pg.wait_for_timeout(350)
+    await pg.wait_for_selector(".opts", timeout=5000)  # Day 5 is a review day: no grammar box, straight to the check
+    for _ in range(5):
+        await no_dialogs(pg); await answer_q(pg, False)
+    await pg.wait_for_selector(".cu-result")
+    check("catch-up: a failed check does not count", not await pg.evaluate("!!(Store.state.days[5]||{}).completed") and await pg.locator("#cu-retry").count() == 1)
+    await no_dialogs(pg)
+    await go(pg, "#/plan", 700)
+    check("catch-up: the study plan says how many lessons were catch-ups", "1 of them as short catch-up lessons" in await pg.inner_text("#app"))
+    await ctx.close()
+    ctx, pg = await open_app(b, dict(behind, settings=settings(examDate=day(10), coreTarget=30)))
+    await go(pg, "#/", 800)
+    check("catch-up: not offered in the final 14 days", await pg.locator("a.cu-cta").count() == 0)
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "log": {day(-1): 30}, "days": {str(n): {"quizBest": 8, "practice": {}, "completed": True, "completedOn": day(-1)} for n in (1, 2)}})
+    await go(pg, "#/", 800)
+    check("catch-up: not offered when on track", await pg.locator("a.cu-cta").count() == 0 and await pg.locator("a.cta[href='#/day/3']").count() == 1)
+    await go(pg, "#/catchup", 900)
+    check("catch-up: the page explains when it is offered", "No catch-up needed" in await pg.inner_text("#app"))
+
+    # --- grammar coverage: never practised / practised / mastered
+    await pg.evaluate("(()=>{Store.state.grammar={g01:{best:5,passes:2,mastered:true,n:2,d:Store.today()},g02:{best:3,passes:0,mastered:false,n:1},g33:{best:0,passes:0,mastered:false,n:0}};Store.save()})()")
+    await pg.wait_for_function("!!window.CB_FULL", timeout=15000)
+    await go(pg, "#/grammar", 900)
+    cov = await pg.locator("#g-cov").inner_text()
+    check("grammar coverage: counts at the top", "68 never practised" in cov and "1 practised, not mastered" in cov and "1 mastered" in cov, cov)
+    await pg.click("[data-gf='never']"); await pg.wait_for_timeout(200)
+    vis = await pg.locator(".gitem:not([hidden])").count()
+    check("grammar coverage: 'Never practised' filter", vis == 68 and await pg.locator(".gitem[href='#/grammar/g02']:not([hidden])").count() == 0
+          and "Never practised" in await pg.locator(".gitem:not([hidden])").first.inner_text(), vis)
+    await pg.click("[data-gf='all']")
+    await go(pg, "#/", 900)
+    foc = await pg.locator(".focus-plan").text_content()
+    check("grammar coverage: Home suggests the never-practised point from a finished lesson", "根据 / 按照 · from Day 1, never practised" in foc, foc[:300])
+    await ctx.close()
+
 
 GROUPS = [("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2)]
 PW = None
 
 

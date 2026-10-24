@@ -1769,16 +1769,47 @@ async def t_admin_group(b):
     groups = await pg.locator(".lt-alg").all_inner_texts()
     check("admin_group: one attention card per learner", len(groups) == 1 and groups[0].count("Nhi") == 1, groups)
     g = groups[0] if groups else ""
-    check("admin_group: the card holds no-study, reviews and mistakes; a stale backup is not repeated next to no-study",
-          "Nothing for 7 days" in g and "31 words" in g and "16 misses" in g and "Last saved" not in g, g)
+    check("admin_group: the card holds no-data, reviews and mistakes; a stale backup is not repeated next to it",
+          "Nothing received for 7 days" in g and "backup is paused" in g and "31 words" in g and "16 misses" in g and "Last saved" not in g, g)
     check("admin_group: the idle 16 XP backup is folded away, not alerted", await pg.locator(".lt-test").count() == 1 and await pg.locator(".lt-card").count() == 1 and "(1)" in await pg.inner_text(".lt-test summary"))
     small = await pg.evaluate("[...document.querySelectorAll('.lt-alg .lt-al, .lt-test summary')].filter(e=>e.getBoundingClientRect().height<44).length")
     check("admin_group: alert lines are at least 44px tall", small == 0, small)
     await ctx.close()
 
+async def t_sync_heal(b):
+    """A backup paused by a 'conflict' that is really this phone's own earlier save (reply lost when iOS suspended the app)
+    heals itself; a real conflict with a copy that is ahead stays paused and shows on Home."""
+    cfg = "JSON.parse(localStorage.getItem('cbChinese.sync')||'{}')"
+    c1, p1 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await p1.evaluate("Game.award(40)"); await no_dialogs(p1)
+    check("sync_heal: first save", await p1.evaluate("Sync.now()") == "saved")
+    # the server saved rev 2 but the phone never heard back: it still thinks rev 1
+    await p1.evaluate("Game.award(5)"); await p1.evaluate("Sync.now()")
+    await p1.evaluate("(()=>{const c=%s;c.rev=1;localStorage.setItem('cbChinese.sync',JSON.stringify(c))})()" % cfg)
+    await p1.evaluate("Game.award(5)")
+    r = await p1.evaluate("Sync.now()"); c = await p1.evaluate(cfg)
+    check("sync_heal: a lost reply does not pause backup; the phone catches up and saves", r == "saved" and c.get("rev") == 3 and "conflict" not in c, (r, c))
+    # a phone already paused before this fix (older copy on the server) heals on its next save
+    await p1.evaluate("(()=>{const c=%s;c.conflict={at:new Date().toISOString(),meta:{xp:10,words:0,last:''}};c.rev=1;delete c.mark;localStorage.setItem('cbChinese.sync',JSON.stringify(c))})()" % cfg)
+    r = await p1.evaluate("Sync.now()"); c = await p1.evaluate(cfg)
+    check("sync_heal: an existing pause by an older copy heals by itself", r == "saved" and "conflict" not in c, (r, c))
+    # a real conflict: the server copy is ahead (more XP), so the learner must choose; Home says so
+    code = c["code"]
+    c2, p2 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await p2.evaluate("localStorage.setItem('cbChinese.sync',JSON.stringify({code:%s,rev:%d}))" % (json.dumps(code), c["rev"]))
+    await p2.evaluate("Game.award(500)"); await no_dialogs(p2)
+    check("sync_heal: the other phone (ahead) saves", await p2.evaluate("Sync.now()") == "saved")
+    await p1.evaluate("Game.award(1)")
+    r = await p1.evaluate("Sync.now()")
+    check("sync_heal: a copy that is ahead still pauses backup (nothing overwritten)", r == "conflict", r)
+    await go(p1, "#/", 800)
+    t = await p1.locator(".sync-paused").inner_text() if await p1.locator(".sync-paused").count() else ""
+    check("sync_heal: Home shows that backup is paused and links to Me", "Backup paused" in t and await p1.locator(".sync-paused").get_attribute("href") == "#/me", t)
+    await c1.close(); await c2.close()
+
 GROUPS = [("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal)]
 PW = None
 
 

@@ -1362,3 +1362,8 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .w2-row summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; min-height: 44px; }
 .w2-mine { flex-basis: 100%; color: var(--muted); }
 .w2-sc { margin-left: auto; }
+/* Home: cloud backup paused or failing */
+.sync-paused { display: flex; flex-direction: column; gap: 4px; color: var(--text); border: 2px solid #e8b35a; background: #fff6e3; }
+.sync-paused small { color: var(--muted); font-weight: 600; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sync-paused { background: #3a2f18; border-color: #8a6a2a; } }
+:root[data-theme="dark"] .sync-paused { background: #3a2f18; border-color: #8a6a2a; }

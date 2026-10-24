@@ -919,7 +919,7 @@
     /* final 14 days: readiness and the final-days plan come first; new lessons become a small link */
     var plan = planCard(), tip = tipCard(plan ? coachStatus(coachLast()) : [], fin);
     homeAt = Date.now(); homeDay = Store.today();
-    var back = comebackCard(), ep = examPlanCard();
+    var back = syncPausedCard() + comebackCard(), ep = examPlanCard();
     var cu = fin ? [] : cuLessons(), wq = wqCard();
     /* behind plan: the catch-up card takes the place of "Continue", with the full lesson one tap away */
     if (cu.length) cont0 = cuCard(cu) + '<a class="mini-link" href="#/day/' + nd.day + '">Or open Day ' + nd.day + " in full ›</a>";
@@ -1925,7 +1925,8 @@
   var LRN_OVERDUE = 30, LRN_OVERDUE_HOT = 100, LRN_REPEAT = 10;
   function lrnAlerts(r) {
     var out = [], sm = r.summary || {}, d = lrnIdle(r), st = sm.streak, vo = sm.vocab, up = Math.floor((Date.now() - new Date(r.updated_at).getTime()) / 864e5), ew = lrnExamWarn(r);
-    if (d != null && d >= 3) out.push({ k: "No study", t: "Nothing for " + d + " days · last " + String(r.meta.last).slice(5), hot: true });
+    if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1) out.push({ k: "No data", t: "Nothing received for " + up + " days · last study " + String(r.meta.last).slice(5) + ". Either not studying, or backup is paused on the phone: ask", hot: true });
+    else if (d != null && d >= 3) out.push({ k: "No study", t: "Nothing for " + d + " days · last " + String(r.meta.last).slice(5), hot: true });
     else if (st && st.n === 0 && st.best >= 3 && d != null && d >= 1) out.push({ k: "Streak", t: "Streak broken · best was " + num(st.best) + " days", hot: false });
     if (vo && num(vo.overdue) >= LRN_OVERDUE) out.push({ k: "Reviews", t: num(vo.overdue) + " words waiting more than 3 days", hot: num(vo.overdue) >= LRN_OVERDUE_HOT });
     (sm.patterns || []).forEach(function (p) {
@@ -4139,7 +4140,7 @@
   function syncNow(force) {
     var c = syncCfg();
     if (c.off || !Store.available || !Store.state.settings.onboarded || !AI.available()) return Promise.resolve("off");
-    if (c.conflict && !force) return Promise.resolve("conflict");
+    if (c.conflict && !force) { if (syncBehind(c.conflict.meta)) force = true; else return Promise.resolve("conflict"); } // paused earlier by a copy that isn't ahead: heal
     if (!c.code && !Store.state.xp) return Promise.resolve("off"); // nothing worth keeping yet
     if (syncBusy) return syncBusy;
     var mark = syncMark(); if (!force && c.code && c.mark === mark) return Promise.resolve("same");
@@ -4151,12 +4152,29 @@
       /* "too_big" from a server that knows backups means this backup is over its limit; from an older server it means "no backup task" */
       if (!r.ok) { n.err = r.error === "too_big" && size > SYNC_LIMIT - 20000 ? "sync_big" : r.error === "too_big" || r.error === "bad_task" ? "bad_task" : r.error; syncSave(n); return r.error; }
       delete n.err;
-      if (r.result.conflict) { n.conflict = { at: r.result.updated_at, meta: r.result.meta || {} }; syncSave(n); return "conflict"; }
+      if (r.result.conflict) {
+        /* Usually not another phone: iOS suspended the app while a save was on its way, the server kept it, the reply was lost,
+           so this phone still has the old number. When the server's copy is not ahead of this phone in anything, keep this phone. */
+        if (!force && syncBehind(r.result.meta)) { n.rev = r.result.rev; syncSave(n); return syncNow(true); }
+        n.conflict = { at: r.result.updated_at, meta: r.result.meta || {} }; syncSave(n); return "conflict";
+      }
       n.rev = r.result.rev; n.last = Date.now(); n.mark = mark; delete n.conflict; syncSave(n);
       if (first) UI.toast("Your progress is now backed up online (Me → Cloud backup)", "☁️");
       return "saved";
     });
     return syncBusy;
+  }
+  /* the server copy has no more XP, words or study days than this phone, so keeping this phone loses nothing */
+  function syncBehind(m) {
+    m = m || {}; var st = Store.state;
+    return num(m.xp) <= num(st.xp) && num(m.words) <= Object.keys(st.srs).length && String(m.last || "") <= String(st.streak.last || "");
+  }
+  function syncPausedCard() {
+    var c = syncCfg(); if (!c.code || c.off) return "";
+    var stale = c.last && Date.now() - c.last > 2 * 864e5;
+    if (!c.conflict && !(c.err && stale)) return "";
+    return '<a class="card warn-card sync-paused" href="#/me"><b>☁️ Backup ' + (c.conflict ? "paused" : "failing") + "</b><small>" +
+      (c.conflict ? "Another copy of your progress was saved. Choose which one to keep in Me → Cloud backup. Until then your teacher sees old numbers." : "Your progress hasn't been saved online for " + Math.floor((Date.now() - c.last) / 864e5) + " days. Tap to check.") + "</small></a>";
   }
   function syncSoon() { clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncNow(); }, 20000); }
   function syncRestore(code) {

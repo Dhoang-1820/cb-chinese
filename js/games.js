@@ -875,5 +875,5 @@
       c.wire();
     })();
   }
-  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _drillQ: drillQ, _drillItem: function (type, id) { return drillItems(type, /^h5/.test(id) ? 5 : 4).filter(function (x) { return x.id === id; })[0] || null; }, H5_DESC: H5_DESC, _hwSkill: hwSkill, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
+  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _drillQ: drillQ, _drillItem: function (type, id) { return drillItems(type, /^h5/.test(id) ? 5 : 4).filter(function (x) { return x.id === id; })[0] || null; }, H5_DESC: H5_DESC, _drillList: function (type) { return drillItems(type, 4); }, _hwSkill: hwSkill, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
 })();

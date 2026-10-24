@@ -353,8 +353,8 @@
   /* What a screen still needs before it can be drawn: "full", "mocks", "h5", "x4". */
   function missing(v, parts) {
     var m = [], a = parts[1] || "", b = parts[2] || "";
-    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder|reading)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes" || v === "weekly" || v === "catchup")) m.push("full");
-    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
+    if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || v === "parts" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder|reading)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes" || v === "weekly" || v === "catchup")) m.push("full");
+    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || v === "parts" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
     var hard5 = (v === "learn" && (a === "h5" || a === "h5p" || (!a && Store.state.settings.level === 5))) || (v === "pack" && a === "h5") || (v === "grammar" && /^h5/.test(a)) || (v === "game" && (b === "h5" || /^p-h5-/.test(b))) || (v === "cards" && /^p-h5-/.test(a));
     var hard4 = (v === "learn" && a === "extra") || (v === "pack" && a === "x4") || v === "families" || (v === "game" && /^p-x4-/.test(b)) || (v === "cards" && /^p-x4-/.test(a));
     /* screens that list or review words wait once for the packs this learner uses, so those words are there too */
@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -418,7 +418,7 @@
     if (EXAM && EXAM.strict && !EXAM.finished && !(v === "mock" && parseInt(parts[1], 10) === EXAM.id && /^(listening|reading|writing|result)$/.test(parts[2] || ""))) { // simulator: leaving (or going back to the intro) ends the attempt
       clearExamTimer(); EXAM = null; UI.toast("Simulator attempt ended", "🎯");
     }
-    if (!(v === "mock" && parts[2] && parts[2] !== "result")) clearExamTimer(); // leaving an exam pauses its clock
+    if (!(v === "mock" && parts[2] && !/^(result|review|sim)$/.test(parts[2]))) clearExamTimer(); // leaving an exam pauses its clock
     var pending = needs(v, parts);
     if (pending.length) {
       var h = location.hash;
@@ -457,6 +457,7 @@
     else if (v === "learners") viewLearners(parts[1], parts[2]);
     else if (v === "track") viewTrack(parseInt(parts[1], 10) || 0, parseInt(parts[2], 10) || 0);
     else if (v === "mistakes") viewMistakes(parts[1]);
+    else if (v === "parts") viewParts(parts[1]);
     else if (v === "plan") viewPlan();
     else if (v === "exam") viewExamPlan();
     else if (v === "ready") viewReady();
@@ -465,12 +466,14 @@
     else if (v === "mock") {
       if (!parts[1]) viewMockList();
       else if (parts[2] === "result") viewMockResult(parts[1]);
+      else if (parts[2] === "review") viewMockReview(parts[1]);
+      else if (parts[2] === "sim") { var sm0 = MOCKMAP[parseInt(parts[1], 10)]; if (sm0) { clearExamTimer(); EXAM = null; viewSimPreflight(sm0.id, sm0); } else viewMockIntro(parts[1]); }
       else if (!parts[2]) viewMockIntro(parts[1]);
       else viewMockSection(parts[1], parts[2]);
     }
     else viewHome();
     fillExtras();
-    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home" }[v] || "home";
+    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", parts: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] || "C&B 中文";
     document.getElementById("page-title").textContent = title;
@@ -2276,9 +2279,63 @@
   var LETTERS = ["A", "B", "C", "D"];
 
   function num(x) { x = +x; return isFinite(x) ? Math.round(x) : 0; }
+  /* ---------- Exam parts: one part of the exam, timed at the real pace ----------
+     Questions come from the shorter tests only, so the full-length sets stay fresh for the exam-plan rehearsals.
+     Seconds per question follow the real HSK 4: listening ~30 min for 45, reading 40 min for 40, writing 25 min for 15. */
+  var PARTS = [
+    { k: "L1", name: "Listening part 1", what: "True or false", skill: "listen-tf", sec: 40, n: 10 },
+    { k: "L2", name: "Listening part 2", what: "Short dialogues", skill: "listen-short", sec: 40, n: 10 },
+    { k: "L3", name: "Listening part 3", what: "Longer dialogues and talks", skill: "listen-long", sec: 40, n: 10 },
+    { k: "R1", name: "Reading part 1", what: "Choose the word for the gap", skill: "fill-word", sec: 60, n: 10 },
+    { k: "R2", name: "Reading part 2", what: "Put three sentences in order", skill: "ordering", sec: 60, n: 10, drill: "order" },
+    { k: "R3", name: "Reading part 3", what: "Passages and questions", skill: "passage", sec: 60, n: 10 },
+    { k: "W1", name: "Writing part 1", what: "Arrange the words", skill: "word-order", sec: 80, n: 10 },
+    { k: "W2", name: "Writing part 2", what: "One sentence for a picture and word", skill: "writing", sec: 180, n: 5 }];
+  function partItems(k) {
+    var P = PARTS.filter(function (p) { return p.k === k; })[0], out = [];
+    if (P && P.drill) { // the shorter tests have no ordering items: use the Sentence Order drill set (same exam format)
+      return (Games._drillList ? Games._drillList(P.drill) : []).map(function (it) { return { kind: "drill", skill: P.skill, d: P.drill, id: it.id, key: "dr:" + P.drill + ":" + it.id }; });
+    }
+    MOCK.forEach(function (m) {
+      if (m.full) return;
+      mockItems(m).forEach(function (x) { if (x.it.id.split("-")[0] === k && !x.it.parts) out.push({ kind: "mock", skill: x.skill, mock: m.id, item: x.it.id, key: "m:" + m.id + ":" + x.it.id }); });
+    });
+    return out;
+  }
+  function weakParts() {
+    var acc = {}; Learn.report(5, true).forEach(function (r) { acc[r.skill] = Math.round(r.acc * 100); });
+    return PARTS.filter(function (p) { return acc[p.skill] != null && acc[p.skill] < 80; }).map(function (p) { return { k: p.k, name: p.name, acc: acc[p.skill] }; })
+      .sort(function (a, b) { return a.acc - b.acc; });
+  }
+  function viewParts(k) {
+    var P = PARTS.filter(function (p) { return p.k === k; })[0];
+    if (P) {
+      var all = partItems(P.k), open = Learn.list().reduce(function (o, e) { o[e.key] = 1; return o; }, {});
+      var missed = shuffle(all.filter(function (e) { return open[e.key]; })), rest = shuffle(all.filter(function (e) { return !open[e.key]; }));
+      var items = missed.concat(rest).slice(0, P.n); // your open mistakes from this part first
+      if (!items.length) { location.replace("#/parts"); return; }
+      return runMistakeDrill("all", { items: items, title: P.name, icon: "⏱", timer: items.length * P.sec, exit: "#/parts", again: "#/parts/" + P.k, againFn: function () { viewParts(P.k); } });
+    }
+    var weak = weakParts(), acc = {}; Learn.report(5, true).forEach(function (r) { acc[r.skill] = Math.round(r.acc * 100); });
+    var html = '<section class="card g-violet"><h2>⏱ Exam parts</h2><p class="sub">Ten questions from one part of the exam, with one clock at the real pace. Your open mistakes from that part come first. Questions come from the shorter tests, so the full-length tests stay new for your rehearsals.</p>' +
+      (weak.length ? '<a class="btn primary big" href="#/parts/' + weak[0].k + '">▶ Your weakest: ' + esc(weak[0].name) + " (" + weak[0].acc + "%)</a>" : "") + "</section>";
+    var sec = "";
+    PARTS.forEach(function (p) {
+      var s0 = SEC_ICON[p.k.charAt(0)];
+      if (s0 !== sec) { if (sec) html += "</div></section>"; sec = s0; html += '<section class="card"><h3>' + s0 + '</h3><div class="glist">'; }
+      var n = Math.min(p.n, partItems(p.k).length);
+      html += '<a class="grow" href="#/parts/' + p.k + '"><span class="g-txt"><b>' + esc(p.name) + " · " + esc(p.what) + "</b><small>" + n + " questions · " + fmtTime(n * p.sec) + " min" + (acc[p.skill] != null ? " · you: " + acc[p.skill] + "%" : "") + '</small></span><span class="tr-go">›</span></a>';
+    });
+    html += "</div></section>" + '<section class="card"><h3>More practice, untimed</h3><div class="glist">' +
+      '<a class="grow" href="#/game/bank"><span class="g-txt"><b>🗃️ Word Bank</b><small>Six words, five gaps · Reading part 1</small></span><span class="tr-go">›</span></a>' +
+      '<a class="grow" href="#/game/wordorder"><span class="g-txt"><b>🧱 Arrange the Words</b><small>Writing part 1</small></span><span class="tr-go">›</span></a>' +
+      '<a class="grow" href="#/game/picture"><span class="g-txt"><b>🖼️ Picture Writing</b><small>Writing part 2 · AI scores your sentence</small></span><span class="tr-go">›</span></a></div></section>';
+    render(html, "me");
+  }
   function viewMockList() {
     var s = Store.state;
-    var html = '<section class="card"><h2>Mock HSK 4 Exams</h2><p class="sub">Original questions in the real exam format. The shorter tests are about 40% of the real length (~30 minutes); a <b>full-length</b> test has all 100 questions and the real timing (~100 minutes) to train your stamina. Scored /300 like the real test — 180+ is a pass.</p></section>';
+    var html = '<section class="card"><h2>Mock HSK 4 Exams</h2><p class="sub">Original questions in the real exam format. The shorter tests are about 40% of the real length (~30 minutes); a <b>full-length</b> test has all 100 questions and the real timing (~100 minutes) to train your stamina. Scored /300 like the real test — 180+ is a pass.</p></section>' +
+      '<a class="cta card g-violet" href="#/parts"><span class="cta-l"><small>10 questions at the real exam\'s pace</small><b>⏱ Practise one exam part</b><em>' + (weakParts()[0] ? "Weakest: " + esc(weakParts()[0].name) + " · " + weakParts()[0].acc + "%" : "Listening, reading or writing, one part at a time") + '</em></span><span class="cta-go">▶</span></a>';
     if (!MOCK.length) html += '<p class="warn">No mock exams loaded.</p>';
     MOCK.forEach(function (m) {
       var rec = s.mocks[m.id];
@@ -2660,10 +2717,14 @@
     var s = Store.state, rec = s.mocks[EXAM.id] || { best: 0, plays: 0 };
     // rep: this set was seen before (in any mode), so the forecast counts the score less
     var rep = rec.plays > 0 || s.mockHistory.some(function (h) { return h.id === EXAM.id; });
+    var ws = EXAM.test.writing.p2.some(function (it) { return EXAM.answers[it.id] !== undefined && EXAM.w2s[it.id] == null; }); // a sentence marked by the learner, not the AI
     s.mockHistory.push({ id: EXAM.id, date: Store.today(), mode: EXAM.mode, strict: !!EXAM.strict, total: result.total,
-      sections: { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score }, rep: rep });
+      sections: { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score }, rep: rep, full: !!EXAM.test.full, ws: ws });
     EXAM.rep = rep;
     rec.plays = (rec.plays || 0) + 1; rec.lastScore = result.total;
+    rec.wrong = mockItems(EXAM.test).filter(function (x) { return !mockCorrect(x, EXAM.answers[x.it.id]); }).map(function (x) {
+      var a = EXAM.answers[x.it.id]; return [x.it.id, a === undefined ? null : x.kind === "write" ? String(EXAM.w2t[x.it.id] || "").slice(0, 150) : a];
+    }).slice(0, 100); // kept for the review screen: [item id, the learner's answer]
     rec.lastSections = { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score };
     if (result.total > (rec.best || 0)) rec.best = result.total;
     s.mocks[EXAM.id] = rec; Store.save();
@@ -2675,6 +2736,89 @@
     sc = Math.max(0, Math.min(100, num(sc)));
     return '<div class="score-row"><span>' + label + "</span><div class=\"score-bar\"><span style=\"width:" + sc + "%\"></span></div><b>" + sc + "/100</b></div>";
   }
+  /* Where the points went: HSK 4 has no minimum per section (only 180/300 overall), so this shows which section costs most. */
+  function lostHTML(r) {
+    var secs = [["Listening", r.listening.score], ["Reading", r.reading.score], ["Writing", r.writing.score]].map(function (x) { return [x[0], 100 - num(x[1])]; });
+    var srt = secs.slice().sort(function (a, b) { return b[1] - a[1]; }), worst = srt[0][1] > srt[1][1] ? srt[0] : null, margin = r.total - 180;
+    return '<section class="card lost-card"><h3>Where the points went</h3><div class="lost-row">' + secs.map(function (x) {
+      return '<div class="' + (x === worst ? "worst" : "") + '"><b>−' + x[1] + "</b><small>" + x[0] + "</small></div>";
+    }).join("") + "</div>" +
+      '<p class="sub">' + (margin >= 0 ? "You are " + margin + " points above the pass mark (180)." : "You need " + (-margin) + " more points to pass (180).") +
+      (worst ? " The most to gain is in <b>" + worst[0] + "</b>." : "") + " There is no minimum per section: points from any section count the same.</p></section>";
+  }
+  function reviewBtn(id) {
+    var w = ((Store.state.mocks[id] || {}).wrong || []).length;
+    return w ? '<a class="btn big rev-btn" href="#/mock/' + id + '/review" style="margin-bottom:10px">🔍 Review ' + plural(w, "mistake") + " with explanations</a>" : "";
+  }
+  /* answer as the learner saw it: option text, True/False, an order like B → A → C, or the sentence they built */
+  function ansText(x, a) {
+    var it = x.it; if (a === null || a === undefined || a === "") return "—";
+    if (x.kind === "tf") return a === true || a === "true" ? "True" : "False";
+    if (x.kind === "order" || x.kind === "write") return String(a);
+    if (it.parts) return (ORDERS[a] || "").split("").join(" → ");
+    return it.options && it.options[a] != null ? String(it.options[a]) : String(a);
+  }
+  function rightText(x) {
+    var it = x.it;
+    if (x.kind === "tf") return it.answer ? "True" : "False";
+    if (x.kind === "order") return it.answer;
+    if (x.kind === "write") return it.sample;
+    if (it.parts) return (it.orderKey || ORDERS[it.answer] || "").split("").join(" → ");
+    return String(it.options[it.answer]);
+  }
+  function scriptOf(x) { var it = x.it; return x.kind === "tf" || x.kind === "aud" ? it.audio.text : x.kind === "dlg" ? it.dialogue.map(function (l) { return l.text; }).join(" / ") : ""; }
+  function promptOf(x) {
+    var it = x.it;
+    if (x.kind === "tf") return it.statement;
+    if (x.kind === "dlg" || x.kind === "aud") return it.question;
+    if (x.kind === "pass") return it.q;
+    if (x.kind === "order") return it.tokens.join(" / ");
+    if (x.kind === "write") return it.emoji + " " + it.word;
+    if (it.parts) return ["A", "B", "C"].map(function (k) { return k + ". " + it.parts[k]; }).join("  ");
+    return it.sentence || it.q || "";
+  }
+  var SEC_ICON = { L: "🎧 Listening", R: "📖 Reading", W: "✍️ Writing" };
+  /* Review after a mock: every wrong or skipped question with what was played or read, the learner's answer, the key,
+     and "Why?" from the AI (the app's key is treated as the truth). Works for the last attempt of each set. */
+  function viewMockReview(idStr) {
+    var id = parseInt(idStr, 10), m = MOCKMAP[id], rec = Store.state.mocks[id] || {};
+    if (!m) { location.replace("#/mock"); return; }
+    var list = (rec.wrong || []).map(function (w) { var x = findMockItem(id, w[0]); return x ? { x: x, a: w[1] } : null; }).filter(Boolean);
+    if (!list.length) { render('<section class="card"><h2>🔍 Review</h2><p class="sub">No mistakes saved for this test. Take it to see a review here.</p><a class="btn" href="#/mock/' + id + '">' + esc(m.title) + "</a></section>", "mock"); return; }
+    var ai = !!(window.AI && AI.available()), sec = "";
+    var html = '<section class="card g-coral"><h2>🔍 ' + plural(list.length, "mistake") + " to review</h2><p class=\"sub\">" + esc(m.title) + " · your last attempt. Read what you missed, then practise them again." + (ai ? " Tap 🤖 Why? for an explanation." : "") + "</p>" +
+      '<button type="button" class="btn primary" id="rv-drill">▶ Practise these ' + list.length + "</button></section>";
+    list.forEach(function (r, k) {
+      var x = r.x, it = x.it, s0 = SEC_ICON[it.id.charAt(0)] || "";
+      if (s0 !== sec) { sec = s0; html += '<h3 class="sec">' + s0 + "</h3>"; }
+      var sc = scriptOf(x);
+      html += '<section class="card rv-item" id="rv-' + k + '"><p class="sub">' + skillName(x.skill) + "</p>" +
+        (sc ? '<p class="script zh">🎧 ' + esc(sc) + SAY(sc, it.audio ? it.audio.voice : undefined) + "</p>" : "") +
+        (x.kind === "pass" ? '<details class="rv-pass"><summary>Show the passage</summary><div class="passage-in zh">' + linkWords(x.passage) + "</div></details>" : "") +
+        '<p class="q zh">' + esc(promptOf(x)) + "</p>" +
+        '<p class="rv-a bad-t">✘ Yours: <span class="zh">' + esc(ansText(x, r.a)) + "</span></p>" +
+        '<p class="rv-a good-t">✔ ' + (x.kind === "write" ? "Model" : "Right") + ': <span class="zh">' + esc(rightText(x)) + "</span></p>" +
+        (ai && x.kind !== "write" ? '<button type="button" class="btn small ai-btn" data-why="' + k + '">🤖 Why?</button><div class="ai-out" id="rv-out-' + k + '"></div>' : "") + "</section>";
+    });
+    render(html + '<a class="btn big" href="#/mock/' + id + '/result">‹ Back to the result</a>', "mock");
+    document.getElementById("rv-drill").onclick = function () {
+      var items = list.map(function (r) { return { kind: "mock", skill: r.x.skill, mock: id, item: r.x.it.id, key: "m:" + id + ":" + r.x.it.id }; });
+      runMistakeDrill("all", { items: items, title: "Mock " + id + " mistakes", icon: "🔍", exit: "#/mock/" + id + "/review" });
+    };
+    [].forEach.call(document.querySelectorAll("[data-why]"), function (b) {
+      b.onclick = function () {
+        var r = list[+b.getAttribute("data-why")], x = r.x, it = x.it, out = document.getElementById("rv-out-" + b.getAttribute("data-why"));
+        var q = (x.kind === "pass" ? x.passage + " | " : "") + promptOf(x);
+        var opts = x.kind === "tf" ? ["True", "False"] : it.parts ? ORDERS.map(function (o) { return o.split("").join(" → "); }) : it.options ? it.options.map(String) : [];
+        b.disabled = true; out.innerHTML = '<div class="ai-card ai-wait">🤖 Thinking…</div>';
+        AI.call("explain", { skill: x.skill, question: q.slice(-400), options: opts, chosen: r.a == null ? "" : ansText(x, r.a), correct: rightText(x), extra: scriptOf(x).slice(0, 300) }).then(function (res) {
+          b.disabled = false;
+          if (!res.ok) { out.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + "</div>"; return; }
+          b.hidden = true; out.innerHTML = AI._explainCard(res);
+        });
+      };
+    });
+  }
   function viewMockResult(idStr) {
     var id = parseInt(idStr, 10);
     if (!EXAM || EXAM.id !== id || !EXAM.finished) {
@@ -2683,7 +2827,7 @@
       render('<section class="card ' + (rec.best >= 180 ? "g-teal" : "g-coral") + '"><h2>' + esc((MOCKMAP[id] || {}).title || "Mock test") + '</h2><p class="score-big">' + num(rec.lastScore) + "/300</p>" +
         '<p>' + (rec.lastSections ? secBar("Listening", rec.lastSections.listening) + secBar("Reading", rec.lastSections.reading) + secBar("Writing", rec.lastSections.writing) : "") +
         '</p><p class="sub">Best so far: ' + num(rec.best) + "/300 over " + num(rec.plays) + " attempt" + (rec.plays > 1 ? "s" : "") + '.</p>' + (rec.plays > 1 ? REP_NOTE : "") + "</section>" +
-        '<a class="btn primary big" href="#/mock/' + id + '">Try again</a><a class="btn big" href="#/mock" style="margin-top:10px">All mock exams</a>', "mock");
+        reviewBtn(id) + '<a class="btn primary big" href="#/mock/' + id + '">Try again</a><a class="btn big" href="#/mock" style="margin-top:10px">All mock exams</a>', "mock");
       return;
     }
     var r = EXAM.result, pass = r.pass;
@@ -2692,8 +2836,8 @@
     var html = '<section class="card ' + (pass ? "g-teal" : "g-coral") + '">' + (pass ? UI.anim("noto-trophy", 84, UI.mascot("cheer", 64)) : UI.mascot("wow", 64)) +
       '<h2>' + (pass ? "Pass! 🎉" : "Keep practicing") + '</h2>' + (EXAM.strict ? '<p><span class="tag t-hsk">🎯 Exam simulator</span></p>' : "") + '<p class="score-big">' + r.total + "/300</p>" +
       "<p>" + secBar("Listening", r.listening.score) + secBar("Reading", r.reading.score) + secBar("Writing", r.writing.score) + "</p>" +
-      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p>" + (EXAM.rep ? REP_NOTE : "") + "</section>" + w2ResultHTML() + weakHTML(r.skills) + focusCard() +
-      '<a class="btn primary big" href="#/mock/' + id + '">Try again</a><a class="btn big" href="#/mock" style="margin-top:10px">All mock exams</a>';
+      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p>" + (EXAM.rep ? REP_NOTE : "") + "</section>" + lostHTML(r) + w2ResultHTML() + weakHTML(r.skills) + focusCard() +
+      reviewBtn(id) + '<a class="btn primary big" href="#/mock/' + id + '">Try again</a><a class="btn big" href="#/mock" style="margin-top:10px">All mock exams</a>';
     render(html, "mock");
   }
 
@@ -2726,6 +2870,7 @@
 
   function viewMistakes(skill) {
     if (skill) {
+      if (skill === "repeat") return runMistakeDrill("all", { items: repeatItems(), title: "Repeat mistakes", icon: "🔁", exit: "#/mistakes", again: "#/mistakes/repeat", againFn: function () { viewMistakes("repeat"); } });
       if (skill !== "all" && !Learn.SKILLS[skill]) { location.replace("#/mistakes"); return; }
       return runMistakeDrill(skill);
     }
@@ -2733,7 +2878,8 @@
     var bySkill = {};
     all.forEach(function (x) { if (Learn.SKILLS[x.skill]) bySkill[x.skill] = (bySkill[x.skill] || 0) + 1; });
     var html = '<section class="card g-coral"><h2>📒 Mistake notebook</h2><p class="sub">Every wrong answer from quizzes, games and mock exams lands here. Get it right ' + Learn.CLEAR_AFTER + " times in a row to clear it.</p>" +
-      '<p class="score-big">' + all.length + "</p>" + (all.length ? '<a class="btn big" id="mis-all" href="#/mistakes/all">▶ Drill all mistakes</a>' : "") + "</section>";
+      '<p class="score-big">' + all.length + "</p>" + (all.length ? '<a class="btn big" id="mis-all" href="#/mistakes/all">▶ Drill all mistakes</a>' : "") +
+      (repeatItems().length ? '<a class="btn big" id="mis-rep" href="#/mistakes/repeat" style="margin-top:10px">🔁 Fix ' + plural(repeatItems().length, "repeat mistake") + "</a><p class=\"sub\">Missed " + Learn.REPEAT_N + "+ times in 14 days. Each clears after " + Learn.CLEAR_AFTER + " right answers in a row.</p>" : "") + "</section>";
     if (all.length) {
       html += '<section class="card"><h2>Open mistakes by skill</h2>' + Object.keys(bySkill).sort(function (a, b) { return bySkill[b] - bySkill[a]; }).map(function (k) {
         return '<div class="sk-row"><span class="sk-n">' + skillName(k) + '</span><a class="btn small primary" href="#/mistakes/' + k + '">' + bySkill[k] + " ▶</a></div>";
@@ -3031,15 +3177,38 @@
     return !!(r && r.weakest && r.weakest.k === "R");
   }
 
+  /* notebook items missed again and again (Learn.repeats), most-missed first */
+  function repeatItems() {
+    return Learn.list().filter(function (e) { return Learn.repeats(e.key); }).sort(function (a, b) { return Learn.repeats(b.key) - Learn.repeats(a.key); }).slice(0, 10);
+  }
   function runMistakeDrill(skill, o) {
     o = o || {};
     var pool = shuffle(Learn.list(skill === "all" ? null : skill));
     pool.sort(function (a, b) { return (Learn.repeats(b.key) ? 1 : 0) - (Learn.repeats(a.key) ? 1 : 0); }); // items that keep going wrong first: they get a Learn it card
-    var items = pool.slice(0, o.limit || 10), i = 0, right = 0, skipped = 0;
-    var title = skill === "all" ? "All mistakes" : Learn.SKILLS[skill].en;
-    if (!items.length) { if (o.onDone) return o.onDone(0); location.replace("#/mistakes"); return; }
-    (function draw() {
+    var items = o.items ? o.items.slice() : pool.slice(0, o.limit || 10), i = 0, right = 0, skipped = 0;
+    var title = o.title || (skill === "all" ? "All mistakes" : Learn.SKILLS[skill].en);
+    if (!items.length) { if (o.onDone) return o.onDone(0); location.replace(o.exit || "#/mistakes"); return; }
+    /* timed part practice: one clock for the whole run, at the real exam's pace; at zero the run ends */
+    var myHash = location.hash, t0 = Date.now(), clock = null, timeUp = false;
+    if (o.timer) clock = setInterval(function () {
+      if (location.hash !== myHash || i >= items.length) { clearInterval(clock); return; }
+      var left = o.timer - Math.floor((Date.now() - t0) / 1000), el = document.getElementById("dr-clock");
+      if (el) { el.textContent = fmtTime(left); el.classList.toggle("low", left <= 30); }
+      if (left <= 0) { clearInterval(clock); timeUp = true; i = items.length; draw(); }
+    }, 1000);
+    function draw() {
       if (i >= items.length) {
+        if (clock) clearInterval(clock);
+        if (o.items && !o.onDone) {
+          var done = items.length - skipped, used = Math.round((Date.now() - t0) / 1000);
+          Game.award(right * 2);
+          render('<div class="card result">' + UI.mascot(right >= done * 0.8 ? "cheer" : "happy", 88) + "<h2>" + (timeUp ? "⏰ Time's up · " : "") + right + " / " + done + " right</h2>" +
+            (o.timer ? '<p class="sub">' + (timeUp ? "The real exam gives you the same time for these questions. Unanswered ones count as wrong there." : "Time used: " + fmtTime(used) + " of " + fmtTime(o.timer) + ".") + "</p>" : "") +
+            '<p class="sub">Wrong answers are in your mistake notebook.</p><div class="actions center">' + (o.again ? '<a class="btn primary" href="' + o.again + '" id="again">↻ Again</a>' : "") +
+            '<a class="btn" href="' + (o.exit || "#/mistakes") + '">Back</a></div></div>', "review");
+          var ag0 = document.getElementById("again"); if (ag0 && o.againFn) ag0.onclick = function (ev) { ev.preventDefault(); o.againFn(); };
+          return;
+        }
         var left = Learn.count(skill === "all" ? null : skill);
         Game.award(right * 2, o.onDone ? { silent: true } : undefined);
         if (o.onDone) return o.onDone(right);
@@ -3057,13 +3226,14 @@
         if (loaded) { delete Store.state.mistakes[e.key]; Store.save(); } // its source really is gone
         skipped++; i++; return draw();
       }
-      var head = '<div class="ghead"><a class="pill" href="' + (o.exit || "#/mistakes") + '">✕</a><b>📒 ' + esc(title) + '</b><span class="ghr">' + (i + 1) + "/" + items.length + "</span></div>" +
+      var head = '<div class="ghead"><a class="pill" href="' + (o.exit || "#/mistakes") + '">✕</a><b>' + (o.icon || "📒") + " " + esc(title) + '</b><span class="ghr">' + (o.timer ? '<span class="dr-clock" id="dr-clock">' + fmtTime(o.timer - Math.floor((Date.now() - t0) / 1000)) + "</span> · " : "") + (i + 1) + "/" + items.length + "</span></div>" +
         '<div class="bar"><span style="width:' + (i / items.length * 100) + '%"></span></div>';
       var reps = Learn.repeats(e.key), seenKey = Store.today() + "|" + e.key, li = null; try { li = reps && !learnItSeen[seenKey] ? learnItCard(e, reps) : null; } catch (er) { li = null; }
       if (li) { learnItSeen[seenKey] = 1; render(head + li.html, "review"); li.wire(draw); return; } // teach first, then the same item is asked
       render(head + q.html, "review");
-      q.wire(function (ok) { if (ok) right++; i++; draw(); });
-    })();
+      q.wire(function (ok) { if (timeUp) return; if (ok) right++; i++; draw(); });
+    }
+    draw();
   }
 
   /* ---------- 6-month "C&B Professional Chinese" track ----------
@@ -3760,7 +3930,7 @@
   function inActivity() {
     var p = location.hash.replace(/^#\/?/, "").split("/"), v = p[0];
     var active = v === "game" || v === "cards" || v === "session" || (v === "day" && p[2] === "quiz") ||
-      (v === "mock" && p[2] && p[2] !== "result") || (v === "mistakes" && p[1]) || (v === "grammar" && p[2] === "practice") || v === "check";
+      (v === "mock" && p[2] && !/^(result|review|sim)$/.test(p[2])) || (v === "mistakes" && p[1]) || (v === "parts" && p[1]) || (v === "grammar" && p[2] === "practice") || v === "check";
     return active && (workDone || simRunning()) && !app.querySelector(".result, .score-big");
   }
   function simRunning() { return !!(EXAM && EXAM.strict && !EXAM.finished && /^#\/mock\/\d+\/(listening|reading|writing)/.test(location.hash)); }
@@ -4357,6 +4527,8 @@
     if (wo) steps.push({ id: "weak-order", icon: "🧱", name: "Word order focus: " + plural(cfg.weak, "sentence") + " (" + wo + "% so far)", n: cfg.weak });
     if (readingWeakest()) steps.push({ id: "reading", icon: "📖", name: "Reading: " + plural(cfg.read, "question") + " (your weakest section)", n: cfg.read });
     if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: "Listen to " + plural(cfg.listen, "sentence"), n: cfg.listen });
+    /* writing part 2 every day while the AI is on: two sentences, scored by the AI examiner */
+    if (window.AI && AI.available()) steps.push({ id: "write", icon: "✍️", name: "Write 2 sentences (AI scores them)", n: 2 });
     /* optional last step, only with the AI on and online: a 3-reply role-play on the current lesson's topic */
     var tsc = window.AI && AI.available() ? talkForSession() : null;
     if (tsc) steps.push({ id: "talk", icon: "🗣️", name: "Talk 3 minutes (optional): " + (Store.state.settings.lang === "vi" ? tsc.t.vi : tsc.t.en), scene: tsc.id, optional: true });
@@ -4403,7 +4575,8 @@
   }
   function secFocus(k) {
     var lang = Store.state.settings.lang === "vi" ? "vi" : "en", w = Learn.report(5).filter(function (x) { return SEC_OF[x.info.sec] === k && x.acc < 0.9; })[0];
-    return w ? { txt: SEC_NAME[k] + " · " + w.info[lang] + " (" + Math.round(w.acc * 100) + "%)", href: w.open ? "#/mistakes/" + w.skill : SKILL_LINK[w.skill] || SEC_GO[k] }
+    var part = w && PARTS.filter(function (p) { return p.skill === w.skill; })[0]; // a skill that is an exam part: practise that part at the real pace
+    return w ? { txt: SEC_NAME[k] + " · " + w.info[lang] + " (" + Math.round(w.acc * 100) + "%)", href: part ? "#/parts/" + part.k : w.open ? "#/mistakes/" + w.skill : SKILL_LINK[w.skill] || SEC_GO[k] }
       : { txt: SEC_NAME[k] + " practice", href: SEC_GO[k] };
   }
   /* Which set to take next: a never-taken set first (fresh questions give a true score), otherwise the one
@@ -4417,7 +4590,8 @@
     var taken = function (m) { return last[m.id] != null || ((s.mocks[m.id] || {}).plays || 0) > 0; };
     var m = MOCK.slice().sort(function (a, b) {
       var la = last[a.id] || "", lb = last[b.id] || "";
-      return (taken(a) ? 1 : 0) - (taken(b) ? 1 : 0) || (full ? (b.full ? 1 : 0) - (a.full ? 1 : 0) : 0) || (la < lb ? -1 : la > lb ? 1 : 0) || a.id - b.id;
+      /* final-week days need a full-length set (a repeat if all are taken); earlier mock days use the short sets, keeping the full ones fresh */
+      return (full ? (b.full ? 1 : 0) - (a.full ? 1 : 0) : (a.full ? 1 : 0) - (b.full ? 1 : 0)) || (taken(a) ? 1 : 0) - (taken(b) ? 1 : 0) || (la < lb ? -1 : la > lb ? 1 : 0) || a.id - b.id;
     })[0];
     return { m: m, rep: taken(m) };
   }
@@ -4432,7 +4606,8 @@
       else if ((left - 2) % 3 === 0) {
         var nm = nextMock(left <= 8, planned);
         if (nm) planned.push(nm.m.id);
-        e = { ico: "📝", txt: (left <= 8 ? (nm && !nm.m.full ? "Mock exam, timed" : "Full mock exam, timed") : "Mock exam") + (nm ? " · Test " + nm.m.id + (nm.rep ? " (repeat)" : "") : ""), href: nm ? "#/mock/" + nm.m.id : "#/mock", kind: "mock" };
+        var sim = left <= 8 && nm && nm.m.full; // final week: the full set in the strict simulator, like the real day
+        e = { ico: sim ? "🎯" : "📝", txt: (left <= 8 ? (sim ? "Full mock in the exam simulator" : "Mock exam, timed") : "Mock exam") + (nm ? " · Test " + nm.m.id + (nm.rep ? " (repeat)" : "") : ""), href: nm ? "#/mock/" + nm.m.id + (sim ? "/sim" : "") : "#/mock", kind: "mock" };
       }
       else { var f = secFocus(pat[left % 4]); e = { ico: "🎯", txt: f.txt, href: f.href, kind: "focus" }; }
       e.d = d; e.left = left;
@@ -4481,6 +4656,7 @@
       else if (st.id === "weak-order") Games.run("wordorder", "", { count: st.n || 3, onDone: next, exit: "#/" });
       else if (st.id === "reading") Games.run("reading", "", { count: st.n || 3, onDone: next, exit: "#/" });
       else if (st.id === "talk") viewTalk(st.scene, { mini: 3, onDone: next, exit: "#/" });
+      else if (st.id === "write") Games.run("picture", "", { count: st.n || 2, onDone: next, exit: "#/" });
       else if (st.id === "listen") Games.run("drill", "", { count: st.n || 3, onDone: next, exit: "#/" });
     }
     function summary() {
@@ -4849,20 +5025,28 @@
   function forecast() {
     var s = Store.state, pts = [], hist = mockHist();
     var firsts = hist.filter(function (x) { return !x.rep; }).slice(-6).reverse(), reps = hist.filter(function (x) { return x.rep; }).slice(-3).reverse();
-    var appPt = function (w) { return function (x, k) { var h = x.h; pts.push({ w: w * (h.mode === "practice" ? 0.6 : 1) * Math.pow(0.8, k), l: num(h.sections.listening), r: num(h.sections.reading), wr: num(h.sections.writing), src: "app" }); }; };
-    byDate(s.official || []).slice(-6).reverse().forEach(function (o, k) { pts.push({ w: 2.5 * Math.pow(0.8, k), l: o.l, r: o.r, wr: o.w, src: "official" }); });
+    /* practice mode (instant feedback) and short 40-question sets say less about the real 100-question exam; writing the
+       learner marked against a model (instead of the AI examiner) counts at half weight. Older entries: set size from the test. */
+    var nShort = 0, nSelf = 0;
+    var appPt = function (w) { return function (x, k) {
+      var h = x.h, mm = MOCKMAP[h.id], short = h.full === false || (h.full == null && (mm ? !mm.full : (window.CB_MOCK_FULL || [4, 5, 6]).indexOf(h.id) < 0)), self = h.ws !== false;
+      if (short) nShort++; if (self) nSelf++;
+      var ww = w * (h.mode === "practice" ? 0.6 : 1) * (short ? 0.7 : 1) * Math.pow(0.8, k);
+      pts.push({ w: ww, ww: ww * (self ? 0.5 : 1), l: num(h.sections.listening), r: num(h.sections.reading), wr: num(h.sections.writing), src: "app" });
+    }; };
+    byDate(s.official || []).slice(-6).reverse().forEach(function (o, k) { var wo = 2.5 * Math.pow(0.8, k); pts.push({ w: wo, ww: wo, l: o.l, r: o.r, wr: o.w, src: "official" }); });
     firsts.forEach(appPt(1));
     if (firsts.length) reps.forEach(appPt(REP_W)); else reps = []; // with no first attempt at all (old odd data) nothing is discounted
     if (!firsts.length) hist.slice(-6).reverse().forEach(appPt(1));
     if (!pts.length) return null;
-    var W = pts.reduce(function (a, p) { return a + p.w; }, 0);
+    var W = pts.reduce(function (a, p) { return a + p.w; }, 0), WW = pts.reduce(function (a, p) { return a + p.ww; }, 0);
     var avg = function (f) { return pts.reduce(function (a, p) { return a + p.w * p[f]; }, 0) / W; };
-    var L = avg("l"), R = avg("r"), Wr = avg("wr"), T = L + R + Wr;
+    var L = avg("l"), R = avg("r"), Wr = pts.reduce(function (a, p) { return a + p.ww * p.wr; }, 0) / WW, T = L + R + Wr;
     var sd = Math.sqrt(pts.reduce(function (a, p) { var t = p.l + p.r + p.wr; return a + p.w * (t - T) * (t - T); }, 0) / W);
     var spread = Math.round(Math.max(pts.length === 1 ? 25 : 12, sd * 1.2));
     var weakest = [["Listening", L], ["Reading", R], ["Writing", Wr]].sort(function (a, b) { return a[1] - b[1]; })[0];
     return { total: Math.round(T), lo: Math.max(0, Math.round(T - spread)), hi: Math.min(300, Math.round(T + spread)), L: Math.round(L), R: Math.round(R), W: Math.round(Wr), weakest: weakest[0],
-      nOff: Math.min(6, (s.official || []).length), nApp: firsts.length || Math.min(6, hist.length), nRep: reps.length };
+      nOff: Math.min(6, (s.official || []).length), nApp: firsts.length || Math.min(6, hist.length), nRep: reps.length, nShort: nShort, nSelf: nSelf };
   }
   /* "2 official + 3 first-attempt mocks + 1 repeat (counts less)" */
   function fcBasis(f) {
@@ -4885,7 +5069,8 @@
     return '<section class="card"><div class="sec-h"><h2>🔮 Score forecast</h2><span class="tag ' + verdict[0] + '">' + verdict[1] + '</span></div>' +
       '<p class="score-big">~' + f.total + ' <small>/300 · likely ' + f.lo + "–" + f.hi + "</small></p>" +
       secBar("Listening", f.L) + secBar("Reading", f.R) + secBar("Writing", f.W) +
-      '<p class="sub">Based on ' + esc(basis) + ". Official papers count most. Focus next: <b>" + f.weakest + "</b>." + (f.nOff ? "" : " Log an official paper for a more reliable forecast.") + "</p></section>";
+      '<p class="sub">Based on ' + esc(basis) + ". Official papers count most. Focus next: <b>" + f.weakest + "</b>." + (f.nOff ? "" : " Log an official paper for a more reliable forecast.") + "</p>" +
+      (f.nShort || f.nSelf ? '<p class="sub fc-honest">Counted less: ' + [f.nShort ? plural(f.nShort, "short 40-question set") : "", f.nSelf ? "writing you marked yourself in " + plural(f.nSelf, "mock") : ""].filter(Boolean).join(" · ") + ". A full mock in the exam simulator, with AI-scored writing, gives the truest number.</p>" : "") + "</section>";
   }
   /* ---------- global events & boot ---------- */
   document.addEventListener("click", function (e) {

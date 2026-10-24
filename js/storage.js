@@ -146,11 +146,14 @@
       var r = d.mocks[k]; if (!r || typeof r !== "object") { delete d.mocks[k]; return; }
       r.best = n(r.best); r.plays = n(r.plays); r.lastScore = n(r.lastScore);
       if (r.lastSections) ["listening", "reading", "writing"].forEach(function (s) { r.lastSections[s] = n(r.lastSections[s]); });
+      if (r.wrong !== undefined) r.wrong = (Array.isArray(r.wrong) ? r.wrong : []).filter(function (w) { return Array.isArray(w) && typeof w[0] === "string"; }).slice(0, 100)
+        .map(function (w) { var a = w[1]; return [w[0].slice(0, 20), typeof a === "number" || typeof a === "boolean" ? a : typeof a === "string" ? a.slice(0, 150) : null]; });
     });
     d.mockHistory = (Array.isArray(d.mockHistory) ? d.mockHistory : []).filter(function (h) { return h && typeof h === "object"; }).map(function (h) {
       var sec = h.sections || {};
       return { id: n(h.id), date: /^\d{4}-\d{2}-\d{2}$/.test(h.date) ? h.date : today(), mode: h.mode === "practice" ? "practice" : "exam", strict: !!h.strict, total: n(h.total),
-        sections: { listening: n(sec.listening), reading: n(sec.reading), writing: n(sec.writing) }, rep: h.rep === true }; // rep: retake of a seen set (older entries: derived from order)
+        sections: { listening: n(sec.listening), reading: n(sec.reading), writing: n(sec.writing) }, rep: h.rep === true, // rep: retake of a seen set (older entries: derived from order)
+        full: typeof h.full === "boolean" ? h.full : undefined, ws: typeof h.ws === "boolean" ? h.ws : undefined }; // full-length set; ws: writing self-marked (unset = older entry)
     });
     d.official = (Array.isArray(d.official) ? d.official : []).filter(function (o) { return o && typeof o === "object"; }).map(function (o) {
       var c = function (x) { x = n(x); return Math.max(0, Math.min(100, Math.round(x))); };

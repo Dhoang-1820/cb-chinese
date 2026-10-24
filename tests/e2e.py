@@ -1469,7 +1469,7 @@ async def t_engage(b):
     mocks = [10 - i for i, k in enumerate(kinds) if k == "ep-mock"]
     check("exam plan: a mock every third day, counted back from 2 days before (8, 5, 2 days left)", mocks == [8, 5, 2], mocks)
     check("exam plan: every other day is a section focus", all(k == "ep-focus" for i, k in enumerate(kinds) if 10 - i not in (0, 1, 2, 5, 8)), kinds)
-    check("exam plan: the final-week mock is the full timed one", "Full mock exam" in rows[kinds.index("ep-mock")], rows)
+    check("exam plan: the final-week mock is a full set in the exam simulator", "Full mock in the exam simulator" in rows[kinds.index("ep-mock")] and await pg.locator(".ep-mock a[href$='/sim']").count() == 3, rows)
     check("exam plan: links go to real screens", await pg.evaluate("[...document.querySelectorAll('.ep-list a')].every(a=>/^#\\/[a-z]/.test(a.getAttribute('href')))"))
     await ctx.close()
     ctx, pg = await open_app(b, {"settings": settings(examDate=day(30)), "srs": {}})
@@ -1552,8 +1552,15 @@ async def t_mocks2(b):
     ctx, pg = await open_app(b, {"settings": settings(examDate=day(10)), "srs": {}, "mockHistory": taken, "mocks": {str(i): {"best": 220, "plays": 1, "lastScore": 220} for i in range(1, 7)}})
     await go(pg, "#/exam", 1200); await pg.wait_for_selector(".ep-list li", timeout=10000)
     rows = await pg.evaluate("[...document.querySelectorAll('.ep-list li.ep-mock a')].map(a=>[a.getAttribute('href'),a.innerText.replace(/\\s+/g,' ')])")
-    check("mocks2: the plan uses the untaken sets 7 and 8 first, not as repeats", [r[0] for r in rows[:2]] == ["#/mock/7", "#/mock/8"] and not any("repeat" in r[1] for r in rows[:2]), rows)
-    check("mocks2: once every set is taken, the plan picks the oldest full set and says (repeat)", len(rows) == 3 and rows[2][0] == "#/mock/4" and "(repeat)" in rows[2][1], rows)
+    check("mocks2: final-week mock days use full sets in the simulator, oldest first, even as repeats",
+          [r[0] for r in rows] == ["#/mock/4/sim", "#/mock/5/sim", "#/mock/6/sim"] and all("(repeat)" in r[1] for r in rows), rows)
+    await ctx.close()
+    # 21 days out, nothing taken: the earlier mock days use the short sets, the full sets wait for the final week
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(20)), "srs": {}})
+    await go(pg, "#/exam", 1200); await pg.wait_for_selector(".ep-list li", timeout=10000)
+    rows = await pg.evaluate("[...document.querySelectorAll('.ep-list li.ep-mock a')].map(a=>a.getAttribute('href'))")
+    check("mocks2: early mock days take short sets; days 8, 5 and 2 take full sets 4, 5, 6 in the simulator",
+          rows[-3:] == ["#/mock/4/sim", "#/mock/5/sim", "#/mock/6/sim"] and all(r in ("#/mock/1", "#/mock/2", "#/mock/3", "#/mock/7", "#/mock/8") for r in rows[:-3]) and len(rows) >= 5, rows)
     # the new sets are loaded and shaped like the other shortened tests
     shape = await pg.evaluate("""(()=>{const c=m=>[m.listening.p1.length,m.listening.p2.length,m.listening.p3.length,m.reading.p1.length,m.reading.p2.length,
       m.reading.p3.reduce((a,p)=>a+p.questions.length,0),m.writing.p1.length,m.writing.p2.length].join(',');
@@ -1807,7 +1814,74 @@ async def t_sync_heal(b):
     check("sync_heal: Home shows that backup is paused and links to Me", "Backup paused" in t and await p1.locator(".sync-paused").get_attribute("href") == "#/me", t)
     await c1.close(); await c2.close()
 
-GROUPS = [("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
+async def t_prep(b):
+    """Exam preparation: simulator link, review after a mock, where the points went, honest forecast,
+    timed exam parts, daily AI writing step, repeat-mistake set."""
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await go(pg, "#/mock/4/sim", 1500); await pg.wait_for_selector("#sim-go", timeout=15000)
+    check("prep: #/mock/4/sim opens the simulator checklist", "Exam simulator" in await pg.inner_text("#app"))
+    # a practice attempt answering one listening question right and one wrong, skipping the rest
+    await go(pg, "#/mock/1", 700); await pg.click("#m-practice"); await pg.wait_for_selector("#m-next", timeout=10000); await pg.wait_for_timeout(300)
+    for _ in range(3):
+        await pg.wait_for_selector("#m-next", timeout=10000); await pg.wait_for_timeout(300); await pg.click("#m-next"); await pg.wait_for_timeout(500)
+    await pg.wait_for_function("location.hash==='#/mock/1/result'", timeout=10000); await pg.wait_for_timeout(400); await no_dialogs(pg)
+    t = await pg.inner_text("#app")
+    check("prep: the result says where the points went and how far from 180", "Where the points went" in t and "more points to pass (180)" in t, t[:600])
+    rb = await pg.locator(".rev-btn").inner_text() if await pg.locator(".rev-btn").count() else ""
+    n = await pg.evaluate("Store.state.mocks['1'].wrong.length")
+    tot = await pg.evaluate("(()=>{const m=CB_MOCK.filter(x=>x.id===1)[0];return m.listening.p1.length+m.listening.p2.length+m.listening.p3.length+m.reading.p1.length+m.reading.p2.length+m.reading.p3.reduce((a,p)=>a+p.questions.length,0)+m.writing.p1.length+m.writing.p2.length})()")
+    check("prep: the result offers a review of every wrong or skipped question", n == tot and ("Review %d mistakes" % n) in rb, (n, rb))
+    await pg.reload(); await pg.wait_for_selector("#app > *:not(.skel)")
+    check("prep: the saved review list survives a reload (storage keeps it)", await pg.evaluate("Store.state.mocks['1'].wrong.length") == tot)
+    h = await pg.evaluate("Store.state.mockHistory[0]")
+    check("prep: a new mock entry stores set size and self-marked writing", h.get("full") is False and h.get("ws") is False, h)
+    await go(pg, "#/mock/1/review", 1200); await pg.wait_for_selector(".rv-item", timeout=10000)
+    t = await pg.inner_text("#app")
+    check("prep: the review shows sections, the transcript, your answer and the right one",
+          await pg.locator(".rv-item").count() == tot and all(k in t.lower() for k in ("listening", "reading", "writing")) and "Yours:" in t and "Right:" in t and await pg.locator(".rv-item .script").count() >= 10, t[:400])
+    await pg.click("[data-why='0']"); await pg.wait_for_selector("#rv-out-0 .ai-card:not(.ai-wait)", timeout=10000)
+    check("prep: Why? asks the AI and shows the explanation", "Explain" in await pg.inner_text("#rv-out-0"), await pg.inner_text("#rv-out-0"))
+    await pg.click("#rv-drill"); await pg.wait_for_selector("#qcard", timeout=10000)
+    check("prep: Practise these starts a drill of the mock's mistakes", "Mock 1 mistakes" in await pg.inner_text("#app"))
+    await ctx.close()
+    # honest forecast: a short set in practice mode with self-marked writing counts less, and the forecast says so
+    hist = [{"id": 1, "date": day(-3), "mode": "practice", "total": 280, "sections": {"listening": 90, "reading": 90, "writing": 100}},
+            {"id": 4, "date": day(-1), "mode": "exam", "strict": True, "total": 200, "sections": {"listening": 70, "reading": 70, "writing": 60}, "full": True, "ws": False}]
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mockHistory": hist})
+    await go(pg, "#/official", 900)
+    t = await pg.inner_text("#app")
+    # weights: short practice 1*0.6*0.7*0.8^1=0.336 (writing 0.168); full exam 1 -> L,R = (0.336*90+70)/1.336=75; W=(0.168*100+60)/1.168=66 -> ~216
+    check("prep: the forecast counts short, practice and self-marked mocks less (~216, not ~240)", "~216" in t, t[:500])
+    check("prep: the forecast says what counted less", "Counted less" in t and "1 short 40-question set" in t and "writing you marked yourself in 1 mock" in t, t[:900])
+    await ctx.close()
+    # exam parts page
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "skills": {"fill-word": {"r": 5, "w": 5}}}, ai=True)
+    await go(pg, "#/mock", 900)
+    check("prep: the mock list links to timed exam parts and names the weakest part", "Practise one exam part" in await pg.inner_text("#app") and "Weakest: Reading part 1 · 50%" in await pg.inner_text("#app"))
+    await go(pg, "#/parts", 1200); await pg.wait_for_selector(".grow", timeout=10000)
+    t = await pg.inner_text("#app")
+    check("prep: Exam parts lists all 8 parts with time at the real pace", all(("%s part %d" % (sname, k)) in t for sname, ks in (("Listening", (1, 2, 3)), ("Reading", (1, 2, 3)), ("Writing", (1, 2))) for k in ks) and "10 questions · 10:00 min" in t, t[:900])
+    check("prep: the weakest part is offered first", "Your weakest: Reading part 1 (50%)" in t)
+    await go(pg, "#/parts/R1", 1200); await pg.wait_for_selector("#qcard", timeout=10000)
+    clk = await pg.inner_text("#dr-clock")
+    check("prep: a part run has one clock at the real pace (10 questions = 10 minutes)", clk in ("10:00", "9:59", "9:58"), clk)
+    srcs = await pg.evaluate("[...document.querySelectorAll('#qcard .sub')].map(e=>e.innerText).join(' ')")
+    check("prep: questions come from the shorter tests, never the full sets 4-6", not any(("Mock test %d" % k) in srcs for k in (4, 5, 6)), srcs)
+    await go(pg, "#/parts/R2", 1200); await pg.wait_for_selector("#qcard", timeout=10000)
+    check("prep: reading part 2 uses sentence-order items (A B C)", await pg.locator("#qcard").count() == 1 and "/10" in await pg.inner_text(".ghr"))
+    await go(pg, "#/session", 900)
+    check("prep: Today's session has a daily AI writing step while the AI is on", "Write 2 sentences (AI scores them)" in await pg.inner_text("#app"))
+    # repeat mistakes: an item missed 3 times in 14 days
+    wid = await pg.evaluate("(window.CB_DAYS||[]).map(d=>(d.words||[])[0]).filter(Boolean)[0].id")
+    await pg.evaluate("id=>{for(let i=0;i<3;i++)Learn.record('w:'+id,{kind:'word',skill:'vocab',id:id},false)}", wid)
+    await go(pg, "#/mistakes", 800)
+    t = await pg.inner_text("#app")
+    check("prep: the notebook offers the repeat mistakes as their own set", await pg.locator("#mis-rep").count() == 1 and "Fix 1 repeat mistake" in t, t[:400])
+    await pg.click("#mis-rep"); await pg.wait_for_selector(".ghead", timeout=10000)
+    check("prep: the repeat set opens", "Repeat mistakes" in await pg.inner_text(".ghead"))
+    await ctx.close()
+
+GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal)]
 PW = None

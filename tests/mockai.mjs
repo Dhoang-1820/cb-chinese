@@ -51,8 +51,28 @@ const fakeFetch = async (url, init) => {
 let count = 0;
 const rows = []; let nid = 1;
 const lrn = [];
+const msgs = []; let mid = 1;
+const lives = []; // live pings the server sent (topic names), for tests
 const db = async (method, path, body) => {
   if (path.startsWith("ai_usage")) return [{ day: new Date().toISOString().slice(0, 10), n: Math.min(count, +env.AI_DAILY_CAP) }, { day: new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10), n: 7 }]; // today's counter + one earlier day
+  if (path.startsWith("messages")) { // enough PostgREST for the chat: eq / gt / gte / is.null filters, order=id.desc, limit
+    const q = new URLSearchParams(path.split("?")[1] || "");
+    const keep = (r) => [...q.entries()].every(([k, v]) => {
+      if (["select", "order", "limit"].includes(k)) return true;
+      const [op, ...rest] = v.split("."), val = rest.join(".");
+      if (op === "eq") return String(r[k]) === val;
+      if (op === "gt") return +r[k] > +val;
+      if (op === "gte") return String(r[k]) >= val;
+      if (op === "is") return r[k] == null;
+      return true;
+    });
+    if (method === "POST") { msgs.push({ id: mid++, seen_at: null, action: null, ...body }); return null; }
+    if (method === "PATCH") { msgs.filter(keep).forEach((r) => Object.assign(r, body)); return null; }
+    let out = msgs.filter(keep);
+    if (q.get("order") === "id.desc") out = out.slice().reverse();
+    if (q.get("limit")) out = out.slice(0, +q.get("limit"));
+    return JSON.parse(JSON.stringify(out));
+  }
   if (path.startsWith("learners")) {
     const m = /id=eq\.([a-f0-9]+)/.exec(path), i = m ? lrn.findIndex((r) => r.id === m[1]) : -1;
     if (method === "POST") { lrn.push({ ...body }); return null; }
@@ -68,12 +88,13 @@ const db = async (method, path, body) => {
   const stIn = /status=in\.\(([^)]*)\)/.exec(path); if (stIn && !/ref=eq\./.test(path)) return rows.filter((r) => stIn[1].split(",").indexOf(r.status) >= 0); // admin_stats: reports waiting
   return rows.filter((r) => !st || r.status === st[1]).slice().reverse();
 };
-const deps = { fetch: fakeFetch, bump: async (cap) => (++count > cap ? -1 : count), db };
+const deps = { fetch: fakeFetch, bump: async (cap) => (++count > cap ? -1 : count), db, live: async (topic) => { lives.push(topic); } };
 http.createServer(async (rq, rs) => {
   if (rq.url === "/__mode") { let b = ""; rq.on("data", (d) => (b += d)); rq.on("end", () => { mode = b.trim() || "ok"; count = mode === "reset" ? 0 : count; if (mode === "reset") mode = "ok"; rs.end("mode=" + mode); }); return; }
   if (rq.url === "/__rows") { rs.end(JSON.stringify(rows)); return; }
   if (rq.url === "/__stale") { lrn.forEach((r) => { r.updated_at = new Date(Date.now() - 5 * 864e5).toISOString(); }); rs.end("stale=" + lrn.length); return; } // every backup now looks 5 days old
   if (rq.url === "/__calls") { rs.end(String(n)); return; }
+  if (rq.url === "/__lives") { rs.end(JSON.stringify(lives)); return; }
   let body = ""; rq.on("data", (d) => (body += d));
   rq.on("end", async () => {
     const req = new Request("http://localhost:" + PORT + "/ai", { method: rq.method, headers: rq.headers, body: rq.method === "POST" ? body : undefined });

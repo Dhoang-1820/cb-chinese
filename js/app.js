@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", chat: "Teacher", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -455,6 +455,7 @@
     else if (v === "reports") viewReports();
     else if (v === "fixes") viewFixes();
     else if (v === "learners") viewLearners(parts[1], parts[2]);
+    else if (v === "chat") viewChat();
     else if (v === "track") viewTrack(parseInt(parts[1], 10) || 0, parseInt(parts[2], 10) || 0);
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "parts") viewParts(parts[1]);
@@ -473,7 +474,7 @@
     }
     else viewHome();
     fillExtras();
-    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", parts: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home" }[v] || "home";
+    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", parts: "me", chat: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] || "C&B 中文";
     document.getElementById("page-title").textContent = title;
@@ -922,7 +923,7 @@
     /* final 14 days: readiness and the final-days plan come first; new lessons become a small link */
     var plan = planCard(), tip = tipCard(plan ? coachStatus(coachLast()) : [], fin);
     homeAt = Date.now(); homeDay = Store.today();
-    var back = syncPausedCard() + comebackCard(), ep = examPlanCard();
+    var back = chatCard() + syncPausedCard() + comebackCard(), ep = examPlanCard();
     var cu = fin ? [] : cuLessons(), wq = wqCard();
     /* behind plan: the catch-up card takes the place of "Continue", with the full lesson one tap away */
     if (cu.length) cont0 = cuCard(cu) + '<a class="mini-link" href="#/day/' + nd.day + '">Or open Day ' + nd.day + " in full ›</a>";
@@ -1656,6 +1657,7 @@
       '<div class="card stat"><b>' + bc[5] + '</b><span>mastered (box 5)</span></div>' +
       '<div class="card stat"><b>' + done + '/30</b><span>days done</span></div>' +
       '<div class="card stat"><b>' + (s.streak.best || 0) + '</b><span>best streak</span></div></section>' +
+      (chatCode() ? '<a class="cta card g-teal chat-me" href="#/chat"><span class="cta-l"><small>Messages and practice tips</small><b>💬 Chat with your teacher</b>' + (CHAT.unread ? '<em>' + plural(CHAT.unread, "new message") + "</em>" : "") + '</span><span class="cta-go">▶</span></a>' : "") +
       '<div class="tiles"><a class="tile t-teal" href="#/progress"><span class="t-ico">📈</span><b>Progress</b><small>Charts and scores</small></a>' +
       '<a class="tile t-blue" href="#/official"><span class="t-ico">📄</span><b>Official practice</b><small>Past papers · forecast</small></a>' +
       '<a class="tile t-sun" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>Path to the exam</small></a>' +
@@ -1928,7 +1930,13 @@
   var LRN_OVERDUE = 30, LRN_OVERDUE_HOT = 100, LRN_REPEAT = 10;
   function lrnAlerts(r) {
     var out = [], sm = r.summary || {}, d = lrnIdle(r), st = sm.streak, vo = sm.vocab, up = Math.floor((Date.now() - new Date(r.updated_at).getTime()) / 864e5), ew = lrnExamWarn(r);
-    if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1) out.push({ k: "No data", t: "Nothing received for " + up + " days · last study " + String(r.meta.last).slice(5) + ". Either not studying, or backup is paused on the phone: ask", hot: true });
+    var cl = r.client || {}, op = r.last_open ? (Date.now() - new Date(r.last_open).getTime()) / 864e5 : null, bk = { off: "turned off", paused: "paused", err: "failing" }[cl.b];
+    var bkAlert = !!bk && op != null && op < 7; // the phone itself says its backup is not working: that explains old numbers
+    if (bkAlert) out.push({ k: "Backup", t: "Backup is " + bk + " on " + lrnName(r) + "'s phone (seen " + agoText(r.last_open) + "), so new progress isn't reaching you", hot: true });
+    if (r.unread) out.push({ k: "Chat", t: plural(r.unread, "new message") + " from " + lrnName(r), hot: true });
+    if (bkAlert) { /* no "no study" guess: the numbers are old because the backup is not working */ }
+    else if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1 && op != null && op < 2) out.push({ k: "No study", t: "Opens the app (" + agoText(r.last_open) + ") but nothing studied for " + d + " days", hot: true });
+    else if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1) out.push({ k: "No data", t: "Nothing received for " + up + " days · last study " + String(r.meta.last).slice(5) + ". Either not studying, or backup is paused on the phone: ask", hot: true });
     else if (d != null && d >= 3) out.push({ k: "No study", t: "Nothing for " + d + " days · last " + String(r.meta.last).slice(5), hot: true });
     else if (st && st.n === 0 && st.best >= 3 && d != null && d >= 1) out.push({ k: "Streak", t: "Streak broken · best was " + num(st.best) + " days", hot: false });
     if (vo && num(vo.overdue) >= LRN_OVERDUE) out.push({ k: "Reviews", t: num(vo.overdue) + " words waiting more than 3 days", hot: num(vo.overdue) >= LRN_OVERDUE_HOT });
@@ -1937,7 +1945,7 @@
       out.push({ k: "Mistakes", t: (p.k ? num(p.k) + (num(p.k) === 1 ? " item keeps" : " items keep") + " being missed · " : "The same items keep being missed · ") + num(p.n) + " misses in 14 days", hot: false });
     });
     if (ew) out.push({ k: "Exam date", t: ew, hot: false });
-    if (isFinite(up) && up >= 3 && !(d != null && d >= 3 && up <= d + 1)) out.push({ k: "Backup", t: "Last saved " + up + " days ago, so these numbers may be old", hot: false });
+    if (!bkAlert && isFinite(up) && up >= 3 && !(d != null && d >= 3 && up <= d + 1)) out.push({ k: "Backup", t: "Last saved " + up + " days ago, so these numbers may be old", hot: false });
     return out;
   }
   function lrnStatus(r) {
@@ -1954,6 +1962,13 @@
     var t = (sm && sm.trk) || [], a = t[t.length - 2], b = t[t.length - 1];
     return a && b && a[1] != null && b[1] != null ? num(b[1]) - num(a[1]) : null;
   }
+  /* what the phone itself last said: when the app was open and how its backup is doing */
+  function lrnPhone(r) {
+    if (!r.last_open) return "";
+    var mins = (Date.now() - new Date(r.last_open).getTime()) / 6e4, cl = r.client || {};
+    var bk = { on: "backup on", off: "backup off", paused: "backup paused", err: "backup failing" }[cl.b] || "";
+    return '<p class="lt-meta lt-phone"><span class="lt-dot' + (mins < 3 ? " on" : "") + '" aria-hidden="true"></span>' + (mins < 3 ? "<b>In the app now</b>" : "App opened " + esc(agoText(r.last_open))) + (bk ? " · " + bk : "") + "</p>";
+  }
   function lrnTest(r) { var d = lrnIdle(r); return num((r.meta || {}).xp) < 100 && (d == null || d >= 14); }
   function lrnOverview(rows) {
     var soon = null, html = "";
@@ -1968,7 +1983,7 @@
     al.sort(function (x, y) { return (y.hot ? 1 : 0) - (x.hot ? 1 : 0); });
     html += '<h3 class="sec">Needs attention</h3>' + (al.length ? al.map(function (x) {
       return '<section class="card lt-alg"><b class="lt-alg-n">' + esc(lrnName(x.r)) + "</b>" + x.a.map(function (a) {
-        var to = a.k === "Reviews" || a.k === "Mistakes" ? "practice" : a.k === "Exam date" ? "progress" : "habit";
+        var to = a.k === "Reviews" || a.k === "Mistakes" ? "practice" : a.k === "Exam date" ? "progress" : a.k === "Chat" || a.k === "Backup" ? "chat" : "habit";
         return '<a class="lt-al" href="#/learners/' + lrnKey(x.r) + "/" + to + '"><span class="lt-badge' + (a.hot ? " hot" : "") + '">' + esc(a.k) + '</span><span class="lt-al-t"><small>' + esc(a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>';
       }).join("") + "</section>";
     }).join("") : '<p class="card sub">✓ Nothing needs attention.</p>');
@@ -1980,7 +1995,7 @@
         '<div class="lt-row lt-end"><div><small>Readiness</small><div class="lt-big">' + (rd ? num(rd.total) : "–") + "<small> / 300</small></div></div>" +
         (tr != null ? '<b class="lt-d ' + (tr > 0 ? "lt-up" : tr < 0 ? "lt-dn" : "") + '"><span aria-hidden="true">' + (tr > 0 ? "▲ " : tr < 0 ? "▼ " : "") + "</span>" + (tr >= 0 ? "+" : "−") + Math.abs(tr) + " vs last week</b>" : "") + "</div>" +
         '<p class="lt-meta">Streak <b>' + num((sm.streak || {}).n != null ? sm.streak.n : (r.meta || {}).streak) + ' d</b> · Last study <b>' + (idle == null ? "–" : idle === 0 ? "today" : idle + " d ago") + "</b> · Lessons <b>" + (pl ? num(pl.done) + "/" + num(pl.total) : num(pg.lessons) + "/" + num(pg.lessonsAll || 90)) + "</b></p>" +
-        lrnDays(sm.days28, "Study days, last 28 days, oldest first") + (lrnExamWarn(r) ? '<p class="lt-warn"><span aria-hidden="true">⚠ </span>' + esc(lrnExamWarn(r)) + "</p>" : "") + '</a><div class="lt-act"><button type="button" class="btn small" data-msg="' + lrnKey(r) + '">💬 Message ' + esc(lrnName(r)) + "</button></div></div>";
+        lrnDays(sm.days28, "Study days, last 28 days, oldest first") + (lrnExamWarn(r) ? '<p class="lt-warn"><span aria-hidden="true">⚠ </span>' + esc(lrnExamWarn(r)) + "</p>" : "") + lrnPhone(r) + '</a><div class="lt-act"><a class="btn small' + (r.unread ? " primary" : "") + '" href="#/learners/' + lrnKey(r) + '/chat">💬 Chat' + (r.unread ? ' <span class="lt-unread">' + r.unread + " new</span>" : "") + "</a></div></div>";
     }).join("");
     return html;
   }
@@ -2118,7 +2133,47 @@
     }
     if (navigator.share) navigator.share({ text: text }).catch(function (e) { if (!e || e.name !== "AbortError") copy(); }); else copy();
   }
-  var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"], ["week", "Week"]];
+  var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"], ["week", "Week"], ["chat", "Chat"]];
+  /* one-tap buttons the teacher can attach to a message; each opens that screen on the learner's phone */
+  var CHAT_ACTS = [["#/session", "Start Today's session"], ["#/exam", "Open my exam plan"], ["#/mock/4/sim", "Full mock 4 in the simulator"], ["#/mock/5/sim", "Full mock 5 in the simulator"],
+    ["#/mock/6/sim", "Full mock 6 in the simulator"], ["#/parts", "Practise one exam part"], ["#/parts/R1", "Reading part 1, timed"], ["#/parts/R3", "Reading part 3, timed"], ["#/parts/W1", "Writing part 1, timed"],
+    ["#/parts/W2", "Writing part 2, timed"], ["#/parts/L2", "Listening part 2, timed"], ["#/mistakes/repeat", "Fix my repeat mistakes"], ["#/mistakes", "Open my mistake notebook"], ["#/review", "Review due words"], ["#/me", "Check my cloud backup"]];
+  var ACHAT = { timer: null, id: "", msgs: [] };
+  function adminChat(cur, host) {
+    ACHAT.id = cur.id; var myHash = location.hash, sending = false;
+    host.innerHTML = '<section class="card chat-box"><p class="sub" id="ac-status">' + (lrnPhone(cur).replace(/<\/?p[^>]*>/g, "") || "This phone hasn't opened the new app version yet.") + "</p>" +
+      '<div id="ac-log" class="chat-log" role="log" aria-live="polite"><p class="sub">Loading…</p></div>' +
+      '<label class="sr" for="ac-act">Button to attach</label><select id="ac-act" class="ac-act"><option value="">No button</option>' + CHAT_ACTS.map(function (a) { return '<option value="' + esc(a[0]) + '">🔘 ' + esc(a[1]) + "</option>"; }).join("") + "</select>" +
+      '<div class="chat-form"><label class="sr" for="ac-in">Message</label><textarea id="ac-in" rows="2" maxlength="1000" placeholder="Write to ' + esc(lrnName(cur)) + '…"></textarea><button type="button" class="btn primary" id="ac-send">Send</button></div>' +
+      '<p class="sub">She sees it in the app (Home and Me → Chat), live while the app is open. <button type="button" class="linklike" id="ac-share">Send by Zalo / share instead</button></p></section>';
+    function draw(r) {
+      if (location.hash !== myHash) return;
+      var log = document.getElementById("ac-log"); if (!log) return;
+      if (r && r.ok) {
+        ACHAT.msgs = r.result.msgs || [];
+        var st = document.getElementById("ac-status"); if (st) st.innerHTML = lrnPhone({ last_open: r.result.last_open, client: r.result.client }).replace(/<\/?p[^>]*>/g, "") || "This phone hasn't opened the new app version yet.";
+        if (r.result.live) chatLive(r.result.live, function () { poll(); });
+      } else if (r) { log.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(r.error)) + "</div>"; return; }
+      var atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 60 || !log.dataset.drawn;
+      log.innerHTML = chatLogHTML(ACHAT.msgs, "admin", lrnName(cur)); log.dataset.drawn = "1";
+      if (atEnd) log.scrollTop = log.scrollHeight;
+    }
+    function poll() { if (location.hash !== myHash || document.hidden) return; Content.admin("admin_chat_get", { id: cur.id, since: 0, read: true }).then(draw); }
+    poll(); clearInterval(ACHAT.timer);
+    ACHAT.timer = setInterval(function () { if (location.hash !== myHash) { clearInterval(ACHAT.timer); return; } poll(); }, 10000);
+    document.getElementById("ac-share").onclick = function () { lrnMessage(cur); };
+    document.getElementById("ac-send").onclick = function () {
+      var inp = document.getElementById("ac-in"), sel = document.getElementById("ac-act"), v = inp.value.trim(), a = sel.value, btn = this;
+      if (sending || (!v && !a)) { inp.focus(); return; }
+      var act = a ? { href: a, label: CHAT_ACTS.filter(function (x) { return x[0] === a; })[0][1] } : null;
+      sending = true; btn.disabled = true;
+      Content.admin("admin_chat_send", { id: cur.id, body: v, action: act, since: 0 }).then(function (r) {
+        sending = false; btn.disabled = false;
+        if (!r.ok) { UI.toast(AI.errMsg(r.error), "⚠️"); return; }
+        inp.value = ""; sel.value = ""; var log = document.getElementById("ac-log"); if (log) log.dataset.drawn = ""; draw(r);
+      });
+    };
+  }
   function viewLearners(key, sec) {
     var head = '<section class="card"><a class="pill" href="#/me">‹ Me</a><h2>👥 Learner tracking</h2><p class="sub">Numbers only, never answers or notes. Each phone sends them with its cloud backup.</p></section>';
     if (!window.AI || !AI.configured()) { render(head + '<p class="empty">Turn on the AI assistant first (Me → AI assistant).</p>', "me"); return; }
@@ -2137,14 +2192,14 @@
       var seg = '<nav class="seg" aria-label="Learner tracking views"><a href="#/learners"' + (cur ? "" : ' class="active" aria-current="page"') + '>Overview</a><a href="#/learners/' + lrnKey(cur || rows[0]) + '/progress"' + (cur ? ' class="active" aria-current="page"' : "") + ">Learner</a></nav>";
       if (!cur) {
         host.innerHTML = seg + lrnOverview(rows);
-        [].forEach.call(host.querySelectorAll("[data-msg]"), function (b) { b.onclick = function () { rows.forEach(function (r) { if (lrnKey(r) === b.getAttribute("data-msg")) lrnMessage(r); }); }; });
+        if (res.result.live) chatLive(res.result.live, function () { if (location.hash === "#/learners") viewLearners(); }); // a learner wrote: refresh the overview
         return;
       }
-      var chips = '<div class="lt-chips">' + rows.map(function (r) { return '<a class="lt-pick' + (r === cur ? " on" : "") + '" href="#/learners/' + lrnKey(r) + "/" + (sec || "progress") + '"' + (r === cur ? ' aria-current="page"' : "") + ">" + esc(lrnName(r)) + "</a>"; }).join("") + "</div>";
+      var chips = '<div class="lt-chips">' + rows.map(function (r) { return '<a class="lt-pick' + (r === cur ? " on" : "") + '" href="#/learners/' + lrnKey(r) + "/" + (sec || "progress") + '"' + (r === cur ? ' aria-current="page"' : "") + ">" + esc(lrnName(r)) + (r.unread ? ' <span class="lt-unread">' + r.unread + "</span>" : "") + "</a>"; }).join("") + "</div>";
       var tabs = '<nav class="seg seg3" aria-label="Sections">' + LRN_SECS.map(function (t) { return '<a href="#/learners/' + lrnKey(cur) + "/" + t[0] + '"' + (t[0] === (sec || "progress") ? ' class="active" aria-current="page"' : "") + ">" + t[1] + "</a>"; }).join("") + "</nav>";
-      var body = !cur.summary ? '<p class="card sub">No study summary yet (this phone has an older app version).</p>' : sec === "practice" ? lrnPractice(cur) : sec === "habit" ? lrnHabit(cur) : sec === "week" ? lrnWeek(cur) : lrnProgress(cur);
-      host.innerHTML = seg + chips + tabs + '<p class="sub lt-saved">' + esc(lrnName(cur)) + " · saved " + esc(agoText(cur.updated_at)) + ' · <button class="btn small" id="lt-ren">Rename</button> <button class="btn small" id="lt-msg">💬 Message</button></p>' + body;
-      document.getElementById("lt-msg").onclick = function () { lrnMessage(cur); };
+      var body = sec === "chat" ? '<div id="ac-host"></div>' : !cur.summary ? '<p class="card sub">No study summary yet (this phone has an older app version).</p>' : sec === "practice" ? lrnPractice(cur) : sec === "habit" ? lrnHabit(cur) : sec === "week" ? lrnWeek(cur) : lrnProgress(cur);
+      host.innerHTML = seg + chips + tabs + '<p class="sub lt-saved">' + esc(lrnName(cur)) + " · saved " + esc(agoText(cur.updated_at)) + ' · <button class="btn small" id="lt-ren">Rename</button>' + (sec === "chat" ? "" : ' <a class="btn small" id="lt-msg" href="#/learners/' + lrnKey(cur) + '/chat">💬 Chat' + (cur.unread ? " (" + cur.unread + ")" : "") + "</a>") + "</p>" + body;
+      if (sec === "chat") adminChat(cur, document.getElementById("ac-host"));
       document.getElementById("lt-ren").onclick = function () {
         var v = window.prompt("Name for this learner (only you see it)", (cur.meta || {}).label || ""); if (v == null) return;
         Content.admin("learner_label", { id: cur.id, label: v.trim().slice(0, 30) }).then(function (x) { if (x.ok) viewLearners(key, sec); else UI.toast(AI.errMsg(x.error), "⚠️"); });
@@ -4346,6 +4401,102 @@
     return '<a class="card warn-card sync-paused" href="#/me"><b>☁️ Backup ' + (c.conflict ? "paused" : "failing") + "</b><small>" +
       (c.conflict ? "Another copy of your progress was saved. Choose which one to keep in Me → Cloud backup. Until then your teacher sees old numbers." : "Your progress hasn't been saved online for " + Math.floor((Date.now() - c.last) / 864e5) + " days. Tap to check.") + "</small></a>";
   }
+  /* ---------- Teacher chat (learner side) ----------
+     Messages live on the server (see chat_get / chat_send in supabase/functions/ai/index.ts) and are reached with this
+     phone's restore code. New messages arrive by a live connection while the app is open; polling is the fallback.
+     Each check also tells the teacher that the app is open and how the backup is doing (version + on/off/paused/error). */
+  var CHAT = { msgs: [], unread: 0, last: 0, sock: null, topic: "", timer: null };
+  function chatCode() { return syncCfg().code || ""; }
+  function chatClient() { var c = syncCfg(); return { v: BUILD, b: c.off ? "off" : c.conflict ? "paused" : c.err ? "err" : "on", e: c.err || "" }; }
+  function chatMerge(list, full) {
+    if (full) CHAT.msgs = [];
+    (list || []).forEach(function (m) { var i = -1; CHAT.msgs.forEach(function (x, k) { if (x.id === m.id) i = k; }); if (i >= 0) CHAT.msgs[i] = m; else CHAT.msgs.push(m); });
+    CHAT.msgs.sort(function (a, b) { return a.id - b.id; });
+    CHAT.msgs.forEach(function (m) { if (m.id > CHAT.last) CHAT.last = m.id; });
+  }
+  /* read: the chat screen is open, so the teacher's messages count as seen */
+  function chatPoll(read) {
+    var code = chatCode();
+    if (!code || !window.AI || !AI.available()) return Promise.resolve(null);
+    var before = CHAT.unread;
+    return AI.call("chat_get", { code: code, since: read ? 0 : CHAT.last, read: !!read, client: chatClient() }).then(function (r) {
+      if (!r.ok) return null;
+      chatMerge(r.result.msgs, read); CHAT.unread = r.result.unread || 0;
+      if (r.result.live) chatLive(r.result.live, function () { chatPoll(location.hash === "#/chat").then(function () { chatDraw(); }); });
+      if (CHAT.unread > before && /^#?\/?$/.test(location.hash) && !workDone) viewHome(); // a new message: show it on Home
+      return r;
+    });
+  }
+  /* minimal Supabase Realtime client (Phoenix protocol): join one public channel, keep it alive, call ping() on a broadcast */
+  function chatLive(cfg, ping) {
+    if (!window.WebSocket || !cfg || !cfg.url || (CHAT.sock && CHAT.topic === cfg.topic)) return;
+    var ws, ref = 0, hb = null;
+    try { ws = new WebSocket(cfg.url + "?apikey=" + encodeURIComponent(cfg.key) + "&vsn=1.0.0"); } catch (e) { return; }
+    CHAT.sock = ws; CHAT.topic = cfg.topic;
+    ws.onopen = function () {
+      ws.send(JSON.stringify({ topic: "realtime:" + cfg.topic, event: "phx_join", payload: { config: { broadcast: { self: false }, presence: { key: "" }, private: false }, access_token: cfg.key }, ref: String(++ref) }));
+      hb = setInterval(function () { if (ws.readyState === 1) ws.send(JSON.stringify({ topic: "phoenix", event: "heartbeat", payload: {}, ref: String(++ref) })); }, 25000);
+    };
+    ws.onmessage = function (e) { var m; try { m = JSON.parse(e.data); } catch (x) { return; } if (m && m.event === "broadcast") ping(); };
+    ws.onclose = ws.onerror = function () { clearInterval(hb); if (CHAT.sock === ws) { CHAT.sock = null; CHAT.topic = ""; } };
+  }
+  function chatStop() { if (CHAT.sock) { try { CHAT.sock.close(); } catch (e) { /* closed */ } CHAT.sock = null; CHAT.topic = ""; } }
+  var HREF_OK = /^#\/[a-z0-9][a-z0-9\/_-]{0,60}$/i;
+  function chatTime(iso) { var d = new Date(iso); return isNaN(d) ? "" : String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function chatDay(iso) { var d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }); }
+  /* one conversation; mine = "learner" on the learner's phone, "admin" in the teacher's view */
+  function chatLogHTML(msgs, mine, other) {
+    if (!msgs.length) return '<p class="sub chat-empty">No messages yet.</p>';
+    var html = "", day = "", lastMine = -1;
+    msgs.forEach(function (m, i) { if (m.sender === mine) lastMine = i; });
+    msgs.forEach(function (m, i) {
+      var d = chatDay(m.created_at); if (d !== day) { day = d; html += '<p class="chat-day">' + esc(d) + "</p>"; }
+      var me = m.sender === mine, a = m.action && HREF_OK.test(m.action.href || "") ? m.action : null;
+      html += '<div class="chat-b ' + (me ? "me" : "them") + '"><span class="sr">' + (me ? "You" : other) + ": </span>" + (m.body ? '<p>' + esc(m.body).replace(/\n/g, "<br>") + "</p>" : "") +
+        (a ? '<a class="btn small ' + (me ? "" : "primary ") + 'chat-act" href="' + esc(a.href) + '">' + esc(a.label) + " ›</a>" : "") +
+        '<small>' + chatTime(m.created_at) + (me && i === lastMine && m.seen_at ? " · Seen" : "") + "</small></div>";
+    });
+    return html;
+  }
+  function chatCard() {
+    if (!CHAT.unread) return "";
+    var last = CHAT.msgs.filter(function (m) { return m.sender === "admin"; }).pop();
+    return '<a class="card chat-new" href="#/chat" id="chat-card"><b>💬 ' + (CHAT.unread > 1 ? CHAT.unread + " new messages" : "New message") + " from your teacher</b>" +
+      (last ? "<small>" + esc((last.body || (last.action && last.action.label) || "").slice(0, 90)) + "</small>" : "") + "</a>";
+  }
+  function chatDraw() {
+    var log = document.getElementById("chat-log"); if (!log) return;
+    var atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+    log.innerHTML = chatLogHTML(CHAT.msgs, "learner", "Teacher");
+    if (atEnd || !log.dataset.drawn) { log.scrollTop = log.scrollHeight; log.dataset.drawn = "1"; }
+  }
+  function viewChat() {
+    var head = '<section class="card chat-head"><h2>💬 Your teacher</h2><p class="sub">Messages and practice tips from your teacher. Only your teacher sees what you write here.</p></section>';
+    if (!chatCode()) { render(head + '<section class="card"><p>Chat uses your cloud backup to know it is you. Turn on <b>Cloud backup</b> in Me first.</p><a class="btn primary" href="#/me">Open Me</a></section>', "me"); return; }
+    var draft = (document.getElementById("chat-in") || {}).value || "";
+    render(head + '<section class="card chat-box"><div id="chat-log" class="chat-log" role="log" aria-live="polite"></div>' +
+      '<div class="chat-form"><label class="sr" for="chat-in">Message</label><textarea id="chat-in" rows="2" maxlength="1000" placeholder="Write to your teacher…">' + esc(draft) + '</textarea><button type="button" class="btn primary" id="chat-send">Send</button></div>' +
+      (window.AI && AI.available() ? "" : '<p class="sub">You are offline. Messages load when you are back online.</p>') + "</section>", "me");
+    chatDraw();
+    chatPoll(true).then(chatDraw);
+    clearInterval(CHAT.timer);
+    CHAT.timer = setInterval(function () { if (location.hash !== "#/chat") { clearInterval(CHAT.timer); return; } if (!document.hidden) chatPoll(true).then(chatDraw); }, 15000);
+    var btn = document.getElementById("chat-send"), inp = document.getElementById("chat-in");
+    btn.onclick = function () {
+      var v = inp.value.trim(); if (!v) { inp.focus(); return; }
+      btn.disabled = true;
+      AI.call("chat_send", { code: chatCode(), body: v, since: 0 }).then(function (r) {
+        btn.disabled = false;
+        if (!r.ok) { UI.toast(r.error === "chat_full" ? "That's a lot for today. Try again tomorrow." : AI.errMsg(r.error), "⚠️"); return; }
+        inp.value = ""; chatMerge(r.result.msgs, true); var log = document.getElementById("chat-log"); if (log) log.dataset.drawn = ""; chatDraw();
+      });
+    };
+  }
+  (function () {
+    setTimeout(function () { chatPoll(false); }, 4000); // the teacher sees the app was opened; unread messages show on Home
+    document.addEventListener("visibilitychange", function () { if (document.hidden) chatStop(); else chatPoll(location.hash === "#/chat").then(chatDraw); });
+    setInterval(function () { if (!document.hidden && location.hash !== "#/chat") chatPoll(false); }, 60000);
+  })();
   function syncSoon() { clearTimeout(syncTimer); syncTimer = setTimeout(function () { syncNow(); }, 20000); }
   function syncRestore(code) {
     code = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -5122,6 +5273,7 @@
       navigator.serviceWorker.register("sw.js").then(function (reg) {
         // iOS resumes home-screen apps without reloading, so check for a new version on every resume.
         document.addEventListener("visibilitychange", function () { if (!document.hidden) reg.update().catch(function () {}); });
+        reg.update().catch(function () {}); // check right away on launch, not only on the browser's own schedule
       }).catch(function (e) { console.warn("SW registration failed", e); });
       autoUpdate();
     }
@@ -5141,6 +5293,8 @@
     }
     navigator.serviceWorker.addEventListener("controllerchange", function () { pending = true; go(); });
     window.addEventListener("hashchange", go);
+    /* the new version finished downloading while the app was in the background: apply it as soon as it comes back on a safe screen */
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) go(); });
   }
 
   window.App = {

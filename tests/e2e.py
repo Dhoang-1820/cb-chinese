@@ -672,9 +672,9 @@ async def t_sync(b):
     await go(p1, "#/learners", 500); await p1.wait_for_selector(".lt-card", timeout=10000)
     check("admin: the overview shows the change since last week", "+10 vs last week" in await p1.locator(".lt-card").first.inner_text(), await p1.locator(".lt-card").first.inner_text())
     await p1.evaluate("window._shared=null;Object.defineProperty(navigator,'share',{configurable:true,value:t=>{window._shared=t.text;return Promise.resolve()}})")
-    await p1.click(".lt-card [data-msg]"); await p1.wait_for_timeout(200)
+    await p1.click(".lt-card a[href$='/chat']"); await p1.wait_for_selector("#ac-share", timeout=10000); await p1.click("#ac-share"); await p1.wait_for_timeout(200)
     msg = await p1.evaluate("window._shared") or ""
-    check("admin: Message opens the share sheet with a Vietnamese nudge for that learner", "Chào Hoang" in msg and "ngày nữa là thi HSK" in msg and "加油" in msg and "http" in msg, msg)
+    check("admin: Chat › Send by Zalo / share opens the share sheet with a Vietnamese nudge for that learner", "Chào Hoang" in msg and "ngày nữa là thi HSK" in msg and "加油" in msg and "http" in msg, msg)
     bad = await p1.evaluate("AI.call('learners_list',{},{'x-admin-code':'wrong-code-000000'}).then(r=>r.error)")
     check("admin: the list needs the reviewer code", bad == "bad_admin", bad)
     await p1.evaluate("localStorage.removeItem('cbChinese.ai.admin')")
@@ -1269,7 +1269,7 @@ async def t_admin2(b):
     check("admin Week: last week and this week side by side for every number", all(got.get(k, [None, None])[:2] == v for k, v in exp.items()), got)
     check("admin Week: changes are written out with arrows, not colour alone",
           got["Accuracy (HSK 4 answers)"][2] == "▼ −20 pts" and got["Readiness /300"][2] == "▲ +15" and got["Role-play talks"][2] == "▲ +1" and got["Words mastered (net)"][2] == "▼ −2", got)
-    check("admin Week: the tab is the fourth section and marked current", await pg.locator(".seg3 a").count() == 4 and await pg.locator(".seg3 a[aria-current='page']").inner_text() == "Week")
+    check("admin Week: the tab is the fourth section (Chat is fifth) and marked current", await pg.locator(".seg3 a").count() == 5 and await pg.locator(".seg3 a").nth(3).inner_text() == "Week" and await pg.locator(".seg3 a[aria-current='page']").inner_text() == "Week")
     await go(pg, "#/learners/bbbbbbbb/week", 500); await pg.wait_for_selector("#lt-week", timeout=10000)
     t = await pg.locator("#lt-week").inner_text()
     check("admin Week: an older phone shows what it has and says what needs the newer app", "need the newer app" in t and "60" in t, t)
@@ -1881,9 +1881,77 @@ async def t_prep(b):
     check("prep: the repeat set opens", "Repeat mistakes" in await pg.inner_text(".ghead"))
     await ctx.close()
 
+async def t_chat(b):
+    """Teacher chat: a learner and the admin on two phones, through the real server code (in-memory database)."""
+    import random
+    tag = str(random.randint(10000, 99999))
+    c1, p1 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await go(p1, "#/chat", 600)
+    check("chat: without cloud backup the chat explains it needs backup", "Turn on" in await p1.inner_text("#app") and "Cloud backup" in await p1.inner_text("#app"))
+    await p1.evaluate("Game.award(40)"); await no_dialogs(p1)
+    check("chat: backup saved (the chat identity)", await p1.evaluate("Sync.now()") == "saved")
+    await go(p1, "#/me", 600)
+    check("chat: Me offers the teacher chat once backup is on", await p1.locator("a.chat-me[href='#/chat']").count() == 1)
+    await go(p1, "#/chat", 1200); await p1.wait_for_selector("#chat-log", timeout=10000)
+    check("chat: an empty conversation says so", "No messages yet" in await p1.inner_text("#chat-log"))
+    await p1.fill("#chat-in", "老师好 " + tag); await p1.click("#chat-send")
+    await p1.wait_for_function("document.querySelector('#chat-log .chat-b.me')", timeout=10000)
+    check("chat: the learner's message appears on her side", tag in await p1.inner_text("#chat-log") and await p1.input_value("#chat-in") == "")
+    # the teacher
+    c2, p2 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await p2.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
+    rows = await p2.evaluate("Content.admin('learners_list',{}).then(r=>r.result.rows)")
+    mine = None
+    for r in rows:
+        if r.get("unread"):
+            got = await p2.evaluate("id=>Content.admin('admin_chat_get',{id:id,since:0}).then(r=>r.result.msgs.map(m=>m.body).join('|'))", r["id"])
+            if tag in got: mine = r
+    check("chat: the teacher's list counts her unread message and knows the app is open", mine is not None and mine["unread"] == 1 and mine.get("last_open") and (mine.get("client") or {}).get("b") == "on", mine)
+    key = mine["id"][:8] if mine else "x"
+    await p2.evaluate("id=>Content.admin('learner_label',{id:id,label:'Chat " + tag + "'})", mine["id"] if mine else "")
+    await go(p2, "#/learners", 600); await p2.wait_for_selector(".lt-card", timeout=10000)
+    t = await p2.inner_text("#app")
+    check("chat: the overview shows a Chat alert and an unread badge", ("1 new message from Chat " + tag) in t and await p2.locator("a[href='#/learners/%s/chat'] .lt-unread" % key).count() >= 1, t[:500])
+    check("chat: the overview card says the app is open now", "In the app now" in t)
+    await go(p2, "#/learners/%s/chat" % key, 600); await p2.wait_for_selector("#ac-log .chat-b", timeout=10000)
+    check("chat: the teacher sees her message in the Chat tab", tag in await p2.inner_text("#ac-log"))
+    await p2.fill("#ac-in", "Làm phần đọc 1 nhé"); await p2.select_option("#ac-act", "#/parts/R1"); await p2.click("#ac-send")
+    await p2.wait_for_function("document.querySelectorAll('#ac-log .chat-b.me').length===1", timeout=10000)
+    check("chat: the teacher's message with a button is sent", "Reading part 1, timed" in await p2.inner_text("#ac-log"))
+    import urllib.request
+    lives = json.loads(urllib.request.urlopen(AI_URL.rsplit("/", 1)[0] + "/__lives").read().decode())
+    check("chat: each message pings a live channel (no text in it)", len(lives) >= 2 and all(x.startswith("cb-") and tag not in x for x in lives), lives[-3:])
+    # back on the learner's phone: Home shows the new message, the chat has the button
+    await go(p1, "#/", 300)
+    await p1.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); await p1.wait_for_timeout(1500)
+    await go(p1, "#/learn", 200); await go(p1, "#/", 800)
+    card = await p1.locator("#chat-card").inner_text() if await p1.locator("#chat-card").count() else ""
+    check("chat: Home shows the teacher's new message with a preview", "New message from your teacher" in card and "Làm phần đọc 1" in card, card)
+    await p1.click("#chat-card"); await p1.wait_for_selector("#chat-log .chat-b.them", timeout=10000)
+    check("chat: the button in the message opens that screen", await p1.locator("#chat-log a.chat-act[href='#/parts/R1']").count() == 1)
+    check("chat: the learner sees that the teacher read her message", "Seen" in await p1.inner_text("#chat-log .chat-b.me"))
+    await go(p1, "#/", 800)
+    check("chat: once read, the Home card goes away", await p1.locator("#chat-card").count() == 0)
+    await go(p2, "#/learners", 200); await go(p2, "#/learners/%s/chat" % key, 1500); await p2.wait_for_selector("#ac-log .chat-b.me", timeout=10000)
+    check("chat: the teacher sees Seen once she opened it", "Seen" in await p2.inner_text("#ac-log"))
+    # privacy and checks
+    r = await p2.evaluate("AI.call('chat_get',{code:'ABCDEFGHJKLMNPQR',since:0})")
+    check("chat: an unknown restore code reads nothing", r.get("ok") is False and r.get("error") == "no_backup", r)
+    r = await p1.evaluate("AI.call('admin_chat_get',{id:%s,since:0})" % json.dumps(mine["id"] if mine else ""))
+    check("chat: the teacher's view needs the admin code", r.get("ok") is False and r.get("error") == "bad_admin", r)
+    r = await p2.evaluate("id=>Content.admin('admin_chat_send',{id:id,body:'x',action:{label:'Hack',href:'javascript:alert(1)'}}).then(r=>r.result.msgs.slice(-1)[0])", mine["id"] if mine else "")
+    check("chat: a button that is not an app screen is dropped", r and r.get("action") is None, r)
+    # the phone tells the teacher when its backup is paused
+    await p1.evaluate("(()=>{const c=JSON.parse(localStorage.getItem('cbChinese.sync'));c.conflict={at:new Date().toISOString(),meta:{xp:99999,words:9999,last:'2099-01-01'}};localStorage.setItem('cbChinese.sync',JSON.stringify(c))})()")
+    await p1.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); await p1.wait_for_timeout(1500)
+    await go(p2, "#/learners", 200); await go(p2, "#/", 100); await go(p2, "#/learners", 800); await p2.wait_for_selector(".lt-card", timeout=10000)
+    t = await p2.inner_text("#app")
+    check("chat: a paused backup on her phone is an urgent alert for the teacher", ("Backup is paused on Chat " + tag + "'s phone") in t, t[:700])
+    await c1.close(); await c2.close()
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat)]
 PW = None
 
 

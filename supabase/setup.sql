@@ -67,3 +67,21 @@ create table if not exists public.learners (
 alter table public.learners enable row level security;   -- no policies: only the service role (the function) can touch it
 revoke all on public.learners from public, anon, authenticated;
 grant all on public.learners to service_role;
+
+-- Teacher chat. Phones reach only their own messages through the function (restore code); the admin reaches all (admin code).
+-- learners.last_open / client: when the app was last open and what the phone said about itself (version, backup on/off/paused/err).
+alter table public.learners add column if not exists last_open timestamptz;
+alter table public.learners add column if not exists client jsonb;
+create table if not exists public.messages (
+  id bigint generated always as identity primary key,
+  learner text not null references public.learners(id) on delete cascade,
+  sender text not null check (sender in ('admin', 'learner')),
+  body text not null default '' check (char_length(body) <= 1000),
+  action jsonb,                             -- optional button: {"label":"Reading part 1, timed","href":"#/parts/R1"}
+  created_at timestamptz not null default now(),
+  seen_at timestamptz                       -- when the other side read it
+);
+create index if not exists messages_learner_id on public.messages (learner, id);
+alter table public.messages enable row level security;   -- no policies: only the service role (the function) can touch it
+revoke all on public.messages from public, anon, authenticated;
+grant all on public.messages to service_role;

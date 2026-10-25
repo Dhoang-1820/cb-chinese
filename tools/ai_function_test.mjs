@@ -72,7 +72,7 @@ t("injection text only inside user JSON data", !globalThis.__last.systemInstruct
 r = await fn.handle(req(gradeBody), { GEMINI_API_KEY: "k" }, mkDeps(() => gemOk(goodGrade))); t("public mode (no APP_CODE) accepts allowed origin", r.status === 200);
 r = await fn.handle(req(gradeBody, { origin: "https://evil.example" }), { GEMINI_API_KEY: "k" }, mkDeps(() => gemOk(goodGrade))); t("public mode rejects other origin", r.status === 403);
 r = await fn.handle(new Request("https://x/f", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(gradeBody) }), { GEMINI_API_KEY: "k" }, mkDeps(() => gemOk(goodGrade))); t("public mode rejects requests without Origin", r.status === 403);
-{ let last = 0; for (let n = 0; n < 14; n++) { last = (await fn.handle(req(gradeBody, { "cf-connecting-ip": "9.9.9.9" }), { GEMINI_API_KEY: "k" }, mkDeps(() => gemOk(goodGrade)))).status; } t("public mode rate-limits one address (429 after 12/min)", last === 429, String(last)); }
+{ let last = 0; for (let n = 0; n < 32; n++) { last = (await fn.handle(req(gradeBody, { "cf-connecting-ip": "9.9.9.9" }), { GEMINI_API_KEY: "k" }, mkDeps(() => gemOk(goodGrade)))).status; } t("public mode rate-limits one address (429 after 30/min)", last === 429, String(last)); }
 r = await fn.handle(req(gradeBody), { APP_CODE: "secret-code" }, mkDeps(() => gemOk(goodGrade))); t("missing GEMINI_API_KEY → 500", r.status === 500);
 // GET
 r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); t("GET → 405", r.status === 405);

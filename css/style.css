@@ -1382,3 +1382,25 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .dr-clock { font-variant-numeric: tabular-nums; font-weight: 800; }
 .dr-clock.low { color: var(--bad, #c0392b); }
 .fc-honest { border-left: 3px solid #e8b35a; padding-left: 8px; }
+/* teacher chat (learner and admin) */
+.chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; min-height: 180px; overflow-y: auto; padding: 4px 2px 8px; -webkit-overflow-scrolling: touch; }
+.chat-b { max-width: 82%; padding: 8px 12px; border-radius: 16px; display: flex; flex-direction: column; gap: 6px; word-wrap: break-word; }
+.chat-b p { margin: 0; }
+.chat-b small { font-size: .72rem; color: var(--muted); align-self: flex-end; }
+.chat-b.them { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 4px; }
+.chat-b.me { align-self: flex-end; background: #5b3fd0; color: #fff; border-bottom-right-radius: 4px; }
+.chat-b.me small { color: rgba(255, 255, 255, .8); }
+.chat-act { align-self: flex-start; }
+.chat-b.me .chat-act { background: #fff; color: #5b3fd0; }
+.chat-day { text-align: center; font-size: .75rem; color: var(--muted); margin: 6px 0 0; }
+.chat-empty { text-align: center; margin: auto 0; }
+.chat-form { display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; }
+.chat-form textarea { flex: 1; min-height: 44px; border: 2px solid var(--border); border-radius: 14px; padding: 10px; font: inherit; resize: none; background: var(--surface); color: var(--text); }
+.chat-form .btn { min-height: 44px; }
+.ac-act { width: 100%; min-height: 44px; margin-top: 8px; border-radius: 12px; border: 2px solid var(--border); padding: 0 10px; font: inherit; background: var(--surface); color: var(--text); }
+.chat-new { display: flex; flex-direction: column; gap: 4px; color: var(--text); border: 2px solid var(--primary); }
+.chat-new small { color: var(--muted); font-weight: 600; }
+.lt-unread { display: inline-block; background: #e5484d; color: #fff; border-radius: 10px; padding: 0 7px; font-size: .75rem; font-weight: 800; margin-left: 4px; }
+.lt-phone { display: flex; align-items: center; gap: 6px; }
+.lt-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; flex: none; }
+.lt-dot.on { background: #2fb37a; }

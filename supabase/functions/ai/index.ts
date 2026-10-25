@@ -463,6 +463,8 @@ export type Deps = {
   bump: (cap: number) => Promise<number>;
   /** talks to the content_reports and learners tables (PostgREST path after /rest/v1/); absent in tests that don't need it */
   db?: (method: string, path: string, body?: unknown) => Promise<any>;
+  /** tells phones listening on a live channel that something changed (no content is sent); absent in tests */
+  live?: (topic: string, event: string) => Promise<void>;
 };
 
 function parseOrigins(env: Record<string, string | undefined>): string[] {
@@ -691,7 +693,7 @@ function reportResult(v: any, token: string, turns: number) {
 }
 
 async function contentTask(task: string, body: any, req: Request, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response | null> {
-  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide", "learners_list", "learner_label", "admin_stats"].indexOf(task) < 0) return null;
+  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide", "learners_list", "learner_label", "admin_stats", "admin_chat_get", "admin_chat_send"].indexOf(task) < 0) return null;
   if (!deps.db) return reply(500, { ok: false, error: "not_configured" }, h);
   const lang: Lang = body.lang === "vi" || body.lang === "en" ? body.lang : "both";
   const p = body.payload && typeof body.payload === "object" ? body.payload : {};
@@ -745,9 +747,13 @@ async function contentTask(task: string, body: any, req: Request, env: Record<st
     if (task === "admin_stats") return reply(200, { ok: true, task, result: await adminStats(env, deps.db) }, h);
     // Admin view of the progress backups: numbers only (meta + study summary), never the full progress.
     if (task === "learners_list") {
-      const rows = await deps.db("GET", "learners?select=id,created_at,updated_at,rev,meta,summary&order=updated_at.desc&limit=50");
-      return reply(200, { ok: true, task, result: { rows: (rows || []).map((r: any) => ({ id: r.id, created_at: r.created_at, updated_at: r.updated_at, rev: r.rev, meta: r.meta || {}, summary: r.summary || null })) } }, h);
+      const rows = await deps.db("GET", "learners?select=id,created_at,updated_at,rev,meta,summary,last_open,client&order=updated_at.desc&limit=50");
+      const un: Record<string, number> = {};
+      try { ((await deps.db("GET", "messages?sender=eq.learner&seen_at=is.null&select=learner")) || []).forEach((m: any) => { un[m.learner] = (un[m.learner] || 0) + 1; }); } catch (_e) { /* chat not set up yet */ }
+      return reply(200, { ok: true, task, result: { rows: (rows || []).map((r: any) => ({ id: r.id, created_at: r.created_at, updated_at: r.updated_at, rev: r.rev, meta: r.meta || {}, summary: r.summary || null,
+        last_open: r.last_open || null, client: r.client || null, unread: un[r.id] || 0 })), live: liveCfg(env, await liveTopic("admin:" + (env.ADMIN_CODE || ""))) } }, h);
     }
+    if (task === "admin_chat_get" || task === "admin_chat_send") return await chatAdmin(task, p, env, deps, h);
     if (task === "learner_label") {
       const lid = str(p.id, 64); if (!/^[a-f0-9]{64}$/.test(lid)) return reply(400, { ok: false, error: "bad_id" }, h);
       const cur = await deps.db("GET", "learners?id=eq." + lid + "&select=meta&limit=1"); if (!cur || !cur[0]) return reply(404, { ok: false, error: "no_backup" }, h);
@@ -792,8 +798,69 @@ function cleanMeta(m: any): Record<string, unknown> {
   m = m && typeof m === "object" ? m : {};
   return { xp: n(m.xp), streak: n(m.streak), words: n(m.words), last: /^\d{4}-\d{2}-\d{2}$/.test(m.last) ? m.last : "" };
 }
+/* ---------------- teacher chat (messages table) ----------------
+   A learner reaches only her own messages, with her restore code (row id = hash of it); the admin reaches all with the
+   admin code. Live updates: the server pings a channel whose name is derived from the row id (or the admin code);
+   the ping carries no text, the phone then fetches with its code. Phones also poll, so chat works without the live part. */
+const CHAT_MAX = 1000, CHAT_DAY = 60;
+const HREF_OK = /^#\/[a-z0-9][a-z0-9\/_-]{0,60}$/i;
+function cleanAction(a: any): { label: string; href: string } | null {
+  if (!a || typeof a !== "object") return null;
+  const label = str(a.label, 40), href = String(a.href || "");
+  return label && HREF_OK.test(href) ? { label, href } : null;
+}
+async function liveTopic(seed: string): Promise<string> { return "cb-" + (await sha("cb-chat:" + seed)).slice(0, 40); }
+function liveCfg(env: Record<string, string | undefined>, topic: string): Record<string, string> | null {
+  let key = env.SUPABASE_ANON_KEY || "";
+  if (!key) { try { const o = JSON.parse(env.SUPABASE_PUBLISHABLE_KEYS || ""); const v = typeof o === "string" ? o : Array.isArray(o) ? o[0] : Object.values(o)[0]; key = typeof v === "string" ? v : ""; } catch (_e) { key = ""; } }
+  const url = env.SUPABASE_URL || "";
+  return url && key ? { url: url.replace(/^http/, "ws") + "/realtime/v1/websocket", key, topic } : null;
+}
+async function ping(deps: Deps, topic: string): Promise<void> { try { if (deps.live) await deps.live(topic, "chat"); } catch (_e) { /* live is a bonus; polling still delivers */ } }
+const MSG_COLS = "select=id,sender,body,action,created_at,seen_at";
+async function chatList(deps: Deps, lid: string, since: number): Promise<any[]> {
+  const rows = await deps.db!("GET", "messages?learner=eq." + lid + (since > 0 ? "&id=gt." + since : "") + "&" + MSG_COLS + "&order=id.desc&limit=60");
+  return (rows || []).reverse();
+}
+async function chatLearner(task: string, p: any, lid: string, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response> {
+  const row = (await deps.db!("GET", "learners?id=eq." + lid + "&select=id&limit=1") || [])[0];
+  if (!row) return reply(404, { ok: false, error: "no_backup" }, h);
+  const now = new Date().toISOString();
+  if (task === "chat_send") {
+    const body = str(p.body, CHAT_MAX).trim();
+    if (!body) return reply(400, { ok: false, error: "empty_message" }, h);
+    const today = await deps.db!("GET", "messages?learner=eq." + lid + "&sender=eq.learner&created_at=gte." + now.slice(0, 10) + "T00:00:00Z&select=id");
+    if ((today || []).length >= CHAT_DAY) return reply(429, { ok: false, error: "chat_full" }, h);
+    await deps.db!("POST", "messages", { learner: lid, sender: "learner", body, created_at: now });
+    if (env.ADMIN_CODE) await ping(deps, await liveTopic("admin:" + env.ADMIN_CODE));
+    return reply(200, { ok: true, task, result: { msgs: await chatList(deps, lid, Math.max(0, parseInt(p.since, 10) || 0)) } }, h);
+  }
+  // chat_get: also says "this phone is open" (last_open) and how its backup is doing (client), for the teacher's view
+  const c = p.client && typeof p.client === "object" ? p.client : {};
+  const client = { v: str(c.v, 20), b: ["on", "off", "paused", "err"].indexOf(c.b) >= 0 ? c.b : "", e: str(c.e, 30), at: now };
+  await deps.db!("PATCH", "learners?id=eq." + lid, { last_open: now, client });
+  if (p.read === true) await deps.db!("PATCH", "messages?learner=eq." + lid + "&sender=eq.admin&seen_at=is.null", { seen_at: now });
+  const msgs = await chatList(deps, lid, Math.max(0, parseInt(p.since, 10) || 0));
+  const unread = p.read === true ? 0 : ((await deps.db!("GET", "messages?learner=eq." + lid + "&sender=eq.admin&seen_at=is.null&select=id")) || []).length;
+  return reply(200, { ok: true, task, result: { msgs, unread, live: liveCfg(env, await liveTopic(lid)) } }, h);
+}
+async function chatAdmin(task: string, p: any, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response> {
+  const lid = str(p.id, 64); if (!/^[a-f0-9]{64}$/.test(lid)) return reply(400, { ok: false, error: "bad_id" }, h);
+  const now = new Date().toISOString();
+  if (task === "admin_chat_send") {
+    const body = str(p.body, CHAT_MAX).trim(), action = cleanAction(p.action);
+    if (!body && !action) return reply(400, { ok: false, error: "empty_message" }, h);
+    const row = (await deps.db!("GET", "learners?id=eq." + lid + "&select=id&limit=1") || [])[0];
+    if (!row) return reply(404, { ok: false, error: "no_backup" }, h);
+    await deps.db!("POST", "messages", { learner: lid, sender: "admin", body, action, created_at: now });
+    await ping(deps, await liveTopic(lid));
+  } else if (p.read === true) await deps.db!("PATCH", "messages?learner=eq." + lid + "&sender=eq.learner&seen_at=is.null", { seen_at: now });
+  const lr = (await deps.db!("GET", "learners?id=eq." + lid + "&select=last_open,client&limit=1") || [])[0] || {};
+  return reply(200, { ok: true, task, result: { msgs: await chatList(deps, lid, Math.max(0, parseInt(p.since, 10) || 0)), last_open: lr.last_open || null, client: lr.client || null,
+    live: liveCfg(env, await liveTopic("admin:" + (env.ADMIN_CODE || ""))) } }, h);
+}
 async function syncTask(task: string, body: any, req: Request, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response | null> {
-  if (["sync_put", "sync_get", "sync_delete"].indexOf(task) < 0) return null;
+  if (["sync_put", "sync_get", "sync_delete", "chat_get", "chat_send"].indexOf(task) < 0) return null;
   if (!deps.db) return reply(500, { ok: false, error: "not_configured" }, h);
   const p = body.payload && typeof body.payload === "object" ? body.payload : {};
   const ip = clientIp(req);
@@ -808,6 +875,7 @@ async function syncTask(task: string, body: any, req: Request, env: Record<strin
       return reply(200, { ok: true, task, result: { data: rows[0].data, rev: rows[0].rev, updated_at: rows[0].updated_at, meta: rows[0].meta || {} } }, h);
     }
     if (task === "sync_delete") { await deps.db("DELETE", where); return reply(200, { ok: true, task, result: { deleted: true } }, h); }
+    if (task === "chat_get" || task === "chat_send") return await chatLearner(task, p, id, env, deps, h);
     const d = p.data;
     if (!d || typeof d !== "object" || Array.isArray(d) || !d.srs || typeof d.srs !== "object" || !d.settings || typeof d.settings !== "object") return reply(400, { ok: false, error: "bad_sync" }, h);
     const meta = cleanMeta(p.meta), now = new Date().toISOString();
@@ -833,12 +901,12 @@ const fails = new Map<string, number[]>();
 function noteFail(ip: string) { const now = Date.now(), l = (fails.get(ip) || []).filter((t) => now - t < 9e5); l.push(now); fails.set(ip, l); if (fails.size > 500) fails.clear(); }
 function tooManyFails(ip: string): boolean { const now = Date.now(); return (fails.get(ip) || []).filter((t) => now - t < 9e5).length >= 8; }
 const hits = new Map<string, number[]>();
-/** at most 12 requests per minute per address (per server instance) */
+/** at most 30 requests per minute per address (per server instance) */
 function tooFast(ip: string): boolean {
   const now = Date.now(), list = (hits.get(ip) || []).filter((t) => now - t < 60000);
   list.push(now); hits.set(ip, list);
   if (hits.size > 500) for (const k of hits.keys()) { const l = hits.get(k)!; if (!l.length || now - l[l.length - 1] > 60000) hits.delete(k); }
-  return list.length > 12;
+  return list.length > 30; // two phones on one Wi-Fi share an address; chat polls and backups count too
 }
 
 export async function handle(req: Request, env: Record<string, string | undefined>, deps: Deps): Promise<Response> {
@@ -898,6 +966,13 @@ if (D && typeof D.serve === "function") {
       const r = await fetch(base + "/rest/v1/" + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(12000) });
       if (!r.ok) throw new Error("db " + r.status);
       return method === "GET" ? await r.json() : null;
+    },
+    live: async (topic, event) => {
+      const base = D.env.get("SUPABASE_URL"), key = serviceKey();
+      if (!base || !key) return;
+      const headers: Record<string, string> = { "content-type": "application/json", apikey: key };
+      if (key.startsWith("eyJ")) headers.authorization = "Bearer " + key;
+      await fetch(base + "/realtime/v1/api/broadcast", { method: "POST", headers, body: JSON.stringify({ messages: [{ topic, event, payload: {}, private: false }] }), signal: AbortSignal.timeout(4000) });
     },
     bump: async (cap) => {
       const base = D.env.get("SUPABASE_URL"), key = serviceKey();

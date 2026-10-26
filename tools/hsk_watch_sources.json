@@ -40,15 +40,20 @@
       "id": "clec-home",
       "name": "Center for Language Education and Cooperation (CLEC, formerly Hanban)",
       "url": "http://www.chinese.cn/",
-      "why": "The Ministry of Education body that owns the HSK and publishes policy news about it. URL written from memory.",
-      "verified": false
+      "why": "The Ministry of Education body that owns the HSK and publishes policy news about it. URL written from memory. Disabled Oct 2026: the page is drawn by JavaScript, so a plain download gets only ~10 characters and can never be compared.",
+      "verified": false,
+      "enabled": false
     },
     {
       "id": "moe-standards-2021",
       "name": "Ministry of Education: Chinese Proficiency Grading Standards (basis of HSK 3.0)",
       "url": "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/s5987/202103/t20210329_523304.html",
-      "why": "The national standard (GF 0025-2021) that HSK 3.0 implements. Rarely changes; a change would be important. URL written from memory.",
-      "verified": false
+      "why": "The national standard (GF 0025-2021) that HSK 3.0 implements. Rarely changes; a change would be important. URL written from memory. Link addresses are ignored: the site changes its menu and footer links (e.g. the 网站地图 site map, Oct 2026) without any change to the standard.",
+      "verified": false,
+      "links": false,
+      "ignore": [
+        "网站地图"
+      ]
     }
   ]
 }

@@ -387,7 +387,11 @@ export async function runWatch({ sources, stateDir, now = new Date(), timeoutMs 
       if (firstWithText.has(joined)) res.sameAs = firstWithText.get(joined);
       else firstWithText.set(joined, src.id);
 
-      const old = sameUrl && prev.lastChecked ? await loadText(stateDir, src.id) : null;
+      // the reading settings (links, ignore) shape the saved text: after a change, start a new baseline instead of reporting a false change
+      const cfg = JSON.stringify({ links: src.links !== false, ignore: src.ignore || [] });
+      const sameCfg = (prev && prev.cfg !== undefined ? prev.cfg : JSON.stringify({ links: true, ignore: [] })) === cfg;
+      entry.cfg = cfg;
+      const old = sameUrl && sameCfg && prev.lastChecked ? await loadText(stateDir, src.id) : null;
       if (!old) {
         res.status = 'baseline';
       } else {

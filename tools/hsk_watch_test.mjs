@@ -258,6 +258,18 @@ test('changing a source URL starts a new baseline instead of alerting', async ()
   assert.equal(buildReport(run), null);
 });
 
+test('changing a source\'s reading settings (links, ignore) starts a new baseline instead of alerting', async () => {
+  const dir = await tmp();
+  pages['/s'] = page('<p>the standard text</p><a href="/sitemap-2024">网站地图</a>');
+  await check([src('s')], dir, week(0));
+  pages['/s'] = page('<p>the standard text</p><a href="/sitemap-2026">网站地图</a>');
+  const run = await check([{ ...src('s'), links: false, ignore: ['网站地图'] }], dir, week(1));
+  assert.equal(run.results[0].status, 'baseline');
+  assert.equal(buildReport(run), null);
+  const again = await check([{ ...src('s'), links: false, ignore: ['网站地图'] }], dir, week(2));
+  assert.equal(again.results[0].status, 'unchanged');
+});
+
 test('identical pages (a site that returns one shell for every URL) are reported once', async () => {
   const dir = await tmp();
   pages['/s1'] = pages['/s2'] = page('<a href="/news/1">2026 Test Calendar</a>');

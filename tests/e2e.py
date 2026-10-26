@@ -120,8 +120,8 @@ async def t_first_run(b):
     await pg.fill("#su-exam", day(40)); await pg.click("#su-go"); await pg.wait_for_timeout(600)
     st = await pg.evaluate("Store.state.settings")
     check("setup: choices are saved, the rest keeps its default", st.get("remindTime") == "12:30" and st.get("weeklyDays") == 3 and st.get("examDate") == day(40) and st.get("setupDone") and st.get("onboarded") and st.get("dailyGoal") == 30, st)
-    check("after setup the Home screen is usable (no guide pages)", await pg.locator(".modal-wrap").count() == 0 and await pg.locator(".session-cta").count() == 1)
-    check("after setup Home shows the chosen exam date and weekly goal", "40 days" in await pg.inner_text("#app") and "Study 3 days" in await pg.inner_text(".wkrow"))
+    check("after setup the Home screen is usable (no guide pages)", await pg.locator(".modal-wrap").count() == 0 and await pg.locator("#today-main").count() == 1)
+    check("after setup Home shows the chosen exam date and weekly goal", "40 days" in await pg.inner_text("#app") and "Study 3 days" in await pg.locator(".wkrow").text_content())
     await go(pg, "#/me", 500); await pg.click("#s-guide"); await pg.wait_for_timeout(300)
     check("the guide pages are still under Me", await pg.locator("#g-next").count() == 1 and await pg.locator("#su-go").count() == 0)
     await ctx.close()
@@ -150,7 +150,7 @@ async def t_resume(b):
 
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
     await pg.clock.install(time=datetime.datetime.combine(TODAY, datetime.time(9, 0)))
-    await pg.reload(); await pg.wait_for_selector(".quests")
+    await pg.reload(); await pg.wait_for_selector(".quests", state="attached")
     await pg.evaluate(mark); await at(pg, 0, 10); await pg.evaluate(back); await pg.wait_for_timeout(200)
     check("resume: Home is left alone after a short break", await pg.evaluate(old) == 1)
     await at(pg, 0, 12, 30)
@@ -177,58 +177,16 @@ async def t_resume(b):
 
 
 async def t_tip(b):
-    async def tip(state, ai=False):
-        ctx, pg = await open_app(b, state, ai=ai)
-        el = pg.locator("#tip")
-        r = (await el.get_attribute("data-rule"), await el.inner_text(), await pg.locator("#tip-go").get_attribute("href")) if await el.count() else (None, "", None)
-        return ctx, pg, r
-    base = {"settings": settings(examDate=day(120)), "srs": {}}
-    ctx, pg, r = await tip(base)
-    ids = await pg.evaluate("App.WORDS.slice(0,25).map(w=>w.id)")
-    check("tip: today's lesson when nothing else applies", r[0] == "lesson" and r[2] == "#/day/1", r)
-    check("tip: one small card above the More fold with one button", await pg.locator("#tip .btn").count() == 1 and await pg.evaluate("!document.querySelector('details.more #tip')"))
-    await pg.click("#tip-go"); await pg.wait_for_timeout(500)
-    seen = await pg.evaluate("JSON.parse(localStorage.getItem('cbChinese.tip'))")
-    check("tip: the button opens the screen and the tap is remembered", await pg.evaluate("location.hash") == "#/day/1" and seen == {"d": day(0), "r": "lesson"}, seen)
-    await go(pg, "#/", 600)
-    check("tip: hidden for the rest of the day once acted on", await pg.locator("#tip").count() == 0 and await pg.locator(".quests").count() == 1)
-    await pg.evaluate("localStorage.setItem('cbChinese.tip',JSON.stringify({d:'2020-01-01',r:'lesson'}))"); await go(pg, "#/me", 300); await go(pg, "#/", 600)
-    check("tip: back the next day", await pg.locator("#tip").count() == 1)
+    """The daily tip card was replaced by the Today card (one call to action on Home)."""
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(120)), "srs": {}})
+    check("tip: no separate tip card; the Today card leads Home", await pg.locator("#tip").count() == 0 and await pg.locator("#today-main").count() == 1)
+    first = await pg.evaluate("document.querySelector('#today-main [data-step]').getAttribute('data-step')")
+    check("today: the first step is Today's session, then the lesson", first == "session" and await pg.locator("#today-main [data-step='lesson'][href='#/day/1']").count() == 1, first)
+    check("today: one main button that opens the next step", await pg.locator("#today-go[href='#/session']").count() == 1)
+    await pg.evaluate("()=>{var s=Store.state,t=Store.today();s.sessions=s.sessions||{};s.sessions[t]=true;Store.save()}")
+    await go(pg, "#/me", 200); await go(pg, "#/", 700)
+    check("today: after the session the button continues with the lesson", await pg.locator("#today-go[href='#/day/1']").count() == 1 and "step 2 of" in await pg.inner_text("#today-go"))
     await ctx.close()
-    done = {"1": {"completed": True, "completedOn": day(0), "quizBest": 9}}
-    ctx, pg, r = await tip(dict(base, days=done))
-    check("tip: 'all caught up' links to listening or the Reader", r[0] in ("listen", "read") and r[2] in ("#/listen-mode", "#/read") and "All caught up" in r[1], r)
-    await ctx.close()
-    ctx, pg, r = await tip({"settings": settings(examDate=day(30)), "srs": {}, "days": done})
-    check("tip: a mock exam when none was taken in 14 days and the exam is near", r[0] == "mock" and r[2] == "#/mock", r)
-    await ctx.close()
-    mock = [{"id": 1, "date": day(-3), "mode": "exam", "total": 188, "sections": {"listening": 52, "reading": 74, "writing": 62}}]
-    ctx, pg, r = await tip({"settings": settings(examDate=day(30)), "srs": {}, "days": done, "mockHistory": mock})
-    check("tip: no mock tip after a recent mock", r[0] in ("listen", "read"), r)
-    await ctx.close()
-    slog = {day(-2): {"m": 10, "s": 1, "h": 20, "k": {"measure": [4, 8], "vocab": [20, 2], "pinyin": [1, 5]}}}
-    ctx, pg, r = await tip(dict(base, slog=slog, log={day(-2): 30}))
-    check("tip: the weakest skill of the last 14 days (10+ answers, under 70%)", r[0] == "weak" and r[2] == "#/game/measure" and "33%" in r[1], r)
-    await ctx.close()
-    mlog = [{"d": day(-1), "k": "t:%d" % i, "s": "confusable"} for i in range(6)]
-    ctx, pg, r = await tip(dict(base, slog=slog, mlog=mlog, skills={"confusable": {"r": 4, "w": 8}}))
-    check("tip: a mistake pattern comes before the weakest skill", r[0] == "pattern" and r[2] == "#/game/confuse" and "Confusable words" in r[1], r)
-    await ctx.close()
-    srs = {i: {"box": 1, "due": day(-1), "right": 0, "wrong": 0, "added": day(-3), "last": day(-2)} for i in ids}
-    ctx, pg, r = await tip(dict(base, srs=srs, slog=slog, mlog=mlog, skills={"confusable": {"r": 4, "w": 8}}))
-    check("tip: 20 or more due words come first", r[0] == "due" and r[2] == "#/review" and "25 words are due. Clear them first." in r[1], r)
-    await ctx.close()
-    # the coach's plan already asks for the same skill -> no second card
-    today = datetime.date.today(); mon = (today - datetime.timedelta(days=today.weekday())).isoformat()
-    def plan(skill):
-        return [{"w": mon, "d": day(0), "base": {"skills": {skill: 0}, "cards": 0, "mocks": 0}, "actions": [{"text": "Practise this", "minutes": 10, "skill": skill}]}]
-    ctx, pg, r = await tip(dict(base, slog=slog, coachLog=plan("measure")))
-    check("tip: not shown when the coach's plan has the same skill open", r[0] is None and await pg.locator("#coach-plan li").count() == 1, r)
-    await ctx.close()
-    ctx, pg, r = await tip(dict(base, slog=slog, coachLog=plan("typing")))
-    check("tip: shown beside a coach plan about something else", r[0] == "weak" and await pg.locator("#coach-plan li").count() == 1, r)
-    await ctx.close()
-
 
 async def t_theme(b):
     metas = "[...document.querySelectorAll('meta[name=\"theme-color\"]')].map(m=>m.content)"
@@ -266,20 +224,16 @@ async def t_home(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
     check("home: quests card with 3 rows, chest locked", await pg.locator(".quests .qrow").count() == 3 and await pg.locator("#q-chest").is_disabled())
     check("home: weekly goal ring", await pg.locator(".wkrow .wk-dots i").count() == 7)
-    check("home: Reader row", await pg.locator("a.toolrow[href='#/read']").count() == 1)
+    check("home: the Reader moved to Practice (All games)", await pg.locator("a[href='#/read']").count() == 0)
     check("home: 'take a mock' readiness prompt when there is no data", await pg.locator(".readyc.empty").count() == 1)
-    try:
-        await pg.wait_for_selector(".trackrow:not(.toolrow)", timeout=12000); ok = True
-    except Exception:
-        ok = False
-    check("home: C&B track row appears after idle", ok)
+    check("home: no track row or tiles on Home (one Today card instead)", await pg.locator(".tiles").count() == 0 and await pg.locator(".trackrow").count() == 0)
     untagged = await pg.evaluate("[...document.querySelectorAll('.zh,.hz')].filter(e=>e.lang!=='zh-CN').length")
     check("home: Chinese text is tagged as Chinese", untagged == 0, untagged)
     await pg.evaluate("()=>{var s=Store.state,t=Store.today();s.log[t]=40;s.sessions=s.sessions||{};s.sessions[t]=true;s.days[1]=Object.assign(s.days[1]||{},{completed:true,completedOn:t});Store.save();}")
     await go(pg, "#/learn"); await go(pg, "#/", 900)
     check("home: chest unlocks when the 3 quests are done", not await pg.locator("#q-chest").is_disabled())
     xp0 = await pg.evaluate("Store.state.xp")
-    await pg.click("#q-chest"); await pg.wait_for_timeout(700)
+    await pg.evaluate("document.querySelector('.home-more').open=true"); await pg.click("#q-chest"); await pg.wait_for_timeout(700)
     check("home: chest gives 20 XP once", await pg.evaluate("Store.state.xp") - xp0 == 20 and await pg.evaluate("!!Store.state.questChest[Store.today()]"))
     await ctx.close()
 
@@ -294,17 +248,18 @@ async def t_habit(b):
              "log": {day(-1): 40, day(-2): 35}, "mlog": mlog, "freezes": 0, "skills": {"vocab": {"r": 2, "w": 4}}}
     ctx, pg = await open_app(b, state)
     await pg.clock.install(time=datetime.datetime.combine(TODAY, datetime.time(21, 30)))
-    await pg.reload(); await pg.wait_for_selector(".quests")
+    await pg.reload(); await pg.wait_for_selector(".quests", state="attached")
+    await pg.evaluate("document.querySelector('.home-more').open=true")
     txt = await pg.locator(".pattern").inner_text() if await pg.locator(".pattern").count() else ""
-    check("habit: pattern card shows the evidence", "×4" in txt and "×3" in txt, txt)
-    check("habit: streak-at-risk card after the study time", await pg.locator("a.cta[href='#/session/rescue']").count() == 1)
+    check("habit: pattern card shows the evidence (in the More fold)", "×4" in txt and "×3" in txt, txt)
+    check("habit: streak-at-risk link in the Today card after the study time", "Streak at risk" in await pg.locator("#today-main a[href='#/session/rescue']").inner_text())
     await pg.click("#pt-go"); await pg.wait_for_timeout(700)
     check("habit: Practise opens a deck of the missed words", "Words you keep missing" in await pg.inner_text("#app"))
     # weekly goal met -> one freeze, only once
     await pg.evaluate("()=>{const s=Store.state,t=Store.today(),d=new Date(t+'T00:00:00'),ws=Store.addDays(t,-((d.getDay()+6)%7));for(let i=0;i<7;i++)s.log[Store.addDays(ws,i)]=20;Store.save();}")
-    await pg.reload(); await pg.wait_for_selector(".quests"); await pg.wait_for_timeout(900)
+    await pg.reload(); await pg.wait_for_selector(".quests", state="attached"); await pg.wait_for_timeout(900)
     f1 = await pg.evaluate("Store.state.freezes")
-    await pg.reload(); await pg.wait_for_selector(".quests"); await pg.wait_for_timeout(900)
+    await pg.reload(); await pg.wait_for_selector(".quests", state="attached"); await pg.wait_for_timeout(900)
     check("habit: meeting the weekly goal earns one freeze, once", f1 == 1 and await pg.evaluate("Store.state.freezes") == 1, f1)
     await ctx.close()
 
@@ -384,18 +339,20 @@ async def t_ready(b):
     await ctx.close()
     ctx, pg = await open_app(b, {"settings": settings(examDate=day(9)), "skills": skills, "mockHistory": mocks})
     order = await pg.evaluate("[...document.querySelectorAll('#app > *')].slice(0,4).map(e=>e.className)")
-    check("final 14 days: readiness and the final plan lead Home", "readyc" in order[1] and "final-mode" in order[2], order)
+    check("final 14 days: readiness leads Home, then the Today card", "readyc" in order[1] and "today-main" in order[2], order)
     check("final 14 days: new lessons become a small link", await pg.locator("a.cta.g-coral[href^='#/day/']").count() == 0)
     await ctx.close()
 
 
 async def t_learn(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "days": {"1": {"completed": True, "quizBest": 9}, "2": {"completed": True, "quizBest": 8}, "3": {"completed": True, "quizBest": 10}}})
-    await go(pg, "#/learn", 1500)
+    await go(pg, "#/learn", 1200)
+    check("learn: the Now card opens the next lesson and 3 more are listed", await pg.locator("#learn-go[href='#/day/4']").count() == 1 and await pg.locator(".ln-row").count() == 3)
+    await go(pg, "#/learn/all", 1500)
     check("learn: path has 90 lessons, 3 done, one next", await pg.locator(".pnode").count() == 90 and await pg.locator(".pnode.done").count() == 3 and await pg.locator(".pnode.next").count() == 1)
     await pg.locator(".pnode.next").click(force=True); await pg.wait_for_timeout(700)
     check("learn: the next node opens day 4", await pg.evaluate("location.hash") == "#/day/4")
-    await go(pg, "#/learn", 900); await pg.click("[data-lv=grid]"); await pg.wait_for_timeout(600)
+    await go(pg, "#/learn/all", 900); await pg.click("[data-lv=grid]"); await pg.wait_for_timeout(600)
     check("learn: grid view lists 90 lessons", await pg.locator(".daycard").count() == 90)
     await go(pg, "#/plan", 900)
     faint = await pg.evaluate(CONTRAST_JS)
@@ -551,7 +508,8 @@ async def t_practice2(b):
     await go(pg, "#/games", 400)
     check("reading drill: listed in Games", await pg.locator(".grow[href='#/game/reading']").count() == 1)
     await go(pg, "#/learn", 600)
-    check("reading drill: linked from Learn", await pg.locator("#learn-reading[href='#/game/reading']").count() == 1)
+    await go(pg, "#/games", 600)
+    check("reading drill: listed in Practice", await pg.locator(".grow[href='#/game/reading']").count() == 1)
     await go(pg, "#/game/reading", 800); await pg.wait_for_selector(".rd-drill .passage-in", timeout=10000)
     srcs, right = [], 0
     for i in range(3):
@@ -785,7 +743,7 @@ async def t_reader(b):
 async def t_a11y(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
     await go(pg, "#/games", 500)
-    check("navigation: focus moves to the new screen and the page title follows", await pg.evaluate("document.activeElement&&document.activeElement.id") == "app" and (await pg.title()).startswith("Games"), await pg.title())
+    check("navigation: focus moves to the new screen and the page title follows", await pg.evaluate("document.activeElement&&document.activeElement.id") == "app" and (await pg.title()).startswith("Practice"), await pg.title())
     await go(pg, "#/day/1", 900)
     check("lesson: Chinese text is tagged as Chinese", await pg.evaluate("(()=>{const l=[...document.querySelectorAll('#app .zh')];return l.length>5&&l.every(e=>e.lang==='zh-CN')})()"))
     await pg.focus("#btn-flag"); await pg.click("#btn-flag"); await pg.wait_for_selector(".modal-wrap.report"); await pg.wait_for_timeout(200)
@@ -865,9 +823,9 @@ async def t_hsk5(b):
     await pg.wait_for_timeout(9000)  # past the idle loaders (lesson data, mocks, track)
     check("first load: no HSK 5 or extra-word file is requested", not pack_urls(urls) and any("/data/full.js" in u for u in urls), pack_urls(urls))
     await go(pg, "#/learn", 900)
-    check("learn: the level switch shows HSK 4 by default", await pg.locator(".lvl-sw [data-level]").count() == 2 and await pg.locator(".lvl-sw [aria-pressed='true']").get_attribute("data-level") == "4" and await pg.locator(".pnode").count() == 90)
+    check("learn: HSK 5 is under More courses, not a switch on the Learn screen", await pg.locator(".lvl-sw").count() == 0 and await pg.locator(".learn-more [data-level='5']").count() == 1)
     check("learn (HSK 4): still no pack file requested", not pack_urls(urls), pack_urls(urls))
-    await pg.click(".lvl-sw [data-level='5']"); await pg.wait_for_selector(".daycard", timeout=15000)
+    await pg.evaluate("document.querySelector('.learn-more').open=true"); await pg.click(".learn-more [data-level='5']"); await pg.wait_for_selector(".daycard", timeout=15000)
     txt = await pg.inner_text("#app")
     check("HSK 5: the switch opens 62 word packs and the choice is saved", await pg.locator(".daycard").count() == 62 and await pg.evaluate("Store.state.settings.level") == 5 and await pg.locator(".lvl-sw [aria-pressed='true']").get_attribute("data-level") == "5")
     check("HSK 5: the honest note is shown", "HSK 5 content is new and not yet checked by a teacher. Use the flag button to report mistakes." in txt, txt[:200])
@@ -912,11 +870,11 @@ async def t_hsk5(b):
     row = await pg.locator("#h5-row").inner_text() if await pg.locator("#h5-row").count() else ""
     check("Home: while on HSK 5 a row leads to the next unfinished pack", "Continue with pack 2" in row and "1/62 packs finished" in row and "20 words in review" in row and await pg.locator("#h5-row").get_attribute("href") == "#/pack/h5/2", row)
     await go(pg, "#/learn", 300); await pg.wait_for_selector(".daycard", timeout=15000)
-    await pg.click(".lvl-sw [data-level='4']"); await pg.wait_for_selector(".pnode")
+    await pg.click(".lvl-sw [data-level='4']"); await pg.wait_for_selector("#learn-go")
     await go(pg, "#/", 600)
     check("Home: no HSK 5 row on HSK 4", await pg.locator("#h5-row").count() == 0)
     await go(pg, "#/learn", 600)
-    check("the switch goes back to HSK 4 and remembers it", await pg.evaluate("Store.state.settings.level") == 4 and await pg.locator(".pnode").count() == 90)
+    check("the switch goes back to HSK 4 and remembers it", await pg.evaluate("Store.state.settings.level") == 4 and await pg.locator("#learn-go").count() == 1)
     await ctx.close()
 
 
@@ -1011,9 +969,9 @@ def order_for(tokens, target):
 async def t_newgames(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
     await go(pg, "#/games", 600)
-    check("games: Word Bank and Arrange the Words are listed", await pg.locator(".grow[href='#/game/bank']").count() == 1 and await pg.locator(".grow[href='#/game/wordorder']").count() == 1)
+    check("practice: Word Bank is listed under All games (Arrange the Words stays reachable by its link)", await pg.locator(".all-games .grow[href='#/game/bank']").count() == 1)
     # --- arrange the words: one wrong answer, then right ones (an 'alt' order when the item has one)
-    await pg.click(".grow[href='#/game/wordorder']"); await pg.wait_for_selector("#pool .piece")
+    await go(pg, "#/game/wordorder", 600); await pg.wait_for_selector("#pool .piece")
     check("arrange the words: Chinese is tagged and focus is on the screen", await pg.evaluate(ZH_TAGGED) and await pg.evaluate("document.activeElement&&document.activeElement.id") == "app")
     used_alt = False; wrong_id = None
     for i in range(8):
@@ -1075,7 +1033,7 @@ async def t_newgames(b):
     check("word bank: a full round of 10 is scored, with XP", st["games"].get("bank") == {"best": 10, "plays": 1} and "10 / 10" in await pg.inner_text(".result"), st["games"])
     check("word bank: counts as choosing the right word", st["skills"].get("fill-word") == {"r": 10, "w": 0}, st["skills"])
     await go(pg, "#/games", 500)
-    check("games: both new games show their best score", "Best 10" in await pg.locator(".grow[href='#/game/bank']").inner_text() and "Best 7" in await pg.locator(".grow[href='#/game/wordorder']").inner_text())
+    check("games: both new games show their best score", "Best 10" in await pg.locator(".all-games .grow[href='#/game/bank']").text_content() and await pg.evaluate("Store.state.games.wordorder.best") == 7)
     await ctx.close()
 
 
@@ -1393,7 +1351,7 @@ async def offline_checks(b):
     # HSK 5 opened once while online: afterwards it works with no network, even after the app is closed and opened again
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
     check("offline: the service worker is in control", await sw_ready(pg))
-    await go(pg, "#/learn", 600); await pg.click(".lvl-sw [data-level='5']"); await pg.wait_for_selector(".daycard", timeout=15000)
+    await go(pg, "#/learn", 600); await pg.evaluate("document.querySelector('.learn-more').open=true"); await pg.click(".learn-more [data-level='5']"); await pg.wait_for_selector(".daycard", timeout=15000)
     kept = False
     for _ in range(40):
         kept = await pg.evaluate("caches.open('cb-packs').then(c=>c.keys()).then(k=>k.some(r=>/\\/data\\/hsk5\\.[0-9a-f]+\\.js$/.test(r.url)))")
@@ -1419,7 +1377,7 @@ async def offline_checks(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
     await sw_ready(pg); await pg.wait_for_timeout(6000)  # the rest of the HSK 4 course has been stored by now
     await net(ctx, False)
-    await go(pg, "#/learn", 600); await pg.click(".lvl-sw [data-level='5']"); await pg.wait_for_selector("#pack-miss", timeout=15000)
+    await go(pg, "#/learn", 600); await pg.evaluate("document.querySelector('.learn-more').open=true"); await pg.click(".learn-more [data-level='5']"); await pg.wait_for_selector("#pack-miss", timeout=15000)
     txt = await pg.inner_text("#app")
     check("offline, HSK 5 never downloaded: a clear message instead of an empty screen", "HSK 5 is not on this phone yet" in txt and "Connect to the internet" in txt and await pg.locator("#miss-retry").count() == 1, txt[:200])
     await go(pg, "#/pack/h5/1", 900)
@@ -1430,9 +1388,11 @@ async def offline_checks(b):
     check("offline: a lesson still opens, just without the extra phrases", await pg.locator(".word.card").count() == 10 and await pg.locator(".wx-b").count() == 0)
     await go(pg, "#/learn", 900)
     check("offline: the message keeps the level switch", await pg.locator("#pack-miss").count() == 1 and await pg.locator(".lvl-sw [data-level='4']").count() == 1)
-    await pg.click(".lvl-sw [data-level='4']"); await pg.wait_for_selector(".pnode", timeout=10000)
+    await pg.click(".lvl-sw [data-level='4']"); await pg.wait_for_selector("#learn-go", timeout=10000)
+    await go(pg, "#/learn/all", 900)
     check("offline: back on HSK 4 everything works", await pg.locator(".pnode").count() == 90 and await pg.evaluate("Store.state.settings.level") == 4)
-    await pg.click(".lvl-sw [data-level='5']"); await pg.wait_for_selector("#pack-miss", timeout=15000)
+    await go(pg, "#/learn", 600)
+    await pg.evaluate("document.querySelector('.learn-more').open=true"); await pg.click(".learn-more [data-level='5']"); await pg.wait_for_selector("#pack-miss", timeout=15000)
     await net(ctx, True)
     await pg.click("#miss-retry"); await pg.wait_for_selector(".daycard", timeout=15000)
     check("online again: 'Try again' loads HSK 5", await pg.locator(".daycard").count() == 62)
@@ -1443,8 +1403,8 @@ async def t_engage(b):
     # back after 4 days away: the 5-minute restart is the first card on Home
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "log": {day(-4): 30, day(-5): 20}, "xp": 50})
     await go(pg, "#/", 900)
-    first = await pg.evaluate("(()=>{const a=document.querySelector('#app a.cta');return a?a.getAttribute('href'):null})()")
-    check("comeback: after 4 days away the 5-minute restart is the first card on Home", first == "#/session/comeback" and "4 days away" in (await pg.locator("a.comeback").inner_text()).lower(), first)
+    first = await pg.evaluate("(()=>{const a=document.querySelector('#today-main [data-step]');return a?a.getAttribute('href'):null})()")
+    check("comeback: after 4 days away the 5-minute restart is the first step of Today", first == "#/session/comeback" and "4 days away" in (await pg.locator("#today-main").inner_text()).lower() and await pg.locator("#today-go[href='#/session/comeback']").count() == 1, first)
     check("comeback: the 2-minute shortcut is not offered at the same time", await pg.locator("a[href='#/session/rescue']").count() == 0)
     await pg.evaluate("(()=>{const ids=App.WORDS.slice(0,12).map(w=>w.id);ids.forEach((id,i)=>{Store.state.srs[id]={box:2,due:Store.addDays(Store.today(),-(i+1)),right:1,wrong:0,added:Store.addDays(Store.today(),-20),last:null}});Store.save()})()")
     await go(pg, "#/session/comeback", 1200); await pg.wait_for_selector("#ss-go", timeout=10000)
@@ -1460,7 +1420,7 @@ async def t_engage(b):
     # the exam countdown plan
     ctx, pg = await open_app(b, {"settings": settings(examDate=day(10)), "srs": {}})
     await go(pg, "#/", 700)
-    check("exam plan: on Home 10 days before the exam", await pg.locator(".exam-plan").count() == 1 and "10 days left" in await pg.locator(".exam-plan").inner_text())
+    check("exam plan: on Home 10 days before the exam (a Today step and a line for tomorrow)", await pg.locator("#today-main [data-step='exam']").count() == 1 and "10 days left" in await pg.locator("#today-main").inner_text() and "Exam plan · tomorrow" in await pg.locator(".line-card").inner_text())
     await go(pg, "#/exam", 1200); await pg.wait_for_selector(".ep-list li", timeout=10000)
     rows = await pg.evaluate("[...document.querySelectorAll('.ep-list li')].map(l=>l.className.split(' ')[0]+'|'+l.innerText.replace(/\\s+/g,' '))")
     kinds = [r.split("|")[0] for r in rows]
@@ -1595,7 +1555,7 @@ async def t_knowledge2(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": srs, "grammar": gram})
     g3 = await pg.evaluate("Store.state.grammar.g03")
     check("weekly quiz: older grammar progress counts as practised once, with no date", g3.get("n") == 1 and "d" not in g3, g3)
-    check("weekly quiz: offered on Home once 10 new words came in this week", await pg.locator("a.wq-cta").count() == 1)
+    check("weekly quiz: offered on Home once 10 new words came in this week (a Today step)", await pg.locator("#today-main [data-step='weekly'][href='#/weekly']").count() == 1)
     await go(pg, "#/learn", 600)
     check("weekly quiz: reachable from Learn", await pg.locator("a.wq-row[href='#/weekly']").count() == 1)
     await pg.evaluate(HOOK_Q)
@@ -1636,8 +1596,8 @@ async def t_knowledge2(b):
         srs = {i: {"box": 1, "due": d, "right": 0, "wrong": 0, "added": d, "last": None} for i in new[:5]}
         ctx, pg = await open_app(b, {"settings": settings(), "srs": srs})
         await pg.clock.install(time=datetime.datetime.combine(monday + datetime.timedelta(days=off), datetime.time(10, 0)))
-        await pg.reload(); await pg.wait_for_selector(".quests")
-        check("weekly quiz: %s with 5 new words" % ("not offered on Monday" if not want else "offered on Friday"), await pg.locator("a.wq-cta").count() == want)
+        await pg.reload(); await pg.wait_for_selector(".quests", state="attached")
+        check("weekly quiz: %s with 5 new words" % ("not offered on Monday" if not want else "offered on Friday"), await pg.locator("#today-main [data-step='weekly']").count() == want)
         await ctx.close()
 
     # --- lesson catch-up: only when behind plan and not in the final 14 days
@@ -1645,10 +1605,10 @@ async def t_knowledge2(b):
               "days": {str(n): {"quizBest": 8, "practice": {}, "completed": True, "completedOn": day(-20)} for n in (1, 2, 3)}}
     ctx, pg = await open_app(b, behind)
     await go(pg, "#/", 800)
-    cta = pg.locator("a.cu-cta")
+    cta = pg.locator("#today-main a[data-step='catchup']")
     txt = await cta.inner_text() if await cta.count() else ""
     check("catch-up: offered on Home when behind plan", "Catch up: 2 short lessons today" in txt and "Day 4 + Day 5" in txt, txt)
-    check("catch-up: takes the place of Continue (no duplicate card)", await pg.locator("a.cta[href^='#/day/']").count() == 0 and await pg.locator("a.mini-link[href='#/day/4']").count() == 1)
+    check("catch-up: takes the place of the lesson step (no duplicate)", await pg.locator("#today-main [data-step='lesson']").count() == 0)
     plan_txt = await pg.locator(".today").text_content()
     check("catch-up: Today's plan uses the same wording", "Catch up: 2 short lessons" in plan_txt and "Finish Day" not in plan_txt, plan_txt[:200])
     await pg.evaluate(HOOK_Q)
@@ -1681,11 +1641,11 @@ async def t_knowledge2(b):
     await ctx.close()
     ctx, pg = await open_app(b, dict(behind, settings=settings(examDate=day(10), coreTarget=30)))
     await go(pg, "#/", 800)
-    check("catch-up: not offered in the final 14 days", await pg.locator("a.cu-cta").count() == 0)
+    check("catch-up: not offered in the final 14 days", await pg.locator("#today-main [data-step='catchup']").count() == 0)
     await ctx.close()
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "log": {day(-1): 30}, "days": {str(n): {"quizBest": 8, "practice": {}, "completed": True, "completedOn": day(-1)} for n in (1, 2)}})
     await go(pg, "#/", 800)
-    check("catch-up: not offered when on track", await pg.locator("a.cu-cta").count() == 0 and await pg.locator("a.cta[href='#/day/3']").count() == 1)
+    check("catch-up: not offered when on track", await pg.locator("#today-main [data-step='catchup']").count() == 0 and await pg.locator("#today-main [data-step='lesson'][href='#/day/3']").count() == 1)
     await go(pg, "#/catchup", 900)
     check("catch-up: the page explains when it is offered", "No catch-up needed" in await pg.inner_text("#app"))
 
@@ -1891,7 +1851,7 @@ async def t_chat(b):
     await p1.evaluate("Game.award(40)"); await no_dialogs(p1)
     check("chat: backup saved (the chat identity)", await p1.evaluate("Sync.now()") == "saved")
     await go(p1, "#/me", 600)
-    check("chat: Me offers the teacher chat once backup is on", await p1.locator("a.chat-me[href='#/chat']").count() == 1)
+    check("chat: Me offers the teacher chat once backup is on", await p1.locator("a.me-row[href='#/chat']").count() == 1)
     await go(p1, "#/chat", 1200); await p1.wait_for_selector("#chat-log", timeout=10000)
     check("chat: an empty conversation says so", "No messages yet" in await p1.inner_text("#chat-log"))
     await p1.fill("#chat-in", "老师好 " + tag); await p1.click("#chat-send")
@@ -1986,9 +1946,42 @@ async def t_chat(b):
     check("admin: an announcement to no real learner is refused", r.get("error") == "no_learners", r)
     await c1.close(); await c2.close()
 
+async def t_simple(b):
+    """The simplified layout: one Today card on Home, Practice in three parts, Me without admin tools, a quieter top bar."""
+    st = {"settings": settings(), "srs": {}, "skills": {"fill-word": {"r": 6, "w": 4}, "typing": {"r": 6, "w": 5}, "vocab": {"r": 40, "w": 2}},
+          "mockHistory": [{"id": 1, "date": day(-3), "mode": "exam", "total": 200, "sections": {"listening": 70, "reading": 65, "writing": 65}}]}
+    ctx, pg = await open_app(b, st, ai=True)
+    await go(pg, "#/", 800)
+    n_cta = await pg.evaluate("[...document.querySelectorAll('#app a.cta, #app .tiles')].filter(e=>e.offsetParent).length")
+    check("simple: Home has the Today card and no other big call-to-action cards", await pg.locator("#today-main").count() == 1 and n_cta == 0, n_cta)
+    hidden = await pg.evaluate("['chip-heart','btn-py','btn-flag'].map(id=>getComputedStyle(document.getElementById(id)).display)")
+    check("simple: hearts, 拼 and ⚑ are hidden on the tab screens", hidden == ["none", "none", "none"], hidden)
+    check("simple: streak and XP chips have spoken names", (await pg.get_attribute("#chip-streak", "aria-label") or "").startswith("Streak") and "XP" in (await pg.get_attribute("#chip-xp", "aria-label") or ""))
+    await go(pg, "#/day/1", 800)
+    shown = await pg.evaluate("getComputedStyle(document.getElementById('btn-py')).display")
+    check("simple: the 拼 switch is back inside a lesson", shown != "none", shown)
+    await go(pg, "#/games", 1200)
+    secs = await pg.evaluate("[...document.querySelectorAll('#app > h2.gh')].map(h=>h.innerText)")
+    check("practice: For the exam, then Recommended for you", secs[:2] == ["For the exam", "Recommended for you"], secs)
+    check("practice: a recommended mock test with a start button", await pg.locator("#pr-mock-go").count() == 1 and "Mock Test" in await pg.locator(".pr-mock").inner_text())
+    rec = await pg.evaluate("[...document.querySelectorAll('.rec-games .grow')].map(a=>a.getAttribute('href')+' '+(a.querySelector('.g-acc')||{}).innerText)")
+    check("practice: 3 recommended games, weakest skills first with their accuracy", len(rec) == 3 and rec[0].startswith("#/game/type 55%") and rec[1].startswith("#/game/bank 60%"), rec)
+    check("practice: all other games are folded away", await pg.locator("details.all-games").count() == 1 and not await pg.evaluate("document.querySelector('details.all-games').open"))
+    await go(pg, "#/me", 800)
+    t = await pg.inner_text("#app")
+    check("me: no admin tools for a learner", "Content review" not in t and "Learner tracking" not in t and await pg.locator("a[href='#/learners']").count() == 0)
+    check("me: four key settings, the rest under More settings", await pg.locator("#s-exam").is_visible() and await pg.locator("#s-smode").is_visible() and not await pg.locator("#s-rate").is_visible())
+    for _ in range(5):
+        await pg.click("#s-ver")
+    await pg.wait_for_timeout(400)
+    check("me: 5 taps on the version line show the admin tools", await pg.locator("a[href='#/learners']").count() == 1)
+    await go(pg, "#/me/backup", 900)
+    check("me: Cloud backup opens the backup box", await pg.locator("#sync-box").is_visible())
+    await ctx.close()
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple)]
 PW = None
 
 

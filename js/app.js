@@ -210,8 +210,8 @@
   var THEME_BG = { light: "#ece8fa", dark: "#17161f" }; // --bg in css/style.css
   function refreshChrome() {
     var s = Store.state, lv = Game.level(s.xp);
-    var st = document.getElementById("chip-streak"); if (st) st.innerHTML = "🔥 <b>" + Store.streak() + "</b>";
-    var xp = document.getElementById("chip-xp"); if (xp) xp.innerHTML = "⭐ <b>" + s.xp + "</b>";
+    var st = document.getElementById("chip-streak"); if (st) { st.innerHTML = "🔥 <b>" + Store.streak() + "</b>"; st.setAttribute("aria-label", "Streak: " + Store.streak() + " days"); }
+    var xp = document.getElementById("chip-xp"); if (xp) { xp.innerHTML = "⭐ <b>" + s.xp + "</b>"; xp.setAttribute("aria-label", s.xp + " XP"); }
     var hc = document.getElementById("chip-heart"); if (hc && !UI.heartsInFlight()) hc.innerHTML = UI.heartIcon() + "<b>" + (s.stats.hearts || 0) + "</b>";
     var lvEl = document.getElementById("chip-lv"); if (lvEl) lvEl.textContent = "Lv " + lv.n;
     var n = SRS.dueIds(WORDMAP).length, b = document.getElementById("due-badge");
@@ -354,7 +354,7 @@
   function missing(v, parts) {
     var m = [], a = parts[1] || "", b = parts[2] || "";
     if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || v === "parts" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder|reading)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes" || v === "weekly" || v === "catchup")) m.push("full");
-    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || v === "parts" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
+    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || v === "parts" || v === "games" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
     var hard5 = (v === "learn" && (a === "h5" || a === "h5p" || (!a && Store.state.settings.level === 5))) || (v === "pack" && a === "h5") || (v === "grammar" && /^h5/.test(a)) || (v === "game" && (b === "h5" || /^p-h5-/.test(b))) || (v === "cards" && /^p-h5-/.test(a));
     var hard4 = (v === "learn" && a === "extra") || (v === "pack" && a === "x4") || v === "families" || (v === "game" && /^p-x4-/.test(b)) || (v === "cards" && /^p-x4-/.test(a));
     /* screens that list or review words wait once for the packs this learner uses, so those words are there too */
@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Practice", game: "Practice", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -418,7 +418,8 @@
     if (EXAM && EXAM.strict && !EXAM.finished && !(v === "mock" && parseInt(parts[1], 10) === EXAM.id && /^(listening|reading|writing|result)$/.test(parts[2] || ""))) { // simulator: leaving (or going back to the intro) ends the attempt
       clearExamTimer(); EXAM = null; UI.toast("Simulator attempt ended", "🎯");
     }
-    if (!(v === "mock" && parts[2] && !/^(result|review|sim)$/.test(parts[2]))) clearExamTimer(); // leaving an exam pauses its clock
+    if (!(v === "mock" && parts[2] && !/^(result|review|sim)$/.test(parts[2]))) clearExamTimer();
+    document.body.classList.toggle("on-tab", v === "" || v === "games" || v === "review" || v === "me" || (v === "learn" && !parts[1])); // hearts, 拼 and ⚑ only where they matter // leaving an exam pauses its clock
     var pending = needs(v, parts);
     if (pending.length) {
       var h = location.hash;
@@ -451,7 +452,7 @@
     else if (v === "catchup") viewCatchup();
     else if (v === "grammar") { if (parts[1] === "h5") viewGrammarList(5); else if (parts[1]) viewGrammarPoint(parts[1], parts[2]); else viewGrammarList(4); }
     else if (v === "official") viewOfficial();
-    else if (v === "me" || v === "settings") viewMe();
+    else if (v === "me" || v === "settings") viewMe(parts[1]);
     else if (v === "reports") viewReports();
     else if (v === "fixes") viewFixes();
     else if (v === "learners") viewLearners(parts[1], parts[2]);
@@ -904,45 +905,69 @@
     };
   }
 
+  /* The Today card: today's few steps (session, lesson or catch-up, the exam-plan task, the weekly quiz) with one button
+     that always opens the next step not done. After 2+ days away the session becomes the 5-minute restart. */
+  function todaySteps() {
+    var s = Store.state, t = Store.today(), nd = nextDay(), p = planInfo(), fin = p.inBuffer, steps = [];
+    var away = !!comebackCard(), sess = sessionPlan(away ? "comeback" : null);
+    var last = lastStudyDay(), gap = last ? Store.daysBetween(last, t) : 0;
+    steps.push(away ? { id: "comeback", ico: "⏱", name: "5-minute restart", sub: "Welcome back · " + gap + " days away · your oldest reviews first", href: "#/session/comeback", done: (s.log[t] || 0) > 0 }
+      : { id: "session", ico: "▶", name: "Today's session", sub: plural(sess.length, "step") + " · " + sessionCfg().label, href: "#/session", done: !!(s.sessions || {})[t] });
+    var cu = fin ? [] : cuLessons();
+    if (cu.length) steps.push({ id: "catchup", ico: "⏳", name: "Catch up: " + plural(cu.length, "short lesson") + " today", sub: "Behind plan · Day " + cu.map(function (d) { return d.day; }).join(" + Day "), href: "#/catchup", done: false });
+    else if (!fin && nd && !p.afterExam) {
+      var lessonDone = Object.keys(s.days).some(function (k) { return s.days[k].completedOn === t; });
+      steps.push({ id: "lesson", ico: "📚", name: "Lesson · Day " + nd.day, zh: nd.title.zh, sub: M(nd.title), href: "#/day/" + nd.day, done: lessonDone });
+    }
+    var sc = examSchedule();
+    if (sc.length && sc[0].kind !== "exam") steps.push({ id: "exam", ico: sc[0].ico, name: sc[0].txt, sub: "Exam plan · " + plural(sc.length - 1, "day") + " left", href: sc[0].href, done: sc[0].done });
+    if (wqOffer()) steps.push({ id: "weekly", ico: "🧠", name: "Weekly review quiz", sub: "Words and grammar from the last 7 days", href: "#/weekly", done: false });
+    return steps;
+  }
+  function todayMain() {
+    var steps = todaySteps(), done = steps.filter(function (x) { return x.done; }).length, next = -1;
+    steps.forEach(function (x, i) { if (next < 0 && !x.done) next = i; });
+    var away = steps[0].id === "comeback", rescue = !away && rescueCard();
+    var short = away ? "" : rescue ? '<a class="tm-short" href="#/session/rescue">🔥 Streak at risk · do the 2-minute rescue</a>'
+      : shortLink() ? '<a class="tm-short has-dog" href="#/session/rescue">' + UI.anim("dog-peek", 34, "⏱") + "<span>Only 2 minutes today?</span></a>" : "";
+    var btn = next < 0 ? '<a class="tm-go" href="#/review">✓ All done today · review due words</a>'
+      : '<a class="tm-go" id="today-go" href="' + steps[next].href + '">▶ ' + (done ? "Continue · step " + (next + 1) + " of " + steps.length : "Start · " + esc(steps[next].name)) + "</a>";
+    return '<section class="card today-main g-violet" id="today-main"><div class="tm-h"><h2>Today</h2><span>' + done + "/" + steps.length + ' done</span></div><ol class="tm-steps">' +
+      steps.map(function (x, i) {
+        return '<li class="' + (x.done ? "done" : i === next ? "now" : "") + '"><a href="' + x.href + '" data-step="' + x.id + '"><span class="tm-box" aria-hidden="true">' + (x.done ? "✓" : x.ico) + '</span><span class="tm-t"><b>' +
+          (x.done ? '<span class="sr">Done: </span>' : "") + esc(x.name) + (x.zh ? ' <span class="zh">' + esc(x.zh) + "</span>" : "") + "</b><small>" + x.sub + "</small></span></a></li>";
+      }).join("") + "</ol>" + btn + short + "</section>";
+  }
+  /* one line about the exam plan: tomorrow's task in the last 3 weeks, else the study plan */
+  function planLine() {
+    var sc = examSchedule();
+    if (sc.length > 1) return '<a class="card line-card" href="#/exam"><span class="lc-i" aria-hidden="true">🗓️</span><span class="lc-t"><small>Exam plan · tomorrow</small><b>' + esc(sc[1].txt) + '</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+    var p = planInfo();
+    return '<a class="card line-card" href="#/plan"><span class="lc-i" aria-hidden="true">🗓️</span><span class="lc-t"><small>Study plan</small><b>' + plural(p.done, "lesson") + " done · " + esc(STATUS[p.status][1]) + '</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+  }
   function viewHome() {
     var s = Store.state, lv = Game.level(s.xp), goal = s.settings.dailyGoal || 30, todayXP = s.log[Store.today()] || 0;
     var due = SRS.dueIds(WORDMAP).length, nd = nextDay(), exam = Store.daysBetween(Store.today(), s.settings.examDate || "2026-11-14");
-    var ch = Games.challenge(), chDone = !!s.challenges[Store.today()];
     var earned = Game.BADGES.filter(function (b) { return s.badges[b.id]; });
     var html = "";
-    var cont0 = '<a class="cta card g-coral" href="#/day/' + nd.day + '"><span class="cta-l"><small>Continue · Day ' + nd.day + '</small><b class="zh">' + esc(nd.title.zh) + "</b><em>" + M(nd.title) + '</em></span><span class="cta-go">▶</span></a>';
     if (isIOS && !standalone && location.protocol.indexOf("http") === 0 && !s.settings.installHintDismissed) {
       html += '<div class="install card"><div><b>Add to Home Screen</b><p>Tap <b>Share ⬆︎</b> in Chrome → <b>Add to Home Screen</b>. It opens full-screen, works offline and keeps your progress safe.</p></div><button class="x" id="hint-x" aria-label="Dismiss">✕</button></div>';
     }
-    html += '<section class="hero compact card g-violet">' +
-      '<div class="hero-top"><div class="bob">' + UI.mascot(todayXP >= goal ? "proud" : todayXP === 0 ? "wave" : "happy", 72) + "</div>" +
-      '<div><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + '</p><p class="lv"><span class="zh">' + lv.zh + "</span> · " + lv.en + '</p><p class="lv-n">Level ' + lv.n + (exam >= 0 ? " · " + exam + " days to HSK 4" : "") + "</p></div></div>" +
-      '<div class="xpbar"><span style="width:' + Math.round(lv.pct * 100) + '%"></span></div>' +
-      '<p class="xp-t">' + s.xp + " XP" + (lv.next ? " · " + (lv.next - s.xp) + " to next level" : " · max level") + "</p></section>";
+    /* One "Today" card is the only call to action; readiness and the exam plan are one line each.
+       Everything else lives in one place elsewhere: lessons in Learn, games and mock tests in Practice, progress in Me. */
+    html += '<section class="hero home-head"><div class="hh-m bob">' + UI.mascot(todayXP >= goal ? "proud" : todayXP === 0 ? "wave" : "happy", 52) + "</div>" +
+      '<div class="hh-t"><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + "</p><h2>" + (exam > 0 ? exam + " days to HSK 4" : exam === 0 ? "HSK 4 is today · 加油!" : "Keep your Chinese going") + "</h2>" +
+      '<p class="lv">Level ' + lv.n + ' · <span class="zh">' + lv.zh + "</span> · " + s.xp + " XP</p></div></section>";
     var fin = planInfo().inBuffer;
-    /* final 14 days: readiness and the final-days plan come first; new lessons become a small link */
-    var plan = planCard(), tip = tipCard(plan ? coachStatus(coachLast()) : [], fin);
     homeAt = Date.now(); homeDay = Store.today();
-    var back = chatCard() + syncPausedCard() + comebackCard(), ep = examPlanCard();
-    var cu = fin ? [] : cuLessons(), wq = wqCard();
-    /* behind plan: the catch-up card takes the place of "Continue", with the full lesson one tap away */
-    if (cu.length) cont0 = cuCard(cu) + '<a class="mini-link" href="#/day/' + nd.day + '">Or open Day ' + nd.day + " in full ›</a>";
-    if (fin) html += back + readyCard() + todayCard() + ep + tip + wq + (back ? "" : rescueCard()) + sessionCTA() + (back ? "" : shortLink()) + patternCard() + '<a class="mini-link" href="#/day/' + nd.day + '">New lessons are paused · continue Day ' + nd.day + " anyway ›</a>";
-    else html += back + ep + tip + cont0 + wq + (back ? "" : rescueCard()) + sessionCTA() + (back ? "" : shortLink()) + patternCard() + readyCard();
-    html += questsCard();
-    var nMis = Learn.count();
-    html += '<div class="tiles">' +
-      '<a class="tile t-teal" href="#/review"><span class="t-ico">🔁</span><b>' + (due ? due + " due" : "All caught up") + "</b><small>" + (due ? "Spaced review" : "Come back tomorrow") + "</small></a>" +
-      '<a class="tile t-sun' + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="t-ico">' + ch.icon + "</span><b>" + (chDone ? "Challenge done ✓" : "Daily challenge") + "</b><small>" + (chDone ? ch.name : ch.name + " · +15 XP") + "</small></a>" +
-      '<a class="tile t-boss" href="#/mock"><span class="t-ico">📝</span><b>Mock exams</b><small>Timed, full format</small></a>' +
-      (nMis ? '<a class="tile t-coral" href="#/mistakes"><span class="t-ico">📒</span><b>' + nMis + " to fix</b><small>Mistake notebook</small></a>"
-            : '<a class="tile t-blue" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>' + (exam >= 0 ? exam + " days to HSK 4" : "Exam done") + "</small></a>") +
-      "</div>";
-    html += '<a class="trackrow toolrow" href="#/read"><span class="t-ico">📖</span><span class="tr-t"><small>Real text from work</small><b>Reader · tap any word</b></span><span class="tr-go">›</span></a>';
-    html += h5HomeRow();
-    html += plan;
-    html += '<details class="more"><summary><span>More: plan, focus, activity, badges</span></summary>' +
-      focusCard() + (fin ? "" : todayCard()) + weeklyTeaser() +
+    html += chatCard() + syncPausedCard();
+    if (fin) html += readyCard();
+    html += todayMain() + h5HomeRow(); // on HSK 5: the next unfinished pack, right under Today
+    if (!fin) html += readyCard();
+    html += planLine();
+    var plan = planCard();
+    html += '<details class="more home-more"><summary><span>More: quests, coach plan, activity, badges</span></summary>' +
+      questsCard() + plan + patternCard() + focusCard() + todayCard() + weeklyTeaser() +
       '<section class="card"><div class="sec-h"><h2>Study activity</h2><span class="muted">12 weeks</span></div>' + heatmap() + '<div class="heat-key"><span>Less</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>More</span></div></section>' +
       '<section class="card"><div class="sec-h"><h2>Badges</h2><a href="#/me">' + earned.length + "/" + Game.BADGES.length + " ›</a></div>" +
       (earned.length ? '<div class="badge-row">' + earned.slice(-6).reverse().map(function (b) { return '<span class="bdg" title="' + esc(b.en) + '">' + b.icon + "</span>"; }).join("") + "</div>" : '<p class="muted">Grade your first flashcard to earn 🌱</p>') + "</section></details>";
@@ -958,21 +983,9 @@
       d.innerHTML = '<span class="cta-l"><small>New audio</small><b>🔊 ' + miss + ' recordings are not saved on this phone</b><em>Me → Download missing, so lessons work offline</em></span><span class="cta-go">▶</span>';
       host.parentNode.insertBefore(d, host.nextSibling);
     });
-    wireQuests(); wirePattern(); wireTip();
+    wireQuests(); wirePattern();
     whenIdle(4000).then(autoCoach);
     var wr = weekReward(); if (wr) setTimeout(function () { UI.toast(wr === "freeze" ? "Weekly goal met! +1 streak freeze" : "Weekly goal met!", wr === "freeze" ? "🧊" : "🎉"); UI.confetti(60); UI.burst("noto-muscle", weekInfo().n + " days", "Weekly goal met", wr === "freeze" ? "+1 streak freeze" : ""); }, 600);
-    /* C&B track: show the next unfinished session (data loads in the background) */
-    (trackLoaded() ? Promise.resolve() : whenIdle(2500)).then(ensureTrack).then(function () {
-      var T = window.CB_TRACK || [], host = document.querySelector(".tiles");
-      if (!T.length || !host || !document.getElementById("app").contains(host) || document.querySelector('.trackrow[href^="#/track"]')) return;
-      for (var a = 0; a < T.length; a++) for (var b = 1; b <= 3; b++) {
-        if (tkDone(T[a].week, b)) continue;
-        var ss = T[a].sessions[b - 1], n = T.reduce(function (c, w) { return c + tkWeekDone(w); }, 0);
-        var r = document.createElement("a"); r.className = "trackrow"; r.href = "#/track/" + T[a].week + "/" + b;
-        r.innerHTML = '<span class="t-ico">💼</span><span class="tr-t"><small>C&amp;B track · Week ' + T[a].week + " · " + n + "/" + T.length * 3 + ' done</small><b>' + esc(T[a].title.zh) + " · " + esc(TK_KIND[ss.kind] || ss.kind) + '</b></span><span class="g-go">▶</span>';
-        host.parentNode.insertBefore(r, host); return;
-      }
-    }).catch(function () { /* offline and not cached yet: skip */ });
     var x = document.getElementById("hint-x");
     if (x) x.onclick = function () { s.settings.installHintDismissed = true; Store.save(); x.closest(".install").remove(); };
   }
@@ -994,9 +1007,9 @@
     if (!Store.state.settings.h5) { Store.state.settings.h5 = true; Store.save(); } // opened once: its words stay ready for Review and Search
     return levelSwitch(5) + '<nav class="seg">' + t.map(function (x) { return '<a class="' + (which === x[0] ? "active" : "") + '" href="' + x[1] + '">' + x[2] + "</a>"; }).join("") + "</nav>" + H5_NOTE;
   }
-  function learnSeg(which) {
-    var t = [["cb", "#/learn", "C&amp;B"], ["core", "#/learn/core", "HSK words"], ["grammar", "#/grammar", "Grammar"], ["mine", "#/learn/mine", "My words"]];
-    return levelSwitch(4) + '<nav class="seg seg4">' + t.map(function (x) { return '<a class="' + (which === x[0] ? "active" : "") + '" href="' + x[1] + '">' + x[2] + "</a>"; }).join("") + "</nav>";
+  function learnSeg(which, noLevel) {
+    var t = [["cb", "#/learn", "Lessons"], ["core", "#/learn/core", "HSK words"], ["grammar", "#/grammar", "Grammar"], ["mine", "#/learn/mine", "My words"]];
+    return (noLevel ? "" : levelSwitch(4)) + '<nav class="seg seg4">' + t.map(function (x) { return '<a class="' + (which === x[0] ? "active" : "") + '" href="' + x[1] + '">' + x[2] + "</a>"; }).join("") + "</nav>";
   }
   /* HSK word tracks: "core" = HSK 4 Core (sets 1–25), "found" = HSK 1–3 Foundation (sets 101–130, shown as F1–F30) */
   function isFound(set) { return set && set.track === "found"; }
@@ -1191,6 +1204,25 @@
           (st.plays ? '<span class="g-best">Best ' + st.best + "</span>" : '<span class="g-go">▶</span>') + "</a>";
       }).join("") + "</div>", "learn");
   }
+  /* Learn: the lesson to do now, the next three, then everything else one tap away (all lessons, word lists, more courses). */
+  function viewLearnNow() {
+    var st = Store.state, nd = nextDay(), cut = coreCut(), done = DAYS.filter(function (d) { return (st.days[d.day] || {}).completed; }).length;
+    var next = DAYS.filter(function (d) { return d.day > nd.day && !(st.days[d.day] || {}).completed; }).slice(0, 3);
+    var allDone = DAYS.every(function (d) { return (st.days[d.day] || {}).completed; });
+    var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb", true) +
+      '<section class="card learn-now g-violet"><small>' + (allDone ? "ALL LESSONS DONE · REVISIT" : "NOW · DAY " + nd.day + " OF " + cut) + '</small><b class="zh">' + esc(nd.title.zh) + "</b><em>" + M(nd.title) + "</em>" +
+      '<span class="ln-bar" role="img" aria-label="' + done + " of " + cut + ' lessons done"><i style="width:' + Math.min(100, Math.round(done / Math.max(1, cut) * 100)) + '%"></i></span>' +
+      '<a class="tm-go" id="learn-go" href="#/day/' + nd.day + '">▶ ' + ((st.days[nd.day] || {}).best ? "Continue lesson" : "Start lesson") + "</a></section>" +
+      (next.length ? '<section class="card ln-next"><h3 class="sec">Coming next</h3>' + next.map(function (d) {
+        return '<a class="ln-row" href="#/day/' + d.day + '"><span class="ln-n">' + d.day + '</span><span class="ln-t"><b class="zh">' + esc(d.title.zh) + "</b><small>" + M(d.title) + '</small></span><span class="lc-go" aria-hidden="true">›</span></a>';
+      }).join("") + "</section>" : "") +
+      wqRow() +
+      '<a class="trackrow toolrow" href="#/learn/all"><span class="t-ico">🗂️</span><span class="tr-t"><small>' + done + " done · about " + cut + " fit before your exam</small><b>All " + DAYS.length + ' lessons</b></span><span class="tr-go">›</span></a>' +
+      '<details class="more learn-more"><summary><span>More courses: HSK 5 · C&amp;B Pro track</span></summary>' +
+      '<a class="trackrow toolrow" href="#/track"><span class="t-ico">🎓</span><span class="tr-t"><small>6-month track · writing templates, role-plays</small><b>C&amp;B Professional Chinese</b></span><span class="tr-go">›</span></a>' +
+      '<a class="trackrow toolrow" href="#/learn/h5" data-level="5"><span class="t-ico">📗</span><span class="tr-t"><small>Next level · word packs and practice</small><b>HSK 5</b></span><span class="tr-go">›</span></a></details>';
+    render(html, "learn");
+  }
   function viewLearn(sub) {
     if (sub === "core" || sub === "found") return viewCoreList(sub);
     if (sub === "mine") return viewMine();
@@ -1198,13 +1230,12 @@
     if (sub === "h5p") return viewH5Practice();
     if (sub === "extra") return viewExtraList();
     var st = Store.state, plan = window.CB_PLAN || [], mode = learnMode();
-    var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb") +
-      '<a class="cta card g-violet" href="#/track"><span class="cta-l"><small>6-month track · mixed in, never locked</small><b>🎓 C&amp;B Professional Chinese</b><em>Writing templates, role-plays, Vietnam vs China cards, HSK 5 reading</em></span><span class="cta-go">▶</span></a>' + wqRow() +
-      '<a class="mini-link" id="learn-reading" href="#/game/reading"><span aria-hidden="true">📖</span><span>Reading drill · one passage, 3 HSK 4 questions</span></a>' +
+    if (sub !== "all") return viewLearnNow();
+    var html = '<a class="pill" href="#/learn">‹ Learn</a>' +
       '<div class="vtoggle" role="group" aria-label="Lesson view"><button type="button" data-lv="path" class="' + (mode === "path" ? "on" : "") + '" aria-pressed="' + (mode === "path") + '">Path</button><button type="button" data-lv="grid" class="' + (mode === "grid" ? "on" : "") + '" aria-pressed="' + (mode === "grid") + '">Grid</button></div>';
     html += mode === "path" ? learnPath(plan, st) : learnGrid(plan, st);
     render(html, "learn");
-    [].forEach.call(document.querySelectorAll("[data-lv]"), function (b) { b.onclick = function () { try { localStorage.setItem("cbChinese.learnView", b.getAttribute("data-lv")); } catch (e) { /* ignore */ } viewLearn(); }; });
+    [].forEach.call(document.querySelectorAll("[data-lv]"), function (b) { b.onclick = function () { try { localStorage.setItem("cbChinese.learnView", b.getAttribute("data-lv")); } catch (e) { /* ignore */ } viewLearn("all"); }; });
     var nx = document.querySelector(".pnode.next");
     if (nx && mode === "path") setTimeout(function () { try { nx.scrollIntoView({ block: "center", behavior: UI.reduced ? "auto" : "smooth" }); } catch (e) { /* ignore */ } }, 120);
   }
@@ -1646,47 +1677,49 @@
   }
 
   /* ---------- me: profile, badges, settings ---------- */
-  function viewMe() {
+  /* admin tools (content review, learner tracking) show only on the admin's phone: a saved admin code, or 5 taps on the version line */
+  var ADMIN_FLAG = "cbChinese.adminMode";
+  function isAdmin() { var f = false; try { f = localStorage.getItem(ADMIN_FLAG) === "1"; } catch (e) { /* storage blocked */ } return f || !!(window.Content && Content.adminCode && Content.adminCode()); }
+  function backupLine() { var c = syncCfg(); return c.off ? "Off" : c.conflict ? "Paused · choose which copy to keep" : c.err ? "Last try failed" : c.last ? "On · saved " + agoText(new Date(c.last).toISOString()) : c.code ? "On" : "On · saves after you study"; }
+  function viewMe(sub) {
     var s = Store.state, set = s.settings, lv = Game.level(s.xp), bc = SRS.boxCounts();
     var inSrs = Object.keys(s.srs).length, done = Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length;
     var nAudio = Audio2.allFiles().length;
-    var html = '<section class="card profile g-violet">' + UI.mascot("happy", 64) + '<div><p class="lv"><span class="zh">' + lv.zh + "</span> · " + lv.en + '</p><p class="lv-n">Level ' + lv.n + " · " + s.xp + " XP</p>" +
-      '<div class="xpbar"><span style="width:' + Math.round(lv.pct * 100) + '%"></span></div></div></section>' +
-      '<section class="stats4">' +
-      '<div class="card stat"><b>' + inSrs + '</b><span>words learned</span></div>' +
-      '<div class="card stat"><b>' + bc[5] + '</b><span>mastered (box 5)</span></div>' +
-      '<div class="card stat"><b>' + done + '/30</b><span>days done</span></div>' +
-      '<div class="card stat"><b>' + (s.streak.best || 0) + '</b><span>best streak</span></div></section>' +
-      (chatCode() ? '<a class="cta card g-teal chat-me" href="#/chat"><span class="cta-l"><small>Messages, news and practice tips</small><b>💬 Chat with the C&amp;B team</b>' + (CHAT.unread ? '<em>' + plural(CHAT.unread, "new message") + "</em>" : "") + '</span><span class="cta-go">▶</span></a>' : "") +
-      '<div class="tiles"><a class="tile t-teal" href="#/progress"><span class="t-ico">📈</span><b>Progress</b><small>Charts and scores</small></a>' +
-      '<a class="tile t-blue" href="#/official"><span class="t-ico">📄</span><b>Official practice</b><small>Past papers · forecast</small></a>' +
-      '<a class="tile t-sun" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>Path to the exam</small></a>' +
-      '<a class="tile t-boss" href="#/mock"><span class="t-ico">📝</span><b>Mock exams</b><small>' + (Object.keys(s.mocks).length ? "Taken " + Object.keys(s.mocks).length : "Not taken yet") + "</small></a></div>" +
+    var admin = isAdmin(), unread = CHAT.unread;
+    var html = '<section class="card me-top"><div class="mt-h"><span class="bob">' + UI.mascot("happy", 44) + '</span><span class="mt-t"><b>Level ' + lv.n + ' · <span class="zh">' + lv.zh + "</span></b><small>" + lv.en + " · " + s.xp + " XP</small></span></div>" +
+      '<div class="xpbar"><span style="width:' + Math.round(lv.pct * 100) + '%"></span></div>' +
+      '<div class="me-stats"><div><b>' + inSrs + '</b><span>words</span></div><div><b>' + done + '</b><span>lessons</span></div><div><b>' + Store.streak() + '</b><span>streak</span></div><div><b>' + Object.keys(s.badges).length + "</b><span>badges</span></div></div></section>" +
+      '<section class="card me-rows">' +
+      (chatCode() ? '<a class="me-row" href="#/chat"><span class="mr-i" aria-hidden="true">💬</span><span class="mr-t"><b>Messages</b><small>From the C&amp;B team</small></span>' + (unread ? '<span class="mr-badge">' + unread + " new</span>" : "") + '<span class="lc-go" aria-hidden="true">›</span></a>' : "") +
+      '<a class="me-row" href="#/ready"><span class="mr-i" aria-hidden="true">🎯</span><span class="mr-t"><b>Am I ready?</b><small>Readiness, score forecast, official papers</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
+      '<a class="me-row" href="#/progress"><span class="mr-i" aria-hidden="true">📈</span><span class="mr-t"><b>Progress</b><small>Charts, mock scores, study plan</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
+      '<a class="me-row" href="#/me/backup"><span class="mr-i" aria-hidden="true">☁️</span><span class="mr-t"><b>Cloud backup</b><small>' + esc(backupLine()) + '</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
+      '<button type="button" class="me-row" id="s-guide"><span class="mr-i" aria-hidden="true">❓</span><span class="mr-t"><b>App guide</b><small>How the app works, in 1 minute</small></span><span class="lc-go" aria-hidden="true">›</span></button></section>' +
       '<details class="more"><summary><span>Badges · ' + Object.keys(s.badges).length + "/" + Game.BADGES.length + '</span></summary><section class="card"><div class="badge-grid">' +
       Game.BADGES.map(function (b) {
         var got = s.badges[b.id];
         return '<div class="bg-item' + (got ? "" : " locked") + '"><span class="bdg">' + b.icon + '</span><b>' + M({ vi: b.vi, en: b.en }) + "</b><small>" + M({ vi: b.dvi, en: b.den }) + "</small></div>";
       }).join("") + "</div></section></details>" +
       '<section class="card settings"><h2>Settings</h2>' +
-      row("Show pinyin", '<label class="switch"><input type="checkbox" id="s-py"' + (set.showPinyin ? " checked" : "") + "><i></i></label>") +
+      row("Exam date", '<input type="date" id="s-exam" value="' + esc(set.examDate || "2026-11-14") + '">') +
+      '<p class="sub" id="s-exam-note">' + (examNote(set.examDate || "2026-11-14")) + "</p>" +
       row("Meanings", sel("s-lang", [["both", "Việt + English"], ["vi", "Tiếng Việt"], ["en", "English"]], set.lang)) +
+      row("Today's session length", sel("s-smode", [["quick", "Quick · ~7 min"], ["std", "Standard · ~15 min"], ["long", "Long · ~30 min"]], set.sessionMode || "std")) +
       row("Theme", sel("s-theme", [["auto", "System"], ["light", "Light"], ["dark", "Dark"]], set.theme)) +
+      '<details class="more-set"><summary>More settings</summary>' +
+      row("Show pinyin", '<label class="switch"><input type="checkbox" id="s-py"' + (set.showPinyin ? " checked" : "") + "><i></i></label>") +
       row("Sound effects", '<label class="switch"><input type="checkbox" id="s-sfx"' + (set.sfx !== false ? " checked" : "") + "><i></i></label>") +
       row("Voice speed", sel("s-rate", [["0.75", "0.75×"], ["0.9", "0.9×"], ["1", "1×"], ["1.15", "1.15×"]], String(set.audioRate || 1))) +
       row("Background noise in listening", sel("s-noise", [["0", "Off"], ["1", "Light café"], ["2", "Busy room"]], String(set.noise || 0))) +
       row("Mock listening speed", sel("s-mrate", [["0", "Same as voice speed"], ["1", "1× (normal)"], ["1.15", "1.15× faster"], ["1.3", "1.3× fast"]], String(set.mockRate || 0))) +
-      row("Today's session length", sel("s-smode", [["quick", "Quick · ~7 min"], ["std", "Standard · ~15 min"], ["long", "Long · ~30 min"]], set.sessionMode || "std")) +
       row("Text size", sel("s-ts", [["m", "Normal"], ["l", "Large"], ["xl", "Larger"]], set.textSize || "m")) +
       row("Daily goal", sel("s-goal", [["20", "20 XP · chill"], ["30", "30 XP · steady"], ["50", "50 XP · serious"], ["80", "80 XP · intense"]], String(set.dailyGoal || 30))) +
-      row("Exam date", '<input type="date" id="s-exam" value="' + esc(set.examDate || "2026-11-14") + '">') +
-      '<p class="sub" id="s-exam-note">' + (examNote(set.examDate || "2026-11-14")) + "</p>" +
       row("Lessons before the exam", sel("s-core", coreOptions().map(function (n) { return [String(n), n + " lessons"]; }), String(coreCut()))) +
       '<p class="sub">About ' + suggestCore() + " lessons fit before your exam at 5 a week. The rest are planned for after it.</p>" +
       row("Problem reports", '<a class="btn small" href="#/reports">' + (s.reports || []).length + " saved</a>") +
-      (window.AI && AI.configured() ? row("Content review", '<a class="btn small" href="#/fixes">Open</a>') : "") +
-      (window.AI && AI.configured() ? row("Learner tracking", '<a class="btn small" href="#/learners">Open</a>') : "") +
-      row("App guide", '<button class="btn small" id="s-guide">Show again</button>') +
-      row("Test voice", '<button class="btn small" id="s-test">🔊 Play</button>') + "</section>" +
+      row("Test voice", '<button class="btn small" id="s-test">🔊 Play</button>') +
+      (admin ? '<h3 class="sec">Admin</h3>' + row("Content review", '<a class="btn small" href="#/fixes">Open</a>') + row("Learner tracking", '<a class="btn small" href="#/learners">Open</a>') : "") +
+      "</details></section>" +
       '<details class="more"><summary><span>AI, reminder, backup and data</span></summary>' +
       '<section class="card settings"><div class="sec-h"><h2>🤖 AI assistant</h2><span class="tag">optional</span></div><p class="sub">Writing feedback and "Explain with AI", through a shared free AI service, so there is nothing to set up. Only the sentence or question you send is shared. It needs internet. (Advanced: you can point the app at your own server; that setting stays on this phone and is never exported.)</p><div id="ai-box" class="mw-form"></div></section>' +
       '<section class="card settings"><h2>Study reminder</h2><p class="sub">A daily calendar event until your exam, with an alert. Pick a time, then add it to your calendar once.</p>' +
@@ -1703,8 +1736,11 @@
       row("Reset progress", '<button class="btn small bad" id="s-reset">Reset</button>') + "</section></details>" +
       (isIOS && !standalone ? '<section class="card"><h2>Install on iPhone</h2><p class="sub">In Chrome, tap <b>Share ⬆︎</b> (address bar) → <b>Add to Home Screen</b>. The home-screen app opens full-screen, works offline, and iOS won\'t clear its progress. Export a backup now and then anyway.</p></section>' : "") +
       '<p class="sub center">' + DAYS.length + " days · " + WORDS.length + ' words · <a href="#/search">Search</a></p>' +
-      '<p class="sub center">Version 1.1 · build ' + BUILD + '</p><p class="sub center">Animated emoji: Noto Emoji Animation by Google, CC BY 4.0</p>';
+      '<p class="sub center" id="s-ver">Version 1.1 · build ' + BUILD + '</p><p class="sub center">Animated emoji: Noto Emoji Animation by Google, CC BY 4.0</p>';
     render(html, "me");
+    var vt = 0, ver = document.getElementById("s-ver");
+    if (ver) ver.onclick = function () { if (++vt >= 5 && !admin) { try { localStorage.setItem(ADMIN_FLAG, "1"); } catch (e) { /* fine */ } UI.toast("Admin tools shown in More settings", "🔧"); viewMe(); } };
+    if (sub === "backup") { var sb = document.getElementById("sync-box"), dd = sb && sb.closest("details"); if (dd) { dd.open = true; setTimeout(function () { try { sb.scrollIntoView({ block: "center" }); } catch (e) { /* ignore */ } }, 80); } }
     function sv(k, v) { set[k] = v; Store.save(); applySettings(); }
     document.getElementById("s-py").onchange = function () { sv("showPinyin", this.checked); };
     document.getElementById("s-lang").onchange = function () { sv("lang", this.value); };
@@ -2503,6 +2539,16 @@
       '<a class="grow" href="#/game/wordorder"><span class="g-txt"><b>🧱 Arrange the Words</b><small>Writing part 1</small></span><span class="tr-go">›</span></a>' +
       '<a class="grow" href="#/game/picture"><span class="g-txt"><b>🖼️ Picture Writing</b><small>Writing part 2 · AI scores your sentence</small></span><span class="tr-go">›</span></a></div></section>';
     render(html, "me");
+  }
+  /* Practice tab, "For the exam": the mock test to take next, timed exam parts and the mistake notebook */
+  function practiceTop() {
+    var fin = planInfo().inBuffer, n = MOCK.length ? nextMock(fin) : null, m = n && n.m, w = weakParts()[0], mis = Learn.count(), rep = repeatItems().length;
+    var mock = m ? '<section class="card pr-mock g-violet"><small>Recommended mock test</small><b>' + esc(m.title) + "</b><em>" + (m.full ? "Full length · 100 questions · ~100 min" : "Shorter test · about 40 questions · ~30 min") + (n.rep ? " · repeat" : " · new") + "</em>" +
+        '<a class="tm-go" id="pr-mock-go" href="#/mock/' + m.id + (fin && m.full ? "/sim" : "") + '">▶ Start mock test</a><a class="tm-short" href="#/mock">All ' + MOCK.length + " mock tests and your scores</a></section>"
+      : '<a class="cta card g-violet" href="#/mock"><span class="cta-l"><small>Timed, real exam format</small><b>📝 Mock tests</b></span><span class="cta-go">▶</span></a>';
+    return mock + '<div class="glist">' +
+      '<a class="grow" href="#/parts"><span class="g-ico">⏱</span><span class="g-txt"><b>Exam parts, timed</b><small>10 questions at the real pace' + (w ? " · weakest: " + esc(w.name) + " (" + w.acc + "%)" : "") + '</small></span><span class="g-go">▶</span></a>' +
+      '<a class="grow" href="#/mistakes"><span class="g-ico">📒</span><span class="g-txt"><b>Mistake notebook</b><small>' + (mis ? mis + " to fix" + (rep ? " · " + rep + " keep coming back" : "") : "Nothing to fix right now") + '</small></span><span class="g-go">▶</span></a></div>';
   }
   function viewMockList() {
     var s = Store.state;
@@ -5432,6 +5478,7 @@
   }
 
   window.App = {
+    practiceTop: practiceTop,
     esc: esc, M: M, PY: PY, SAY: SAY, shuffle: shuffle, render: render, setKeys: setKeys, typing: typing, rect: rect, norm: norm,
     dayWords: dayWords, studiedWords: studiedWords, levelBadge: levelBadge, SAYX: SAYX, refreshChrome: refreshChrome,
     markWork: markWork, resetWork: function () { workDone = false; }, readingSet: readingSet, _talk: viewTalk, packFromArg: packFromArg, packQuizDone: packQuizDone, h5Loaded: h5Loaded, x4Loaded: x4Loaded, ensureH5: ensureH5, ensureX4: ensureX4, get CORE() { return CORE; }, get COREMAP() { return COREMAP; }, get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }

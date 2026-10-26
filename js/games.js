@@ -37,8 +37,20 @@
   var GROUPS = [
     ["Words", ["speed", "race", "quick", "listen", "boss"]],
     ["Listening and writing", ["drill", "write", "type", "picture", "coach"]],
-    ["Grammar and exam skills", ["reading", "builder", "wordorder", "order", "bank", "confuse", "measure"]]
+    ["Grammar and exam skills", ["reading", "builder", "order", "bank", "confuse", "measure"]]
   ];
+  /* the 3 games for the weakest skills (5+ answers, under 80%), else a sensible exam mix */
+  var SKILL_GAME = { "fill-word": "bank", "word-order": "builder", typing: "type", ordering: "order", confusable: "confuse", measure: "measure", writing: "picture",
+    "listen-tf": "drill", "listen-short": "drill", "listen-long": "drill", "listen-word": "listen", vocab: "quick", pinyin: "race", handwriting: "write", passage: "reading" };
+  function recommended() {
+    var out = [], seen = {};
+    (window.Learn ? Learn.report(5) : []).forEach(function (r) {
+      var id = SKILL_GAME[r.skill]; if (!id || seen[id] || out.length >= 3 || r.acc >= 0.8 || !BY[id]) return;
+      seen[id] = 1; out.push({ id: id, acc: Math.round(r.acc * 100) });
+    });
+    ["bank", "builder", "drill"].forEach(function (id) { if (out.length < 3 && !seen[id]) { seen[id] = 1; out.push({ id: id, acc: null }); } });
+    return out;
+  }
   function hub() {
     var App = A(), ch = challenge(), s = Store.state, chDone = !!s.challenges[Store.today()];
     function row(g) {
@@ -46,12 +58,23 @@
       return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + g.name + "</b><small>" + g.desc + "</small></span>" +
         (st.plays ? '<span class="g-best">Best ' + st.best + "</span>" : '<span class="g-go">▶</span>') + "</a>";
     }
-    var html = '<a class="gfeat ' + ch.cls + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="g-ico">' + ch.icon + '</span><span class="g-txt"><small>' + (chDone ? "Daily challenge · done ✓" : "Daily challenge · +15 XP") + "</small><b>" + ch.name + "</b><em>" + ch.desc + '</em></span><span class="g-go">▶</span></a>';
-    html += '<a class="gfeat g-violet" href="#/talk"><span class="g-ico">🗣️</span><span class="g-txt"><small>New · AI role-play</small><b>Talk it through</b><em>Practise HR conversations. Type or speak.</em></span><span class="g-go">▶</span></a>';
-    html += '<a class="gfeat g-teal" href="#/read"><span class="g-ico">📖</span><span class="g-txt"><small>Real-world text</small><b>Reader</b><em>Paste a Chinese email. Tap any word.</em></span><span class="g-go">▶</span></a>';
+    /* Practice: what matters for the exam first, then the three games for the weakest skills, then everything else folded. */
+    var html = '<h2 class="gh">For the exam</h2>' + (App.practiceTop ? App.practiceTop() : "");
+    var rec = recommended();
+    html += '<h2 class="gh">Recommended for you</h2><div class="glist rec-games">' + rec.map(function (r) {
+      var g = BY[r.id], st = s.games[g.id] || {};
+      return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + g.name + "</b><small>" + g.desc + "</small></span>" +
+        (r.acc != null ? '<span class="g-acc" aria-label="Your accuracy ' + r.acc + '%">' + r.acc + "%</span>" : st.plays ? '<span class="g-best">Best ' + st.best + "</span>" : '<span class="g-go">▶</span>') + "</a>";
+    }).join("") + "</div>";
+    var n = 0; GROUPS.forEach(function (gr) { n += gr[1].length; });
+    html += '<details class="more all-games"><summary><span>All games (' + (n + 2) + ')</span></summary>' +
+      '<a class="gfeat ' + ch.cls + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="g-ico">' + ch.icon + '</span><span class="g-txt"><small>' + (chDone ? "Daily challenge · done ✓" : "Daily challenge · +15 XP") + "</small><b>" + ch.name + "</b><em>" + ch.desc + '</em></span><span class="g-go">▶</span></a>' +
+      '<div class="glist"><a class="grow" href="#/talk"><span class="g-ico">🗣️</span><span class="g-txt"><b>Talk it through</b><small>AI role-play · HR conversations</small></span><span class="g-go">▶</span></a>' +
+      '<a class="grow" href="#/read"><span class="g-ico">📖</span><span class="g-txt"><b>Reader</b><small>Paste a Chinese email. Tap any word.</small></span><span class="g-go">▶</span></a></div>';
     GROUPS.forEach(function (gr) {
       html += '<h2 class="gh">' + gr[0] + '</h2><div class="glist">' + gr[1].map(function (id) { return row(BY[id]); }).join("") + "</div>";
     });
+    html += "</details>";
     App.render(html, "games");
   }
 

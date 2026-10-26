@@ -693,7 +693,7 @@ function reportResult(v: any, token: string, turns: number) {
 }
 
 async function contentTask(task: string, body: any, req: Request, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response | null> {
-  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide", "learners_list", "learner_label", "admin_stats", "admin_chat_get", "admin_chat_send"].indexOf(task) < 0) return null;
+  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide", "learners_list", "learner_label", "admin_stats", "admin_chat_get", "admin_chat_send", "admin_chat_delete", "admin_broadcast"].indexOf(task) < 0) return null;
   if (!deps.db) return reply(500, { ok: false, error: "not_configured" }, h);
   const lang: Lang = body.lang === "vi" || body.lang === "en" ? body.lang : "both";
   const p = body.payload && typeof body.payload === "object" ? body.payload : {};
@@ -753,7 +753,7 @@ async function contentTask(task: string, body: any, req: Request, env: Record<st
       return reply(200, { ok: true, task, result: { rows: (rows || []).map((r: any) => ({ id: r.id, created_at: r.created_at, updated_at: r.updated_at, rev: r.rev, meta: r.meta || {}, summary: r.summary || null,
         last_open: r.last_open || null, client: r.client || null, unread: un[r.id] || 0 })), live: liveCfg(env, await liveTopic("admin:" + (env.ADMIN_CODE || ""))) } }, h);
     }
-    if (task === "admin_chat_get" || task === "admin_chat_send") return await chatAdmin(task, p, env, deps, h);
+    if (["admin_chat_get", "admin_chat_send", "admin_chat_delete", "admin_broadcast"].indexOf(task) >= 0) return await chatAdmin(task, p, env, deps, h);
     if (task === "learner_label") {
       const lid = str(p.id, 64); if (!/^[a-f0-9]{64}$/.test(lid)) return reply(400, { ok: false, error: "bad_id" }, h);
       const cur = await deps.db("GET", "learners?id=eq." + lid + "&select=meta&limit=1"); if (!cur || !cur[0]) return reply(404, { ok: false, error: "no_backup" }, h);
@@ -818,9 +818,15 @@ function liveCfg(env: Record<string, string | undefined>, topic: string): Record
 }
 async function ping(deps: Deps, topic: string): Promise<void> { try { if (deps.live) await deps.live(topic, "chat"); } catch (_e) { /* live is a bonus; polling still delivers */ } }
 const MSG_COLS = "select=id,sender,body,action,created_at,seen_at";
-async function chatList(deps: Deps, lid: string, since: number): Promise<any[]> {
-  const rows = await deps.db!("GET", "messages?learner=eq." + lid + (since > 0 ? "&id=gt." + since : "") + "&" + MSG_COLS + "&order=id.desc&limit=60");
+/* upTo: the learner only sees messages whose time has come (a scheduled message is stored with its delivery time) */
+async function chatList(deps: Deps, lid: string, since: number, upTo?: string): Promise<any[]> {
+  const rows = await deps.db!("GET", "messages?learner=eq." + lid + (since > 0 ? "&id=gt." + since : "") + (upTo ? "&created_at=lte." + upTo : "") + "&" + MSG_COLS + "&order=id.desc&limit=60");
   return (rows || []).reverse();
+}
+/* a delivery time from the admin: a future time within 30 days, else null (= now) */
+function sendAt(x: unknown, now: Date): string | null {
+  const t = Date.parse(String(x || ""));
+  return isFinite(t) && t > now.getTime() + 60000 && t < now.getTime() + 30 * 864e5 ? new Date(t).toISOString() : null;
 }
 async function chatLearner(task: string, p: any, lid: string, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response> {
   const row = (await deps.db!("GET", "learners?id=eq." + lid + "&select=id&limit=1") || [])[0];
@@ -833,27 +839,41 @@ async function chatLearner(task: string, p: any, lid: string, env: Record<string
     if ((today || []).length >= CHAT_DAY) return reply(429, { ok: false, error: "chat_full" }, h);
     await deps.db!("POST", "messages", { learner: lid, sender: "learner", body, created_at: now });
     if (env.ADMIN_CODE) await ping(deps, await liveTopic("admin:" + env.ADMIN_CODE));
-    return reply(200, { ok: true, task, result: { msgs: await chatList(deps, lid, Math.max(0, parseInt(p.since, 10) || 0)) } }, h);
+    return reply(200, { ok: true, task, result: { msgs: await chatList(deps, lid, Math.max(0, parseInt(p.since, 10) || 0), now) } }, h);
   }
   // chat_get: also says "this phone is open" (last_open) and how its backup is doing (client), for the teacher's view
   const c = p.client && typeof p.client === "object" ? p.client : {};
   const client = { v: str(c.v, 20), b: ["on", "off", "paused", "err"].indexOf(c.b) >= 0 ? c.b : "", e: str(c.e, 30), at: now };
   await deps.db!("PATCH", "learners?id=eq." + lid, { last_open: now, client });
-  if (p.read === true) await deps.db!("PATCH", "messages?learner=eq." + lid + "&sender=eq.admin&seen_at=is.null", { seen_at: now });
-  const msgs = await chatList(deps, lid, Math.max(0, parseInt(p.since, 10) || 0));
-  const unread = p.read === true ? 0 : ((await deps.db!("GET", "messages?learner=eq." + lid + "&sender=eq.admin&seen_at=is.null&select=id")) || []).length;
+  if (p.read === true) await deps.db!("PATCH", "messages?learner=eq." + lid + "&sender=eq.admin&seen_at=is.null&created_at=lte." + now, { seen_at: now });
+  const msgs = await chatList(deps, lid, Math.max(0, parseInt(p.since, 10) || 0), now);
+  const unread = p.read === true ? 0 : ((await deps.db!("GET", "messages?learner=eq." + lid + "&sender=eq.admin&seen_at=is.null&created_at=lte." + now + "&select=id")) || []).length;
   return reply(200, { ok: true, task, result: { msgs, unread, live: liveCfg(env, await liveTopic(lid)) } }, h);
 }
 async function chatAdmin(task: string, p: any, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response> {
+  const nowD = new Date(), now = nowD.toISOString();
+  if (task === "admin_broadcast") { // one message to many learners, now or at a set time
+    const body = str(p.body, CHAT_MAX).trim(), action = cleanAction(p.action), at = sendAt(p.at, nowD);
+    if (!body && !action) return reply(400, { ok: false, error: "empty_message" }, h);
+    const want = (Array.isArray(p.ids) ? p.ids : []).slice(0, 50).map((x: unknown) => String(x)).filter((x: string) => /^[a-f0-9]{64}$/.test(x));
+    const have: Record<string, boolean> = {}; ((await deps.db!("GET", "learners?select=id")) || []).forEach((r: any) => { have[r.id] = true; });
+    const ids = want.filter((x: string, i: number) => have[x] && want.indexOf(x) === i);
+    if (!ids.length) return reply(400, { ok: false, error: "no_learners" }, h);
+    await deps.db!("POST", "messages", ids.map((x: string) => ({ learner: x, sender: "admin", body, action, created_at: at || now })));
+    if (!at) for (const x of ids) await ping(deps, await liveTopic(x));
+    return reply(200, { ok: true, task, result: { sent: ids.length, at: at || now } }, h);
+  }
   const lid = str(p.id, 64); if (!/^[a-f0-9]{64}$/.test(lid)) return reply(400, { ok: false, error: "bad_id" }, h);
-  const now = new Date().toISOString();
   if (task === "admin_chat_send") {
-    const body = str(p.body, CHAT_MAX).trim(), action = cleanAction(p.action);
+    const body = str(p.body, CHAT_MAX).trim(), action = cleanAction(p.action), at = sendAt(p.at, nowD);
     if (!body && !action) return reply(400, { ok: false, error: "empty_message" }, h);
     const row = (await deps.db!("GET", "learners?id=eq." + lid + "&select=id&limit=1") || [])[0];
     if (!row) return reply(404, { ok: false, error: "no_backup" }, h);
-    await deps.db!("POST", "messages", { learner: lid, sender: "admin", body, action, created_at: now });
-    await ping(deps, await liveTopic(lid));
+    await deps.db!("POST", "messages", { learner: lid, sender: "admin", body, action, created_at: at || now });
+    if (!at) await ping(deps, await liveTopic(lid));
+  } else if (task === "admin_chat_delete") { // only a scheduled message that has not been delivered yet
+    const mid = parseInt(p.mid, 10); if (!(mid > 0)) return reply(400, { ok: false, error: "bad_id" }, h);
+    await deps.db!("DELETE", "messages?id=eq." + mid + "&learner=eq." + lid + "&sender=eq.admin&created_at=gt." + now);
   } else if (p.read === true) await deps.db!("PATCH", "messages?learner=eq." + lid + "&sender=eq.learner&seen_at=is.null", { seen_at: now });
   const lr = (await deps.db!("GET", "learners?id=eq." + lid + "&select=last_open,client&limit=1") || [])[0] || {};
   return reply(200, { ok: true, task, result: { msgs: await chatList(deps, lid, Math.max(0, parseInt(p.since, 10) || 0)), last_open: lr.last_open || null, client: lr.client || null,

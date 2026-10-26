@@ -61,12 +61,15 @@ const db = async (method, path, body) => {
       if (["select", "order", "limit"].includes(k)) return true;
       const [op, ...rest] = v.split("."), val = rest.join(".");
       if (op === "eq") return String(r[k]) === val;
-      if (op === "gt") return +r[k] > +val;
-      if (op === "gte") return String(r[k]) >= val;
+      const num = /^\d+$/.test(val), a = num ? +r[k] : String(r[k]), b = num ? +val : val;
+      if (op === "gt") return a > b;
+      if (op === "gte") return a >= b;
+      if (op === "lte") return a <= b;
       if (op === "is") return r[k] == null;
       return true;
     });
-    if (method === "POST") { msgs.push({ id: mid++, seen_at: null, action: null, ...body }); return null; }
+    if (method === "POST") { (Array.isArray(body) ? body : [body]).forEach((m) => msgs.push({ id: mid++, seen_at: null, action: null, ...m })); return null; }
+    if (method === "DELETE") { const del = msgs.filter(keep); del.forEach((m) => msgs.splice(msgs.indexOf(m), 1)); return null; }
     if (method === "PATCH") { msgs.filter(keep).forEach((r) => Object.assign(r, body)); return null; }
     let out = msgs.filter(keep);
     if (q.get("order") === "id.desc") out = out.slice().reverse();

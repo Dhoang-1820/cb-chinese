@@ -1404,3 +1404,19 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .lt-phone { display: flex; align-items: center; gap: 6px; }
 .lt-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; flex: none; }
 .lt-dot.on { background: #2fb37a; }
+/* admin: suggested messages, wins, message everyone, scheduled */
+.lt-alrow { display: flex; flex-direction: column; align-items: stretch; border-top: 1px solid var(--border); }
+.lt-alrow:first-of-type { border-top: 0; }
+.lt-alg .lt-alrow .lt-al { flex: 1; border-top: 0; }
+.lt-sug { align-self: flex-end; min-height: 44px; margin: 0 0 8px; }
+.lt-wins { padding: 6px 14px; }
+.lt-win { display: flex; align-items: center; gap: 10px; min-height: 52px; border-top: 1px solid var(--border); }
+.lt-win:first-child { border-top: 0; }
+.lt-win .btn { flex: none; min-height: 44px; }
+.lt-all { display: block; margin: 8px 0 4px; }
+.lt-to { border: 0; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
+.lt-to legend { font-weight: 800; margin-bottom: 4px; }
+.lt-to-r { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.lt-to-r input { width: 22px; height: 22px; }
+.chat-b.sched { opacity: .75; border: 2px dashed rgba(255, 255, 255, .7); }
+.chat-b.sched small .linklike { color: inherit; font-size: inherit; }

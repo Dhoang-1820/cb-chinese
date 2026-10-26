@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", chat: "Teacher", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Games", game: "Games", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -1657,7 +1657,7 @@
       '<div class="card stat"><b>' + bc[5] + '</b><span>mastered (box 5)</span></div>' +
       '<div class="card stat"><b>' + done + '/30</b><span>days done</span></div>' +
       '<div class="card stat"><b>' + (s.streak.best || 0) + '</b><span>best streak</span></div></section>' +
-      (chatCode() ? '<a class="cta card g-teal chat-me" href="#/chat"><span class="cta-l"><small>Messages and practice tips</small><b>💬 Chat with your teacher</b>' + (CHAT.unread ? '<em>' + plural(CHAT.unread, "new message") + "</em>" : "") + '</span><span class="cta-go">▶</span></a>' : "") +
+      (chatCode() ? '<a class="cta card g-teal chat-me" href="#/chat"><span class="cta-l"><small>Messages, news and practice tips</small><b>💬 Chat with the C&amp;B team</b>' + (CHAT.unread ? '<em>' + plural(CHAT.unread, "new message") + "</em>" : "") + '</span><span class="cta-go">▶</span></a>' : "") +
       '<div class="tiles"><a class="tile t-teal" href="#/progress"><span class="t-ico">📈</span><b>Progress</b><small>Charts and scores</small></a>' +
       '<a class="tile t-blue" href="#/official"><span class="t-ico">📄</span><b>Official practice</b><small>Past papers · forecast</small></a>' +
       '<a class="tile t-sun" href="#/plan"><span class="t-ico">🗓️</span><b>Study plan</b><small>Path to the exam</small></a>' +
@@ -1934,6 +1934,7 @@
     var bkAlert = !!bk && op != null && op < 7; // the phone itself says its backup is not working: that explains old numbers
     if (bkAlert) out.push({ k: "Backup", t: "Backup is " + bk + " on " + lrnName(r) + "'s phone (seen " + agoText(r.last_open) + "), so new progress isn't reaching you", hot: true });
     if (r.unread) out.push({ k: "Chat", t: plural(r.unread, "new message") + " from " + lrnName(r), hot: true });
+    if (cl.v && BUILD !== "dev" && cl.v !== BUILD && op != null && op < 7) out.push({ k: "Update", t: lrnName(r) + "'s app is an older version (" + String(cl.v).slice(0, 7) + ")", hot: false });
     if (bkAlert) { /* no "no study" guess: the numbers are old because the backup is not working */ }
     else if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1 && op != null && op < 2) out.push({ k: "No study", t: "Opens the app (" + agoText(r.last_open) + ") but nothing studied for " + d + " days", hot: true });
     else if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1) out.push({ k: "No data", t: "Nothing received for " + up + " days · last study " + String(r.meta.last).slice(5) + ". Either not studying, or backup is paused on the phone: ask", hot: true });
@@ -1947,6 +1948,21 @@
     if (ew) out.push({ k: "Exam date", t: ew, hot: false });
     if (!bkAlert && isFinite(up) && up >= 3 && !(d != null && d >= 3 && up <= d + 1)) out.push({ k: "Backup", t: "Last saved " + up + " days ago, so these numbers may be old", hot: false });
     return out;
+  }
+  /* A ready message for each alert, in Vietnamese, with a matching button. The admin edits it or sends it as is. */
+  function lrnSug(r, a) {
+    var n = lrnName(r), sm = r.summary || {}, ex = sm.progress && sm.progress.exam, dl = DAYRE.test(ex || "") ? Store.daysBetween(Store.today(), ex) : null;
+    var left = dl != null && dl >= 0 ? " Còn " + dl + " ngày nữa là thi HSK 4." : "";
+    switch (a.k) {
+      case "Backup": return { text: "Chào " + n + ", app báo phần sao lưu trên điện thoại của em đang không hoạt động. Em vào Me → Cloud backup để bật lại hoặc chọn giữ tiến độ trên máy này nhé, để tiến độ không bị mất.", href: "#/me" };
+      case "No data": case "No study": return { text: "Chào " + n + ", mấy hôm nay chưa thấy em học." + left + " Hôm nay chỉ cần 5 phút thôi cũng được nhé! 加油!", href: "#/session/comeback" };
+      case "Streak": return { text: n + " ơi, chuỗi ngày học bị ngắt rồi 😅 Làm một phiên ngắn hôm nay để bắt đầu lại nhé!", href: "#/session" };
+      case "Reviews": return { text: "Chào " + n + ", có " + num((sm.vocab || {}).overdue) + " từ đang chờ em ôn lâu rồi. Ôn 10 phút hôm nay là nhớ lại ngay nhé!", href: "#/review" };
+      case "Mistakes": return { text: n + " ơi, có vài câu em sai đi sai lại. Thử phần \"Fix repeat mistakes\" nhé: mỗi câu đúng 2 lần liền là xong.", href: "#/mistakes/repeat" };
+      case "Exam date": return { text: "Chào " + n + ", em kiểm tra lại ngày thi trong app (Me → Exam date) giúp mình nhé, để kế hoạch ôn thi tính đúng ngày.", href: "#/me" };
+      case "Update": return { text: "Chào " + n + ", app vừa có bản mới. Em đóng hẳn app rồi mở lại một lần để cập nhật nhé!", href: "" };
+    }
+    return null;
   }
   function lrnStatus(r) {
     var sm = r.summary; if (!sm) return { t: "No data yet", c: "" };
@@ -1969,6 +1985,59 @@
     var bk = { on: "backup on", off: "backup off", paused: "backup paused", err: "backup failing" }[cl.b] || "";
     return '<p class="lt-meta lt-phone"><span class="lt-dot' + (mins < 3 ? " on" : "") + '" aria-hidden="true"></span>' + (mins < 3 ? "<b>In the app now</b>" : "App opened " + esc(agoText(r.last_open))) + (bk ? " · " + bk : "") + "</p>";
   }
+  var SUGS = {};
+  /* ---------- Message everyone: one message (and optional button) to the chosen learners, now or later ---------- */
+  function lrnAll(rows, host) {
+    host.innerHTML = '<nav class="seg" aria-label="Learner tracking views"><a href="#/learners">Overview</a><a class="active" aria-current="page" href="#/learners/all">Everyone</a></nav>' +
+      '<section class="card chat-box"><h3>📣 Message everyone</h3><p class="sub">Each learner gets it in her own chat, like a normal message. Use it for news, reminders and the exam-day checklist.</p>' +
+      '<fieldset class="lt-to"><legend>To</legend>' + rows.map(function (r, i) {
+        return '<label class="lt-to-r"><input type="checkbox" data-to="' + i + '"' + (lrnTest(r) ? "" : " checked") + "> " + esc(lrnName(r)) + (lrnTest(r) ? ' <small class="muted">(test or inactive)</small>' : "") + "</label>";
+      }).join("") + "</fieldset>" +
+      '<label class="sr" for="ab-act">Button to attach</label><select id="ab-act" class="ac-act"><option value="">No button</option>' + CHAT_ACTS.map(function (a) { return '<option value="' + esc(a[0]) + '">🔘 ' + esc(a[1]) + "</option>"; }).join("") + "</select>" + whenHTML("ab-when") +
+      '<div class="chat-form"><label class="sr" for="ab-in">Message</label><textarea id="ab-in" rows="3" maxlength="1000" placeholder="Write to everyone…"></textarea><button type="button" class="btn primary" id="ab-send">Send</button></div></section>';
+    wireWhen("ab-when");
+    document.getElementById("ab-send").onclick = function () {
+      var btn = this, v = document.getElementById("ab-in").value.trim(), a = document.getElementById("ab-act").value, at = whenISO("ab-when");
+      var ids = [].filter.call(host.querySelectorAll("[data-to]"), function (c) { return c.checked; }).map(function (c) { return rows[+c.getAttribute("data-to")].id; });
+      if (!v && !a) { document.getElementById("ab-in").focus(); return; }
+      if (!ids.length) { UI.toast("Choose at least one learner", "👥"); return; }
+      if (at === "bad") { UI.toast("Pick a time in the future", "⏰"); return; }
+      btn.disabled = true;
+      Content.admin("admin_broadcast", { ids: ids, body: v, action: a ? { href: a, label: CHAT_ACTS.filter(function (x) { return x[0] === a; })[0][1] } : null, at: at }).then(function (r) {
+        btn.disabled = false;
+        if (!r.ok) { UI.toast(AI.errMsg(r.error), "⚠️"); return; }
+        UI.toast((at ? "Scheduled for " : "Sent to ") + plural(r.result.sent, "learner"), at ? "⏰" : "📣");
+        document.getElementById("ab-in").value = ""; document.getElementById("ab-act").value = ""; document.getElementById("ab-when").value = ""; document.getElementById("ab-when-at").hidden = true;
+      });
+    };
+  }
+  /* ---------- Wins: recent achievements from each phone, one tap to cheer ---------- */
+  var CHEER_KEY = "cbChinese.cheered";
+  function cheered() { try { return JSON.parse(localStorage.getItem(CHEER_KEY)) || []; } catch (e) { return []; } }
+  function winKey(r, e) { return lrnKey(r) + ":" + e.k + ":" + e.d + ":" + (e.id || e.n || ""); }
+  function winText(e) {
+    return e.k === "mock" ? (e.f ? "Full mock" : "Mock") + " Test " + num(e.id) + ": " + num(e.s) + "/300" + (num(e.s) >= 180 ? " ✓ pass" : "") :
+      e.k === "lessons" ? plural(num(e.n), "lesson") + " finished" : e.k === "streak" ? num(e.n) + "-day streak 🔥" : e.k === "talk" ? "Role-play goal met" + (e.s != null ? " · " + num(e.s) + "/10" : "") : "";
+  }
+  function cheerMsg(r, e) {
+    var n = lrnName(r);
+    return e.k === "mock" ? "👏 Giỏi lắm " + n + "! Bài thi thử Test " + num(e.id) + ": " + num(e.s) + "/300." + (num(e.s) >= 180 ? " Đã qua điểm đỗ rồi đấy!" : " Mỗi bài là một bước gần hơn tới 180!") :
+      e.k === "lessons" ? "👏 Tuyệt vời " + n + ", hôm đó em xong " + num(e.n) + " bài học!" :
+      e.k === "streak" ? "🔥 " + num(e.n) + " ngày liên tiếp rồi, " + n + "! Giữ vững nhé!" : "🗣️ Giỏi quá " + n + ", em đã hoàn thành hội thoại với AI!";
+  }
+  function lrnWins(rows) {
+    var from = Store.addDays(Store.today(), -7), done = cheered(), list = [];
+    rows.forEach(function (r) { ((r.summary || {}).ev || []).forEach(function (e) { if (e && e.d >= from && winText(e)) list.push({ r: r, e: e }); }); });
+    list.sort(function (a, b) { return a.e.d < b.e.d ? 1 : a.e.d > b.e.d ? -1 : 0; });
+    if (!list.length) return "";
+    WINS = list.slice(0, 8);
+    return '<h3 class="sec">Recent wins</h3><section class="card lt-wins">' + WINS.map(function (x, i) {
+      var k = winKey(x.r, x.e), c = done.indexOf(k) >= 0;
+      return '<div class="lt-win"><span class="lt-al-t"><b>' + esc(lrnName(x.r)) + "</b><small>" + esc(winText(x.e)) + " · " + esc(x.e.d.slice(5)) + "</small></span>" +
+        (c ? '<span class="muted">Cheered ✓</span>' : '<button type="button" class="btn small primary" data-cheer="' + i + '">👏 Cheer</button>') + "</div>";
+    }).join("") + "</section>";
+  }
+  var WINS = [];
   function lrnTest(r) { var d = lrnIdle(r); return num((r.meta || {}).xp) < 100 && (d == null || d >= 14); }
   function lrnOverview(rows) {
     var soon = null, html = "";
@@ -1977,16 +2046,21 @@
       if (DAYRE.test(e || "")) { var dl = Store.daysBetween(Store.today(), e); if (dl >= 0 && (!soon || dl < soon.dl)) soon = { dl: dl, d: e }; }
     });
     html += soon ? '<section class="card lt-exam"><small>HSK exam in</small><b>' + soon.dl + " days</b><span>" + esc(soon.d) + "</span></section>" : "";
-    var test = rows.filter(lrnTest); rows = rows.filter(function (r) { return !lrnTest(r); });
+    var test = rows.filter(lrnTest); rows = rows.filter(function (r) { return !lrnTest(r); }); SUGS = {};
+    html += '<a class="btn big lt-all" href="#/learners/all">📣 Message everyone</a>';
     var al = []; // one card per learner, every alert a line inside it; learners with an urgent alert first
     rows.forEach(function (r) { var a = lrnAlerts(r); if (a.length) al.push({ r: r, a: a, hot: a.some(function (x) { return x.hot; }) }); });
     al.sort(function (x, y) { return (y.hot ? 1 : 0) - (x.hot ? 1 : 0); });
     html += '<h3 class="sec">Needs attention</h3>' + (al.length ? al.map(function (x) {
       return '<section class="card lt-alg"><b class="lt-alg-n">' + esc(lrnName(x.r)) + "</b>" + x.a.map(function (a) {
-        var to = a.k === "Reviews" || a.k === "Mistakes" ? "practice" : a.k === "Exam date" ? "progress" : a.k === "Chat" || a.k === "Backup" ? "chat" : "habit";
-        return '<a class="lt-al" href="#/learners/' + lrnKey(x.r) + "/" + to + '"><span class="lt-badge' + (a.hot ? " hot" : "") + '">' + esc(a.k) + '</span><span class="lt-al-t"><small>' + esc(a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>';
+        var to = a.k === "Reviews" || a.k === "Mistakes" ? "practice" : a.k === "Exam date" ? "progress" : a.k === "Chat" || a.k === "Backup" || a.k === "Update" ? "chat" : "habit";
+        var sg = lrnSug(x.r, a), sk = "";
+        if (sg) { sk = String(Object.keys(SUGS).length); SUGS[sk] = { key: lrnKey(x.r), text: sg.text, href: sg.href }; }
+        return '<div class="lt-alrow"><a class="lt-al" href="#/learners/' + lrnKey(x.r) + "/" + to + '"><span class="lt-badge' + (a.hot ? " hot" : "") + '">' + esc(a.k) + '</span><span class="lt-al-t"><small>' + esc(a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>' +
+          (sg ? '<button type="button" class="btn small lt-sug" data-sug="' + sk + '" aria-label="Suggested message: ' + esc(a.k) + '">💬 Message</button>' : "") + "</div>";
       }).join("") + "</section>";
     }).join("") : '<p class="card sub">✓ Nothing needs attention.</p>');
+    html += lrnWins(rows);
     if (test.length) html += '<details class="card lt-test"><summary>Inactive or test backups (' + test.length + ")</summary><p class=\"sub\">Under 100 XP and nothing for 14+ days: usually a test device or a backup started without the restore code. Hidden from alerts.</p>" +
       test.map(function (r) { return '<a class="lt-al" href="#/learners/' + lrnKey(r) + '/progress"><span class="lt-al-t"><b>' + esc(lrnName(r)) + "</b><small>" + num((r.meta || {}).xp) + " XP · last " + esc(String((r.meta || {}).last || "–")) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>'; }).join("") + "</details>";
     html += '<h3 class="sec">Learners</h3>' + rows.map(function (r) {
@@ -2135,15 +2209,31 @@
   }
   var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"], ["week", "Week"], ["chat", "Chat"]];
   /* one-tap buttons the teacher can attach to a message; each opens that screen on the learner's phone */
-  var CHAT_ACTS = [["#/session", "Start Today's session"], ["#/exam", "Open my exam plan"], ["#/mock/4/sim", "Full mock 4 in the simulator"], ["#/mock/5/sim", "Full mock 5 in the simulator"],
+  var CHAT_ACTS = [["#/session", "Start Today's session"], ["#/session/comeback", "5-minute restart"], ["#/exam", "Open my exam plan"], ["#/mock/4/sim", "Full mock 4 in the simulator"], ["#/mock/5/sim", "Full mock 5 in the simulator"],
     ["#/mock/6/sim", "Full mock 6 in the simulator"], ["#/parts", "Practise one exam part"], ["#/parts/R1", "Reading part 1, timed"], ["#/parts/R3", "Reading part 3, timed"], ["#/parts/W1", "Writing part 1, timed"],
     ["#/parts/W2", "Writing part 2, timed"], ["#/parts/L2", "Listening part 2, timed"], ["#/mistakes/repeat", "Fix my repeat mistakes"], ["#/mistakes", "Open my mistake notebook"], ["#/review", "Review due words"], ["#/me", "Check my cloud backup"]];
-  var ACHAT = { timer: null, id: "", msgs: [] };
+  var ACHAT = { timer: null, id: "", msgs: [], prefill: null };
+  /* "when" choices for a message; the time is the admin phone's local time */
+  function whenHTML(id) {
+    var h = new Date().getHours();
+    return '<label class="sr" for="' + id + '">When</label><select id="' + id + '" class="ac-act ac-when"><option value="">Send now</option>' + (h < 19 ? '<option value="t20">Tonight at 20:00</option>' : "") +
+      '<option value="m7">Tomorrow at 07:00</option><option value="m12">Tomorrow at 12:00</option><option value="m20">Tomorrow at 20:00</option><option value="pick">Pick a time…</option></select>' +
+      '<input type="datetime-local" id="' + id + '-at" class="ac-act" hidden aria-label="Delivery time">';
+  }
+  function wireWhen(id) { var w = document.getElementById(id), x = document.getElementById(id + "-at"); w.onchange = function () { x.hidden = w.value !== "pick"; }; }
+  function whenISO(id) {
+    var v = document.getElementById(id).value, d = new Date();
+    if (!v) return null;
+    if (v === "pick") { var x = document.getElementById(id + "-at").value; var t = x ? new Date(x) : null; return t && !isNaN(t) && t > new Date() ? t.toISOString() : "bad"; }
+    if (v.charAt(0) === "m") d.setDate(d.getDate() + 1);
+    d.setHours(+v.slice(1), 0, 0, 0);
+    return d.toISOString();
+  }
   function adminChat(cur, host) {
     ACHAT.id = cur.id; var myHash = location.hash, sending = false;
     host.innerHTML = '<section class="card chat-box"><p class="sub" id="ac-status">' + (lrnPhone(cur).replace(/<\/?p[^>]*>/g, "") || "This phone hasn't opened the new app version yet.") + "</p>" +
       '<div id="ac-log" class="chat-log" role="log" aria-live="polite"><p class="sub">Loading…</p></div>' +
-      '<label class="sr" for="ac-act">Button to attach</label><select id="ac-act" class="ac-act"><option value="">No button</option>' + CHAT_ACTS.map(function (a) { return '<option value="' + esc(a[0]) + '">🔘 ' + esc(a[1]) + "</option>"; }).join("") + "</select>" +
+      '<label class="sr" for="ac-act">Button to attach</label><select id="ac-act" class="ac-act"><option value="">No button</option>' + CHAT_ACTS.map(function (a) { return '<option value="' + esc(a[0]) + '">🔘 ' + esc(a[1]) + "</option>"; }).join("") + "</select>" + whenHTML("ac-when") +
       '<div class="chat-form"><label class="sr" for="ac-in">Message</label><textarea id="ac-in" rows="2" maxlength="1000" placeholder="Write to ' + esc(lrnName(cur)) + '…"></textarea><button type="button" class="btn primary" id="ac-send">Send</button></div>' +
       '<p class="sub">She sees it in the app (Home and Me → Chat), live while the app is open. <button type="button" class="linklike" id="ac-share">Send by Zalo / share instead</button></p></section>';
     function draw(r) {
@@ -2162,15 +2252,28 @@
     poll(); clearInterval(ACHAT.timer);
     ACHAT.timer = setInterval(function () { if (location.hash !== myHash) { clearInterval(ACHAT.timer); return; } poll(); }, 10000);
     document.getElementById("ac-share").onclick = function () { lrnMessage(cur); };
+    wireWhen("ac-when");
+    if (ACHAT.prefill) { // a suggested message from an alert
+      document.getElementById("ac-in").value = ACHAT.prefill.text; document.getElementById("ac-in").rows = 5;
+      if (ACHAT.prefill.href && CHAT_ACTS.some(function (x) { return x[0] === ACHAT.prefill.href; })) document.getElementById("ac-act").value = ACHAT.prefill.href;
+      ACHAT.prefill = null;
+    }
+    document.getElementById("ac-log").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-unsched]"); if (!b) return;
+      b.disabled = true;
+      Content.admin("admin_chat_delete", { id: cur.id, mid: +b.getAttribute("data-unsched"), since: 0 }).then(function (r) { if (r.ok) { UI.toast("Scheduled message cancelled", "🗑️"); draw(r); } else UI.toast(AI.errMsg(r.error), "⚠️"); });
+    });
     document.getElementById("ac-send").onclick = function () {
-      var inp = document.getElementById("ac-in"), sel = document.getElementById("ac-act"), v = inp.value.trim(), a = sel.value, btn = this;
+      var inp = document.getElementById("ac-in"), sel = document.getElementById("ac-act"), v = inp.value.trim(), a = sel.value, btn = this, at = whenISO("ac-when");
       if (sending || (!v && !a)) { inp.focus(); return; }
+      if (at === "bad") { UI.toast("Pick a time in the future", "⏰"); return; }
       var act = a ? { href: a, label: CHAT_ACTS.filter(function (x) { return x[0] === a; })[0][1] } : null;
       sending = true; btn.disabled = true;
-      Content.admin("admin_chat_send", { id: cur.id, body: v, action: act, since: 0 }).then(function (r) {
+      Content.admin("admin_chat_send", { id: cur.id, body: v, action: act, at: at, since: 0 }).then(function (r) {
         sending = false; btn.disabled = false;
         if (!r.ok) { UI.toast(AI.errMsg(r.error), "⚠️"); return; }
-        inp.value = ""; sel.value = ""; var log = document.getElementById("ac-log"); if (log) log.dataset.drawn = ""; draw(r);
+        if (at) UI.toast("Scheduled", "⏰");
+        inp.value = ""; sel.value = ""; document.getElementById("ac-when").value = ""; document.getElementById("ac-when-at").hidden = true; var log = document.getElementById("ac-log"); if (log) log.dataset.drawn = ""; draw(r);
       });
     };
   }
@@ -2188,11 +2291,25 @@
       if (!res.ok) { host.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + "</div>"; if (res.error === "bad_admin") { Content.setAdminCode(""); viewLearners(key, sec); } return; }
       var rows = res.result.rows || [], cur = null;
       if (!rows.length) { host.innerHTML = '<p class="empty">No phone has saved a backup yet.</p>'; return; }
+      if (key === "all") { lrnAll(rows, host); return; }
       rows.forEach(function (r) { if (key && lrnKey(r) === key) cur = r; });
       var seg = '<nav class="seg" aria-label="Learner tracking views"><a href="#/learners"' + (cur ? "" : ' class="active" aria-current="page"') + '>Overview</a><a href="#/learners/' + lrnKey(cur || rows[0]) + '/progress"' + (cur ? ' class="active" aria-current="page"' : "") + ">Learner</a></nav>";
       if (!cur) {
         host.innerHTML = seg + lrnOverview(rows);
         if (res.result.live) chatLive(res.result.live, function () { if (location.hash === "#/learners") viewLearners(); }); // a learner wrote: refresh the overview
+        host.onclick = function (e) {
+          var sb = e.target.closest("[data-sug]"), cb = e.target.closest("[data-cheer]");
+          if (sb) { var sg = SUGS[sb.getAttribute("data-sug")]; if (!sg) return; ACHAT.prefill = sg; location.hash = "#/learners/" + sg.key + "/chat"; return; }
+          if (cb) {
+            var w = WINS[+cb.getAttribute("data-cheer")]; if (!w) return;
+            cb.disabled = true;
+            Content.admin("admin_chat_send", { id: w.r.id, body: cheerMsg(w.r, w.e), since: 0 }).then(function (r) {
+              if (!r.ok) { cb.disabled = false; UI.toast(AI.errMsg(r.error), "⚠️"); return; }
+              var d = cheered(); d.push(winKey(w.r, w.e)); try { localStorage.setItem(CHEER_KEY, JSON.stringify(d.slice(-200))); } catch (x) { /* fine */ }
+              cb.outerHTML = '<span class="muted">Cheered ✓</span>'; UI.toast("Cheer sent to " + lrnName(w.r), "👏");
+            });
+          }
+        };
         return;
       }
       var chips = '<div class="lt-chips">' + rows.map(function (r) { return '<a class="lt-pick' + (r === cur ? " on" : "") + '" href="#/learners/' + lrnKey(r) + "/" + (sec || "progress") + '"' + (r === cur ? ' aria-current="page"' : "") + ">" + esc(lrnName(r)) + (r.unread ? ' <span class="lt-unread">' + r.unread + "</span>" : "") + "</a>"; }).join("") + "</div>";
@@ -3810,7 +3927,19 @@
     if (len() > SUMMARY_MAX) o.wk = null; // the admin's Week tab then shows only what is left
     return o;
   }
-  function studySummary() { return fitSummary(studySummary0()); }
+  /* Recent wins for the admin's cheers (last 14 days): mocks, lessons finished per day, the current streak's milestone,
+     role-plays with the goal met. Small; dropped first when the summary is too big. */
+  function winEvents() {
+    var s = Store.state, t = Store.today(), from = Store.addDays(t, -14), ev = [], perDay = {};
+    (s.mockHistory || []).forEach(function (h) { if (h.date >= from) ev.push({ k: "mock", d: h.date, id: num(h.id), s: num(h.total), f: h.full === true ? 1 : 0 }); });
+    Object.keys(s.days || {}).forEach(function (k) { var r = s.days[k]; if (r && r.completed && DAYRE.test(r.completedOn || "") && r.completedOn >= from) perDay[r.completedOn] = (perDay[r.completedOn] || 0) + 1; });
+    Object.keys(perDay).forEach(function (d) { ev.push({ k: "lessons", d: d, n: perDay[d] }); });
+    var st = Store.streak(), ms = [100, 60, 30, 21, 14, 7, 3].filter(function (m) { return st >= m; })[0];
+    if (ms) ev.push({ k: "streak", d: Store.addDays(t, -(st - ms)), n: ms });
+    (s.talkLog || []).forEach(function (x) { if (x.g && x.d >= from) ev.push({ k: "talk", d: x.d, id: String(x.id || "").slice(0, 20), s: x.s }); });
+    return ev.sort(function (a, b) { return a.d < b.d ? 1 : a.d > b.d ? -1 : 0; }).slice(0, 10);
+  }
+  function studySummary() { var o = studySummary0(); try { o.ev = winEvents(); } catch (e) { o.ev = []; } if (JSON.stringify(o).length > SUMMARY_MAX) o.ev = (o.ev || []).slice(0, 3); return fitSummary(o); }
   function hsk4Word(id) { var w = WORDMAP[id]; return !!w && !w._pk && !w._mine; }
   /* Per week for the admin's weekly report, oldest first and this week (so far) last, weeks starting Monday:
      [study days, minutes, right answers, wrong answers, HSK 4 words added]. Answers count HSK 4 exam skills only.
@@ -4399,7 +4528,7 @@
     var stale = c.last && Date.now() - c.last > 2 * 864e5;
     if (!c.conflict && !(c.err && stale)) return "";
     return '<a class="card warn-card sync-paused" href="#/me"><b>☁️ Backup ' + (c.conflict ? "paused" : "failing") + "</b><small>" +
-      (c.conflict ? "Another copy of your progress was saved. Choose which one to keep in Me → Cloud backup. Until then your teacher sees old numbers." : "Your progress hasn't been saved online for " + Math.floor((Date.now() - c.last) / 864e5) + " days. Tap to check.") + "</small></a>";
+      (c.conflict ? "Another copy of your progress was saved. Choose which one to keep in Me → Cloud backup. Until then the C&amp;B team sees old numbers." : "Your progress hasn't been saved online for " + Math.floor((Date.now() - c.last) / 864e5) + " days. Tap to check.") + "</small></a>";
   }
   /* ---------- Teacher chat (learner side) ----------
      Messages live on the server (see chat_get / chat_send in supabase/functions/ai/index.ts) and are reached with this
@@ -4411,7 +4540,7 @@
   function chatMerge(list, full) {
     if (full) CHAT.msgs = [];
     (list || []).forEach(function (m) { var i = -1; CHAT.msgs.forEach(function (x, k) { if (x.id === m.id) i = k; }); if (i >= 0) CHAT.msgs[i] = m; else CHAT.msgs.push(m); });
-    CHAT.msgs.sort(function (a, b) { return a.id - b.id; });
+    CHAT.msgs.sort(chatOrder);
     CHAT.msgs.forEach(function (m) { if (m.id > CHAT.last) CHAT.last = m.id; });
   }
   /* read: the chat screen is open, so the teacher's messages count as seen */
@@ -4419,9 +4548,9 @@
     var code = chatCode();
     if (!code || !window.AI || !AI.available()) return Promise.resolve(null);
     var before = CHAT.unread;
-    return AI.call("chat_get", { code: code, since: read ? 0 : CHAT.last, read: !!read, client: chatClient() }).then(function (r) {
+    return AI.call("chat_get", { code: code, since: 0, read: !!read, client: chatClient() }).then(function (r) {
       if (!r.ok) return null;
-      chatMerge(r.result.msgs, read); CHAT.unread = r.result.unread || 0;
+      chatMerge(r.result.msgs, true); CHAT.unread = r.result.unread || 0;
       if (r.result.live) chatLive(r.result.live, function () { chatPoll(location.hash === "#/chat").then(function () { chatDraw(); }); });
       if (CHAT.unread > before && /^#?\/?$/.test(location.hash) && !workDone) viewHome(); // a new message: show it on Home
       return r;
@@ -4442,40 +4571,45 @@
   }
   function chatStop() { if (CHAT.sock) { try { CHAT.sock.close(); } catch (e) { /* closed */ } CHAT.sock = null; CHAT.topic = ""; } }
   var HREF_OK = /^#\/[a-z0-9][a-z0-9\/_-]{0,60}$/i;
+  /* by delivery time (a scheduled message is stored with the time it is delivered), then by id */
+  function chatOrder(a, b) { return a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : a.id - b.id; }
   function chatTime(iso) { var d = new Date(iso); return isNaN(d) ? "" : String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
   function chatDay(iso) { var d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }); }
   /* one conversation; mine = "learner" on the learner's phone, "admin" in the teacher's view */
   function chatLogHTML(msgs, mine, other) {
     if (!msgs.length) return '<p class="sub chat-empty">No messages yet.</p>';
-    var html = "", day = "", lastMine = -1;
+    msgs = msgs.slice().sort(chatOrder);
+    var html = "", day = "", lastMine = -1, now = new Date().toISOString();
     msgs.forEach(function (m, i) { if (m.sender === mine) lastMine = i; });
     msgs.forEach(function (m, i) {
       var d = chatDay(m.created_at); if (d !== day) { day = d; html += '<p class="chat-day">' + esc(d) + "</p>"; }
       var me = m.sender === mine, a = m.action && HREF_OK.test(m.action.href || "") ? m.action : null;
-      html += '<div class="chat-b ' + (me ? "me" : "them") + '"><span class="sr">' + (me ? "You" : other) + ": </span>" + (m.body ? '<p>' + esc(m.body).replace(/\n/g, "<br>") + "</p>" : "") +
+      var later = m.created_at > now; // scheduled, not delivered yet (only the admin's own view has these)
+      html += '<div class="chat-b ' + (me ? "me" : "them") + (later ? " sched" : "") + '"><span class="sr">' + (me ? "You" : other) + ": </span>" + (m.body ? '<p>' + esc(m.body).replace(/\n/g, "<br>") + "</p>" : "") +
         (a ? '<a class="btn small ' + (me ? "" : "primary ") + 'chat-act" href="' + esc(a.href) + '">' + esc(a.label) + " ›</a>" : "") +
-        '<small>' + chatTime(m.created_at) + (me && i === lastMine && m.seen_at ? " · Seen" : "") + "</small></div>";
+        (later ? '<small>⏰ Scheduled · ' + esc(chatDay(m.created_at)) + " " + chatTime(m.created_at) + ' · <button type="button" class="linklike" data-unsched="' + m.id + '">Cancel</button></small>'
+          : '<small>' + chatTime(m.created_at) + (me && i === lastMine && m.seen_at ? " · Seen" : "") + "</small>") + "</div>";
     });
     return html;
   }
   function chatCard() {
     if (!CHAT.unread) return "";
     var last = CHAT.msgs.filter(function (m) { return m.sender === "admin"; }).pop();
-    return '<a class="card chat-new" href="#/chat" id="chat-card"><b>💬 ' + (CHAT.unread > 1 ? CHAT.unread + " new messages" : "New message") + " from your teacher</b>" +
+    return '<a class="card chat-new" href="#/chat" id="chat-card"><b>💬 ' + (CHAT.unread > 1 ? CHAT.unread + " new messages" : "New message") + " from the C&amp;B team</b>" +
       (last ? "<small>" + esc((last.body || (last.action && last.action.label) || "").slice(0, 90)) + "</small>" : "") + "</a>";
   }
   function chatDraw() {
     var log = document.getElementById("chat-log"); if (!log) return;
     var atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
-    log.innerHTML = chatLogHTML(CHAT.msgs, "learner", "Teacher");
+    log.innerHTML = chatLogHTML(CHAT.msgs, "learner", "C&B team");
     if (atEnd || !log.dataset.drawn) { log.scrollTop = log.scrollHeight; log.dataset.drawn = "1"; }
   }
   function viewChat() {
-    var head = '<section class="card chat-head"><h2>💬 Your teacher</h2><p class="sub">Messages and practice tips from your teacher. Only your teacher sees what you write here.</p></section>';
+    var head = '<section class="card chat-head"><h2>💬 C&amp;B team</h2><p class="sub">Messages, news and practice tips from the C&amp;B team. Only the team sees what you write here.</p></section>';
     if (!chatCode()) { render(head + '<section class="card"><p>Chat uses your cloud backup to know it is you. Turn on <b>Cloud backup</b> in Me first.</p><a class="btn primary" href="#/me">Open Me</a></section>', "me"); return; }
     var draft = (document.getElementById("chat-in") || {}).value || "";
     render(head + '<section class="card chat-box"><div id="chat-log" class="chat-log" role="log" aria-live="polite"></div>' +
-      '<div class="chat-form"><label class="sr" for="chat-in">Message</label><textarea id="chat-in" rows="2" maxlength="1000" placeholder="Write to your teacher…">' + esc(draft) + '</textarea><button type="button" class="btn primary" id="chat-send">Send</button></div>' +
+      '<div class="chat-form"><label class="sr" for="chat-in">Message</label><textarea id="chat-in" rows="2" maxlength="1000" placeholder="Write to the C&amp;B team…">' + esc(draft) + '</textarea><button type="button" class="btn primary" id="chat-send">Send</button></div>' +
       (window.AI && AI.available() ? "" : '<p class="sub">You are offline. Messages load when you are back online.</p>') + "</section>", "me");
     chatDraw();
     chatPoll(true).then(chatDraw);
@@ -4522,7 +4656,7 @@
       if (c.off) h = '<p class="sub">Off. Your progress is only on this phone.</p><div class="actions"><button class="btn primary small" id="y-on">Turn on</button><button class="btn small" id="y-code">Restore with a code</button></div>';
       else if (c.conflict) h = '<p class="warn">Another phone saved this backup on ' + esc(c.conflict.at ? new Date(c.conflict.at).toLocaleString() : "an unknown date") + " (" + (c.conflict.meta.xp || 0) + " XP). This phone has " + Store.state.xp + ' XP. Choose which one to keep; backup is paused until you do.</p><div class="actions"><button class="btn primary small" id="y-take">Use the cloud copy</button><button class="btn small" id="y-keep">Keep this phone</button></div>';
       else h = '<p class="sub">' + (c.code ? "On. " + (c.last ? "Last saved: " + esc(new Date(c.last).toLocaleString()) + "." : "Not saved yet.") : "On. The first backup is made after your first study session.") +
-        " A copy of your progress is saved on the app's server after you study. No account is needed. Your teacher can see progress numbers such as XP, streak, scores and study days, but never your answers or notes.</p>" +
+        " A copy of your progress is saved on the app's server after you study. No account is needed. The C&amp;B team can see progress numbers such as XP, streak, scores and study days, but never your answers or notes.</p>" +
         (c.err ? '<p class="warn">Last try failed: ' + esc(AI.errMsg(c.err)) + "</p>" : "") +
         (c.code ? '<p class="sub">Restore code: <b class="sync-code" id="y-show">' + esc(syncShow(c.code)) + "</b><br>Type it on a new phone to load your progress there. Keep it private: anyone with the code can open your backup.</p>" : "") +
         '<div class="actions">' + (c.code ? '<button class="btn primary small" id="y-up">☁️ Back up now</button>' : "") + '<button class="btn small" id="y-code">Restore with a code</button><button class="btn small" id="y-off">Turn off</button></div>';

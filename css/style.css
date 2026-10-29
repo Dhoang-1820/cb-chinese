@@ -1498,3 +1498,22 @@ body.on-tab #chip-heart, body.on-tab #btn-py, body.on-tab #btn-flag { display: n
 .me-top .xpbar span { background: linear-gradient(90deg, #7b5cff, #b05cff); }
 .today-main, .learn-now, .pr-mock { background-color: #5a3fd6; }
 .tm-short.has-dog { display: flex; align-items: center; justify-content: center; gap: 6px; }
+/* exam strategy cards, blanks and pace */
+.ptip { margin: 4px 0 10px; padding: 10px 12px; border-radius: 12px; background: var(--note-bg, #fff7e0); color: var(--note-ink, #6b4a00); font-size: .9rem; font-weight: 600; }
+.ptip b { font-weight: 900; }
+.rv-tip { margin-top: 8px; }
+.blank-note { margin: 8px 0 0; padding: 10px 12px; border-radius: 12px; background: #fff0d6; color: #7a4300; font-weight: 600; }
+.pace-card h3 { margin: 0 0 6px; }
+.pace-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.pace-row:first-of-type { border-top: 0; }
+.pace-row small { grid-column: 1 / -1; color: var(--muted); font-weight: 700; }
+#exam-timer.warn { color: #c9304a; font-weight: 900; }
+.ai-made { color: var(--muted); font-weight: 800; }
+.of-real { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 800; }
+.of-real input { width: 22px; height: 22px; }
+.real-card { color: #fff; }
+.real-card.ok { background: #0f6b5a; }
+.real-card.low { background: #9c2f46; }
+.real-card .sub, .real-card h2 { color: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ptip { background: #3a2f18; color: #ffe1a6; } :root:not([data-theme="light"]) .blank-note { background: #3a2f18; color: #ffe1a6; } }
+:root[data-theme="dark"] .ptip, :root[data-theme="dark"] .blank-note { background: #3a2f18; color: #ffe1a6; }

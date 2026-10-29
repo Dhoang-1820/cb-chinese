@@ -28,6 +28,7 @@
       mlog: [],       // wrong answers, newest last: [{ d: date, k: key, s: skill }] (capped; feeds the pattern rules in js/learn.js)
       trk: [],        // weekly snapshots for the teacher's charts, newest last (max 12): [{ w: week start, r: readiness total or null, m: words in box 4-5, c: words in review }]
       talkLog: [],    // finished AI role-plays, newest last (max 60): [{ d: date, id: scene id, s: score 0-10 or null, g: goal met, l: 4|5 }]
+      fcAtExam: null, // the forecast frozen on exam day: { d, t, L, R, W }, to compare with the real result
       weekGoal: {},   // week-start date -> true once that week's study-days goal was met
       patternHide: {}, // pattern signature -> date it was dismissed (hidden for the rest of that day)
       patternAI: {},  // pattern signature -> saved AI explanation
@@ -118,6 +119,9 @@
     });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(st.examDate)) st.examDate = dflt.examDate;
     if (!/^\d{2}:\d{2}$/.test(st.remindTime)) st.remindTime = dflt.remindTime;
+    if (st.examTime && !/^\d{2}:\d{2}$/.test(st.examTime)) st.examTime = "";
+    if (d.fcAtExam && (typeof d.fcAtExam !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(d.fcAtExam.d))) d.fcAtExam = null;
+    else if (d.fcAtExam) d.fcAtExam = { d: d.fcAtExam.d, t: n(d.fcAtExam.t), L: n(d.fcAtExam.L), R: n(d.fcAtExam.R), W: n(d.fcAtExam.W) };
     if (["both", "vi", "en"].indexOf(st.lang) < 0) st.lang = dflt.lang;
     if (["auto", "light", "dark"].indexOf(st.theme) < 0) st.theme = dflt.theme;
     if (["m", "l", "xl"].indexOf(st.textSize) < 0) st.textSize = dflt.textSize;
@@ -149,16 +153,27 @@
       if (r.wrong !== undefined) r.wrong = (Array.isArray(r.wrong) ? r.wrong : []).filter(function (w) { return Array.isArray(w) && typeof w[0] === "string"; }).slice(0, 100)
         .map(function (w) { var a = w[1]; return [w[0].slice(0, 20), typeof a === "number" || typeof a === "boolean" ? a : typeof a === "string" ? a.slice(0, 150) : null]; });
     });
+    function cleanPace(p) {
+      if (!p || typeof p !== "object") return undefined;
+      var o = {};
+      ["listening", "reading", "writing"].forEach(function (k) {
+        var x = p[k]; if (!x || typeof x !== "object") return;
+        var b = {}; Object.keys(x.b || {}).forEach(function (pk) { if (/^[LRW][123]c?$/.test(pk)) b[pk] = n(x.b[pk]); });
+        o[k] = { t: n(x.t), u: x.u == null ? null : n(x.u), o: x.o ? 1 : 0, b: b };
+      });
+      return o;
+    }
     d.mockHistory = (Array.isArray(d.mockHistory) ? d.mockHistory : []).filter(function (h) { return h && typeof h === "object"; }).map(function (h) {
       var sec = h.sections || {};
       return { id: n(h.id), date: /^\d{4}-\d{2}-\d{2}$/.test(h.date) ? h.date : today(), mode: h.mode === "practice" ? "practice" : "exam", strict: !!h.strict, total: n(h.total),
         sections: { listening: n(sec.listening), reading: n(sec.reading), writing: n(sec.writing) }, rep: h.rep === true, // rep: retake of a seen set (older entries: derived from order)
-        full: typeof h.full === "boolean" ? h.full : undefined, ws: typeof h.ws === "boolean" ? h.ws : undefined }; // full-length set; ws: writing self-marked (unset = older entry)
+        full: typeof h.full === "boolean" ? h.full : undefined, ws: typeof h.ws === "boolean" ? h.ws : undefined, // full-length set; ws: writing self-marked (unset = older entry)
+        blank: h.blank == null ? undefined : n(h.blank), pace: cleanPace(h.pace) }; // questions left empty; time and blanks per section (exam mode)
     });
     d.official = (Array.isArray(d.official) ? d.official : []).filter(function (o) { return o && typeof o === "object"; }).map(function (o) {
       var c = function (x) { x = n(x); return Math.max(0, Math.min(100, Math.round(x))); };
       return { id: String(o.id || Date.now()).replace(/[^0-9a-z]/gi, "").slice(0, 16) || String(Date.now()), date: /^\d{4}-\d{2}-\d{2}$/.test(o.date) ? o.date : today(),
-        name: String(o.name || "Official paper").slice(0, 60), l: c(o.l), r: c(o.r), w: c(o.w) };
+        name: String(o.name || "Official paper").slice(0, 60), l: c(o.l), r: c(o.r), w: c(o.w), real: o.real === true };
     });
     Object.keys(d.grammar).forEach(function (k) {
       var g = d.grammar[k]; if (!/^(g|h5g)\d\d$/.test(k) || !g || typeof g !== "object") { delete d.grammar[k]; return; }

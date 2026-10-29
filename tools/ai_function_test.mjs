@@ -388,4 +388,21 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
   }
   t("report: malformed ids are still refused", bad.length === 0, bad.join(" "));
 }
+// similar questions: only well-formed items are kept
+{
+  const fill = fn.validateResult("similar", { items: [
+    { sentence: "他____来了。", options: ["已经", "曾经", "马上", "突然"], answer: "0", explain: "x" },
+    { sentence: "两个____和____。", options: ["一", "二", "三", "四"], answer: "1", explain: "two gaps" },
+    { sentence: "他____来了。", options: ["已经", "已经", "马上", "突然"], answer: "0", explain: "dup options" },
+    { sentence: "她____去。", options: ["要", "想", "会", "能"], answer: "7", explain: "bad key" }], confidence: "high" }, { kind: "fill" });
+  t("similar fill: keeps the one valid item, drops two gaps, repeated options and a bad key", fill && fill.items.length === 1 && fill.items[0].answer === 0, JSON.stringify(fill));
+  const ord = fn.validateResult("similar", { items: [
+    { tokens: ["我", "每天", "上班"], answer: "我每天上班。", explain: "x" },
+    { tokens: ["我", "每天", "上班"], answer: "我每天都上班", explain: "adds a character" }], confidence: "high" }, { kind: "order" });
+  t("similar order: the answer must be exactly the tokens (end punctuation allowed)", ord && ord.items.length === 1 && ord.items[0].answer === "我每天上班", JSON.stringify(ord));
+  const c = fn.cleanInput({ task: "similar", payload: { kind: "fill", sentence: "他____来了。", options: ["已经", "曾经"], answer: "已经" } });
+  t("similar: input is cleaned (kind, example)", typeof c === "object" && c.data.kind === "fill" && c.data.example_answer === "已经");
+  t("similar: an unknown kind is refused", fn.cleanInput({ task: "similar", payload: { kind: "x", sentence: "他____来了。", answer: "已经" } }) === "bad_kind");
+}
+
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

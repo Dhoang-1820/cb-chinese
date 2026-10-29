@@ -31,7 +31,7 @@
 */
 
 export type Lang = "vi" | "en" | "both";
-export type Task = "grade" | "explain" | "ask" | "coach" | "weekly" | "roleplay";
+export type Task = "grade" | "explain" | "ask" | "coach" | "weekly" | "roleplay" | "similar";
 export const ROLEPLAY_SCENES: Record<string, { role: string; situation: string; rules: string[]; twists: string[]; topics: string[] }> = {
   payslip: {
     role: "an employee whose take-home pay dropped this month",
@@ -224,6 +224,12 @@ export function systemPrompt(task: Task, lang: Lang): string {
       " habit: only if study_habit shows something worth changing (a weekday that is often skipped, a usual hour far from the planned hour, a long gap, or fewer study days than the goal), one concrete suggestion for it; otherwise an empty string. Null values mean not measured yet: never comment on them." +
       " accuracy_trend compares the last 14 days with the 14 before; mention a skill that is clearly improving or falling. repeated_mistake_patterns come from fixed rules and are reliable. " + langRule(lang, "headline, wins, every action text, follow_up, habit and note");
   }
+  if (task === "similar") {
+    return COMMON + " You write 3 NEW HSK 4 practice questions like the example the learner got wrong, testing the SAME word, word pair or grammar point in new sentences about work and daily life." +
+      " kind fill: each item has sentence with exactly one gap written ____, four options (single words, all the same part of speech, only ONE fits; the other three must be clearly wrong in that sentence), answer = index 0-3 of the right option, explain = why it fits, one sentence." +
+      " kind order: each item has tokens = 4 to 6 pieces of ONE correct sentence (in shuffled order), answer = the correct sentence (the tokens joined in the right order, nothing added), explain = the order rule in one sentence." +
+      " Do not reuse the example sentence. Keep every sentence natural, unambiguous and within HSK 1-4. If you cannot make a question with exactly one right answer, make a simpler one. " + langRule(lang);
+  }
   return COMMON + " You explain one multiple-choice mistake." +
     " The 'correct' option is the verified answer key: it is true. Never contradict it; explain why it is right." +
     " why_wrong: why the learner's chosen option is wrong (if no chosen option is given, explain the common trap). why_correct: why the correct option is right." +
@@ -282,6 +288,14 @@ export const SCHEMAS: Record<Task, Record<string, unknown>> = {
     },
     required: ["headline", "wins", "actions", "follow_up", "habit", "note", "confidence"]
   },
+  similar: {
+    type: "OBJECT",
+    properties: {
+      items: { type: "ARRAY", items: { type: "OBJECT", properties: { sentence: S(), options: { type: "ARRAY", items: S() }, answer: S(), tokens: { type: "ARRAY", items: S() }, explain: S() }, required: ["answer", "explain"] } },
+      confidence: S({ enum: ["high", "medium", "low"] })
+    },
+    required: ["items", "confidence"]
+  },
   explain: {
     type: "OBJECT",
     properties: {
@@ -302,7 +316,7 @@ export type Clean = { task: Task; lang: Lang; data: Record<string, unknown> };
 export function cleanInput(body: any): Clean | string {
   if (!body || typeof body !== "object") return "bad_request";
   const task = body.task as Task;
-  if (["grade", "explain", "ask", "coach", "weekly", "roleplay"].indexOf(task) < 0) return "bad_task";
+  if (["grade", "explain", "ask", "coach", "weekly", "roleplay", "similar"].indexOf(task) < 0) return "bad_task";
   const lang: Lang = body.lang === "vi" || body.lang === "en" ? body.lang : "both";
   const p = body.payload && typeof body.payload === "object" ? body.payload : {};
   if (task === "grade") {
@@ -357,6 +371,14 @@ export function cleanInput(body: any): Clean | string {
     }
     return { task, lang, data };
   }
+  if (task === "similar") { // three new practice questions like one the learner missed
+    const kind = p.kind === "order" ? "order" : p.kind === "fill" ? "fill" : "";
+    if (!kind) return "bad_kind";
+    const sentence = str(p.sentence, 200), answer = str(p.answer, 120);
+    const options = Array.isArray(p.options) ? p.options.slice(0, 6).map((o: unknown) => str(o, 30)).filter(Boolean) : [];
+    if (!HAN.test(sentence + answer) || !answer) return "empty_question";
+    return { task, lang, data: { kind, example_question: sentence, example_options: options, example_answer: answer } };
+  }
   const question = str(p.question, 400);
   if (!question) return "empty_question";
   const options = Array.isArray(p.options) ? p.options.slice(0, 6).map((o: unknown) => str(o, 90)).filter(Boolean) : [];
@@ -371,7 +393,7 @@ export function buildRequest(c: Clean) {
   return {
     systemInstruction: { parts: [{ text: systemPrompt(c.task, c.lang) }] },
     contents: [{ role: "user", parts: [{ text: JSON.stringify(c.data) }] }],
-    generationConfig: { temperature: c.task === "roleplay" ? 0.9 : 0.2, maxOutputTokens: 2048, responseMimeType: "application/json", responseSchema: SCHEMAS[c.task] }
+    generationConfig: { temperature: c.task === "roleplay" ? 0.9 : c.task === "similar" ? 0.7 : 0.2, maxOutputTokens: 2048, responseMimeType: "application/json", responseSchema: SCHEMAS[c.task] }
   };
 }
 
@@ -390,6 +412,28 @@ const CONF = ["high", "medium", "low"];
 export function validateResult(task: Task, raw: any, input?: Record<string, unknown>): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object") return null;
   const confidence = CONF.indexOf(raw.confidence) >= 0 ? raw.confidence : "medium";
+  if (task === "similar") {
+    const kind = input && input.kind === "order" ? "order" : "fill", seen: Record<string, boolean> = {};
+    const items = (Array.isArray(raw.items) ? raw.items : []).map((it: any) => {
+      if (!it || typeof it !== "object") return null;
+      const explain = str(it.explain, 400);
+      if (kind === "fill") {
+        const sentence = str(it.sentence, 120), options = (Array.isArray(it.options) ? it.options : []).map((o: unknown) => str(o, 12)).filter((o: string) => HAN.test(o));
+        const a = parseInt(String(it.answer), 10), uniq = options.filter((o: string, i: number) => options.indexOf(o) === i);
+        // one gap, four different options, a valid key, and the gap not already giving the answer away
+        if ((sentence.match(/_{2,}/g) || []).length !== 1 || options.length !== 4 || uniq.length !== 4 || !(a >= 0 && a <= 3) || !HAN.test(sentence)) return null;
+        if (seen[sentence]) return null; seen[sentence] = true;
+        return { sentence, options, answer: a, explain };
+      }
+      const tokens = (Array.isArray(it.tokens) ? it.tokens : []).map((t: unknown) => str(t, 20)).filter((t: string) => HAN.test(t));
+      const answer = str(it.answer, 80).replace(/[。！？.!?\s]+$/, "");
+      // the answer must be exactly the tokens in some order
+      if (tokens.length < 3 || tokens.length > 7 || !answer || tokens.join("").split("").sort().join("") !== answer.split("").sort().join("")) return null;
+      if (seen[answer]) return null; seen[answer] = true;
+      return { tokens, answer, explain };
+    }).filter(Boolean).slice(0, 3);
+    return items.length ? { kind, items, confidence } : null;
+  }
   if (task === "grade") {
     const g = int(raw.grammar, 0, 2), n = int(raw.natural, 0, 2), r = int(raw.relevance, 0, 1);
     const corrected = str(raw.corrected, 200), model = ex(raw.model);

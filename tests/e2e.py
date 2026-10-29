@@ -1979,9 +1979,92 @@ async def t_simple(b):
     check("me: Cloud backup opens the backup box", await pg.locator("#sync-box").is_visible())
     await ctx.close()
 
+async def t_boost(b):
+    """Score boosters: strategy cards, blanks, last-minute warning, pace, exam words, AI similar questions, exam time, real result."""
+    hist = [{"id": 3, "date": day(-6), "mode": "exam", "total": 210, "sections": {"listening": 70, "reading": 70, "writing": 70}, "full": False, "ws": False}]
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mockHistory": hist}, ai=True)
+    # 2. strategy cards at each part, none in the simulator
+    await go(pg, "#/mock/1", 900); await pg.click("#m-practice"); await pg.wait_for_selector("#m-next", timeout=10000)
+    check("strategy: a tip under each listening part", await pg.locator(".ptip").count() == 3 and "Exam tip" in await pg.locator(".ptip").first.inner_text())
+    for _ in range(3):
+        await pg.wait_for_selector("#m-next", timeout=10000); await pg.wait_for_timeout(300); await pg.click("#m-next"); await pg.wait_for_timeout(500)
+    await pg.wait_for_function("location.hash==='#/mock/1/result'", timeout=10000); await pg.wait_for_timeout(400); await no_dialogs(pg)
+    # 1. blanks on the result
+    t = await pg.locator(".blank-note").inner_text() if await pg.locator(".blank-note").count() else ""
+    check("blanks: the result says how many were left blank and that guessing costs nothing", "left blank" in t and "no penalty" in t, t)
+    check("blanks: stored with the attempt", await pg.evaluate("Store.state.mockHistory.slice(-1)[0].blank") > 30)
+    # 4. three new questions like a missed one (AI-made)
+    await go(pg, "#/mock/1/review", 1200); await pg.wait_for_selector(".rv-item", timeout=10000)
+    check("strategy: each review item shows its part's tip", await pg.locator(".rv-item .rv-tip").count() == await pg.locator(".rv-item").count())
+    n_sim = await pg.locator("[data-sim]").count()
+    check("similar: offered on reading part 1 and writing part 1 items", n_sim >= 8, n_sim)
+    await pg.locator("[data-sim]").first.click()
+    await pg.wait_for_selector("#qcard", timeout=15000)
+    check("similar: 3 AI-made questions open as a drill, marked as not teacher-checked", "Written by AI" in await pg.inner_text("#qcard") and "/3" in await pg.inner_text(".ghr"))
+    mis0 = await pg.evaluate("Learn.count()")
+    await pg.click("#qcard .opt >> nth=0"); await pg.wait_for_timeout(300)
+    check("similar: answers do not fill the mistake notebook", await pg.evaluate("Learn.count()") == mis0)
+    await ctx.close()
+
+    # 3 + 5. last-minute warning and pace (fake clock), then a timed part in Today's session
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await pg.clock.install(time=datetime.datetime.combine(TODAY, datetime.time(10, 0)))
+    await pg.reload(); await pg.wait_for_selector("#app > *:not(.skel)")
+    await go(pg, "#/mock/1", 900); await pg.click("#m-exam"); await pg.wait_for_selector("#exam-timer", timeout=10000)
+    await pg.clock.run_for(425 * 1000); await pg.wait_for_timeout(300)
+    check("warning: one minute before the end the timer turns red", "warn" in (await pg.get_attribute("#exam-timer", "class") or ""))
+    check("warning: a toast says how many are unanswered and that a wrong answer costs nothing", "unanswered" in await pg.inner_text("#toast") and "costs nothing" in await pg.inner_text("#toast"))
+    await pg.clock.run_for(70 * 1000); await pg.wait_for_function("location.hash==='#/mock/1/reading'", timeout=10000)
+    for _ in range(2):
+        await pg.wait_for_selector("#m-next", timeout=10000); await pg.wait_for_timeout(300); await pg.click("#m-next"); await pg.wait_for_timeout(500)
+    await pg.wait_for_function("location.hash==='#/mock/1/result'", timeout=15000); await pg.wait_for_timeout(500); await no_dialogs(pg)
+    t = await pg.locator(".pace-card").inner_text() if await pg.locator(".pace-card").count() else ""
+    check("pace: the result shows where time ran out and links the timed part", "Time ran out" in t and "Listening part" in t and await pg.locator(".pace-card a[href^='#/parts/L']").count() == 1, t)
+    p = await pg.evaluate("Store.state.mockHistory.slice(-1)[0].pace")
+    check("pace: stored per section (listening timed out)", p and p["listening"]["o"] == 1 and p["listening"]["u"] >= 470, p)
+    await go(pg, "#/session", 900)
+    check("pace: Today's session adds that part, timed", "time ran out in your last mock" in await pg.inner_text("#app"))
+    await ctx.close()
+
+    # 3. exam words
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await go(pg, "#/games", 1500)
+    row = await pg.locator(".grow[href='#/sprint']").inner_text() if await pg.locator(".grow[href='#/sprint']").count() else ""
+    check("exam words: Practice says how many of the tests' most used words are in review", "words the tests use most" in row and "0 of the" in row, row)
+    await go(pg, "#/session", 900)
+    check("exam words: Today's new words are the exam words", "exam words (used most in the tests)" in await pg.inner_text("#app"))
+    await go(pg, "#/sprint", 1200); await pg.wait_for_selector(".fcard", timeout=10000)
+    check("exam words: the sprint adds 10 of them to the review deck", await pg.evaluate("Object.keys(Store.state.srs).length") == 10)
+    await ctx.close()
+
+    # 6. exam time
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(8), examTime="09:00"), "srs": {}})
+    await go(pg, "#/exam", 1200); await pg.wait_for_selector(".ep-list li", timeout=10000)
+    check("exam time: final-week full mocks start at the exam hour", "start at 09:00" in await pg.inner_text(".ep-list"))
+    await go(pg, "#/me", 600); await pg.evaluate("document.querySelector('.more-set').open=true")
+    check("exam time: set in Me > More settings", await pg.input_value("#s-etime") == "09:00")
+    await ctx.close()
+
+    # 7. real result after the exam, compared with the frozen forecast
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(-2)), "srs": {}, "mockHistory": hist})
+    await go(pg, "#/", 900)
+    check("real result: after the exam Home asks for the real scores", await pg.locator("a.real-ask[href='#/official/real']").count() == 1)
+    fc = await pg.evaluate("Store.state.fcAtExam")
+    check("real result: the forecast is frozen", fc and fc["t"] > 0, fc)
+    await pg.click("a.real-ask"); await pg.wait_for_selector("#of-form", timeout=10000)
+    check("real result: the form is ready for the real exam", await pg.is_checked("#of-real") and await pg.input_value("#of-name") == "Real HSK 4 exam" and await pg.input_value("#of-date") == day(-2))
+    await pg.fill("#of-l", "80"); await pg.fill("#of-r", "75"); await pg.fill("#of-w", "70"); await pg.click("#of-form button[type=submit]"); await pg.wait_for_timeout(500); await no_dialogs(pg)
+    t = await pg.locator(".real-card").inner_text() if await pg.locator(".real-card").count() else ""
+    check("real result: the page compares the real score with the forecast", "225/300" in t and "forecast" in t, t)
+    sm = await pg.evaluate("Sync.summary().progress")
+    check("real result: the admin gets it in the summary", sm.get("real", {}).get("l") == 80 and sm.get("fc") == fc["t"], sm.get("real"))
+    await go(pg, "#/", 700)
+    check("real result: Home stops asking once it is logged", await pg.locator("a.real-ask").count() == 0)
+    await ctx.close()
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost)]
 PW = None
 
 

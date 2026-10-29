@@ -354,7 +354,7 @@
   function missing(v, parts) {
     var m = [], a = parts[1] || "", b = parts[2] || "";
     if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || v === "parts" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder|reading)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes" || v === "weekly" || v === "catchup")) m.push("full");
-    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || v === "parts" || v === "games" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
+    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || v === "parts" || v === "games" || v === "sprint" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
     var hard5 = (v === "learn" && (a === "h5" || a === "h5p" || (!a && Store.state.settings.level === 5))) || (v === "pack" && a === "h5") || (v === "grammar" && /^h5/.test(a)) || (v === "game" && (b === "h5" || /^p-h5-/.test(b))) || (v === "cards" && /^p-h5-/.test(a));
     var hard4 = (v === "learn" && a === "extra") || (v === "pack" && a === "x4") || v === "families" || (v === "game" && /^p-x4-/.test(b)) || (v === "cards" && /^p-x4-/.test(a));
     /* screens that list or review words wait once for the packs this learner uses, so those words are there too */
@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Practice", game: "Practice", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Practice", game: "Practice", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", sprint: "Exam words", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -451,7 +451,7 @@
     else if (v === "weekly") viewWeeklyQuiz();
     else if (v === "catchup") viewCatchup();
     else if (v === "grammar") { if (parts[1] === "h5") viewGrammarList(5); else if (parts[1]) viewGrammarPoint(parts[1], parts[2]); else viewGrammarList(4); }
-    else if (v === "official") viewOfficial();
+    else if (v === "official") viewOfficial(parts[1]);
     else if (v === "me" || v === "settings") viewMe(parts[1]);
     else if (v === "reports") viewReports();
     else if (v === "fixes") viewFixes();
@@ -460,6 +460,7 @@
     else if (v === "track") viewTrack(parseInt(parts[1], 10) || 0, parseInt(parts[2], 10) || 0);
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "parts") viewParts(parts[1]);
+    else if (v === "sprint") viewSprint();
     else if (v === "plan") viewPlan();
     else if (v === "exam") viewExamPlan();
     else if (v === "ready") viewReady();
@@ -475,7 +476,7 @@
     }
     else viewHome();
     fillExtras();
-    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", parts: "me", chat: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home" }[v] || "home";
+    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", parts: "me", sprint: "games", chat: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] || "C&B 中文";
     document.getElementById("page-title").textContent = title;
@@ -907,6 +908,26 @@
 
   /* The Today card: today's few steps (session, lesson or catch-up, the exam-plan task, the weekly quiz) with one button
      that always opens the next step not done. After 2+ days away the session becomes the 5-minute restart. */
+  /* On exam day the forecast is frozen, so the real result can be compared with what the app predicted. */
+  function freezeForecast() {
+    var s = Store.state, ex = s.settings.examDate;
+    if (!ex || s.fcAtExam || Store.today() < ex) return;
+    var r = readiness(); if (!r) return;
+    s.fcAtExam = { d: ex, t: r.total, L: r.L, R: r.R, W: r.W }; Store.save();
+  }
+  function realResult() { return (Store.state.official || []).filter(function (o) { return o.real; }).pop() || null; }
+  function realAskCard() {
+    var s = Store.state, ex = s.settings.examDate;
+    if (!ex || Store.today() <= ex || realResult()) return "";
+    return '<a class="card line-card real-ask" href="#/official/real"><span class="lc-i" aria-hidden="true">🎓</span><span class="lc-t"><small>After the exam</small><b>How did HSK 4 go? Log your real scores</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+  }
+  function realCompareHTML() {
+    var rr = realResult(), fc = Store.state.fcAtExam; if (!rr) return "";
+    var t = rr.l + rr.r + rr.w, d = fc ? t - fc.t : null;
+    return '<section class="card real-card ' + (t >= 180 ? "ok" : "low") + '"><h2>🎓 Your real HSK 4</h2><p class="score-big">' + t + "/300</p>" +
+      "<p>" + secBar("Listening", rr.l) + secBar("Reading", rr.r) + secBar("Writing", rr.w) + "</p>" +
+      (fc ? '<p class="sub">The app forecast ~' + fc.t + " on exam day · " + (d === 0 ? "exactly right" : (d > 0 ? d + " points better" : -d + " points lower") + " than forecast") + ".</p>" : "") + "</section>";
+  }
   function todaySteps() {
     var s = Store.state, t = Store.today(), nd = nextDay(), p = planInfo(), fin = p.inBuffer, steps = [];
     var away = !!comebackCard(), sess = sessionPlan(away ? "comeback" : null);
@@ -920,7 +941,8 @@
       steps.push({ id: "lesson", ico: "📚", name: "Lesson · Day " + nd.day, zh: nd.title.zh, sub: M(nd.title), href: "#/day/" + nd.day, done: lessonDone });
     }
     var sc = examSchedule();
-    if (sc.length && sc[0].kind !== "exam") steps.push({ id: "exam", ico: sc[0].ico, name: sc[0].txt, sub: "Exam plan · " + plural(sc.length - 1, "day") + " left", href: sc[0].href, done: sc[0].done });
+    if (sc.length && sc[0].kind !== "exam") steps.push({ id: "exam", ico: sc[0].ico, name: sc[0].txt, href: sc[0].href, done: sc[0].done,
+      sub: "Exam plan · " + plural(sc.length - 1, "day") + " left" + (sc[0].kind === "mock" && !s.settings.examTime && sc[0].left <= 8 ? " · set your exam start time in Me to rehearse at that hour" : "") });
     if (wqOffer()) steps.push({ id: "weekly", ico: "🧠", name: "Weekly review quiz", sub: "Words and grammar from the last 7 days", href: "#/weekly", done: false });
     return steps;
   }
@@ -960,7 +982,8 @@
       '<p class="lv">Level ' + lv.n + ' · <span class="zh">' + lv.zh + "</span> · " + s.xp + " XP</p></div></section>";
     var fin = planInfo().inBuffer;
     homeAt = Date.now(); homeDay = Store.today();
-    html += chatCard() + syncPausedCard();
+    freezeForecast();
+    html += chatCard() + syncPausedCard() + realAskCard();
     if (fin) html += readyCard();
     html += todayMain() + h5HomeRow(); // on HSK 5: the next unfinished pack, right under Today
     if (!fin) html += readyCard();
@@ -1713,6 +1736,8 @@
       row("Background noise in listening", sel("s-noise", [["0", "Off"], ["1", "Light café"], ["2", "Busy room"]], String(set.noise || 0))) +
       row("Mock listening speed", sel("s-mrate", [["0", "Same as voice speed"], ["1", "1× (normal)"], ["1.15", "1.15× faster"], ["1.3", "1.3× fast"]], String(set.mockRate || 0))) +
       row("Text size", sel("s-ts", [["m", "Normal"], ["l", "Large"], ["xl", "Larger"]], set.textSize || "m")) +
+      row("Exam start time", '<input type="time" id="s-etime" value="' + esc(set.examTime || "") + '" aria-label="Exam start time">') +
+      '<p class="sub">Your last full mocks are planned at this hour, so your brain is used to the exam time.</p>' +
       row("Daily goal", sel("s-goal", [["20", "20 XP · chill"], ["30", "30 XP · steady"], ["50", "50 XP · serious"], ["80", "80 XP · intense"]], String(set.dailyGoal || 30))) +
       row("Lessons before the exam", sel("s-core", coreOptions().map(function (n) { return [String(n), n + " lessons"]; }), String(coreCut()))) +
       '<p class="sub">About ' + suggestCore() + " lessons fit before your exam at 5 a week. The rest are planned for after it.</p>" +
@@ -1748,6 +1773,7 @@
     document.getElementById("s-sfx").onchange = function () { sv("sfx", this.checked); if (this.checked) Audio2.sfx.good({ quiet: true }); };
     document.getElementById("s-rate").onchange = function () { sv("audioRate", parseFloat(this.value)); };
     document.getElementById("s-goal").onchange = function () { sv("dailyGoal", parseInt(this.value, 10)); };
+    document.getElementById("s-etime").onchange = function () { sv("examTime", /^\d{2}:\d{2}$/.test(this.value) ? this.value : ""); };
     document.getElementById("s-noise").onchange = function () { sv("noise", parseInt(this.value, 10)); Audio2.noise(set.noise); if (set.noise) { UI.toast("Noise plays while a recording plays", "🎧"); Audio2.play("你好，这是薪酬福利中文。", "F"); } else Audio2.stop(); };
     document.getElementById("s-mrate").onchange = function () { sv("mockRate", parseFloat(this.value)); };
     document.getElementById("s-smode").onchange = function () { sv("sessionMode", this.value); };
@@ -2118,6 +2144,7 @@
   }
   function lrnProgress(r) {
     var sm = r.summary, pg = sm.progress || {}, rd = pg.ready, html = "", tr = sm.trk || [], pl = sm.pace;
+    if (pg.real) { var rt = num(pg.real.l) + num(pg.real.r) + num(pg.real.w); html += '<section class="card lt-real"><b>🎓 Real HSK 4: ' + rt + "/300</b><p class=\"lt-meta\">L " + num(pg.real.l) + " · R " + num(pg.real.r) + " · W " + num(pg.real.w) + (pg.fc != null ? " · the app forecast ~" + num(pg.fc) + " (" + (rt - num(pg.fc) >= 0 ? "+" : "−") + Math.abs(rt - num(pg.fc)) + ")" : "") + "</p></section>"; }
     if (rd) {
       var pts = tr.filter(function (e) { return e[1] != null; }).map(function (e) { return { x: String(e[0]).slice(3), y: num(e[1]) }; });
       html += '<section class="card"><div class="lt-row"><b>Readiness</b><span class="lt-chip ' + (num(rd.lo) >= PASS ? "lt-ok" : num(rd.hi) < PASS ? "lt-late" : "") + '">' + esc(rd.verdict || "") + '</span></div><div class="lt-big">' + num(rd.total) + "<small> / 300 · range " + num(rd.lo) + "–" + num(rd.hi) + "</small></div>" +
@@ -2515,15 +2542,54 @@
     return PARTS.filter(function (p) { return acc[p.skill] != null && acc[p.skill] < 80; }).map(function (p) { return { k: p.k, name: p.name, acc: acc[p.skill] }; })
       .sort(function (a, b) { return a.acc - b.acc; });
   }
+  var EW_KEY = "cbChinese.examWords2";
+  function examWords() {
+    if (!mocksReady || !MOCK.length) return null;
+    var sig = MOCK.map(function (m) { return m.id; }).join(",") + "|" + WORDS.length, c = null;
+    try { c = JSON.parse(localStorage.getItem(EW_KEY) || "null"); } catch (e) { c = null; }
+    if (c && c.sig === sig && Array.isArray(c.ids)) return c.ids;
+    var text = MOCK.map(function (m) { return JSON.stringify([m.listening, m.reading, m.writing]); }).join(" "), seen = {}, rank = [];
+    WORDS.forEach(function (w) {
+      var h = w.hanzi; if (!h || h.length < 2 || seen[h] || /^h5-/.test(w.id)) return; seen[h] = 1;
+      var n = text.split(h).length - 1; if (n >= 2) rank.push([w.id, n]);
+    });
+    // HSK 4-level words first (lessons and core sets), then the HSK 1–3 basics; each group by how often the tests use it
+    var basic = function (id) { var w = WORDMAP[id]; return /^f/.test(id) || (w && isFound(COREMAP[w._set])) ? 1 : 0; };
+    rank.sort(function (a, b) { return basic(a[0]) - basic(b[0]) || b[1] - a[1]; });
+    var ids = rank.map(function (x) { return x[0]; });
+    try { localStorage.setItem(EW_KEY, JSON.stringify({ sig: sig, ids: ids })); } catch (e) { /* fine: computed again next time */ }
+    return ids;
+  }
+  /* the next exam words not yet in the review deck, most frequent first */
+  function examFresh(n) { var ids = examWords(); return ids ? ids.filter(function (id) { return WORDMAP[id] && !SRS.has(id); }).slice(0, n).map(function (id) { return WORDMAP[id]; }) : []; }
+  function examCoverage() { var ids = examWords(); return ids ? { have: ids.filter(function (id) { return SRS.has(id); }).length, all: ids.length } : null; }
+  function viewSprint() {
+    var w = examFresh(10);
+    if (!w.length) { render('<section class="card"><h2>🔤 Exam words</h2><p class="sub">Every word the tests use most is already in your review deck. Keep reviewing them daily.</p><a class="btn primary" href="#/review">Review</a></section>', "games"); return; }
+    SRS.addMany(w.map(function (x) { return x.id; }));
+    runDeck({ title: "Exam words", words: w, mode: "learn", back: "#/games" });
+  }
+  function runPart(k, o) {
+    var P = PARTS.filter(function (p) { return p.k === k; })[0]; if (!P) return false;
+    var all = partItems(P.k), open = Learn.list().reduce(function (m, e) { m[e.key] = 1; return m; }, {});
+    var missed = shuffle(all.filter(function (e) { return open[e.key]; })), rest = shuffle(all.filter(function (e) { return !open[e.key]; }));
+    var items = missed.concat(rest).slice(0, P.n); // your open mistakes from this part first
+    if (!items.length) return false;
+    runMistakeDrill("all", Object.assign({ items: items, title: P.name, icon: "⏱", timer: items.length * P.sec, exit: "#/parts", again: "#/parts/" + P.k, againFn: function () { viewParts(P.k); } }, o || {}));
+    return true;
+  }
+  /* the part where the last timed mock (10 days) ran out of time with 3+ blanks, for Today's session */
+  function paceIssue() {
+    var from = Store.addDays(Store.today(), -10), h = byDate(Store.state.mockHistory || []).filter(function (x) { return x.date >= from && x.pace; }).pop(), best = null;
+    if (!h) return null;
+    ["listening", "reading", "writing"].forEach(function (sec) {
+      var p = h.pace[sec]; if (!p || !p.o) return;
+      Object.keys(p.b || {}).forEach(function (k) { if (p.b[k] >= 3 && (!best || p.b[k] > best.n)) best = { k: k === "R2c" ? "R1" : k, n: p.b[k] }; });
+    });
+    return best && PARTS.some(function (x) { return x.k === best.k; }) ? best : null;
+  }
   function viewParts(k) {
-    var P = PARTS.filter(function (p) { return p.k === k; })[0];
-    if (P) {
-      var all = partItems(P.k), open = Learn.list().reduce(function (o, e) { o[e.key] = 1; return o; }, {});
-      var missed = shuffle(all.filter(function (e) { return open[e.key]; })), rest = shuffle(all.filter(function (e) { return !open[e.key]; }));
-      var items = missed.concat(rest).slice(0, P.n); // your open mistakes from this part first
-      if (!items.length) { location.replace("#/parts"); return; }
-      return runMistakeDrill("all", { items: items, title: P.name, icon: "⏱", timer: items.length * P.sec, exit: "#/parts", again: "#/parts/" + P.k, againFn: function () { viewParts(P.k); } });
-    }
+    if (PARTS.some(function (p) { return p.k === k; })) { if (!runPart(k)) location.replace("#/parts"); return; }
     var weak = weakParts(), acc = {}; Learn.report(5, true).forEach(function (r) { acc[r.skill] = Math.round(r.acc * 100); });
     var html = '<section class="card g-violet"><h2>⏱ Exam parts</h2><p class="sub">Ten questions from one part of the exam, with one clock at the real pace. Your open mistakes from that part come first. Questions come from the shorter tests, so the full-length tests stay new for your rehearsals.</p>' +
       (weak.length ? '<a class="btn primary big" href="#/parts/' + weak[0].k + '">▶ Your weakest: ' + esc(weak[0].name) + " (" + weak[0].acc + "%)</a>" : "") + "</section>";
@@ -2548,6 +2614,7 @@
       : '<a class="cta card g-violet" href="#/mock"><span class="cta-l"><small>Timed, real exam format</small><b>📝 Mock tests</b></span><span class="cta-go">▶</span></a>';
     return mock + '<div class="glist">' +
       '<a class="grow" href="#/parts"><span class="g-ico">⏱</span><span class="g-txt"><b>Exam parts, timed</b><small>10 questions at the real pace' + (w ? " · weakest: " + esc(w.name) + " (" + w.acc + "%)" : "") + '</small></span><span class="g-go">▶</span></a>' +
+      (function () { var c = examCoverage(); return c && c.all ? '<a class="grow" href="#/sprint"><span class="g-ico">🔤</span><span class="g-txt"><b>Exam words</b><small>' + c.have + " of the " + c.all + ' words the tests use most are in your review · 10 more</small></span><span class="g-go">▶</span></a>' : ""; })() +
       '<a class="grow" href="#/mistakes"><span class="g-ico">📒</span><span class="g-txt"><b>Mistake notebook</b><small>' + (mis ? mis + " to fix" + (rep ? " · " + rep + " keep coming back" : "") : "Nothing to fix right now") + '</small></span><span class="g-go">▶</span></a></div>';
   }
   function viewMockList() {
@@ -2633,11 +2700,35 @@
       ex.left[sec] = Math.max(0, left);
       var t = document.getElementById("exam-timer");
       if (t) t.textContent = "⏱ " + fmtTime(left);
+      if (left <= 60 && left > 0 && !(ex.warned || (ex.warned = {}))[sec]) {
+        ex.warned[sec] = true;
+        var blank = sectionIds(ex.test, sec).filter(function (id) { return ex.answers[id] === undefined; }).length;
+        if (blank) {
+          UI.toast("1 minute left · " + plural(blank, "question") + " unanswered. Pick an answer for each: a wrong answer costs nothing.", "⏰");
+          if (t) t.classList.add("warn");
+        }
+      }
       if (left <= 0) { clearExamTimer(); UI.toast("Time's up for this section", "⏱"); advanceSection(); }
     }, 500);
     ex.timer = me;
   }
 
+  /* ---------- exam strategy: one short card per part (shown at the part, in reviews and after a miss) ---------- */
+  var PART_TIPS = {
+    L1: { en: "Read the statement before the audio starts. Listen for small changes: a different number, time, person, or a 不/没.", vi: "Đọc câu nhận định trước khi nghe. Chú ý chỗ khác nhỏ: số, giờ, người, hoặc 不/没." },
+    L2: { en: "Read the 4 options first and guess the topic. The second speaker's reply usually holds the answer.", vi: "Đọc trước 4 đáp án để đoán chủ đề. Câu đáp của người nói thứ hai thường chứa đáp án." },
+    L3: { en: "Read the options before each recording. Note numbers, places and reasons as you listen; the answers come in order.", vi: "Đọc đáp án trước mỗi đoạn nghe. Ghi nhanh số, nơi chốn, lý do; đáp án xuất hiện theo thứ tự." },
+    R1: { en: "First decide what kind of word the gap needs (verb, noun, adjective), then check the words around it, e.g. 提高 + 水平.", vi: "Xác định chỗ trống cần loại từ gì (động từ, danh từ, tính từ), rồi xem từ đi kèm, ví dụ 提高 + 水平." },
+    R2: { en: "The first sentence never starts with 他/她/这/那/但是/所以/因此. Look for pairs: 虽然…但是, 因为…所以, 不但…而且.", vi: "Câu đầu tiên không bắt đầu bằng 他/她/这/那/但是/所以/因此. Tìm cặp: 虽然…但是, 因为…所以, 不但…而且." },
+    R2c: { en: "Find the pair: 虽然…但是, 因为…所以, 如果…就, 不但…而且. The other half is already in the sentence.", vi: "Tìm cặp liên từ: 虽然…但是, 因为…所以, 如果…就, 不但…而且. Vế còn lại đã có trong câu." },
+    R3: { en: "Read the question first, then find its key word in the passage. About 1 minute a question: if stuck, pick one and move on.", vi: "Đọc câu hỏi trước, rồi tìm từ khóa trong đoạn văn. Khoảng 1 phút một câu: nếu bí, chọn một đáp án rồi làm tiếp." },
+    W1: { en: "Build the core first: subject + time + place + verb + object. 把/被 go before the verb, 了 after it, 都/已经/也 before it.", vi: "Xếp lõi trước: chủ ngữ + thời gian + nơi chốn + động từ + tân ngữ. 把/被 trước động từ, 了 sau động từ, 都/已经/也 trước động từ." },
+    W2: { en: "Write a short sentence you are sure of: 他正在…, 这个…很…, 我们要…. Use the given word exactly; 8–12 characters is enough.", vi: "Viết câu ngắn mà bạn chắc chắn: 他正在…, 这个…很…, 我们要…. Dùng đúng từ cho sẵn; 8–12 chữ là đủ." }
+  };
+  /* the part an item belongs to: L1…W2 from its id; a reading part 2 item is ordering (R2) or a linking word (R2c) */
+  function partKey(it) { var k = String(it.id || "").split("-")[0]; return k === "R2" && !it.parts ? "R2c" : k; }
+  function partTip(k, cls) { var t = PART_TIPS[k]; return t ? '<p class="' + (cls || "ptip") + '"><span aria-hidden="true">💡 </span><b>Exam tip:</b> ' + M(t) + "</p>" : ""; }
+  function tipAtPart(k) { return EXAM && EXAM.strict ? "" : partTip(k); } // the simulator stays like the real exam
   function mockOpt(itemId, idx, text, pos) {
     return '<button type="button" class="opt mc" data-item="' + esc(itemId) + '" data-idx="' + idx + '">' +
       '<b>' + LETTERS[pos == null ? idx : pos] + "</b> " + esc(text) + "</button>";
@@ -2665,7 +2756,7 @@
 
   function renderListeningHTML(m, mode) {
     var L = m.listening, i = 0, html = (mode === "exam" ? timerHTML(L.time) : practiceBar());
-    html += '<h3 class="exam-part">Part 1 · Listen, then say whether the statement is True or False</h3>';
+    html += '<h3 class="exam-part">Part 1 · Listen, then say whether the statement is True or False</h3>' + tipAtPart("L1");
     L.p1.forEach(function (it) {
       i++;
       html += '<div class="card q"><div class="qn">' + i + "</div>" + SAY(it.audio.text, it.audio.voice, true) +
@@ -2673,13 +2764,13 @@
         '<button type="button" class="opt tf" data-item="' + esc(it.id) + '" data-val="true">✔ True</button>' +
         '<button type="button" class="opt tf" data-item="' + esc(it.id) + '" data-val="false">✘ False</button></div></div>';
     });
-    html += '<h3 class="exam-part">Part 2 · Listen to the dialogue, then answer</h3>';
+    html += '<h3 class="exam-part">Part 2 · Listen to the dialogue, then answer</h3>' + tipAtPart("L2");
     L.p2.forEach(function (it) {
       i++;
       html += '<div class="card q"><div class="qn">' + i + '</div><button type="button" class="btn small dlg-play" data-dlg="' + esc(it.id) + '">▶ Play dialogue</button>' +
         '<p class="statement">' + esc(it.question) + '</p><div class="opts">' + mockOpts(it) + "</div></div>";
     });
-    html += '<h3 class="exam-part">Part 3 · Listen to the longer dialogue or passage, then answer</h3>';
+    html += '<h3 class="exam-part">Part 3 · Listen to the longer dialogue or passage, then answer</h3>' + tipAtPart("L3");
     L.p3.forEach(function (it) {
       i++;
       html += '<div class="card q"><div class="qn">' + i + "</div>" + listenHTML(it) +
@@ -2710,17 +2801,17 @@
 
   function renderReadingHTML(m, mode) {
     var R = m.reading, i = 0, html = (mode === "exam" ? timerHTML(R.time) : practiceBar());
-    html += '<h3 class="exam-part">Part 1 · Choose the best word for the blank</h3>';
+    html += '<h3 class="exam-part">Part 1 · Choose the best word for the blank</h3>' + tipAtPart("R1");
     R.p1.forEach(function (it) {
       i++;
       html += '<div class="card q"><div class="qn">' + i + '</div><p class="statement">' + esc(it.sentence) + '</p><div class="opts">' + mockOpts(it) + "</div></div>";
     });
-    html += '<h3 class="exam-part">Part 2 · ' + (R.p2.length && R.p2[0].parts ? "Put the sentences in the right order" : "Choose the best word for the blank") + "</h3>";
+    html += '<h3 class="exam-part">Part 2 · ' + (R.p2.length && R.p2[0].parts ? "Put the sentences in the right order" : "Choose the best word for the blank") + "</h3>" + tipAtPart(R.p2.length && R.p2[0].parts ? "R2" : "R2c");
     R.p2.forEach(function (it) {
       i++;
       html += '<div class="card q"><div class="qn">' + i + "</div>" + sentHTML(it) + '<div class="opts">' + mockOpts(it) + "</div></div>";
     });
-    html += '<h3 class="exam-part">Part 3 · Read the passage, then answer</h3>';
+    html += '<h3 class="exam-part">Part 3 · Read the passage, then answer</h3>' + tipAtPart("R3");
     R.p3.forEach(function (pg) {
       html += '<div class="card passage"><p>' + linkWords(pg.passage) + "</p></div>";
       pg.questions.forEach(function (q) {
@@ -2741,7 +2832,7 @@
 
   function renderWritingHTML(m, mode) {
     var W = m.writing, i = 0, html = (mode === "exam" ? timerHTML(W.time) : practiceBar());
-    html += '<h3 class="exam-part">Part 1 · Tap the words in the right order</h3>';
+    html += '<h3 class="exam-part">Part 1 · Tap the words in the right order</h3>' + tipAtPart("W1");
     W.p1.forEach(function (it) {
       i++;
       html += '<div class="card q" data-w1="' + esc(it.id) + '"><div class="qn">' + i + '</div>' +
@@ -2750,7 +2841,7 @@
         '<button type="button" class="btn small" id="wreset-' + esc(it.id) + '">↺ Reset</button>' +
         (mode === "practice" ? '<span class="w1-check" id="wcheck-' + esc(it.id) + '"></span>' : "") + "</div>";
     });
-    html += '<h3 class="exam-part">Part 2 · Write a sentence using the word and scene</h3>';
+    html += '<h3 class="exam-part">Part 2 · Write a sentence using the word and scene</h3>' + tipAtPart("W2");
     var ai = w2AI();
     if (ai) html += '<p class="sub w2-note">' + (mode === "exam" ? "🤖 AI scores these sentences out of 5 when you finish, like a real examiner." : "🤖 Tap Check with AI for a score out of 5 and corrections.") + "</p>";
     W.p2.forEach(function (it) {
@@ -2877,8 +2968,16 @@
     if (mode === "exam") startTimer(m[section].time);
   }
 
+  function recordPace(sec) {
+    var ex = EXAM, m = ex.test, pace = ex.pace || (ex.pace = {}), b = {};
+    mockItems(m).forEach(function (x) { if (sectionOf(x.it) === sec && ex.answers[x.it.id] === undefined && !(x.kind === "write" && (ex.w2t[x.it.id] || "").trim())) { var k = partKey(x.it); b[k] = (b[k] || 0) + 1; } });
+    var left = ex.left && ex.left[sec] != null ? ex.left[sec] : null;
+    pace[sec] = { t: m[sec].time, u: left == null ? null : Math.round(m[sec].time - left), o: left != null && left <= 0.5 ? 1 : 0, b: b };
+  }
+  function sectionOf(it) { var c = String(it.id || "").charAt(0); return c === "L" ? "listening" : c === "R" ? "reading" : "writing"; }
   function advanceSection() {
     if (!EXAM || EXAM.finished) return;
+    if (!EXAM.grading) recordPace(EXAM.section);
     var idx = SEC_ORDER.indexOf(EXAM.section);
     if (idx < SEC_ORDER.length - 1) location.hash = "#/mock/" + EXAM.id + "/" + SEC_ORDER[idx + 1];
     else finishExam();
@@ -2937,7 +3036,8 @@
     var rep = rec.plays > 0 || s.mockHistory.some(function (h) { return h.id === EXAM.id; });
     var ws = EXAM.test.writing.p2.some(function (it) { return EXAM.answers[it.id] !== undefined && EXAM.w2s[it.id] == null; }); // a sentence marked by the learner, not the AI
     s.mockHistory.push({ id: EXAM.id, date: Store.today(), mode: EXAM.mode, strict: !!EXAM.strict, total: result.total,
-      sections: { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score }, rep: rep, full: !!EXAM.test.full, ws: ws });
+      sections: { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score }, rep: rep, full: !!EXAM.test.full, ws: ws,
+      blank: mockBlanks().n, pace: EXAM.mode === "exam" ? EXAM.pace || null : null });
     EXAM.rep = rep;
     rec.plays = (rec.plays || 0) + 1; rec.lastScore = result.total;
     rec.wrong = mockItems(EXAM.test).filter(function (x) { return !mockCorrect(x, EXAM.answers[x.it.id]); }).map(function (x) {
@@ -2962,7 +3062,37 @@
       return '<div class="' + (x === worst ? "worst" : "") + '"><b>−' + x[1] + "</b><small>" + x[0] + "</small></div>";
     }).join("") + "</div>" +
       '<p class="sub">' + (margin >= 0 ? "You are " + margin + " points above the pass mark (180)." : "You need " + (-margin) + " more points to pass (180).") +
-      (worst ? " The most to gain is in <b>" + worst[0] + "</b>." : "") + " There is no minimum per section: points from any section count the same.</p></section>";
+      (worst ? " The most to gain is in <b>" + worst[0] + "</b>." : "") + " There is no minimum per section: points from any section count the same.</p>" + (EXAM && EXAM.test ? blanksHTML() : "") + "</section>";
+  }
+  /* questions left empty, and the points they could have earned (each section is /100 over its own questions) */
+  function mockBlanks() {
+    var t = EXAM.test, out = { n: 0, pts: 0, by: {} };
+    mockItems(t).forEach(function (x) {
+      var a = EXAM.answers[x.it.id]; if (a !== undefined) return;
+      if (x.kind === "write" && (EXAM.w2t[x.it.id] || "").trim()) return;
+      var sec = sectionOf(x.it), n = sectionIds(t, sec).length;
+      out.n++; out.pts += 100 / n; out.by[sec] = (out.by[sec] || 0) + 1;
+    });
+    out.pts = Math.round(out.pts);
+    return out;
+  }
+  function blanksHTML() {
+    var b = mockBlanks(); if (!b.n) return '<p class="sub good-t">✓ No question left blank.</p>';
+    return '<p class="blank-note"><b>' + plural(b.n, "question") + " left blank</b> · up to " + b.pts + " points. There is no penalty for a wrong answer in HSK, so always pick something.</p>";
+  }
+  /* where the time went: a section that ran out of time with questions left points to that part's timed practice */
+  var PART_NAME = { L1: "Listening part 1", L2: "Listening part 2", L3: "Listening part 3", R1: "Reading part 1", R2: "Reading part 2", R2c: "Reading part 2", R3: "Reading part 3", W1: "Writing part 1", W2: "Writing part 2" };
+  function paceHTML() {
+    var P = EXAM.pace; if (EXAM.mode !== "exam" || !P) return "";
+    var rows = ["listening", "reading", "writing"].filter(function (k) { return P[k]; }).map(function (k) {
+      var p = P[k], worst = Object.keys(p.b).sort(function (a, b) { return p.b[b] - p.b[a]; })[0], bl = worst ? p.b[worst] : 0;
+      var drill = worst ? (worst === "R2c" ? "R1" : worst) : null;
+      var tot = Object.keys(p.b).reduce(function (n, x) { return n + p.b[x]; }, 0);
+      var note = p.o && bl ? '<span class="bad-t">Time ran out with ' + plural(tot, "question") + " left · most in " + esc(PART_NAME[worst] || worst) + "</span>" + (drill ? ' · <a href="#/parts/' + drill + '">practise it timed ›</a>' : "")
+        : p.o ? "Used all the time" : p.u != null ? fmtTime(p.t - p.u) + " to spare" : "";
+      return '<div class="pace-row"><b>' + SEC_LABEL[k] + "</b><span>" + (p.u != null ? fmtTime(p.u) + " of " + fmtTime(p.t) : "") + "</span><small>" + note + "</small></div>";
+    });
+    return rows.length ? '<section class="card pace-card"><h3>Your pace</h3>' + rows.join("") + "</section>" : "";
   }
   function reviewBtn(id) {
     var w = ((Store.state.mocks[id] || {}).wrong || []).length;
@@ -2995,6 +3125,12 @@
     if (it.parts) return ["A", "B", "C"].map(function (k) { return k + ". " + it.parts[k]; }).join("  ");
     return it.sentence || it.q || "";
   }
+  function SIM_OK(x) { return (x.kind === "sent" && !x.it.parts && x.it.options) || x.kind === "order"; }
+  function simPayload(x) {
+    var it = x.it;
+    return x.kind === "order" ? { kind: "order", sentence: it.tokens.join(" / "), answer: it.answer }
+      : { kind: "fill", sentence: it.sentence || "", options: it.options.map(String), answer: String(it.options[it.answer]) };
+  }
   var SEC_ICON = { L: "🎧 Listening", R: "📖 Reading", W: "✍️ Writing" };
   /* Review after a mock: every wrong or skipped question with what was played or read, the learner's answer, the key,
      and "Why?" from the AI (the app's key is treated as the truth). Works for the last attempt of each set. */
@@ -3015,7 +3151,8 @@
         (x.kind === "pass" ? '<details class="rv-pass"><summary>Show the passage</summary><div class="passage-in zh">' + linkWords(x.passage) + "</div></details>" : "") +
         '<p class="q zh">' + esc(promptOf(x)) + "</p>" +
         '<p class="rv-a bad-t">✘ Yours: <span class="zh">' + esc(ansText(x, r.a)) + "</span></p>" +
-        '<p class="rv-a good-t">✔ ' + (x.kind === "write" ? "Model" : "Right") + ': <span class="zh">' + esc(rightText(x)) + "</span></p>" +
+        '<p class="rv-a good-t">✔ ' + (x.kind === "write" ? "Model" : "Right") + ': <span class="zh">' + esc(rightText(x)) + "</span></p>" + partTip(partKey(it), "ptip rv-tip") +
+        (SIM_OK(x) && ai ? '<button type="button" class="btn small" data-sim="' + k + '">🧪 3 new questions like this</button>' : "") +
         (ai && x.kind !== "write" ? '<button type="button" class="btn small ai-btn" data-why="' + k + '">🤖 Why?</button><div class="ai-out" id="rv-out-' + k + '"></div>' : "") + "</section>";
     });
     render(html + '<a class="btn big" href="#/mock/' + id + '/result">‹ Back to the result</a>', "mock");
@@ -3023,6 +3160,18 @@
       var items = list.map(function (r) { return { kind: "mock", skill: r.x.skill, mock: id, item: r.x.it.id, key: "m:" + id + ":" + r.x.it.id }; });
       runMistakeDrill("all", { items: items, title: "Mock " + id + " mistakes", icon: "🔍", exit: "#/mock/" + id + "/review" });
     };
+    [].forEach.call(document.querySelectorAll("[data-sim]"), function (b) {
+      b.onclick = function () {
+        var r = list[+b.getAttribute("data-sim")], x = r.x;
+        b.disabled = true; b.textContent = "🧪 Writing 3 new questions…";
+        AI.call("similar", simPayload(x)).then(function (res) {
+          b.disabled = false; b.textContent = "🧪 3 new questions like this";
+          if (!res.ok) { UI.toast(AI.errMsg(res.error), "⚠️"); return; }
+          var items = res.result.items.map(function (q, i) { return { kind: "aiq", qk: res.result.kind, q: q, key: "ai:" + x.it.id + ":" + i, skill: x.skill, statsOnly: true }; });
+          runMistakeDrill("all", { items: items, title: "3 new questions like this", icon: "🧪", exit: "#/mock/" + id + "/review" });
+        });
+      };
+    });
     [].forEach.call(document.querySelectorAll("[data-why]"), function (b) {
       b.onclick = function () {
         var r = list[+b.getAttribute("data-why")], x = r.x, it = x.it, out = document.getElementById("rv-out-" + b.getAttribute("data-why"));
@@ -3054,7 +3203,7 @@
     var html = '<section class="card ' + (pass ? "g-teal" : "g-coral") + '">' + (pass ? UI.anim("noto-trophy", 84, UI.mascot("cheer", 64)) : UI.mascot("wow", 64)) +
       '<h2>' + (pass ? "Pass! 🎉" : "Keep practicing") + '</h2>' + (EXAM.strict ? '<p><span class="tag t-hsk">🎯 Exam simulator</span></p>' : "") + '<p class="score-big">' + r.total + "/300</p>" +
       "<p>" + secBar("Listening", r.listening.score) + secBar("Reading", r.reading.score) + secBar("Writing", r.writing.score) + "</p>" +
-      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p>" + (EXAM.rep ? REP_NOTE : "") + "</section>" + lostHTML(r) + w2ResultHTML() + weakHTML(r.skills) + focusCard() +
+      '<p class="sub">Real HSK 4 passing score is 180/300. +' + xp + " XP earned.</p>" + (EXAM.rep ? REP_NOTE : "") + "</section>" + lostHTML(r) + paceHTML() + w2ResultHTML() + weakHTML(r.skills) + focusCard() +
       reviewBtn(id) + '<a class="btn primary big" href="#/mock/' + id + '">Try again</a><a class="btn big" href="#/mock" style="margin-top:10px">All mock exams</a>';
     render(html, "mock");
   }
@@ -3118,6 +3267,18 @@
 
   /* Render one notebook item as a question. Returns { html, wire(done) } or null if its source is gone. */
   function mistakeQ(e) {
+    if (e.kind === "aiq") { // a question the AI wrote just now (not teacher-checked, not kept in the notebook)
+      var q = e.q, note = '<p class="sub ai-made">🧪 Written by AI for practice · not teacher-checked</p>';
+      if (e.qk === "order") {
+        var oq = orderQ(q.tokens, shuffle(q.tokens.map(function (_, k) { return k; })), q.answer, "", e, q.explain ? '<p class="sub">' + esc(q.explain) + "</p>" : "");
+        oq.html = oq.html.replace('<p class="sub">Tap the pieces in the right order</p>', note + '<p class="sub">Tap the pieces in the right order</p>');
+        return oq;
+      }
+      var ord = shuffle([0, 1, 2, 3]);
+      return { html: '<div class="card qcard" id="qcard">' + note + '<p class="q zh">' + esc(q.sentence) + '</p><div class="opts">' +
+          ord.map(function (k, n) { return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[n] + '</span><span class="zh">' + esc(q.options[k]) + "</span></button>"; }).join("") + '</div><div id="qfb"></div></div>',
+        wire: function (done) { wireMC(q.answer, function (ok) { Learn.record(e.key, e, ok); return q.explain ? '<p class="sub">' + esc(q.explain) + "</p>" : ""; }, done); } };
+    }
     if (e.kind === "word") {
       var w = WORDMAP[e.id]; if (!w) return null;
       var types = e.skill === "pinyin" ? ["h2p"] : e.skill === "listen-word" ? ["aud"] : ["h2m", "m2h"];
@@ -3246,7 +3407,7 @@
         opts.map(function (o) { return '<button class="opt" data-k="' + o[0] + '"><span class="zh">' + esc(o[1]) + "</span></button>"; }).join("") + '</div><div id="qfb"></div></div>',
       wire: function (done) {
         var dp = document.getElementById("dlg-play"); if (dp) dp.onclick = function () { Audio2.playAll(it.dialogue); };
-        wireMC(answer, function (ok) { Learn.record(e.key, e, ok); return script ? '<div class="script zh">🎧 ' + esc(script) + "</div>" : ""; }, done);
+        wireMC(answer, function (ok) { Learn.record(e.key, e, ok); return (script ? '<div class="script zh">🎧 ' + esc(script) + "</div>" : "") + (ok ? "" : partTip(partKey(it))); }, done);
       } };
   }
 
@@ -4037,7 +4198,8 @@
         var fa = mh.filter(function (x) { return !x.rep; }); // first attempts over the whole history: [count, average total]
         fa = fa.length ? [fa.length, Math.round(fa.reduce(function (a, x) { return a + num(x.h.total); }, 0) / fa.length)] : null;
         return { hsk5: h5Progress(), lessons: Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length, lessonsAll: DAYS.length, track: Object.keys(s.track || {}).filter(function (k) { return s.track[k]; }).length, trackAll: 72,
-          due: due, ready: r ? { total: r.total, lo: r.lo, hi: r.hi, verdict: r.verdict[1], src: r.src } : null, mocks: ms, mfa: fa, exam: s.settings.examDate || "", goal: s.settings.dailyGoal || 30 };
+          due: due, ready: r ? { total: r.total, lo: r.lo, hi: r.hi, verdict: r.verdict[1], src: r.src } : null, mocks: ms, mfa: fa, exam: s.settings.examDate || "", goal: s.settings.dailyGoal || 30,
+          real: (function () { var x = realResult(); return x ? { l: x.l, r: x.r, w: x.w, d: x.date } : null; })(), fc: s.fcAtExam ? s.fcAtExam.t : null };
       })(),
       streak: { n: Store.streak(), best: (s.streak && s.streak.best) || 0 },
       xpw: (function () { var o = [], ws = weekStart(t); for (var j = 7; j >= 0; j--) { var a = Store.addDays(ws, -7 * j), sum = 0; for (var k = 0; k < 7; k++) sum += s.log[Store.addDays(a, k)] || 0; o.push(sum); } return o; })(), // XP per week, this week last
@@ -4830,7 +4992,8 @@
   function sessionPlan(mode) {
     var rescue = mode === true || mode === "rescue", back = mode === "comeback";
     var cfg = sessionCfg(), cs = nextCoreSet() || nextCoreSet("found");
-    var due = SRS.dueIds(WORDMAP).slice(0, rescue ? 5 : cfg.due), fresh = cs ? cs.words.filter(function (w) { return !SRS.has(w.id); }).slice(0, rescue ? 5 : cfg.fresh) : [];
+    var due = SRS.dueIds(WORDMAP).slice(0, rescue ? 5 : cfg.due), ew = examFresh(rescue ? 5 : cfg.fresh);
+    var fresh = ew.length ? ew : cs ? cs.words.filter(function (w) { return !SRS.has(w.id); }).slice(0, rescue ? 5 : cfg.fresh) : [];
     var steps = [];
     if (back) { // 5 minutes after a break: the oldest overdue words first, a couple of mistakes, then a short listening
       var old = SRS.dueIds(WORDMAP).sort(function (a, b) { var x = (SRS.get(a) || {}).due || "", y = (SRS.get(b) || {}).due || ""; return x < y ? -1 : x > y ? 1 : 0; }).slice(0, 8);
@@ -4849,7 +5012,9 @@
       return steps;
     }
     if (due.length) steps.push({ id: "review", icon: "🔁", name: "Review " + plural(due.length, "due word"), ids: due });
-    if (fresh.length) steps.push({ id: "new", icon: "📘", name: fresh.length + " new " + (isFound(cs) ? "HSK 1–3 Foundation" : "HSK 4 Core") + " words", words: fresh });
+    if (fresh.length) steps.push({ id: "new", icon: "📘", name: ew.length ? plural(fresh.length, "exam word") + " (used most in the tests)" : fresh.length + " new " + (isFound(cs) ? "HSK 1–3 Foundation" : "HSK 4 Core") + " words", words: fresh });
+    var pi = paceIssue();
+    if (pi) steps.push({ id: "pace", icon: "⏱", name: "Timed: " + PART_NAME[pi.k] + " (time ran out in your last mock)", part: pi.k });
     if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: "Fix up to " + cfg.mis + " mistakes", n: cfg.mis });
     /* a weak typing skill turns the typing step into a focus step (never two typing steps); weak word order adds its own short step */
     var wt = weakSkill("typing"), wo = weakSkill("word-order");
@@ -4938,7 +5103,8 @@
         var nm = nextMock(left <= 8, planned);
         if (nm) planned.push(nm.m.id);
         var sim = left <= 8 && nm && nm.m.full; // final week: the full set in the strict simulator, like the real day
-        e = { ico: sim ? "🎯" : "📝", txt: (left <= 8 ? (sim ? "Full mock in the exam simulator" : "Mock exam, timed") : "Mock exam") + (nm ? " · Test " + nm.m.id + (nm.rep ? " (repeat)" : "") : ""), href: nm ? "#/mock/" + nm.m.id + (sim ? "/sim" : "") : "#/mock", kind: "mock" };
+        var at = sim && s.settings.examTime ? " · start at " + s.settings.examTime : ""; // same hour as the real exam
+        e = { ico: sim ? "🎯" : "📝", txt: (left <= 8 ? (sim ? "Full mock in the exam simulator" : "Mock exam, timed") : "Mock exam") + (nm ? " · Test " + nm.m.id + (nm.rep ? " (repeat)" : "") : "") + at, href: nm ? "#/mock/" + nm.m.id + (sim ? "/sim" : "") : "#/mock", kind: "mock" };
       }
       else { var f = secFocus(pat[left % 4]); e = { ico: "🎯", txt: f.txt, href: f.href, kind: "focus" }; }
       e.d = d; e.left = left;
@@ -4988,6 +5154,7 @@
       else if (st.id === "reading") Games.run("reading", "", { count: st.n || 3, onDone: next, exit: "#/" });
       else if (st.id === "talk") viewTalk(st.scene, { mini: 3, onDone: next, exit: "#/" });
       else if (st.id === "write") Games.run("picture", "", { count: st.n || 2, onDone: next, exit: "#/" });
+      else if (st.id === "pace") { if (!runPart(st.part, { onDone: next, exit: "#/" })) next(0); }
       else if (st.id === "listen") Games.run("drill", "", { count: st.n || 3, onDone: next, exit: "#/" });
     }
     function summary() {
@@ -5310,15 +5477,17 @@
     { name: "Official HSK site (Chinese Testing International)", url: "https://www.chinesetest.cn/" },
     { name: "Study4 · HSK 4 practice tests", url: "https://study4.com/tests/hsk-4/" }
   ];
-  function viewOfficial() {
-    var list = byDate(Store.state.official || []);
+  function viewOfficial(sub) {
+    var list = byDate(Store.state.official || []), real = sub === "real", ex = Store.state.settings.examDate || Store.today();
+    freezeForecast();
     var html = '<section class="card g-blue"><h2>📄 Official practice</h2><p class="sub">Practise with official HSK 4 papers — the most accurate preparation — then log your section scores here. They weigh most in your score forecast.</p></section>' +
-      forecastCard(false) +
+      realCompareHTML() + forecastCard(false) +
       '<section class="card"><h2>Where to get official papers</h2><p class="sub"><b>Best:</b> the official book <span class="zh">《HSK真题集 四级》</span> (Official Examination Papers of HSK Level 4, Chinese Testing International) with its audio — bookshops such as Fahasa or Tiki, or a Chinese centre. Your 14 Nov exam uses the HSK 2.0 format, so use HSK 2.0 papers (codes like H41xxx), not HSK 3.0 samples.</p>' +
       OFFICIAL_LINKS.map(function (r) { return '<a class="res-link" href="' + esc(r.url) + '" target="_blank" rel="noopener"><span class="cta-l"><b>' + esc(r.name) + '</b></span><span class="cta-go">↗</span></a>'; }).join("") + "</section>" +
       '<section class="card"><h2>Log a paper</h2><form id="of-form" class="mw-form" autocomplete="off">' +
-      '<label for="of-name">Paper</label><input id="of-name" maxlength="60" placeholder="e.g. H41003 / 真题集 Test 3">' +
-      '<label for="of-date">Date</label><input id="of-date" type="date" value="' + esc(Store.today()) + '">' +
+      '<label for="of-name">Paper</label><input id="of-name" maxlength="60" placeholder="e.g. H41003 / 真题集 Test 3"' + (real ? ' value="Real HSK 4 exam"' : "") + ">" +
+      '<label for="of-date">Date</label><input id="of-date" type="date" value="' + esc(real ? ex : Store.today()) + '">' +
+      '<label class="of-real"><input type="checkbox" id="of-real"' + (real ? " checked" : "") + "> This is my real HSK 4 result</label>" +
       '<div class="of-row"><div><label for="of-l">Listening</label><input id="of-l" type="number" inputmode="numeric" min="0" max="100" placeholder="/100"></div>' +
       '<div><label for="of-r">Reading</label><input id="of-r" type="number" inputmode="numeric" min="0" max="100" placeholder="/100"></div>' +
       '<div><label for="of-w">Writing</label><input id="of-w" type="number" inputmode="numeric" min="0" max="100" placeholder="/100"></div></div>' +
@@ -5328,7 +5497,7 @@
       html += '<section class="card"><h2>Your official results</h2>' + lineChart(list.slice(-12).map(function (o) { return { x: o.date.slice(5), y: o.l + o.r + o.w }; }), { max: 300, ref: 180, refLabel: "pass 180" }) +
         list.slice().reverse().map(function (o) {
           var t = o.l + o.r + o.w;
-          return '<div class="of-item"><div><b>' + esc(o.name) + '</b><small>' + esc(o.date) + " · L " + o.l + " · R " + o.r + " · W " + o.w + '</small></div><span class="tag ' + (t >= 180 ? "t-hsk" : "t-warn") + '">' + t + '/300</span><button class="btn small bad-btn" data-odel="' + esc(o.id) + '" aria-label="Delete">✕</button></div>';
+          return '<div class="of-item"><div><b>' + (o.real ? "🎓 " : "") + esc(o.name) + '</b><small>' + esc(o.date) + " · L " + o.l + " · R " + o.r + " · W " + o.w + '</small></div><span class="tag ' + (t >= 180 ? "t-hsk" : "t-warn") + '">' + t + '/300</span><button class="btn small bad-btn" data-odel="' + esc(o.id) + '" aria-label="Delete">✕</button></div>';
         }).join("") + "</section>";
     }
     render(html, "me");
@@ -5337,7 +5506,7 @@
       var g = function (id) { return document.getElementById(id).value.trim(); }, err = document.getElementById("of-err");
       var nums = ["of-l", "of-r", "of-w"].map(function (id) { return g(id) === "" ? NaN : +g(id); });
       if (nums.some(function (x) { return !isFinite(x) || x < 0 || x > 100; })) { err.textContent = "Enter each section score from 0 to 100."; err.hidden = false; return; }
-      Store.state.official.push({ id: Date.now().toString(36), date: /^\d{4}-\d{2}-\d{2}$/.test(g("of-date")) ? g("of-date") : Store.today(), name: g("of-name") || "Official paper", l: Math.round(nums[0]), r: Math.round(nums[1]), w: Math.round(nums[2]) });
+      Store.state.official.push({ id: Date.now().toString(36), date: /^\d{4}-\d{2}-\d{2}$/.test(g("of-date")) ? g("of-date") : Store.today(), name: g("of-name") || "Official paper", l: Math.round(nums[0]), r: Math.round(nums[1]), w: Math.round(nums[2]), real: document.getElementById("of-real").checked });
       Store.save(); Game.award(10); UI.toast("Official result saved", "📄"); viewOfficial();
     };
     app.querySelectorAll("[data-odel]").forEach(function (b) {

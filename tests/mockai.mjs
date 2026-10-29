@@ -22,6 +22,17 @@ const good = (c) => {
       errors: bad ? [{ wrong: "每天我", fix: "我每天", reason: "The time word goes after the subject." }] : [], explanation: "Test explanation.", model: { zh: "他每天坐地铁上班。", pinyin: "tā měitiān zuò dìtiě shàngbān.", meaning: "He takes the subway to work." }, confidence: "high" };
   }
   const props = c.generationConfig.responseSchema.properties;
+  if (props.items && d.kind) { // similar questions
+    if (d.kind === "order") return { items: [
+      { tokens: ["每天", "他", "坐地铁", "上班"], answer: "他每天坐地铁上班", explain: "Time comes after the subject." },
+      { tokens: ["已经", "我们", "完成了", "工作"], answer: "我们已经完成了工作", explain: "已经 goes before the verb." },
+      { tokens: ["被", "文件", "经理", "拿走了"], answer: "文件被经理拿走了", explain: "被 + doer + verb." }], confidence: "high" };
+    return { items: [
+      { sentence: "他每天都____上班，从来不迟到。", options: ["按时", "突然", "随便", "马上"], answer: "0", explain: "按时 = on time." },
+      { sentence: "请大家____准备材料。", options: ["按时", "认真", "突然", "曾经"], answer: "1", explain: "认真 + verb." },
+      { sentence: "这份工作____有意思。", options: ["很", "把", "被", "了"], answer: "0", explain: "很 + adjective." },
+      { sentence: "no gap here", options: ["a"], answer: "9", explain: "dropped" }], confidence: "high" };
+  }
   if (props.reply) {
     const msg = d.learner_latest_message || "", n = d.learner_turns || 0;
     const reply = d.wrap_up ? { zh: "好，那我先回去工作了，谢谢你！", pinyin: "Hǎo, nà wǒ xiān huíqu gōngzuò le, xièxie nǐ!", meaning: "OK, I'll get back to work then. Thanks!" } : msg ? { zh: "那为什么周日只按一点五倍算？", pinyin: "Nà wèishénme zhōurì zhǐ àn yī diǎn wǔ bèi suàn?", meaning: "Then why was Sunday paid at only 1.5 times?" }

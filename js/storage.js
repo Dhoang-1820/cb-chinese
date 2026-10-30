@@ -29,6 +29,8 @@
       trk: [],        // weekly snapshots for the teacher's charts, newest last (max 12): [{ w: week start, r: readiness total or null, m: words in box 4-5, c: words in review }]
       talkLog: [],    // finished AI role-plays, newest last (max 60): [{ d: date, id: scene id, s: score 0-10 or null, g: goal met, l: 4|5 }]
       fcAtExam: null, // the forecast frozen on exam day: { d, t, L, R, W }, to compare with the real result
+      qlog: {},       // question key -> [right, wrong] over all time (the admin's "hardest questions" view adds these up across learners)
+      bankSeen: [],   // ids of shared-bank questions already practised (so the next round brings new ones)
       weekGoal: {},   // week-start date -> true once that week's study-days goal was met
       patternHide: {}, // pattern signature -> date it was dismissed (hidden for the rest of that day)
       patternAI: {},  // pattern signature -> saved AI explanation
@@ -120,6 +122,13 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(st.examDate)) st.examDate = dflt.examDate;
     if (!/^\d{2}:\d{2}$/.test(st.remindTime)) st.remindTime = dflt.remindTime;
     if (st.examTime && !/^\d{2}:\d{2}$/.test(st.examTime)) st.examTime = "";
+    if (!d.qlog || typeof d.qlog !== "object" || Array.isArray(d.qlog)) d.qlog = {};
+    Object.keys(d.qlog).forEach(function (k, i) {
+      var v = d.qlog[k];
+      if (i >= 6000 || k.length > 80 || !Array.isArray(v)) { delete d.qlog[k]; return; }
+      d.qlog[k] = [n(v[0]), n(v[1])];
+    });
+    d.bankSeen = (Array.isArray(d.bankSeen) ? d.bankSeen : []).map(function (x) { return Math.round(+x); }).filter(function (x) { return x > 0 && isFinite(x); }).slice(-2000);
     if (d.fcAtExam && (typeof d.fcAtExam !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(d.fcAtExam.d))) d.fcAtExam = null;
     else if (d.fcAtExam) d.fcAtExam = { d: d.fcAtExam.d, t: n(d.fcAtExam.t), L: n(d.fcAtExam.L), R: n(d.fcAtExam.R), W: n(d.fcAtExam.W) };
     if (["both", "vi", "en"].indexOf(st.lang) < 0) st.lang = dflt.lang;

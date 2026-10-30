@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # every night (02:17 in Vietnam): questions approved in the shared bank get recorded audio and ship inside the app
+  schedule:
+    - cron: "17 19 * * *"
 
 permissions:
   contents: read
@@ -35,6 +38,10 @@ jobs:
 
       - name: Validate content
         run: node tools/validate.js
+
+      # Approved questions from the shared bank (never fails the build; the app also fetches them itself)
+      - name: Pull approved bank questions
+        run: node tools/fetch_bank.mjs
 
       # Reuse MP3s from earlier runs; only new or changed sentences are generated.
       # Restore and save are separate steps so the recordings are kept even when a later step (the tests) fails

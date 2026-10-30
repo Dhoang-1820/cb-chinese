@@ -1517,3 +1517,26 @@ body.on-tab #chip-heart, body.on-tab #btn-py, body.on-tab #btn-flag { display: n
 .real-card .sub, .real-card h2 { color: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ptip { background: #3a2f18; color: #ffe1a6; } :root:not([data-theme="light"]) .blank-note { background: #3a2f18; color: #ffe1a6; } }
 :root[data-theme="dark"] .ptip, :root[data-theme="dark"] .blank-note { background: #3a2f18; color: #ffe1a6; }
+/* new questions, shared bank, patterns, hardest questions, Google sign-in */
+.ai-ok { color: #0f6b5a; font-weight: 800; }
+.pat-g { border-top: 1px solid var(--surface-2); padding: 12px 0 4px; }
+.pat-g:first-child { border-top: 0; padding-top: 0; }
+.pat-g h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.pat-g h3 small { color: var(--muted); font-weight: 700; font-size: .8rem; }
+.pat-g p { margin: 4px 0 8px; }
+.bk-opts { margin: 6px 0 8px; padding-left: 22px; }
+.bk-opts li { margin: 2px 0; }
+.bk-opts li.ok { color: #0f6b5a; font-weight: 800; }
+.bk-dlg p { margin: 4px 0; }
+.bk-item .say { vertical-align: middle; }
+.hard-list { display: flex; flex-direction: column; }
+.hard-row { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--surface-2); }
+.hard-row:first-child { border-top: 0; }
+.hard-pc { min-width: 48px; text-align: right; font-weight: 900; font-size: 1.05rem; }
+.hard-t { display: flex; flex-direction: column; min-width: 0; }
+.hard-t b { font-weight: 700; overflow-wrap: anywhere; }
+.hard-t small { color: var(--muted); }
+.y-google:empty { display: none; }
+.y-google { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--surface-2); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ai-ok, :root:not([data-theme="light"]) .bk-opts li.ok { color: #5fd3b0; } }
+:root[data-theme="dark"] .ai-ok, :root[data-theme="dark"] .bk-opts li.ok { color: #5fd3b0; }

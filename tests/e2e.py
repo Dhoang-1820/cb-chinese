@@ -629,10 +629,11 @@ async def t_sync(b):
     check("admin: Progress draws the weekly lines and lists the mock", await p1.locator("#lt-body svg.chart").count() >= 2 and "190" in t and "Mock exams" in t, t[:300])
     await go(p1, "#/learners", 500); await p1.wait_for_selector(".lt-card", timeout=10000)
     check("admin: the overview shows the change since last week", "+10 vs last week" in await p1.locator(".lt-card").first.inner_text(), await p1.locator(".lt-card").first.inner_text())
-    await p1.evaluate("window._shared=null;Object.defineProperty(navigator,'share',{configurable:true,value:t=>{window._shared=t.text;return Promise.resolve()}})")
-    await p1.click(".lt-card a[href$='/chat']"); await p1.wait_for_selector("#ac-share", timeout=10000); await p1.click("#ac-share"); await p1.wait_for_timeout(200)
-    msg = await p1.evaluate("window._shared") or ""
-    check("admin: Chat › Send by Zalo / share opens the share sheet with a Vietnamese nudge for that learner", "Chào Hoang" in msg and "ngày nữa là thi HSK" in msg and "加油" in msg and "http" in msg, msg)
+    await p1.click(".lt-card a[href$='/chat']"); await p1.wait_for_selector("#ac-draft", timeout=10000)
+    check("admin: chat stays inside the app (no Zalo / share button)", await p1.locator("#ac-share").count() == 0 and "Zalo" not in await p1.inner_text("#app"))
+    await p1.click("#ac-draft"); await p1.wait_for_function("document.getElementById('ac-in').value.length>10", timeout=10000)
+    msg = await p1.input_value("#ac-in")
+    check("admin: ✨ Draft with AI writes a Vietnamese message for that learner and picks a matching button", "Chào Hoang" in msg and "ngày nữa là thi" in msg and await p1.input_value("#ac-act") == "#/session", msg)
     bad = await p1.evaluate("AI.call('learners_list',{},{'x-admin-code':'wrong-code-000000'}).then(r=>r.error)")
     check("admin: the list needs the reviewer code", bad == "bad_admin", bad)
     await p1.evaluate("localStorage.removeItem('cbChinese.ai.admin')")
@@ -2062,9 +2063,98 @@ async def t_boost(b):
     check("real result: Home stops asking once it is logged", await pg.locator("a.real-ask").count() == 0)
     await ctx.close()
 
+async def t_aiplus(b):
+    """AI listening and reading questions, the shared bank (admin approval), mistake patterns, hardest questions, Google sign-in."""
+    import random, urllib.request as U
+    base = AI_URL.rsplit("/", 1)[0]
+    peek = lambda path: json.loads(U.urlopen(base + path).read().decode())
+    calls = lambda: int(U.urlopen(base + "/__calls").read().decode())
+    srs = {"w0101": {"box": 1, "due": day(0), "right": 1, "wrong": 3, "lapses": 2, "added": day(-9), "last": day(-1)}}
+    mis = {"m:1:R1-1": {"kind": "mock", "skill": "fill-word", "mock": 1, "item": "R1-1", "wrong": 2, "streak": 0, "added": day(-3)},
+           "m:1:R1-2": {"kind": "mock", "skill": "fill-word", "mock": 1, "item": "R1-2", "wrong": 1, "streak": 0, "added": day(-2)},
+           "m:1:W1-1": {"kind": "mock", "skill": "word-order", "mock": 1, "item": "W1-1", "wrong": 1, "streak": 0, "added": day(-1)}}
+    tag = random.randint(100, 999)
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": srs, "mistakes": mis, "xp": 300 + tag, "qlog": {"m:1:R1-1": [0, 3], "m:1:R1-2": [2, 1]}}, ai=True)
+    await pg.evaluate("localStorage.setItem('cbChinese.bank1', JSON.stringify({at: Date.now(), rows: []}))")  # start from an empty bank
+    # entry points
+    await go(pg, "#/parts", 900)
+    t = await pg.inner_text("#app")
+    check("new questions: Exam parts lists listening 1-3 and a reading passage", "New questions, never seen before" in t and await pg.locator("a[href^='#/newq/']").count() == 4, t[-600:])
+    await go(pg, "#/games", 900)
+    check("new questions: Practice offers new listening questions", await pg.locator(".grow[href^='#/newq/L']").count() == 1)
+    # listening part 2 by the AI
+    await go(pg, "#/newq/L2", 300); await pg.wait_for_selector("#qcard", timeout=15000)
+    q = await pg.inner_text("#qcard")
+    check("listening: an AI question in the exam format (play dialogue, 4 choices), marked not teacher-checked", "Written by AI" in q and await pg.locator("#dlg-play").count() == 1 and await pg.locator("#qcard .opt").count() == 4 and "/1" in await pg.inner_text(".ghr"), q)
+    await pg.click("#qcard .opt[data-k='0']"); await pg.wait_for_timeout(300)
+    fb = await pg.inner_text("#qfb")
+    check("listening: after answering, the transcript and where the answer is heard", "请了两天假" in fb and "Correct" in fb, fb)
+    check("listening: the AI question is kept for the admin as pending", any(r["kind"] == "listen" and r["status"] == "pending" for r in peek("/__bank")))
+    await go(pg, "#/newq/L1", 300); await pg.wait_for_selector("#qcard", timeout=15000)
+    check("listening part 1: true / false, bad AI items dropped", await pg.locator("#qcard .tf-btns .opt").count() == 2 and "/2" in await pg.inner_text(".ghr"))
+    # reading passage from weak words
+    await go(pg, "#/newq/R3", 300); await pg.wait_for_selector("#qcard", timeout=15000)
+    q = await pg.inner_text("#qcard")
+    check("reading: a new passage built from her weak words, with questions", "Built from words you keep missing" in q and "新员工" in q and "/2" in await pg.inner_text(".ghr"), q[:300])
+    # mistake patterns
+    await go(pg, "#/mistakes", 900)
+    check("patterns: the notebook offers 'Find my patterns'", await pg.locator("#pat-go").count() == 1)
+    await pg.click("#pat-go"); await pg.wait_for_selector(".pat-g", timeout=15000)
+    t = await pg.inner_text("#pat-box")
+    check("patterns: groups with the rule, a tip and a practise button (bad indices dropped)", "以为 vs 认为" in t and "Practise these 2" in t and "Practise these 1" in t, t)
+    await pg.locator("[data-pg='0']").click(); await pg.wait_for_selector("#qcard", timeout=10000)
+    check("patterns: practising a group opens exactly those mistakes", "/2" in await pg.inner_text(".ghr"))
+    # admin approves the bank questions
+    check("bank: backup saved (for the admin views)", await pg.evaluate("Sync.now(true)") == "saved")
+    await pg.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
+    await go(pg, "#/learners/bank", 300); await pg.wait_for_selector(".bk-item", timeout=15000)
+    t = await pg.inner_text("#ad-body")
+    check("bank: the admin sees waiting questions readable, with the right answer marked", "Waiting (" in t and await pg.locator(".bk-item").count() >= 4 and await pg.locator(".bk-opts li.ok").count() >= 1, t[:400])
+    await pg.click("#bk-all"); await pg.wait_for_function("document.querySelector('.fx-tabs') && /Approved \\([1-9]/.test(document.querySelector('.fx-tabs').innerText)", timeout=10000)
+    check("bank: approve all moves them to Approved", all(r["status"] == "approved" for r in peek("/__bank")))
+    # learner: approved questions come first, with no AI call
+    await pg.evaluate("localStorage.removeItem('cbChinese.bank1'); Store.state.bankSeen=[]; Store.save()")
+    await pg.evaluate("AI.call('bank_get',{}).then(r=>localStorage.setItem('cbChinese.bank1', JSON.stringify({at:Date.now(), rows:r.result.rows})))")
+    n0 = calls()
+    await go(pg, "#/newq/L1", 300); await pg.wait_for_selector("#qcard", timeout=15000)
+    check("bank: approved questions are served first, marked checked, with no AI call", "Checked by the C&B team" in await pg.inner_text("#qcard") and calls() == n0)
+    # hardest questions
+    await go(pg, "#/learners/hard", 300); await pg.wait_for_selector(".hard-row, .empty", timeout=15000)
+    t = await pg.inner_text("#ad-body")
+    check("hardest: the most-missed question is listed first with its mock and part", await pg.locator(".hard-row").count() >= 1 and "Mock 1 · Reading part 1" in t and "%" in t, t[:400])
+    # Google sign-in: link this backup
+    await go(pg, "#/me/backup", 1200); await pg.wait_for_selector("#g-link", timeout=10000)
+    check("google: the backup screen offers Sign in with Google", await pg.locator("#g-link").count() == 1)
+    code = await pg.evaluate("Sync.cfg().code")
+    tk = await pg.evaluate("c=>AI.call('auth_start',{intent:'link',code:c}).then(r=>{localStorage.setItem('cbChinese.google',JSON.stringify({ticket:r.result.ticket,intent:'link',at:Date.now()}));return r.result.ticket})", code)
+    await pg.goto(BASE + "?gt=" + tk + "#access_token=tok-aaaaaaaaaaaaaaaaaaaa&token_type=bearer&expires_in=3600")
+    await pg.wait_for_function("Sync.cfg().google===true", timeout=15000)
+    check("google: back from Google, the backup is linked and the token is gone from the address", "access_token" not in pg.url and "gt=" not in pg.url and pg.url.endswith("#/me/backup"), pg.url)
+    await pg.wait_for_selector("#g-unlink", timeout=10000)
+    check("google: the backup screen now says it is linked", "Linked to Google" in await pg.inner_text("#y-google"))
+    # a new phone gets the backup back with Google, no code
+    c2, p2 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    tk2 = await p2.evaluate("AI.call('auth_start',{intent:'get'}).then(r=>{localStorage.setItem('cbChinese.google',JSON.stringify({ticket:r.result.ticket,intent:'get',at:Date.now()}));return r.result.ticket})")
+    await p2.goto(BASE + "?gt=" + tk2 + "#access_token=tok-aaaaaaaaaaaaaaaaaaaa")
+    await p2.wait_for_function("Store.state.xp===%d" % (300 + tag), timeout=15000)
+    check("google: a new phone restores the progress after signing in", await p2.evaluate("Sync.cfg().code") == code)
+    await c2.close()
+    # iPhone: Google comes back in Safari, not in the home-screen app; the app finishes when it is opened again
+    c3, p3 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    tk3 = await pg.evaluate("AI.call('auth_start',{intent:'get'}).then(r=>{localStorage.setItem('cbChinese.google',JSON.stringify({ticket:r.result.ticket,intent:'get',at:Date.now()}));return r.result.ticket})")
+    await p3.goto(BASE + "?gt=" + tk3 + "#access_token=tok-aaaaaaaaaaaaaaaaaaaa")
+    await p3.wait_for_selector("text=go back to the", timeout=15000)
+    check("google: the Safari page says to go back to the app", "Signed in with Google" in await p3.inner_text("#app"))
+    await pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+    await pg.wait_for_function("!localStorage.getItem('cbChinese.google')", timeout=15000)
+    check("google: the app picks up the sign-in by itself", True)
+    await c3.close()
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus)]
 PW = None
 
 

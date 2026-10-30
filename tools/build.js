@@ -95,7 +95,9 @@ const h5Name = "hsk5." + hash(h5Code) + ".js", x4Name = "hsk4x." + hash(x4Code) 
 sizes["data/" + h5Name] = write("data/" + h5Name, h5Code);
 sizes["data/" + x4Name] = write("data/" + x4Name, x4Code);
 sizes["data/track.js"] = write("data/track.js", minifyJS("window.CB_TRACK=" + J((sb.window.CB_TRACK || []).slice().sort((a, b) => a.week - b.week)) + ";"));
-sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(sb.window.CB_MOCK) + ";"));
+if (fs.existsSync(path.join(ROOT, "data", "bank.js"))) load("bank.js"); // approved questions from the shared bank (tools/fetch_bank.mjs)
+const bank = sb.window.CB_BANK && Array.isArray(sb.window.CB_BANK.rows) ? sb.window.CB_BANK : { at: "", rows: [] };
+sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(sb.window.CB_MOCK) + ";window.CB_BANK=" + J(bank) + ";"));
 
 // ---- 3. app bundle (same order as index.html; data/audio manifests stay separate) ----
 const APP_FILES = ["js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/content.js", "js/talk.js", "js/games.js", "js/app.js"];

@@ -85,3 +85,47 @@ create index if not exists messages_learner_id on public.messages (learner, id);
 alter table public.messages enable row level security;   -- no policies: only the service role (the function) can touch it
 revoke all on public.messages from public, anon, authenticated;
 grant all on public.messages to service_role;
+
+-- Shared question bank: AI practice questions wait as 'pending' until the admin approves them; approved ones are
+-- served to every learner first and get recorded audio in the next deploy.
+create table if not exists public.bank_items (
+  id bigint generated always as identity primary key,
+  kind text not null check (kind in ('fill', 'order', 'listen', 'passage')),
+  part text not null default '',
+  skill text not null default '',
+  data jsonb not null,
+  hash text not null unique,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  created_at timestamptz not null default now(),
+  decided_at timestamptz
+);
+create index if not exists bank_items_status_id on public.bank_items (status, id);
+alter table public.bank_items enable row level security;   -- no policies: only the service role (the function) can touch it
+revoke all on public.bank_items from public, anon, authenticated;
+grant all on public.bank_items to service_role;
+
+-- Optional Google sign-in: a Supabase Auth user id linked to a phone's restore code (no email is kept here).
+create table if not exists public.auth_links (
+  uid uuid primary key,
+  code text not null,
+  learner text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.auth_links enable row level security;   -- no policies: only the service role (the function) can touch it
+revoke all on public.auth_links from public, anon, authenticated;
+grant all on public.auth_links to service_role;
+
+-- One-time sign-in tickets (15 minutes): the phone starts sign-in with one, the page Google returns to finishes it.
+create table if not exists public.auth_tickets (
+  ticket text primary key,
+  intent text not null check (intent in ('link', 'get')),
+  code text not null default '',
+  uid uuid,
+  result jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists auth_tickets_created on public.auth_tickets (created_at);
+alter table public.auth_tickets enable row level security;   -- no policies: only the service role (the function) can touch it
+revoke all on public.auth_tickets from public, anon, authenticated;
+grant all on public.auth_tickets to service_role;

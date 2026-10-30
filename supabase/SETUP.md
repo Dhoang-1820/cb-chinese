@@ -104,3 +104,26 @@ Me → Content review shows a **Service** block: AI calls today against `AI_DAIL
 with a backup against `SYNC_MAX_LEARNERS`, how many did not save for 3 or more days, and content reports waiting.
 It needs the current `index.ts` (admin-only task `admin_stats`, which only reads `ai_usage`, `learners.updated_at` and
 `content_reports.status`). No SQL change. With an older function the block is simply not shown.
+
+## Question bank and hardest questions (added October 2026)
+
+Run the newest `supabase/setup.sql` once (it adds `bank_items`, `auth_links` and `auth_tickets`; running it again is safe).
+AI practice questions (new listening questions, reading passages, "3 new questions like this") are saved as *waiting*.
+In the app: Me → Learner tracking → **Questions**. Approve the good ones: every learner then gets them before the AI is
+asked again, they are marked "checked by the C&B team", and the nightly deploy (02:17 Vietnam time) copies them into the
+app and records their audio. **Hardest** lists the questions learners miss most (from each phone's backup).
+
+## Google sign-in (optional, added October 2026)
+
+Next to the restore code, a learner can link the backup to a Google account; a new phone then gets it back with
+"Restore with Google". The button only appears once Google is switched on. One-time setup (about 10 minutes):
+
+1. Google Cloud console → APIs & Services → OAuth consent screen: External, app name "C&B Chinese", your email as support
+   contact. Then Credentials → Create credentials → OAuth client ID → Web application.
+   Authorized redirect URI: `https://ihstekksnivjaywourzt.supabase.co/auth/v1/callback`. Copy the client ID and secret.
+2. Supabase dashboard → Authentication → Sign In / Providers → Google: turn on, paste the client ID and secret, save.
+3. Supabase → Authentication → URL Configuration: Site URL `https://dhoang-1820.github.io/cb-chinese/`, and add the
+   redirect URL `https://dhoang-1820.github.io/cb-chinese/**`.
+
+Only the Supabase Auth user id is stored (table `auth_links`), never the email. On an iPhone home-screen app, Google may
+come back in Safari: that page finishes the sign-in, and the app picks it up the next time it is opened.

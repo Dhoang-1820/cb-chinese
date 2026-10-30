@@ -405,4 +405,118 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
   t("similar: an unknown kind is refused", fn.cleanInput({ task: "similar", payload: { kind: "x", sentence: "他____来了。", answer: "已经" } }) === "bad_kind");
 }
 
+// listen / passage / patterns / draft: only well-formed output is kept
+{
+  const l1 = fn.validateResult("listen", { items: [
+    { text: "这家公司每年给员工两次培训的机会。", statement: "★ 员工每年有培训。", answer: "true", explain: "x" },
+    { text: "短", statement: "太短", answer: "true", explain: "too short" },
+    { text: "王经理下个月去上海出差。", statement: "王经理在上海。", answer: "maybe", explain: "bad key" }], confidence: "high" }, { part: "L1" });
+  t("listen L1: keeps the valid item, strips ★, drops a too-short text and a bad key", l1 && l1.items.length === 1 && l1.items[0].statement === "员工每年有培训。" && l1.items[0].answer === true, JSON.stringify(l1));
+  const two = [{ sp: "男", zh: "你几点下班？" }, { sp: "女", zh: "今天要加班，八点才走。" }];
+  const l2 = fn.validateResult("listen", { items: [
+    { dialogue: two, question: "女的今天怎么了？", options: ["要加班", "请假了", "迟到了", "生病了"], answer: "0", explain: "x" },
+    { dialogue: [two[0], { sp: "男", zh: "我也是。" }], question: "男的怎么了？", options: ["一", "二", "三", "四"], answer: "0", explain: "same speaker" },
+    { dialogue: two.concat(two), question: "女的今天怎么了？", options: ["要加班", "请假了", "迟到了", "生病了"], answer: "0", explain: "4 lines in L2" },
+    { dialogue: [{ sp: "女", zh: "不一样的对话。" }, { sp: "男", zh: "好的。" }], question: "怎么了？", options: ["一", "一", "三", "四"], answer: "0", explain: "dup options" }], confidence: "high" }, { part: "L2" });
+  t("listen L2: exactly 2 alternating lines and 4 different options", l2 && l2.items.length === 1 && l2.items[0].answer === 0, JSON.stringify(l2));
+  const l3 = fn.validateResult("listen", { items: [{ dialogue: two.concat(two.map((x) => ({ ...x, zh: x.zh + "吗" }))), question: "女的今天怎么了？", options: ["要加班", "请假了", "迟到了", "生病了"], answer: "2", explain: "x" }], confidence: "high" }, { part: "L3" });
+  t("listen L3: 4-6 lines accepted", l3 && l3.items.length === 1 && l3.part === "L3", JSON.stringify(l3));
+  t("listen: an unknown part is refused", fn.cleanInput({ task: "listen", payload: { part: "R1" } }) === "bad_kind");
+  const lc = fn.cleanInput({ task: "listen", payload: { part: "L2", words: ["培训", "abc", "工资"] } });
+  t("listen: only Chinese target words are sent", typeof lc === "object" && lc.data.target_words.join() === "培训,工资", JSON.stringify(lc));
+  const pz = "我们公司每年都会给员工提供培训。新员工进公司以后，先参加一个星期的培训，了解公司的规定和福利。培训结束以后，部门经理会面试。";
+  const ps = fn.validateResult("passage", { passage: pz, used_words: ["面试", "飞机"], questions: [
+    { q: "新员工先做什么？", options: ["参加培训", "去出差", "申请加班", "换部门"], answer: 0, explain: "x" },
+    { q: "坏的？", options: ["a", "b"], answer: 0, explain: "two options" }], confidence: "high" }, { target_words: ["培训", "工资"] });
+  t("passage: keeps good questions; used_words = target words really in the passage", ps && ps.questions.length === 1 && ps.used_words.join() === "培训", JSON.stringify(ps));
+  t("passage: too short is refused", fn.validateResult("passage", { passage: "很短。", questions: [{ q: "什么？", options: ["一", "二", "三", "四"], answer: 0 }] }, {}) === null);
+  const pt = fn.validateResult("patterns", { groups: [{ title: "以为 vs 认为", items: [0, 1, 9], explain: "x", tip: "y" }, { title: "order", items: [1, 2], explain: "", tip: "" }, { title: "", items: [3] }], confidence: "high" },
+    { mistakes: [{}, {}, {}, {}] });
+  t("patterns: indices in range, each mistake in one group only", pt && pt.groups.length === 2 && pt.groups[0].items.join() === "0,1" && pt.groups[1].items.join() === "2", JSON.stringify(pt));
+  t("patterns: fewer than 3 mistakes is refused", fn.cleanInput({ task: "patterns", payload: { mistakes: [{ q: "a", correct: "b" }] } }) === "few_mistakes");
+  const dc = fn.cleanInput({ task: "draft", lang: "en", payload: { name: "Nhi", daysLeft: 15, actions: [{ href: "#/session", label: "Start" }, { href: "javascript:alert(1)", label: "x" }] } });
+  t("draft: always Vietnamese, only in-app #/ actions", typeof dc === "object" && dc.lang === "vi" && dc.data.allowed_actions.length === 1, JSON.stringify(dc));
+  const dv = fn.validateResult("draft", { text: "Chào Nhi! Hôm nay làm 10 phút nhé.", action: "#/evil", confidence: "high" }, { allowed_actions: [{ href: "#/session" }] });
+  t("draft: an action not on the list is dropped", dv && dv.action === "", JSON.stringify(dv));
+  t("draft: a message that sends her to Zalo is refused", fn.validateResult("draft", { text: "Chào Nhi, nhắn mình qua Zalo nhé!", action: "", confidence: "high" }, { allowed_actions: [] }) === null);
+}
+// draft is admin-only; bank, stats and Google sign-in work through the db
+{
+  const benv = { GEMINI_API_KEY: "k", AI_DAILY_CAP: "99", ADMIN_CODE: "admin-code-12345", SUPABASE_URL: "https://p.supabase.co", SUPABASE_ANON_KEY: "anon" };
+  const tables = { bank_items: [], auth_links: [], auth_tickets: [], learners: [] }; let nid = 1;
+  const db = async (method, path, body) => {
+    const name = path.split("?")[0], q = new URLSearchParams(path.split("?")[1] || ""), rows = tables[name];
+    const keep = (r) => [...q.entries()].every(([k, v]) => { if (["select", "order", "limit", "offset", "on_conflict"].includes(k)) return true; const [op, ...rest] = v.split("."), val = rest.join(".");
+      return op === "eq" ? String(r[k]) === val : op === "in" ? val.replace(/[()]/g, "").split(",").includes(String(r[k])) : op === "gt" ? +r[k] > +val : true; });
+    if (method === "POST") { (Array.isArray(body) ? body : [body]).forEach((r) => { if (q.get("on_conflict") === "hash" && rows.some((x) => x.hash === r.hash)) return; rows.push({ id: nid++, created_at: new Date().toISOString(), ...r }); }); return null; }
+    if (method === "PATCH") { rows.filter(keep).forEach((r) => Object.assign(r, body)); return null; }
+    if (method === "DELETE") { rows.filter(keep).forEach((r) => rows.splice(rows.indexOf(r), 1)); return null; }
+    if (name === "learners" && path.includes("qlog:data->qlog")) return rows.map((r) => ({ id: r.id, qlog: r.data.qlog }));
+    return JSON.parse(JSON.stringify(rows.filter(keep)));
+  };
+  const listenOut = { items: [{ dialogue: [{ sp: "男", zh: "你几点下班？" }, { sp: "女", zh: "今天要加班，八点才走。" }], question: "女的今天怎么了？", options: ["要加班", "请假了", "迟到了", "生病了"], answer: "0", explain: "x" }], confidence: "high" };
+  const deps = { fetch: async (url, init) => {
+      if (url.endsWith("/auth/v1/settings")) return { ok: true, json: async () => ({ external: { google: true } }) };
+      if (url.endsWith("/auth/v1/user")) return init.headers.authorization === "Bearer tok-goodgoodgoodgoodgood" ? { ok: true, json: async () => ({ id: "11111111-1111-1111-1111-111111111111", app_metadata: { provider: "google" } }) } : { ok: false, json: async () => ({}) };
+      return gemOk(listenOut);
+    }, bump: async () => 1, db };
+  const call = async (body, h = {}) => { const r = await fn.handle(req(body, h), benv, deps); return { status: r.status, j: await r.json() }; };
+  let x = await call({ task: "draft", payload: { name: "Nhi" } });
+  t("draft without the admin code → 401", x.status === 401);
+  x = await call({ task: "listen", payload: { part: "L2", words: ["加班"] } });
+  t("listen ok, and its question is saved as pending in the bank", x.j.ok && tables.bank_items.length === 1 && tables.bank_items[0].status === "pending" && tables.bank_items[0].part === "L2", JSON.stringify(tables.bank_items));
+  await call({ task: "listen", payload: { part: "L2" } });
+  t("the same question is not saved twice", tables.bank_items.length === 1);
+  x = await call({ task: "bank_get", payload: {} });
+  t("bank_get: pending questions are not served", x.j.ok && x.j.result.rows.length === 0);
+  x = await call({ task: "bank_decide", payload: { id: tables.bank_items[0].id, decision: "approve" } });
+  t("bank_decide needs the admin code", x.status === 401);
+  x = await call({ task: "bank_decide", payload: { ids: [tables.bank_items[0].id], decision: "approve" } }, { "x-admin-code": "admin-code-12345" });
+  t("bank_decide approves", x.j.ok && tables.bank_items[0].status === "approved");
+  x = await call({ task: "bank_get", payload: {} });
+  t("bank_get serves approved questions without the hash", x.j.result.rows.length === 1 && !("hash" in x.j.result.rows[0]) && x.j.result.rows[0].data.question === "女的今天怎么了？", JSON.stringify(x.j));
+  x = await call({ task: "bank_list", payload: { status: "approved" } }, { "x-admin-code": "admin-code-12345" });
+  t("bank_list counts by status", x.j.ok && x.j.result.counts.approved === 1 && x.j.result.rows.length === 1);
+  tables.learners.push({ id: "a".repeat(64), data: { qlog: { "m:1:R1-1": [1, 3], "m:1:R1-2": [5, 0], "w:x": [0, 1] } } }, { id: "b".repeat(64), data: { qlog: { "m:1:R1-1": [0, 2] } } });
+  x = await call({ task: "q_stats", payload: {} }, { "x-admin-code": "admin-code-12345" });
+  const top = x.j.result && x.j.result.rows[0];
+  t("q_stats: summed across learners, most missed first, never-missed left out", top && top.k === "m:1:R1-1" && top.w === 5 && top.r === 1 && top.l === 2 && !x.j.result.rows.some((r) => r.k === "m:1:R1-2"), JSON.stringify(x.j));
+  x = await call({ task: "auth_cfg", payload: {} });
+  t("auth_cfg: says Google is on and gives the authorize address", x.j.result.google === true && x.j.result.url === "https://p.supabase.co/auth/v1/authorize?provider=google");
+  const lid = await (async () => { const b = new TextEncoder().encode("cb-sync:ABCDEFGHJKLMNPQR"); return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", b))).map((v) => v.toString(16).padStart(2, "0")).join(""); })();
+  x = await call({ task: "auth_start", payload: { intent: "link", code: "ABCDEFGHJKLMNPQR" } });
+  t("auth_start link: the backup must exist", x.status === 404);
+  tables.learners.push({ id: lid, data: {} });
+  x = await call({ task: "auth_start", payload: { intent: "link", code: "abcd-efgh-jklm-npqr" } });
+  const tk = x.j.result && x.j.result.ticket;
+  t("auth_start gives a one-time ticket", /^[a-f0-9]{48}$/.test(tk || ""), JSON.stringify(x.j));
+  x = await call({ task: "auth_poll", payload: { ticket: tk } });
+  t("auth_poll before sign-in: waiting", x.j.result.status === "waiting");
+  x = await call({ task: "auth_finish", payload: { ticket: tk, token: "tok-badbadbadbadbadbadbad" } });
+  t("auth_finish with a bad token → 401", x.status === 401 && x.j.error === "bad_login");
+  x = await call({ task: "auth_finish", payload: { ticket: tk, token: "tok-goodgoodgoodgoodgood" } });
+  t("auth_finish links the Google account to the code (no email kept)", x.j.result.status === "linked" && tables.auth_links.length === 1 && tables.auth_links[0].code === "ABCDEFGHJKLMNPQR" && !JSON.stringify(tables.auth_links).includes("@"), JSON.stringify(x.j));
+  x = await call({ task: "auth_poll", payload: { ticket: tk } });
+  t("auth_poll after sign-in (the app, if Google came back in Safari): linked", x.j.result.status === "linked");
+  x = await call({ task: "auth_status", payload: { code: "ABCDEFGHJKLMNPQR" } });
+  t("auth_status: linked", x.j.result.linked === true);
+  x = await call({ task: "auth_start", payload: { intent: "get" } });
+  const tk2 = x.j.result.ticket;
+  x = await call({ task: "auth_finish", payload: { ticket: tk2, token: "tok-goodgoodgoodgoodgood" } });
+  t("a new phone signs in (get): it receives the linked restore code", x.j.result.status === "code" && x.j.result.code === "ABCDEFGHJKLMNPQR");
+  const lid2 = await (async () => { const b = new TextEncoder().encode("cb-sync:ZZZZZZZZZZZZZZZZ"); return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", b))).map((v) => v.toString(16).padStart(2, "0")).join(""); })();
+  tables.learners.push({ id: lid2, data: {} });
+  x = await call({ task: "auth_start", payload: { intent: "link", code: "ZZZZZZZZZZZZZZZZ" } });
+  const tk3 = x.j.result.ticket;
+  x = await call({ task: "auth_finish", payload: { ticket: tk3, token: "tok-goodgoodgoodgoodgood" } });
+  t("linking a second backup to the same Google account asks first (other), nothing changes", x.j.result.status === "other" && tables.auth_links[0].code === "ABCDEFGHJKLMNPQR");
+  x = await call({ task: "auth_replace", payload: { ticket: tk3 } });
+  t("auth_replace links the new backup instead", x.j.result.status === "linked" && tables.auth_links.length === 1 && tables.auth_links[0].code === "ZZZZZZZZZZZZZZZZ");
+  x = await call({ task: "auth_unlink", payload: { code: "ZZZZZZZZZZZZZZZZ" } });
+  t("auth_unlink with the restore code removes the link", x.j.ok && tables.auth_links.length === 0);
+  tables.auth_tickets[0].created_at = new Date(Date.now() - 20 * 60000).toISOString();
+  x = await call({ task: "auth_poll", payload: { ticket: tables.auth_tickets[0].ticket } });
+  t("an old ticket (15+ min) is refused", x.status === 404);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

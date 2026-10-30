@@ -4,7 +4,7 @@
 import http from "http";
 const PORT = Number(process.env.PORT || 9201);
 import * as fn from "../supabase/functions/ai/index.ts";
-const env = { ADMIN_CODE: "admin-code-12345", GEMINI_API_KEY: "k", AI_DAILY_CAP: process.env.CAP || "50", ALLOWED_ORIGINS: process.env.ORIGIN || "http://localhost:8766" };
+const env = { SUPABASE_AUTH_URL: "http://auth.mock", SUPABASE_ANON_KEY: "", ADMIN_CODE: "admin-code-12345", GEMINI_API_KEY: "k", AI_DAILY_CAP: process.env.CAP || "50", ALLOWED_ORIGINS: process.env.ORIGIN || "http://localhost:8766" };
 let n = 0, mode = "ok";
 const good = (c) => {
   const d = JSON.parse(c.contents[0].parts[0].text);
@@ -22,6 +22,25 @@ const good = (c) => {
       errors: bad ? [{ wrong: "每天我", fix: "我每天", reason: "The time word goes after the subject." }] : [], explanation: "Test explanation.", model: { zh: "他每天坐地铁上班。", pinyin: "tā měitiān zuò dìtiě shàngbān.", meaning: "He takes the subway to work." }, confidence: "high" };
   }
   const props = c.generationConfig.responseSchema.properties;
+  if (props.items && d.part) { // new listening questions
+    if (d.part === "L1") return { items: [
+      { text: "这家公司每年给员工两次培训的机会，大家都可以申请。", statement: "★ 员工每年可以申请培训。", answer: "true", explain: "两次培训的机会 + 可以申请." },
+      { text: "王经理下个月去上海出差，这周他还在办公室。", statement: "王经理这周在上海。", answer: "false", explain: "这周他还在办公室." },
+      { text: "short", statement: "bad", answer: "maybe", explain: "dropped" }], confidence: "high" };
+    const two = [{ sp: "男", zh: "你的工资这个月怎么少了？" }, { sp: "女", zh: "因为我请了两天假，所以扣了一点。" }];
+    const dlg = d.part === "L2" ? two : two.concat([{ sp: "男", zh: "请假是按天扣钱吗？" }, { sp: "女", zh: "对，没有提前申请的话，会扣得更多。" }]);
+    return { items: [
+      { dialogue: dlg, question: "女的工资为什么少了？", options: ["请了假", "迟到了", "换了工作", "加班少"], answer: "0", explain: "因为我请了两天假." },
+      { dialogue: [{ sp: "男", zh: "面试是几点？" }, { sp: "男", zh: "same speaker twice" }], question: "几点？", options: ["一", "二", "三", "四"], answer: "1", explain: "dropped" }], confidence: "high" };
+  }
+  if (props.passage) return { passage: "我们公司每年都会给员工提供培训。新员工进公司以后，先参加一个星期的培训，了解公司的规定和福利。培训结束以后，部门经理会和每个人面试，决定他们的工作。如果你想申请别的部门，也可以在培训以后提出。",
+    used_words: ["培训"], questions: [
+      { q: "新员工先做什么？", options: ["参加培训", "去出差", "申请加班", "换部门"], answer: 0, explain: "先参加一个星期的培训." },
+      { q: "根据这段话，可以知道：", options: ["培训一个月", "经理会面试", "不能换部门", "没有福利"], answer: 1, explain: "部门经理会和每个人面试." }], confidence: "high" };
+  if (props.groups) return { groups: [
+    { title: "以为 vs 认为", items: [0, 1, 99], explain: "以为 = thought wrongly; 认为 = think, consider.", tip: "If it turned out false, use 以为." },
+    { title: "Word order: time after subject", items: [2, 0], explain: "Subject + time + verb.", tip: "Put 每天 after the subject." }], confidence: "high" };
+  if (props.text && props.action) return { text: "Chào " + d.learner_name + "! Còn " + d.days_until_exam + " ngày nữa là thi rồi. Hôm nay em làm Reading part 1 trong 10 phút nhé. 加油！", action: d.allowed_actions.length ? d.allowed_actions[0].href : "", confidence: "high" };
   if (props.items && d.kind) { // similar questions
     if (d.kind === "order") return { items: [
       { tokens: ["每天", "他", "坐地铁", "上班"], answer: "他每天坐地铁上班", explain: "Time comes after the subject." },
@@ -52,7 +71,13 @@ const good = (c) => {
   if (props.actions) return { follow_up: d.last_weeks_advice ? "Done: " + d.last_weeks_advice.filter((a) => a.done).length + " of " + d.last_weeks_advice.length + "." : "", habit: d.study_habit && d.study_habit.most_skipped_weekday ? "You often skip " + d.study_habit.most_skipped_weekday + "." : "", headline: "You studied " + d.active_days_of_7 + " days. Nice.", wins: ["Steady streak"], actions: [{ text: "Do 10 minutes of measure words", minutes: 10, skill: "measure" }, { text: "One picture writing round", minutes: 10, skill: "writing" }, { text: "Review due cards", minutes: 15, skill: "review" }], note: "Keep going.", confidence: "medium" };
   return { why_wrong: "Chose " + d.learner_chose + " which does not fit.", why_correct: d.correct + " fits here.", rule: "虽然…但是… pair.", example: { zh: "虽然很累，但是我很开心。", pinyin: "suīrán hěn lèi, dànshì wǒ hěn kāixīn.", meaning: "Tired but happy." }, tip: "Learn as a pair.", confidence: "medium" };
 };
+const users = { "tok-aaaaaaaaaaaaaaaaaaaa": "11111111-1111-1111-1111-111111111111", "tok-bbbbbbbbbbbbbbbbbbbb": "22222222-2222-2222-2222-222222222222" };
 const fakeFetch = async (url, init) => {
+  if (String(url).startsWith("http://auth.mock/auth/v1/settings")) return { ok: true, status: 200, json: async () => ({ external: { google: mode !== "nogoogle" } }) };
+  if (String(url).startsWith("http://auth.mock/auth/v1/user")) {
+    const t = String((init.headers || {}).authorization || "").replace(/^Bearer /, ""), id = users[t];
+    return id ? { ok: true, status: 200, json: async () => ({ id, app_metadata: { provider: "google" } }) } : { ok: false, status: 401, json: async () => ({}) };
+  }
   n++;
   if (mode === "429") return { status: 429, json: async () => ({}) };
   if (mode === "403") return { status: 403, json: async () => ({}) };
@@ -64,6 +89,30 @@ const rows = []; let nid = 1;
 const lrn = [];
 const msgs = []; let mid = 1;
 const lives = []; // live pings the server sent (topic names), for tests
+const bank = { rows: [], nid: 1 }, links = { rows: [], nid: 1 }, tickets = { rows: [], nid: 1 };
+/* just enough PostgREST for the bank and the sign-in links: eq / gt / in filters, order, limit, offset, on_conflict=hash */
+function table(t, method, path, body) {
+  const q = new URLSearchParams(path.split("?")[1] || "");
+  const keep = (r) => [...q.entries()].every(([k, v]) => {
+    if (["select", "order", "limit", "offset", "on_conflict"].includes(k)) return true;
+    const [op, ...rest] = v.split("."), val = rest.join(".");
+    if (op === "eq") return String(r[k]) === val;
+    if (op === "gt") return +r[k] > +val;
+    if (op === "in") return val.replace(/[()]/g, "").split(",").indexOf(String(r[k])) >= 0;
+    return true;
+  });
+  if (method === "POST") {
+    (Array.isArray(body) ? body : [body]).forEach((r) => { if (q.get("on_conflict") === "hash" && t.rows.some((x) => x.hash === r.hash)) return; t.rows.push({ id: t.nid++, created_at: new Date().toISOString(), ...r }); });
+    return null;
+  }
+  if (method === "PATCH") { t.rows.filter(keep).forEach((r) => Object.assign(r, body)); return null; }
+  if (method === "DELETE") { t.rows.filter(keep).forEach((r) => t.rows.splice(t.rows.indexOf(r), 1)); return null; }
+  let out = t.rows.filter(keep);
+  if (q.get("order") === "id.desc") out = out.slice().reverse();
+  out = out.slice(+(q.get("offset") || 0));
+  if (q.get("limit")) out = out.slice(0, +q.get("limit"));
+  return JSON.parse(JSON.stringify(out));
+}
 const db = async (method, path, body) => {
   if (path.startsWith("ai_usage")) return [{ day: new Date().toISOString().slice(0, 10), n: Math.min(count, +env.AI_DAILY_CAP) }, { day: new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10), n: 7 }]; // today's counter + one earlier day
   if (path.startsWith("messages")) { // enough PostgREST for the chat: eq / gt / gte / is.null filters, order=id.desc, limit
@@ -87,7 +136,11 @@ const db = async (method, path, body) => {
     if (q.get("limit")) out = out.slice(0, +q.get("limit"));
     return JSON.parse(JSON.stringify(out));
   }
+  if (path.startsWith("bank_items")) return table(bank, method, path, body);
+  if (path.startsWith("auth_links")) return table(links, method, path, body);
+  if (path.startsWith("auth_tickets")) return table(tickets, method, path, body);
   if (path.startsWith("learners")) {
+    if (method === "GET" && path.indexOf("qlog:data->qlog") >= 0) return lrn.map((r) => ({ id: r.id, qlog: r.data && r.data.qlog ? JSON.parse(JSON.stringify(r.data.qlog)) : null }));
     const m = /id=eq\.([a-f0-9]+)/.exec(path), i = m ? lrn.findIndex((r) => r.id === m[1]) : -1;
     if (method === "POST") { lrn.push({ ...body }); return null; }
     if (method === "PATCH") { if (i >= 0) Object.assign(lrn[i], body); return null; }
@@ -108,6 +161,8 @@ http.createServer(async (rq, rs) => {
   if (rq.url === "/__rows") { rs.end(JSON.stringify(rows)); return; }
   if (rq.url === "/__stale") { lrn.forEach((r) => { r.updated_at = new Date(Date.now() - 5 * 864e5).toISOString(); }); rs.end("stale=" + lrn.length); return; } // every backup now looks 5 days old
   if (rq.url === "/__calls") { rs.end(String(n)); return; }
+  if (rq.url === "/__bank") { rs.end(JSON.stringify(bank.rows)); return; }
+  if (rq.url === "/__links") { rs.end(JSON.stringify(links.rows)); return; }
   if (rq.url === "/__lives") { rs.end(JSON.stringify(lives)); return; }
   let body = ""; rq.on("data", (d) => (body += d));
   rq.on("end", async () => {

@@ -58,6 +58,14 @@ for (const m of sb.window.CB_MOCK || []) {
   for (const it of m.listening.p3) { if (it.dialogue) it.dialogue.forEach(l => add(l.text, l.voice)); else add(it.audio.text, it.audio.voice); }
 }
 
+/* shared question bank: approved AI listening questions (data/bank.js, refreshed by tools/fetch_bank.mjs at deploy) */
+if (fs.existsSync(path.join(ROOT, "data", "bank.js"))) load("bank.js");
+for (const r of ((sb.window.CB_BANK || {}).rows || [])) {
+  if (r.kind !== "listen" || !r.data) continue;
+  if (r.data.text) add(r.data.text, "F");
+  (r.data.dialogue || []).forEach(l => add(l.zh, l.sp === "男" ? "M" : "F"));
+}
+
 /* 6-month track: every Chinese line that has a play button */
 const trackT = t => t && t.zh && add(t.zh);
 for (const wk of sb.window.CB_TRACK || []) for (const ss of wk.sessions || []) {

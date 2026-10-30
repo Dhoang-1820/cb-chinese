@@ -354,7 +354,7 @@
   function missing(v, parts) {
     var m = [], a = parts[1] || "", b = parts[2] || "";
     if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || v === "parts" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder|reading)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes" || v === "weekly" || v === "catchup")) m.push("full");
-    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || v === "parts" || v === "games" || v === "sprint" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
+    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || v === "parts" || v === "games" || v === "sprint" || v === "newq" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
     var hard5 = (v === "learn" && (a === "h5" || a === "h5p" || (!a && Store.state.settings.level === 5))) || (v === "pack" && a === "h5") || (v === "grammar" && /^h5/.test(a)) || (v === "game" && (b === "h5" || /^p-h5-/.test(b))) || (v === "cards" && /^p-h5-/.test(a));
     var hard4 = (v === "learn" && a === "extra") || (v === "pack" && a === "x4") || v === "families" || (v === "game" && /^p-x4-/.test(b)) || (v === "cards" && /^p-x4-/.test(a));
     /* screens that list or review words wait once for the packs this learner uses, so those words are there too */
@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Practice", game: "Practice", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", sprint: "Exam words", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Practice", game: "Practice", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", sprint: "Exam words", newq: "New questions", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -461,6 +461,7 @@
     else if (v === "mistakes") viewMistakes(parts[1]);
     else if (v === "parts") viewParts(parts[1]);
     else if (v === "sprint") viewSprint();
+    else if (v === "newq") viewNewQ(parts[1]);
     else if (v === "plan") viewPlan();
     else if (v === "exam") viewExamPlan();
     else if (v === "ready") viewReady();
@@ -2250,25 +2251,14 @@
       '<p class="sub">The newer week has ' + sofar + (sofar === 1 ? " day" : " days") + " so far (up to the last backup), so totals can still grow." + (wk ? "" : " Study days, minutes, accuracy and words added need the newer app on this phone.") + "</p></section>";
     return html;
   }
-  /* A ready-to-send nudge in Vietnamese, from the learner's own numbers. Sent from the teacher's phone (share sheet → Zalo, Messenger…). */
-  function lrnMsgText(r) {
-    var sm = r.summary || {}, pg = sm.progress || {}, idle = lrnIdle(r), name = (r.meta || {}).label || "bạn", weak = (sm.trend || [])[0], out = [];
-    var ex = DAYRE.test(pg.exam || "") ? Store.daysBetween(Store.today(), pg.exam) : null, away = idle != null && idle >= 2;
-    out.push("Chào " + name + "! 👋");
-    out.push(away ? "Đã " + idle + " ngày bạn chưa vào học rồi đó." : "Bạn đang giữ nhịp học tốt lắm!");
-    if (ex != null && ex >= 0) out.push("Còn " + ex + " ngày nữa là thi HSK.");
-    out.push(away ? "Hôm nay chỉ cần 5 phút: mở app C&B Chinese, bấm “5-minute restart” ở trang Home." : "Hôm nay nhớ làm Today's session nhé (khoảng 15 phút).");
-    if (weak && num(weak.acc) < 70) out.push("Kỹ năng nên luyện thêm: " + lrnSkill(weak.skill) + " (" + num(weak.acc) + "%).");
-    out.push("加油！💪", location.origin + location.pathname);
-    return out.join("\n");
-  }
-  function lrnMessage(r) {
-    var text = lrnMsgText(r);
-    function copy() {
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { UI.toast("Message copied · paste it in Zalo or Messenger", "📋"); }, function () { window.prompt("Copy this message", text); });
-      else window.prompt("Copy this message", text);
-    }
-    if (navigator.share) navigator.share({ text: text }).catch(function (e) { if (!e || e.name !== "AbortError") copy(); }); else copy();
+  /* What the AI gets to draft a chat message: this learner's numbers and the last few messages (no answers, no notes). */
+  function draftPayload(r) {
+    var sm = r.summary || {}, pg = sm.progress || {}, ex = DAYRE.test(pg.exam || "") ? Store.daysBetween(Store.today(), pg.exam) : null, weak = (sm.trend || [])[0], ms = pg.mocks || [];
+    var d28 = /^[01]{28}$/.test(sm.days28 || "") ? sm.days28.slice(-7).split("").filter(function (c) { return c === "1"; }).length : null;
+    return { name: lrnName(r), daysLeft: ex, idle: lrnIdle(r), streak: sm.streak ? num(sm.streak.n) : num((r.meta || {}).streak), active7: d28, ready: pg.ready ? num(pg.ready.total) : null,
+      weak: weak ? weak.skill : "", weakAcc: weak ? num(weak.acc) : null, lastMock: ms.length ? num(ms[ms.length - 1].t) : null, due: pg.due != null ? num(pg.due) : null,
+      last: ACHAT.msgs.slice(-6).map(function (m) { return { from: m.sender === "learner" ? "learner" : "team", text: m.body || "", ago: Math.max(0, Math.round((Date.now() - new Date(m.created_at).getTime()) / 864e5)) }; }),
+      actions: CHAT_ACTS.map(function (a) { return { href: a[0], label: a[1] }; }) };
   }
   var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"], ["week", "Week"], ["chat", "Chat"]];
   /* one-tap buttons the teacher can attach to a message; each opens that screen on the learner's phone */
@@ -2298,7 +2288,7 @@
       '<div id="ac-log" class="chat-log" role="log" aria-live="polite"><p class="sub">Loading…</p></div>' +
       '<label class="sr" for="ac-act">Button to attach</label><select id="ac-act" class="ac-act"><option value="">No button</option>' + CHAT_ACTS.map(function (a) { return '<option value="' + esc(a[0]) + '">🔘 ' + esc(a[1]) + "</option>"; }).join("") + "</select>" + whenHTML("ac-when") +
       '<div class="chat-form"><label class="sr" for="ac-in">Message</label><textarea id="ac-in" rows="2" maxlength="1000" placeholder="Write to ' + esc(lrnName(cur)) + '…"></textarea><button type="button" class="btn primary" id="ac-send">Send</button></div>' +
-      '<p class="sub">She sees it in the app (Home and Me → Chat), live while the app is open. <button type="button" class="linklike" id="ac-share">Send by Zalo / share instead</button></p></section>';
+      '<p class="sub">She sees it in the app (Home and Me → Chat), live while the app is open. </p><button type="button" class="btn small ai-btn" id="ac-draft">✨ Draft with AI</button> <small class="muted">Type a few words first to steer it (e.g. "ask about mock 5").</small></section>';
     function draw(r) {
       if (location.hash !== myHash) return;
       var log = document.getElementById("ac-log"); if (!log) return;
@@ -2314,7 +2304,17 @@
     function poll() { if (location.hash !== myHash || document.hidden) return; Content.admin("admin_chat_get", { id: cur.id, since: 0, read: true }).then(draw); }
     poll(); clearInterval(ACHAT.timer);
     ACHAT.timer = setInterval(function () { if (location.hash !== myHash) { clearInterval(ACHAT.timer); return; } poll(); }, 10000);
-    document.getElementById("ac-share").onclick = function () { lrnMessage(cur); };
+    document.getElementById("ac-draft").onclick = function () {
+      var b = this, inp = document.getElementById("ac-in"), pl = draftPayload(cur); pl.note = inp.value.trim().slice(0, 200);
+      b.disabled = true; b.textContent = "✨ Writing…";
+      Content.admin("draft", pl).then(function (r) {
+        b.disabled = false; b.textContent = "✨ Draft with AI";
+        if (!r.ok) { UI.toast(AI.errMsg(r.error), "⚠️"); return; }
+        inp.value = r.result.text; inp.rows = 5; inp.focus();
+        if (r.result.action) document.getElementById("ac-act").value = r.result.action;
+        UI.toast("Draft ready · edit it, then Send", "✨");
+      });
+    };
     wireWhen("ac-when");
     if (ACHAT.prefill) { // a suggested message from an alert
       document.getElementById("ac-in").value = ACHAT.prefill.text; document.getElementById("ac-in").rows = 5;
@@ -2355,8 +2355,9 @@
       var rows = res.result.rows || [], cur = null;
       if (!rows.length) { host.innerHTML = '<p class="empty">No phone has saved a backup yet.</p>'; return; }
       if (key === "all") { lrnAll(rows, host); return; }
+      if (key === "bank" || key === "hard") { host.innerHTML = adminSeg(rows, null, key) + '<div id="ad-body"><p class="sub">Loading…</p></div>'; if (key === "bank") adminBank(sec); else adminHard(); return; }
       rows.forEach(function (r) { if (key && lrnKey(r) === key) cur = r; });
-      var seg = '<nav class="seg" aria-label="Learner tracking views"><a href="#/learners"' + (cur ? "" : ' class="active" aria-current="page"') + '>Overview</a><a href="#/learners/' + lrnKey(cur || rows[0]) + '/progress"' + (cur ? ' class="active" aria-current="page"' : "") + ">Learner</a></nav>";
+      var seg = adminSeg(rows, cur, "");
       if (!cur) {
         host.innerHTML = seg + lrnOverview(rows);
         if (res.result.live) chatLive(res.result.live, function () { if (location.hash === "#/learners") viewLearners(); }); // a learner wrote: refresh the overview
@@ -2384,6 +2385,70 @@
         var v = window.prompt("Name for this learner (only you see it)", (cur.meta || {}).label || ""); if (v == null) return;
         Content.admin("learner_label", { id: cur.id, label: v.trim().slice(0, 30) }).then(function (x) { if (x.ok) viewLearners(key, sec); else UI.toast(AI.errMsg(x.error), "⚠️"); });
       };
+    });
+  }
+  function adminSeg(rows, cur, on) {
+    var a = function (href, label, act) { return '<a href="' + href + '"' + (act ? ' class="active" aria-current="page"' : "") + ">" + label + "</a>"; };
+    return '<nav class="seg seg4" aria-label="Learner tracking views">' + a("#/learners", "Overview", !cur && !on) + a("#/learners/" + lrnKey(cur || rows[0]) + "/progress", "Learner", !!cur) +
+      a("#/learners/bank", "Questions", on === "bank") + a("#/learners/hard", "Hardest", on === "hard") + "</nav>";
+  }
+  /* Question bank: AI questions wait here until approved; approved ones go to every learner (and get recorded audio in the next deploy) */
+  function bankItemHTML(r) {
+    var d = r.data || {}, mcHTML = function (opts, ans) { return '<ol class="bk-opts">' + (opts || []).map(function (o, i) { return "<li" + (i === ans ? ' class="ok"' : "") + '><span class="zh">' + esc(o) + "</span>" + (i === ans ? " ✓" : "") + "</li>"; }).join("") + "</ol>"; };
+    var say = function (t, v) { return SAYX(t, v); }, body = "";
+    if (r.kind === "listen" && r.part === "L1") body = '<p class="zh">' + say(d.text, "F") + " " + esc(d.text) + '</p><p>★ <span class="zh">' + esc(d.statement) + "</span> → <b>" + (d.answer ? "True" : "False") + "</b></p>";
+    else if (r.kind === "listen") body = '<div class="bk-dlg">' + (d.dialogue || []).map(function (l) { return '<p class="zh">' + say(l.zh, l.sp === "男" ? "M" : "F") + " <b>" + esc(l.sp) + "：</b>" + esc(l.zh) + "</p>"; }).join("") + '</div><p class="zh"><b>' + esc(d.question) + "</b></p>" + mcHTML(d.options, d.answer);
+    else if (r.kind === "passage") body = '<p class="zh passage">' + esc(d.passage) + "</p>" + (d.questions || []).map(function (q) { return '<p class="zh"><b>' + esc(q.q) + "</b></p>" + mcHTML(q.options, q.answer); }).join("");
+    else if (r.kind === "fill") body = '<p class="zh">' + esc(d.sentence) + "</p>" + mcHTML(d.options, d.answer) + (d.src ? '<p class="sub">Made from: <span class="zh">' + esc(d.src) + "</span></p>" : "");
+    else body = '<p class="zh">' + esc((d.tokens || []).join(" / ")) + '</p><p>→ <b class="zh">' + esc(d.answer) + "</b></p>" + (d.src ? '<p class="sub">Made from: <span class="zh">' + esc(d.src) + "</span></p>" : "");
+    var expl = d.explain ? '<p class="sub">' + esc(d.explain) + "</p>" : (d.questions || []).map(function (q) { return q.explain ? '<p class="sub">' + esc(q.explain) + "</p>" : ""; }).join("");
+    var what = r.kind === "listen" ? PART_NAME[r.part] : r.kind === "passage" ? "Reading part 3" : r.kind === "fill" ? "Fill the gap" : "Word order";
+    return '<section class="card bk-item" data-bk="' + r.id + '"><div class="sec-h"><b>' + esc(what) + '</b><span class="muted">#' + r.id + " · " + esc(agoText(r.created_at)) + "</span></div>" + body + expl +
+      '<div class="actions">' + (r.status !== "approved" ? '<button class="btn small primary" data-bkd="approve">✓ Approve</button>' : "") + (r.status !== "rejected" ? '<button class="btn small bad" data-bkd="reject">✗ Reject</button>' : "") +
+      (r.status !== "pending" ? '<button class="btn small" data-bkd="reset">Back to waiting</button>' : "") + "</div></section>";
+  }
+  function adminBank(st) {
+    st = ["pending", "approved", "rejected"].indexOf(st) >= 0 ? st : "pending";
+    Content.admin("bank_list", { status: st }).then(function (res) {
+      var host = document.getElementById("ad-body"); if (!host) return;
+      if (!res.ok) { host.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error === "db_error" ? "bank_missing" : res.error)) + "</div>"; return; }
+      var c = res.result.counts || {}, rows = res.result.rows || [], names = { pending: "Waiting", approved: "Approved", rejected: "Rejected" };
+      host.innerHTML = '<section class="card"><h2>🧪 Question bank</h2><p class="sub">New questions the AI wrote for learners. Approve the good ones: every learner gets them before the AI is asked again, they are marked "checked by the C&amp;B team", and the next deploy records audio for the listening ones. Check that exactly one answer is right.</p>' +
+        '<div class="fx-tabs">' + ["pending", "approved", "rejected"].map(function (k) { return '<a class="btn small' + (k === st ? " primary" : "") + '" href="#/learners/bank/' + k + '">' + names[k] + " (" + num(c[k]) + ")</a>"; }).join("") + "</div>" +
+        (st === "pending" && rows.length > 1 ? '<div class="actions"><button class="btn small" id="bk-all">✓ Approve all ' + rows.length + " shown</button></div>" : "") + "</section>" +
+        (rows.length ? rows.map(bankItemHTML).join("") : '<p class="empty">Nothing here.</p>');
+      function decide(ids, act, els) {
+        els.forEach(function (el) { [].forEach.call(el.querySelectorAll("button"), function (b) { b.disabled = true; }); });
+        Content.admin("bank_decide", { ids: ids, decision: act }).then(function (r) {
+          if (!r.ok) { UI.toast(AI.errMsg(r.error), "⚠️"); els.forEach(function (el) { [].forEach.call(el.querySelectorAll("button"), function (b) { b.disabled = false; }); }); return; }
+          UI.toast(act === "approve" ? "Approved · learners get it now" : act === "reject" ? "Rejected" : "Back to waiting", "🧪"); adminBank(st); bankRefresh(true);
+        });
+      }
+      host.onclick = function (ev) {
+        var b = ev.target.closest("[data-bkd]"); if (b) { var el = b.closest("[data-bk]"); decide([+el.getAttribute("data-bk")], b.getAttribute("data-bkd"), [el]); return; }
+        if (ev.target.closest("#bk-all") && confirm("Approve all " + rows.length + " questions on this page?")) decide(rows.map(function (r) { return r.id; }), "approve", [].slice.call(host.querySelectorAll("[data-bk]")));
+      };
+    });
+  }
+  /* the question behind a stats key, as text the admin can read */
+  function qLabel(k) {
+    var m = /^m:(\d+):(.+)$/.exec(k), x, e = (Store.state.mistakes || {})[k];
+    if (m) { x = findMockItem(+m[1], m[2]); return x ? { where: "Mock " + m[1] + " · " + (PART_NAME[partKey(x.it)] || skillName(x.skill)), q: promptOf(x) } : { where: "Mock " + m[1], q: m[2] }; }
+    if (/^bk:/.test(k)) { var id = +k.split(":")[1], r = bankAll().filter(function (b) { return b.id === id; })[0]; return { where: "Question bank #" + id, q: r ? (r.data.question || r.data.statement || r.data.sentence || (r.data.passage || "").slice(0, 40) + "…") : "" }; }
+    if (/^w:/.test(k)) { var w = WORDMAP[k.slice(2)]; return { where: "Word", q: w ? w.hanzi + " · " + (w.en || w.vi || "") : k.slice(2) }; }
+    var t = e ? mistakeText(e) : null;
+    return { where: k.split(":")[0] === "dr" ? "Drill" : k.split(":")[0] === "q" ? "Lesson quiz" : k.split(":")[0] === "g" ? "Grammar" : "Practice", q: t ? t.q : k };
+  }
+  function adminHard() {
+    Content.admin("q_stats", {}).then(function (res) {
+      var host = document.getElementById("ad-body"); if (!host) return;
+      if (!res.ok) { host.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + "</div>"; return; }
+      var rows = res.result.rows || [];
+      host.innerHTML = '<section class="card"><h2>📉 Hardest questions</h2><p class="sub">Questions learners miss most, from ' + plural(num(res.result.learners), "learner") + " (phones on the new app version). A question almost everyone misses may have a wrong key or a confusing wording: open it and report it, or teach that point in a chat message.</p></section>" +
+        (rows.length ? '<section class="card"><div class="hard-list">' + rows.slice(0, 40).map(function (r) {
+          var n = r.r + r.w, pc = Math.round(r.w / n * 100), L = qLabel(r.k);
+          return '<div class="hard-row"><span class="hard-pc ' + (pc >= 60 ? "bad-t" : "") + '">' + pc + '%</span><span class="hard-t"><b class="zh">' + esc(String(L.q || "").slice(0, 90)) + "</b><small>" + esc(L.where) + " · " + r.w + " wrong of " + n + (r.l > 1 ? " · " + r.l + " learners" : "") + "</small></span></div>";
+        }).join("") + "</div></section>" : '<p class="empty">Not enough answers yet. Numbers appear after learners open the new app version and practise.</p>');
     });
   }
   function fixCard(r) {
@@ -2600,7 +2665,7 @@
       var n = Math.min(p.n, partItems(p.k).length);
       html += '<a class="grow" href="#/parts/' + p.k + '"><span class="g-txt"><b>' + esc(p.name) + " · " + esc(p.what) + "</b><small>" + n + " questions · " + fmtTime(n * p.sec) + " min" + (acc[p.skill] != null ? " · you: " + acc[p.skill] + "%" : "") + '</small></span><span class="tr-go">›</span></a>';
     });
-    html += "</div></section>" + '<section class="card"><h3>More practice, untimed</h3><div class="glist">' +
+    html += "</div></section>" + newQSection() + '<section class="card"><h3>More practice, untimed</h3><div class="glist">' +
       '<a class="grow" href="#/game/bank"><span class="g-txt"><b>🗃️ Word Bank</b><small>Six words, five gaps · Reading part 1</small></span><span class="tr-go">›</span></a>' +
       '<a class="grow" href="#/game/wordorder"><span class="g-txt"><b>🧱 Arrange the Words</b><small>Writing part 1</small></span><span class="tr-go">›</span></a>' +
       '<a class="grow" href="#/game/picture"><span class="g-txt"><b>🖼️ Picture Writing</b><small>Writing part 2 · AI scores your sentence</small></span><span class="tr-go">›</span></a></div></section>';
@@ -2615,8 +2680,145 @@
     return mock + '<div class="glist">' +
       '<a class="grow" href="#/parts"><span class="g-ico">⏱</span><span class="g-txt"><b>Exam parts, timed</b><small>10 questions at the real pace' + (w ? " · weakest: " + esc(w.name) + " (" + w.acc + "%)" : "") + '</small></span><span class="g-go">▶</span></a>' +
       (function () { var c = examCoverage(); return c && c.all ? '<a class="grow" href="#/sprint"><span class="g-ico">🔤</span><span class="g-txt"><b>Exam words</b><small>' + c.have + " of the " + c.all + ' words the tests use most are in your review · 10 more</small></span><span class="g-go">▶</span></a>' : ""; })() +
+      (function () { var lk = weakListenPart(); bankRefresh(); return newQAvail(lk) ? '<a class="grow" href="#/newq/' + lk + '"><span class="g-ico">🎧</span><span class="g-txt"><b>New listening questions</b><small>3 never-seen questions for ' + esc(PART_NAME[lk]) + ', with your weak words</small></span><span class="g-go">▶</span></a>' : ""; })() +
       '<a class="grow" href="#/mistakes"><span class="g-ico">📒</span><span class="g-txt"><b>Mistake notebook</b><small>' + (mis ? mis + " to fix" + (rep ? " · " + rep + " keep coming back" : "") : "Nothing to fix right now") + '</small></span><span class="g-go">▶</span></a></div>';
   }
+
+  /* ---------- shared question bank ----------
+     Good AI practice questions wait on the server until the admin approves them. Approved ones ("checked by the C&B team")
+     are served before the AI is asked again, and the deploy build copies them into data/bank.js so they get recorded audio.
+     The list from the server is cached on the phone; the built-in copy covers a phone that has never fetched it. */
+  var BANK_KEY = "cbChinese.bank1", bankBusy = null;
+  function aiOn() { return !!(window.AI && AI.configured()); }
+  function bankCache() { try { var c = JSON.parse(localStorage.getItem(BANK_KEY) || "null"); return c && Array.isArray(c.rows) ? c : null; } catch (e) { return null; } }
+  function bankAll() {
+    var c = bankCache(), src = c ? c.rows : window.CB_BANK && Array.isArray(CB_BANK.rows) ? CB_BANK.rows : [], seen = {}, out = [];
+    src.forEach(function (r) { if (r && r.id > 0 && r.data && typeof r.data === "object" && !seen[r.id]) { seen[r.id] = 1; out.push(r); } });
+    return out;
+  }
+  function bankRefresh(force) {
+    var c = bankCache();
+    if (bankBusy || !aiOn() || navigator.onLine === false || (!force && c && Date.now() - c.at < 6 * 36e5)) return bankBusy || Promise.resolve(false);
+    bankBusy = AI.call("bank_get", {}).then(function (r) {
+      bankBusy = null; if (!r.ok || !Array.isArray(r.result.rows)) return false;
+      try { localStorage.setItem(BANK_KEY, JSON.stringify({ at: Date.now(), rows: r.result.rows })); } catch (e) { /* storage full: keep the old copy */ }
+      return true;
+    });
+    return bankBusy;
+  }
+  function bankUnseen(fn) { var seen = {}; (Store.state.bankSeen || []).forEach(function (id) { seen[id] = 1; }); return bankAll().filter(function (r) { return fn(r) && !seen[r.id]; }); }
+  function bankMark(rows) { var a = Store.state.bankSeen || (Store.state.bankSeen = []); rows.forEach(function (r) { if (a.indexOf(r.id) < 0) a.push(r.id); }); if (a.length > 2000) a.splice(0, a.length - 2000); Store.save(); }
+  /* one bank row or AI item → the same shape as a mock item, so it is shown exactly like the real exam part */
+  function lxOf(part, d, id) {
+    if (part === "L1") return { kind: "tf", skill: "listen-tf", it: { id: "L1-" + id, audio: { text: d.text, voice: "F" }, statement: d.statement, answer: d.answer === true || d.answer === "true", explain: d.explain || "" } };
+    return { kind: "dlg", skill: part === "L2" ? "listen-short" : "listen-long", it: { id: part + "-" + id, dialogue: (d.dialogue || []).map(function (l) { return { text: l.zh, voice: l.sp === "男" ? "M" : "F" }; }),
+      question: d.question, options: d.options, answer: d.answer, explain: d.explain || "" } };
+  }
+  function pxOf(d, id) { return (d.questions || []).map(function (q, i) { return { kind: "pass", skill: "passage", passage: d.passage, it: { id: "R3-" + id + "-" + i, q: q.q, options: q.options, answer: q.answer, explain: q.explain || "" } }; }); }
+  var AI_NOTE = '<p class="sub ai-made">🧪 Written by AI for practice · not teacher-checked</p>', OK_NOTE = '<p class="sub ai-ok">✓ Checked by the C&amp;B team</p>';
+  function bankEntries(r) {
+    if (r.kind === "listen") { var x = lxOf(r.part, r.data, "bk" + r.id); return [{ kind: "aix", x: x, key: "bk:" + r.id, skill: x.skill, statsOnly: true, checked: true }]; }
+    if (r.kind === "passage") return pxOf(r.data, "bk" + r.id).map(function (x, i) { return { kind: "aix", x: x, key: "bk:" + r.id + ":" + i, skill: "passage", statsOnly: true, checked: true }; });
+    return [{ kind: "aiq", qk: r.kind, q: r.data, key: "bk:" + r.id, skill: r.kind === "order" ? "word-order" : "fill-word", statsOnly: true, checked: true }];
+  }
+  /* the words she keeps missing (lapses in review, more wrong than right), topped up with exam words she hasn't started */
+  function weakWordList(n) {
+    var S0 = Store.state.srs, out = Object.keys(S0).filter(function (id) { var c = S0[id]; return WORDMAP[id] && !/^h5-/.test(id) && ((c.lapses || 0) > 0 || c.wrong > c.right); })
+      .sort(function (a, b) { return (S0[b].lapses || 0) - (S0[a].lapses || 0) || S0[b].wrong - S0[a].wrong; }).slice(0, n).map(function (id) { return WORDMAP[id].hanzi; });
+    if (out.length < n) examFresh(n - out.length).forEach(function (w) { if (out.indexOf(w.hanzi) < 0) out.push(w.hanzi); });
+    return out;
+  }
+  var NEW_PARTS = { L1: "Listening part 1 · true or false", L2: "Listening part 2 · short dialogues", L3: "Listening part 3 · longer dialogues", R3: "Reading part 3 · a passage from your weak words" };
+  function weakListenPart() { var w = weakParts().filter(function (p) { return /^L/.test(p.k); })[0]; return w ? w.k : "L2"; }
+  function newQAvail(k) { return aiOn() || bankUnseen(function (r) { return k === "R3" ? r.kind === "passage" : r.kind === "listen" && r.part === k; }).length > 0; }
+  /* #/newq/L1|L2|L3|R3: new questions in the exam format: team-checked ones from the bank first, otherwise the AI writes them */
+  function viewNewQ(k) {
+    if (!NEW_PARTS[k]) { location.replace("#/newq/" + weakListenPart()); return; }
+    var read = k === "R3", need = read ? 1 : 2, myHash = location.hash; // 2+ checked listening questions are enough for a round, so no AI call
+    var bank = bankUnseen(function (r) { return read ? r.kind === "passage" : r.kind === "listen" && r.part === k; }).slice(0, read ? 1 : 3);
+    var head = '<div class="ghead"><a class="pill" href="#/parts">✕</a><b>' + (read ? "📖 " : "🎧 ") + esc(NEW_PARTS[k]) + "</b></div>";
+    function go(entries, words) {
+      if (location.hash !== myHash) return;
+      if (words && words.length && entries[0]) entries[0].note = '<p class="sub">Built from words you keep missing: <span class="zh">' + esc(words.join("、")) + "</span></p>";
+      runMistakeDrill("all", { items: entries, title: read ? "New reading passage" : "New listening · " + PART_NAME[k], icon: read ? "📖" : "🎧", exit: "#/parts", again: "#/newq/" + k, againFn: function () { viewNewQ(k); } });
+    }
+    function fromBank() { bankMark(bank); return [].concat.apply([], bank.map(bankEntries)); }
+    if (bank.length >= need) { go(fromBank()); return; }
+    if (!aiOn()) {
+      if (bank.length) { go(fromBank()); return; }
+      render(head + '<section class="card"><p class="sub">New questions need the AI assistant (Me → More settings → AI assistant). Your exam parts still work without it.</p><a class="btn primary" href="#/parts">Exam parts</a></section>', "games"); return;
+    }
+    var words = weakWordList(8);
+    render(head + '<section class="card"><div class="ai-card ai-wait">✨ Writing new ' + (read ? "reading" : "listening") + " questions for you…</div></section>", "games");
+    AI.call(read ? "passage" : "listen", read ? { words: words } : { part: k, words: words }).then(function (res) {
+      if (location.hash !== myHash) return;
+      if (!res.ok) {
+        if (bank.length) { go(fromBank()); return; }
+        render(head + '<section class="card"><div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + '</div><div class="actions"><button class="btn primary" id="nq-again">Try again</button><a class="btn" href="#/parts">Back</a></div></section>', "games");
+        document.getElementById("nq-again").onclick = function () { viewNewQ(k); }; return;
+      }
+      var stamp = Date.now().toString(36), entries = read ? pxOf(res.result, "ai" + stamp).map(function (x, i) { return { kind: "aix", x: x, key: "ai:" + stamp + ":" + i, skill: "passage", statsOnly: true }; })
+        : res.result.items.map(function (d, i) { var x = lxOf(k, d, "ai" + stamp + i); return { kind: "aix", x: x, key: "ai:" + stamp + ":" + i, skill: x.skill, statsOnly: true }; });
+      go(bank.length ? fromBank().concat(entries).slice(0, read ? 9 : 3) : entries, read ? res.result.used_words : null);
+    });
+  }
+  function newQSection() {
+    var rows = ["L1", "L2", "L3", "R3"].filter(newQAvail);
+    if (!rows.length) return "";
+    return '<section class="card"><h3>✨ New questions, never seen before</h3><p class="sub">In the real exam format and built around your weak words. Questions checked by the C&amp;B team come first; otherwise the AI writes them.</p><div class="glist">' +
+      rows.map(function (k) { return '<a class="grow" href="#/newq/' + k + '"><span class="g-txt"><b>' + esc(NEW_PARTS[k]) + "</b><small>" + (k === "R3" ? "1 passage · 2–3 questions" : "3 questions") + '</small></span><span class="tr-go">›</span></a>'; }).join("") + "</div></section>";
+  }
+
+  /* ---------- mistake patterns (AI) ----------
+     Sends the open mistakes as text (question + the right answer; the app does not keep what was chosen) and gets back
+     groups that share one cause, each with the rule, a tip and a button to practise exactly those items. */
+  var PAT = null;
+  function mistakeText(e) {
+    var x, it, w, q, qq;
+    try {
+      if (e.kind === "mock") { x = findMockItem(e.mock, e.item); if (!x) return null; it = x.it;
+        q = (x.kind === "pass" ? x.passage.slice(0, 60) + "… " : x.kind === "tf" ? "(heard: " + it.audio.text + ") " : x.kind === "dlg" ? "(dialogue: " + it.dialogue.map(function (l) { return l.text; }).join(" / ") + ") " : "") + promptOf(x);
+        return { q: q, correct: x.kind === "tf" ? (it.answer ? "true" : "false") : x.kind === "order" ? it.answer : x.kind === "write" ? it.sample : it.parts ? ORDERS[it.answer] : it.options ? String(it.options[it.answer]) : "" }; }
+      if (e.kind === "quiz") { qq = DAYMAP[e.day] && DAYMAP[e.day].quiz && DAYMAP[e.day].quiz[e.idx]; return qq ? { q: qq.q, correct: String(qq.options[qq.answer] && (qq.options[qq.answer].zh || qq.options[qq.answer])) } : null; }
+      if (e.kind === "gram") { qq = GRAMMAP()[e.g] && GRAMMAP()[e.g].quiz[e.i]; return qq ? { q: qq.q, correct: String(qq.options[qq.answer]) } : null; }
+      if (e.kind === "order") return { q: e.parts.join(" / "), correct: e.core + (e.end || "") };
+      if (e.kind === "word") { w = WORDMAP[e.id]; return w ? { q: "word " + w.hanzi + " (" + (e.skill === "pinyin" ? "pinyin" : "meaning") + ")", correct: w.pinyin + " = " + (w.en || w.vi || "") } : null; }
+      if (e.kind === "drill") { it = Games._drillItem(e.d, e.id); if (!it) return null;
+        return { q: it.q || (it.parts ? ["A", "B", "C"].map(function (k) { return k + ". " + it.parts[k]; }).join(" ") : it.word || ""), correct: it.options ? String(it.options[it.answer]) : String(it.answer || (it.samples && it.samples[0] && it.samples[0].zh) || "") }; }
+    } catch (err) { return null; }
+    return null;
+  }
+  function patternBox() {
+    if (!aiOn() || Learn.count() < 3) return "";
+    return '<section class="card" id="pat-box"><h2>🔍 Mistake patterns</h2><p class="sub">AI looks at your open mistakes and groups the ones that have the same cause, so you fix the rule once instead of each question.</p>' +
+      '<div id="pat-out">' + (PAT ? patHTML() : '<button class="btn primary" id="pat-go">Find my patterns</button>') + "</div></section>";
+  }
+  function patHTML() {
+    return PAT.groups.map(function (g, i) {
+      return '<div class="pat-g"><h3 class="zh-mix">' + esc(g.title) + " <small>· " + plural(g.items.length, "mistake") + "</small></h3>" + (g.explain ? "<p>" + esc(g.explain) + "</p>" : "") + (g.tip ? '<p class="sub">💡 ' + esc(g.tip) + "</p>" : "") +
+        '<button class="btn small primary" data-pg="' + i + '">Practise these ' + g.items.length + " ▶</button></div>";
+    }).join("") + '<p class="sub ai-made">🧪 Grouped by AI · check the rule if it looks odd</p><button class="btn small" id="pat-go">↻ Look again</button>';
+  }
+  function wirePatterns() {
+    var box = document.getElementById("pat-box"); if (!box) return;
+    box.onclick = function (ev) {
+      var pg = ev.target.closest("[data-pg]"), go = ev.target.closest("#pat-go");
+      if (pg && PAT) { var g = PAT.groups[+pg.getAttribute("data-pg")], items = g.items.map(function (i) { return PAT.entries[i]; }).filter(function (e) { return e && Store.state.mistakes[e.key]; });
+        if (!items.length) { UI.toast("Those are already fixed 🎉", "✅"); return; }
+        runMistakeDrill("all", { items: items, title: g.title, icon: "🔍", exit: "#/mistakes", again: "#/mistakes", againFn: function () { viewMistakes(); } }); return; }
+      if (!go) return;
+      var list = Learn.list().sort(function (a, b) { return (b.wrong || 0) - (a.wrong || 0) || String(b.last || "").localeCompare(String(a.last || "")); }), entries = [], ms = [];
+      list.forEach(function (e) { if (ms.length >= 25) return; var t = mistakeText(e); if (t && t.q && t.correct) { entries.push(e); ms.push({ skill: tipSkillName(e.skill), q: t.q.slice(0, 160), correct: t.correct.slice(0, 80) }); } });
+      if (ms.length < 3) { UI.toast("Answer a few more questions first", "📒"); return; }
+      var out = document.getElementById("pat-out"); out.innerHTML = '<div class="ai-card ai-wait">🔍 Looking for patterns in ' + ms.length + " mistakes…</div>";
+      AI.call("patterns", { mistakes: ms }).then(function (r) {
+        var o = document.getElementById("pat-out"); if (!o) return;
+        if (!r.ok) { o.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(r.error)) + '</div><button class="btn small" id="pat-go">Try again</button>'; return; }
+        PAT = { groups: r.result.groups, entries: entries }; o.innerHTML = patHTML();
+      });
+    };
+  }
+
   function viewMockList() {
     var s = Store.state;
     var html = '<section class="card"><h2>Mock HSK 4 Exams</h2><p class="sub">Original questions in the real exam format. The shorter tests are about 40% of the real length (~30 minutes); a <b>full-length</b> test has all 100 questions and the real timing (~100 minutes) to train your stamina. Scored /300 like the real test — 180+ is a pass.</p></section>' +
@@ -3162,7 +3364,9 @@
     };
     [].forEach.call(document.querySelectorAll("[data-sim]"), function (b) {
       b.onclick = function () {
-        var r = list[+b.getAttribute("data-sim")], x = r.x;
+        var r = list[+b.getAttribute("data-sim")], x = r.x, src = String(simPayload(x).sentence || "").trim().slice(0, 120);
+        var ok3 = bankUnseen(function (bq) { return (bq.kind === "fill" || bq.kind === "order") && bq.data.src === src; }).slice(0, 3);
+        if (ok3.length >= 2) { bankMark(ok3); runMistakeDrill("all", { items: [].concat.apply([], ok3.map(bankEntries)), title: "New questions like this", icon: "🧪", exit: "#/mock/" + id + "/review" }); return; }
         b.disabled = true; b.textContent = "🧪 Writing 3 new questions…";
         AI.call("similar", simPayload(x)).then(function (res) {
           b.disabled = false; b.textContent = "🧪 3 new questions like this";
@@ -3252,11 +3456,13 @@
         return '<div class="sk-row"><span class="sk-n">' + skillName(k) + '</span><a class="btn small primary" href="#/mistakes/' + k + '">' + bySkill[k] + " ▶</a></div>";
       }).join("") + "</section>";
     }
+    html += patternBox();
     html += '<section class="card"><h2>Weak-area report</h2>' + (rep.length ? '<p class="sub">Accuracy across all your answers, weakest first.</p>' + rep.map(function (x) {
       return '<div class="sk-block"><div class="sk-row"><span class="sk-n">' + skillName(x.skill) + "</span>" + accBar(x.acc) + "</div>" +
         (x.acc < 0.8 ? '<p class="sub">' + esc(x.info.tip) + "</p>" + practiceLink(x.skill) : "") + "</div>";
     }).join("") : '<p class="sub">Answer a few quizzes, games or a mock exam to see your report.</p>') + "</section>";
     render(html, "review");
+    wirePatterns();
   }
 
   function findMockItem(mockId, itemId) {
@@ -3267,8 +3473,13 @@
 
   /* Render one notebook item as a question. Returns { html, wire(done) } or null if its source is gone. */
   function mistakeQ(e) {
-    if (e.kind === "aiq") { // a question the AI wrote just now (not teacher-checked, not kept in the notebook)
-      var q = e.q, note = '<p class="sub ai-made">🧪 Written by AI for practice · not teacher-checked</p>';
+    if (e.kind === "aix") { // a new exam-format question: from the shared bank (checked) or written by the AI just now
+      var ax = mockDrillQ(e.x, e);
+      ax.html = ax.html.replace('<div class="card qcard" id="qcard">', '<div class="card qcard" id="qcard">' + (e.checked ? OK_NOTE : AI_NOTE) + (e.note || ""));
+      return ax;
+    }
+    if (e.kind === "aiq") { // a question the AI wrote just now, or one from the shared bank (checked); not kept in the notebook
+      var q = e.q, note = e.checked ? OK_NOTE : AI_NOTE;
       if (e.qk === "order") {
         var oq = orderQ(q.tokens, shuffle(q.tokens.map(function (_, k) { return k; })), q.answer, "", e, q.explain ? '<p class="sub">' + esc(q.explain) + "</p>" : "");
         oq.html = oq.html.replace('<p class="sub">Tap the pieces in the right order</p>', note + '<p class="sub">Tap the pieces in the right order</p>');
@@ -3366,7 +3577,7 @@
       } };
   }
   function mockDrillQ(x, e) {
-    var it = x.it, head = '<p class="sub">Mock test ' + e.mock + " · " + skillName(x.skill) + "</p>";
+    var it = x.it, head = '<p class="sub">' + (e.kind === "aix" ? "" : "Mock test " + e.mock + " · ") + skillName(x.skill) + "</p>";
     if (x.kind === "order") {
       return orderQ(it.tokens, shuffle(it.tokens.map(function (_, k) { return k; })), it.answer, "", e, "", it.alt);
     }
@@ -3407,7 +3618,7 @@
         opts.map(function (o) { return '<button class="opt" data-k="' + o[0] + '"><span class="zh">' + esc(o[1]) + "</span></button>"; }).join("") + '</div><div id="qfb"></div></div>',
       wire: function (done) {
         var dp = document.getElementById("dlg-play"); if (dp) dp.onclick = function () { Audio2.playAll(it.dialogue); };
-        wireMC(answer, function (ok) { Learn.record(e.key, e, ok); return (script ? '<div class="script zh">🎧 ' + esc(script) + "</div>" : "") + (ok ? "" : partTip(partKey(it))); }, done);
+        wireMC(answer, function (ok) { Learn.record(e.key, e, ok); return (script ? '<div class="script zh">🎧 ' + esc(script) + "</div>" : "") + (e.kind === "aix" && it.explain ? '<p class="sub">' + esc(it.explain) + "</p>" : "") + (ok ? "" : partTip(partKey(it))); }, done);
       } };
   }
 
@@ -4857,6 +5068,97 @@
     setTimeout(function () { syncNow(); }, 8000); // catches a save that was cut off when the app was closed
   })();
   window.Sync = { now: syncNow, cfg: syncCfg, summary: studySummary, _fit: fitSummary };
+
+  /* ---------- Google sign-in (optional, next to the restore code) ----------
+     The app asks the server for a one-time ticket, goes to Google through Supabase Auth and comes back to
+     ?gt=<ticket>#access_token=…. Whichever page lands there (the home-screen app, or Safari when iOS opens the sign-in
+     outside the app) finishes the sign-in on the server; the app then reads the result with its ticket. Only the
+     Supabase Auth user id is kept on the server, linked to the restore code. */
+  var GOOGLE_KEY = "cbChinese.google", GCFG = null, GLAND = null;
+  function gPending() { try { var g = JSON.parse(localStorage.getItem(GOOGLE_KEY) || "null"); return g && /^[a-f0-9]{48}$/.test(g.ticket) && Date.now() - g.at < 15 * 60000 ? g : null; } catch (e) { return null; } }
+  function gClear() { try { localStorage.removeItem(GOOGLE_KEY); } catch (e) { /* ignore */ } }
+  function gCfg() {
+    if (GCFG) return GCFG;
+    GCFG = aiOn() ? AI.call("auth_cfg", {}).then(function (r) { return r.ok ? r.result : { google: false }; }) : Promise.resolve({ google: false });
+    GCFG.then(function (c) { if (!c.google) setTimeout(function () { GCFG = null; }, 60000); });
+    return GCFG;
+  }
+  function gStart(intent) {
+    var go = function () {
+      return gCfg().then(function (cf) {
+        if (!cf.google) throw new Error("Google sign-in is not switched on yet.");
+        return AI.call("auth_start", { intent: intent, code: intent === "link" ? syncCfg().code : undefined }).then(function (r) {
+          if (!r.ok) throw new Error(AI.errMsg(r.error));
+          try { localStorage.setItem(GOOGLE_KEY, JSON.stringify({ ticket: r.result.ticket, intent: intent, at: Date.now() })); } catch (e) { /* the landing page still finishes it */ }
+          location.href = cf.url + "&redirect_to=" + encodeURIComponent(location.origin + location.pathname + "?gt=" + r.result.ticket);
+        });
+      });
+    };
+    // linking needs a backup on the server first
+    var c = syncCfg(); if (intent === "link" && !c.code) return syncNow(true).then(function (x) { if (x !== "saved") throw new Error(AI.errMsg(x)); return go(); });
+    return go();
+  }
+  function gMark(on) { var c = syncCfg(); if (on) c.google = true; else delete c.google; syncSave(c); }
+  /* what to do with a finished sign-in, in the app that started it */
+  function gHandle(res, g) {
+    gClear();
+    if (!res || res.status === "waiting") return;
+    if (res.status === "linked") { gMark(true); UI.toast("Backup linked to your Google account", "🔗"); if (/^#\/me/.test(location.hash)) route(); return; }
+    if (res.status === "none") { UI.toast("No backup is linked to this Google account yet.", "⚠️"); return; }
+    if (res.status === "code") { syncRestore(res.code).then(function (ok) { if (ok) { gMark(true); UI.toast("Progress restored", "✅"); location.hash = "#/"; route(); } }, function (e) { UI.toast(e.message, "⚠️"); }); return; }
+    if (res.status === "other") {
+      if (window.confirm("This Google account is already linked to another backup (another phone).\n\nOK = load that backup on this phone.\nCancel = link THIS phone's backup to Google instead.")) {
+        syncRestore(res.code).then(function (ok) { if (ok) { gMark(true); UI.toast("Progress restored", "✅"); route(); } }, function (e) { UI.toast(e.message, "⚠️"); });
+      } else AI.call("auth_replace", { ticket: g.ticket }).then(function (r) { if (r.ok) { gMark(true); UI.toast("This phone's backup is now linked to Google", "🔗"); } else UI.toast(AI.errMsg(r.error), "⚠️"); });
+    }
+  }
+  /* on start: are we the page Google came back to? Takes the token out of the address bar right away. */
+  function gLanding() {
+    var m = /[?&]gt=([a-f0-9]{48})/.exec(location.search), h = location.hash || "";
+    if (!m || !/access_token=|error=/.test(h)) return;
+    var q = {}; h.replace(/^#/, "").split("&").forEach(function (kv) { var i = kv.indexOf("="); if (i > 0) try { q[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, " ")); } catch (e) { /* skip */ } });
+    try { history.replaceState(null, "", location.pathname + "#/me/backup"); } catch (e) { location.hash = "#/me/backup"; }
+    GLAND = { ticket: m[1], token: q.access_token || "", error: q.error_description || q.error || "" };
+  }
+  function gFinish() {
+    var L = GLAND; GLAND = null; if (!L) return;
+    var mine = gPending(), here = mine && mine.ticket === L.ticket;
+    if (L.error || !L.token) { if (here) gClear(); UI.toast("Google sign-in was cancelled" + (L.error ? ": " + L.error : ""), "⚠️"); return; }
+    AI.call("auth_finish", { ticket: L.ticket, token: L.token }).then(function (r) {
+      if (!r.ok) { UI.toast(AI.errMsg(r.error), "⚠️"); return; }
+      if (here) { gHandle(r.result, mine); return; }
+      // Google came back in Safari, not in the home-screen app: the app finishes when it is opened again
+      render('<section class="card result">' + UI.mascot("cheer", 80) + '<h2>Signed in with Google ✓</h2><p class="sub">Now go back to the <b>C&amp;B Chinese</b> app on your home screen. It finishes by itself when you open it.</p></section>', "me");
+    });
+  }
+  function gPoll() {
+    var g = gPending(); if (!g || !aiOn()) return;
+    AI.call("auth_poll", { ticket: g.ticket }).then(function (r) { if (r.ok && r.result.status !== "waiting") gHandle(r.result, g); else if (!r.ok && r.error === "bad_ticket") gClear(); });
+  }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) gPoll(); });
+  function wireGoogle(box) {
+    if (!box) return;
+    gCfg().then(function (cf) {
+      if (!document.body.contains(box)) return;
+      if (!cf.google) { box.innerHTML = isAdmin() ? '<p class="sub muted">Admin: Google sign-in appears here once it is switched on in Supabase (see supabase/SETUP.md).</p>' : ""; return; }
+      var c = syncCfg();
+      var drawG = function (linked) {
+        box.innerHTML = c.code ? (linked ? '<p class="sub">🔗 <b>Linked to Google.</b> On a new phone, tap “Restore with Google” and your progress comes back, no code needed.</p><div class="actions"><button class="btn small" id="g-unlink">Unlink Google</button></div>'
+          : '<p class="sub">Link this backup to your Google account, so a new phone gets it back without the restore code.</p><div class="actions"><button class="btn small primary" id="g-link">Sign in with Google</button></div>')
+          : '<div class="actions"><button class="btn small primary" id="g-get">Restore with Google</button></div>';
+        var on = function (id, fn) { var b = document.getElementById(id); if (b) b.onclick = function () { b.disabled = true; fn().catch(function (e) { b.disabled = false; UI.toast(e.message, "⚠️"); }); }; };
+        on("g-link", function () { return gStart("link"); });
+        on("g-get", function () { return gStart("get"); });
+        on("g-unlink", function () {
+          if (!window.confirm("Unlink Google? Your backup stays; you would need the restore code on a new phone.")) return Promise.resolve();
+          return AI.call("auth_unlink", { code: c.code }).then(function (r) { if (!r.ok) throw new Error(AI.errMsg(r.error)); gMark(false); drawG(false); UI.toast("Google unlinked", "🔗"); });
+        });
+      };
+      if (!c.code) { drawG(false); return; }
+      drawG(!!c.google);
+      AI.call("auth_status", { code: c.code }).then(function (r) { if (r.ok && document.body.contains(box)) { gMark(r.result.linked); drawG(r.result.linked); } });
+    });
+  }
   function wireSync() {
     var box = document.getElementById("sync-box"); if (!box) return;
     function draw() {
@@ -4868,7 +5170,7 @@
         (c.err ? '<p class="warn">Last try failed: ' + esc(AI.errMsg(c.err)) + "</p>" : "") +
         (c.code ? '<p class="sub">Restore code: <b class="sync-code" id="y-show">' + esc(syncShow(c.code)) + "</b><br>Type it on a new phone to load your progress there. Keep it private: anyone with the code can open your backup.</p>" : "") +
         '<div class="actions">' + (c.code ? '<button class="btn primary small" id="y-up">☁️ Back up now</button>' : "") + '<button class="btn small" id="y-code">Restore with a code</button><button class="btn small" id="y-off">Turn off</button></div>';
-      box.innerHTML = h + '<div id="y-form" hidden><label for="y-in">Restore code</label><input id="y-in" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX"><div class="actions"><button class="btn primary small" id="y-go">Restore</button></div></div>';
+      box.innerHTML = h + '<div id="y-google" class="y-google"></div><div id="y-form" hidden><label for="y-in">Restore code</label><input id="y-in" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX"><div class="actions"><button class="btn primary small" id="y-go">Restore</button></div></div>';
       function on(id, fn) { var b = document.getElementById(id); if (b) b.onclick = function () { fn(b); }; }
       function done(msg, icon) { UI.toast(msg, icon); draw(); }
       function load(code, b) {
@@ -4877,6 +5179,7 @@
       }
       on("y-up", function (b) { b.disabled = true; syncNow(true).then(function (r) { done(r === "saved" ? "Backed up" : AI.errMsg(r), r === "saved" ? "☁️" : "⚠️"); }); });
       on("y-code", function () { document.getElementById("y-form").hidden = false; document.getElementById("y-in").focus(); });
+      wireGoogle(document.getElementById("y-google"));
       on("y-go", function (b) { load(document.getElementById("y-in").value, b); });
       on("y-take", function (b) { load(c.code, b); });
       on("y-keep", function (b) { b.disabled = true; syncNow(true).then(function (r) { done(r === "saved" ? "This phone's progress is now the backup" : AI.errMsg(r), r === "saved" ? "☁️" : "⚠️"); }); });
@@ -5593,6 +5896,7 @@
   }, true);
 
   function boot() {
+    gLanding();
     applySettings();
     app.setAttribute("tabindex", "-1");
     watchDom();
@@ -5611,6 +5915,8 @@
       try { weekTick(); } catch (e) { console.warn(e); }
       window.addEventListener("hashchange", route);
       route();
+      setTimeout(function () { gFinish(); gPoll(); }, 300);
+      setTimeout(function () { bankRefresh(); }, 12000);
       // warm up the rest in the background so it's ready (and cached for offline) before it's needed
       whenIdle(4000).then(function () { ensureFull().then(function () { return ensureMocks(); }).then(function () { if (window.Content) { Content.apply(); Content.sync(false).then(function () { Content.apply(); }); } }, function () {}); });
       /* packs this learner already uses (HSK 5 opened once, extra HSK 4 words in review): load them when idle so their

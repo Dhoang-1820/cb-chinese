@@ -59,6 +59,11 @@
       var L = s.slog || (s.slog = {}), t = Store.today(), e = L[t] || (L[t] = { m: 0, s: 0, h: new Date().getHours(), k: {} }), c = (e.k || (e.k = {}))[sk] || (e.k[sk] = [0, 0]);
       c[ok ? 0 : 1]++;
     }
+    /* per question, all time, for the admin's "hardest questions" view (AI-written one-off questions are left out) */
+    if (key && !/^(ai|hw|tf|ls):/.test(key) && key.length <= 80) {
+      var Q = s.qlog || (s.qlog = {});
+      if (Q[key] || Object.keys(Q).length < 6000) { var qv = Q[key] || (Q[key] = [0, 0]); qv[ok ? 0 : 1]++; }
+    }
     if (!ok) { s.mlog.push({ d: Store.today(), k: key, s: sk || "" }); if (s.mlog.length > 600) s.mlog.splice(0, s.mlog.length - 600); }
     if (meta && meta.statsOnly) { Store.save(); return false; }
     if (!ok) {

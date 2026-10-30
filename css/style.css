@@ -1540,3 +1540,12 @@ body.on-tab #chip-heart, body.on-tab #btn-py, body.on-tab #btn-flag { display: n
 .y-google { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--surface-2); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ai-ok, :root:not([data-theme="light"]) .bk-opts li.ok { color: #5fd3b0; } }
 :root[data-theme="dark"] .ai-ok, :root[data-theme="dark"] .bk-opts li.ok { color: #5fd3b0; }
+.eve-list { list-style: none; margin: 0; padding: 0; }
+.eve-list li { padding: 10px 0; border-top: 1px solid var(--surface-2); }
+.eve-list li:first-child { border-top: 0; }
+.eve-list label { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; }
+.eve-list input { width: 22px; height: 22px; flex: none; margin-top: 2px; }
+.wu-h { margin: 14px 0 4px; font-size: .95rem; }
+#ex-set select, #ex-set input { width: 100%; }
+button.grow { width: 100%; text-align: left; font: inherit; background: none; border: 0; border-top: 1px solid var(--border); cursor: pointer; }
+button.grow:first-child { border-top: 0; }

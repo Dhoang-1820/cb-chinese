@@ -402,7 +402,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Practice", game: "Practice", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", sprint: "Exam words", newq: "New questions", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
+  var TITLES = { "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Practice", game: "Practice", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", sprint: "Exam words", newq: "New questions", exams: "My exams", eve: "Day before the exam", warmup: "Exam-morning warm-up", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -462,6 +462,9 @@
     else if (v === "parts") viewParts(parts[1]);
     else if (v === "sprint") viewSprint();
     else if (v === "newq") viewNewQ(parts[1]);
+    else if (v === "exams") viewExams();
+    else if (v === "eve") viewEve();
+    else if (v === "warmup") viewWarmup();
     else if (v === "plan") viewPlan();
     else if (v === "exam") viewExamPlan();
     else if (v === "ready") viewReady();
@@ -910,22 +913,87 @@
   /* The Today card: today's few steps (session, lesson or catch-up, the exam-plan task, the weekly quiz) with one button
      that always opens the next step not done. After 2+ days away the session becomes the 5-minute restart. */
   /* On exam day the forecast is frozen, so the real result can be compared with what the app predicted. */
+  function examLine() {
+    var dl = examLeft(), n = (Store.state.examHist || []).length;
+    return "HSK " + exLv() + " · " + (dl == null ? "no date" : dl > 0 ? dl + " day" + (dl === 1 ? "" : "s") + " left" : dl === 0 ? "today" : "done") + (n ? " · " + n + " past" : "");
+  }
+  function exLv() { return Store.state.settings.examLevel === 5 ? 5 : 4; }
+  function examLeft() { var ex = Store.state.settings.examDate; return ex ? Store.daysBetween(Store.today(), ex) : null; }
   function freezeForecast() {
     var s = Store.state, ex = s.settings.examDate;
-    if (!ex || s.fcAtExam || Store.today() < ex) return;
+    if (!ex || exLv() !== 4 || (s.fcAtExam && s.fcAtExam.d === ex) || Store.today() < ex) return; // the forecast is for HSK 4
     var r = readiness(); if (!r) return;
     s.fcAtExam = { d: ex, t: r.total, L: r.L, R: r.R, W: r.W }; Store.save();
   }
-  function realResult() { return (Store.state.official || []).filter(function (o) { return o.real; }).pop() || null; }
+  /* the real result of the current exam: a logged real entry dated from the day before the exam on */
+  function realResult() { var ex = Store.state.settings.examDate || ""; return (Store.state.official || []).filter(function (o) { return o.real && o.date >= Store.addDays(ex, -1); }).pop() || null; }
   function realAskCard() {
     var s = Store.state, ex = s.settings.examDate;
-    if (!ex || Store.today() <= ex || realResult()) return "";
-    return '<a class="card line-card real-ask" href="#/official/real"><span class="lc-i" aria-hidden="true">🎓</span><span class="lc-t"><small>After the exam</small><b>How did HSK 4 go? Log your real scores</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+    if (!ex || Store.today() <= ex || realResult() || s.afterFor === ex) return "";
+    return '<a class="card line-card real-ask" href="#/official/real"><span class="lc-i" aria-hidden="true">🎓</span><span class="lc-t"><small>After the exam</small><b>How did HSK ' + exLv() + ' go? Log your real scores</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+  }
+  /* once the real result is in: one card until the learner picks what comes next */
+  function afterCard() {
+    var s = Store.state, ex = s.settings.examDate;
+    if (!ex || Store.today() <= ex || !realResult() || s.afterFor === ex) return "";
+    return '<a class="card line-card after-next" href="#/exams"><span class="lc-i" aria-hidden="true">🧭</span><span class="lc-t"><small>After HSK ' + exLv() + '</small><b>What\'s next? Another exam, HSK 5, or keep reviewing</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+  }
+  /* Move the current exam into the history (with its frozen forecast and real result), once per date. */
+  function archiveExam() {
+    var s = Store.state, ex = s.settings.examDate, lv = exLv(); if (!ex) return;
+    var rr = realResult(), fc = s.fcAtExam && s.fcAtExam.d === ex ? s.fcAtExam : null;
+    s.examHist = (s.examHist || []).filter(function (e) { return !(e.d === ex && e.lv === lv); });
+    s.examHist.push({ lv: lv, d: ex, fc: fc ? { t: fc.t, L: fc.L, R: fc.R, W: fc.W } : null, real: rr ? { l: rr.l, r: rr.r, w: rr.w } : null });
+    if (s.examHist.length > 20) s.examHist.splice(0, s.examHist.length - 20);
+    s.afterFor = ex; s.fcAtExam = null;
+  }
+  var EXAM_NEXT = { exam: ["📅", "Plan another exam", "Pick the level and date; the plan and countdown follow it"], h5: ["📗", "Start HSK 5", "Word packs, grammar and practice for the next level"], keep: ["🔁", "Keep reviewing", "Daily review so your Chinese stays fresh, no exam date"] };
+  function histRow(e) {
+    var t = e.real ? e.real.l + e.real.r + e.real.w : null, dlt = t != null && e.fc ? t - e.fc.t : null;
+    return '<div class="of-item ex-hist"><div><b>HSK ' + e.lv + " · " + esc(lrnDate(e.d)) + "</b><small>" + (e.fc ? "Forecast ~" + e.fc.t : "No forecast") + (t != null ? " · real " + t + "/300" + (dlt != null ? " (" + (dlt >= 0 ? "+" : "") + dlt + ")" : "") : " · no result logged") + "</small></div>" +
+      (t != null ? '<span class="tag ' + (t >= 180 ? "t-hsk" : "t-warn") + '">' + (t >= 180 ? "Pass" : "Not yet") + "</span>" : "") + "</div>";
+  }
+  /* #/exams: the current exam, what to do after it, and every exam so far */
+  function viewExams() {
+    var s = Store.state, set = s.settings, ex = set.examDate, lv = exLv(), dl = examLeft(), past = dl != null && dl < 0, rr = realResult(), chosen = s.afterFor === ex;
+    freezeForecast();
+    var html = '<section class="card g-sun"><h2>🎓 My exams</h2>' + (past ? '<p class="sub">Your HSK ' + lv + " exam was on " + esc(lrnDate(ex)) + ".</p>" :
+      '<p class="score-big">' + (dl === 0 ? "Today" : dl + ' <small>day' + (dl === 1 ? "" : "s") + "</small>") + '</p><p class="sub">HSK ' + lv + " · " + esc(lrnDate(ex)) + (set.examTime ? " at " + esc(set.examTime) : "") + "</p>") + "</section>";
+    if (past && !rr && !chosen) html += '<a class="card line-card real-ask" href="#/official/real"><span class="lc-i" aria-hidden="true">🎓</span><span class="lc-t"><small>Step 1</small><b>Log your real scores</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+    if (rr && !chosen) html += realCompareHTML();
+    if (past && !chosen) html += '<section class="card"><h2>' + (rr ? "Step 2 · " : "") + "What's next?</h2><div class=\"glist\">" + Object.keys(EXAM_NEXT).map(function (k) {
+      return '<button type="button" class="grow" data-next="' + k + '"><span class="g-ico">' + EXAM_NEXT[k][0] + '</span><span class="g-txt"><b>' + EXAM_NEXT[k][1] + "</b><small>" + EXAM_NEXT[k][2] + '</small></span><span class="g-go">›</span></button>';
+    }).join("") + "</div>" + (rr ? "" : '<p class="sub">You can still log your score later in Me › Am I ready › Official papers.</p>') + "</section>";
+    html += '<section class="card" id="ex-set"' + (past && !chosen ? " hidden" : "") + '><h2>' + (past ? "Next exam" : "Exam details") + "</h2>" +
+      '<label for="ex-lv">Level</label><select id="ex-lv"><option value="4"' + (lv === 4 ? " selected" : "") + '>HSK 4</option><option value="5"' + (lv === 5 ? " selected" : "") + ">HSK 5</option></select>" +
+      '<label for="ex-d">Date</label><input type="date" id="ex-d" value="' + esc(past ? "" : ex) + '"><label for="ex-t">Start time (optional)</label><input type="time" id="ex-t" value="' + esc(past ? "" : set.examTime || "") + '">' +
+      '<p class="mw-err" id="ex-err" hidden></p><button type="button" class="btn primary wide" id="ex-save">Save</button><p class="sub">The study plan, the 3-week exam plan and the countdown all follow this date. Change it any time.</p></section>';
+    var hist = (s.examHist || []).slice().reverse();
+    if (hist.length) html += '<section class="card"><h2>Past exams</h2>' + hist.map(histRow).join("") + "</section>";
+    render(html, "me");
+    app.querySelectorAll("[data-next]").forEach(function (b) {
+      b.onclick = function () {
+        var k = b.getAttribute("data-next");
+        if (k === "exam") { document.getElementById("ex-set").hidden = false; document.getElementById("ex-d").focus(); return; }
+        archiveExam(); if (k === "h5") set.level = 5; Store.save();
+        UI.toast(k === "h5" ? "HSK 5 is on · your exam is saved in My exams" : "Daily review keeps going · your exam is saved in My exams", "🎓");
+        if (k === "h5") location.hash = "#/learn/h5"; else viewExams();
+      };
+    });
+    document.getElementById("ex-save").onclick = function () {
+      var d = document.getElementById("ex-d").value, t = document.getElementById("ex-t").value, nl = +document.getElementById("ex-lv").value === 5 ? 5 : 4, err = document.getElementById("ex-err");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { err.textContent = "Pick the exam date."; err.hidden = false; return; }
+      if (past && d <= Store.today()) { err.textContent = "Pick a date after today for the next exam."; err.hidden = false; return; }
+      if (past || (d !== ex && Store.today() > ex)) archiveExam();
+      set.examDate = d; set.examTime = /^\d{2}:\d{2}$/.test(t) ? t : ""; set.examLevel = nl; if (nl === 5) set.level = 5;
+      Store.save(); buildIndex(); UI.toast("Exam saved · HSK " + nl + " on " + lrnDate(d), "📅"); viewExams();
+    };
   }
   function realCompareHTML() {
     var rr = realResult(), fc = Store.state.fcAtExam; if (!rr) return "";
+    if (fc && fc.d !== Store.state.settings.examDate) fc = null;
     var t = rr.l + rr.r + rr.w, d = fc ? t - fc.t : null;
-    return '<section class="card real-card ' + (t >= 180 ? "ok" : "low") + '"><h2>🎓 Your real HSK 4</h2><p class="score-big">' + t + "/300</p>" +
+    return '<section class="card real-card ' + (t >= 180 ? "ok" : "low") + '"><h2>🎓 Your real HSK ' + exLv() + '</h2><p class="score-big">' + t + "/300</p>" +
       "<p>" + secBar("Listening", rr.l) + secBar("Reading", rr.r) + secBar("Writing", rr.w) + "</p>" +
       (fc ? '<p class="sub">The app forecast ~' + fc.t + " on exam day · " + (d === 0 ? "exactly right" : (d > 0 ? d + " points better" : -d + " points lower") + " than forecast") + ".</p>" : "") + "</section>";
   }
@@ -941,6 +1009,9 @@
       var lessonDone = Object.keys(s.days).some(function (k) { return s.days[k].completedOn === t; });
       steps.push({ id: "lesson", ico: "📚", name: "Lesson · Day " + nd.day, zh: nd.title.zh, sub: M(nd.title), href: "#/day/" + nd.day, done: lessonDone });
     }
+    var el = examLeft();
+    if (el === 0) return [{ id: "warmup", ico: "🌅", name: "Exam-morning warm-up", sub: "Easy words you know + one tip per part · 10 min", href: "#/warmup", done: !!(s.warm || {})[t] }];
+    if (el === 1) { steps = steps.filter(function (x) { return x.id !== "lesson" && x.id !== "catchup"; }); steps.push({ id: "eve", ico: "🎒", name: "Checklist for tomorrow", sub: eveDone() + "/" + EVE.length + " ready · then light review and sleep early", href: "#/eve", done: eveDone() === EVE.length }); return steps; }
     var sc = examSchedule();
     if (sc.length && sc[0].kind !== "exam") steps.push({ id: "exam", ico: sc[0].ico, name: sc[0].txt, href: sc[0].href, done: sc[0].done,
       sub: "Exam plan · " + plural(sc.length - 1, "day") + " left" + (sc[0].kind === "mock" && !s.settings.examTime && sc[0].left <= 8 ? " · set your exam start time in Me to rehearse at that hour" : "") });
@@ -979,12 +1050,12 @@
     /* One "Today" card is the only call to action; readiness and the exam plan are one line each.
        Everything else lives in one place elsewhere: lessons in Learn, games and mock tests in Practice, progress in Me. */
     html += '<section class="hero home-head"><div class="hh-m bob">' + UI.mascot(todayXP >= goal ? "proud" : todayXP === 0 ? "wave" : "happy", 52) + "</div>" +
-      '<div class="hh-t"><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + "</p><h2>" + (exam > 0 ? exam + " days to HSK 4" : exam === 0 ? "HSK 4 is today · 加油!" : "Keep your Chinese going") + "</h2>" +
+      '<div class="hh-t"><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + "</p><h2>" + (exam > 0 ? exam + " days to HSK " + exLv() : exam === 0 ? "HSK " + exLv() + " is today · 加油!" : "Keep your Chinese going") + "</h2>" +
       '<p class="lv">Level ' + lv.n + ' · <span class="zh">' + lv.zh + "</span> · " + s.xp + " XP</p></div></section>";
     var fin = planInfo().inBuffer;
     homeAt = Date.now(); homeDay = Store.today();
     freezeForecast();
-    html += chatCard() + syncPausedCard() + realAskCard();
+    html += chatCard() + syncPausedCard() + realAskCard() + afterCard();
     if (fin) html += readyCard();
     html += todayMain() + h5HomeRow(); // on HSK 5: the next unfinished pack, right under Today
     if (!fin) html += readyCard();
@@ -1715,6 +1786,7 @@
       '<div class="me-stats"><div><b>' + inSrs + '</b><span>words</span></div><div><b>' + done + '</b><span>lessons</span></div><div><b>' + Store.streak() + '</b><span>streak</span></div><div><b>' + Object.keys(s.badges).length + "</b><span>badges</span></div></div></section>" +
       '<section class="card me-rows">' +
       (chatCode() ? '<a class="me-row" href="#/chat"><span class="mr-i" aria-hidden="true">💬</span><span class="mr-t"><b>Messages</b><small>From the C&amp;B team</small></span>' + (unread ? '<span class="mr-badge">' + unread + " new</span>" : "") + '<span class="lc-go" aria-hidden="true">›</span></a>' : "") +
+      '<a class="me-row" href="#/exams"><span class="mr-i" aria-hidden="true">🎓</span><span class="mr-t"><b>My exams</b><small>' + esc(examLine()) + '</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
       '<a class="me-row" href="#/ready"><span class="mr-i" aria-hidden="true">🎯</span><span class="mr-t"><b>Am I ready?</b><small>Readiness, score forecast, official papers</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
       '<a class="me-row" href="#/progress"><span class="mr-i" aria-hidden="true">📈</span><span class="mr-t"><b>Progress</b><small>Charts, mock scores, study plan</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
       '<a class="me-row" href="#/me/backup"><span class="mr-i" aria-hidden="true">☁️</span><span class="mr-t"><b>Cloud backup</b><small>' + esc(backupLine()) + '</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
@@ -2145,7 +2217,9 @@
   }
   function lrnProgress(r) {
     var sm = r.summary, pg = sm.progress || {}, rd = pg.ready, html = "", tr = sm.trk || [], pl = sm.pace;
-    if (pg.real) { var rt = num(pg.real.l) + num(pg.real.r) + num(pg.real.w); html += '<section class="card lt-real"><b>🎓 Real HSK 4: ' + rt + "/300</b><p class=\"lt-meta\">L " + num(pg.real.l) + " · R " + num(pg.real.r) + " · W " + num(pg.real.w) + (pg.fc != null ? " · the app forecast ~" + num(pg.fc) + " (" + (rt - num(pg.fc) >= 0 ? "+" : "−") + Math.abs(rt - num(pg.fc)) + ")" : "") + "</p></section>"; }
+    if (Array.isArray(pg.xh) && pg.xh.length) html += '<section class="card lt-real"><b>📚 Past exams</b>' + pg.xh.slice().reverse().map(function (e) {
+      return '<p class="lt-meta">HSK ' + (e[0] === 5 ? 5 : 4) + " · " + esc(lrnDate(String(e[1]))) + (e[2] != null ? " · forecast ~" + num(e[2]) : "") + (e[3] != null ? " · real " + num(e[3]) + "/300" : " · no result") + "</p>"; }).join("") + "</section>";
+    if (pg.real) { var rt = num(pg.real.l) + num(pg.real.r) + num(pg.real.w); html += '<section class="card lt-real"><b>🎓 Real HSK ' + (pg.lv === 5 ? 5 : 4) + ": " + rt + "/300</b><p class=\"lt-meta\">L " + num(pg.real.l) + " · R " + num(pg.real.r) + " · W " + num(pg.real.w) + (pg.fc != null ? " · the app forecast ~" + num(pg.fc) + " (" + (rt - num(pg.fc) >= 0 ? "+" : "−") + Math.abs(rt - num(pg.fc)) + ")" : "") + "</p></section>"; }
     if (rd) {
       var pts = tr.filter(function (e) { return e[1] != null; }).map(function (e) { return { x: String(e[0]).slice(3), y: num(e[1]) }; });
       html += '<section class="card"><div class="lt-row"><b>Readiness</b><span class="lt-chip ' + (num(rd.lo) >= PASS ? "lt-ok" : num(rd.hi) < PASS ? "lt-late" : "") + '">' + esc(rd.verdict || "") + '</span></div><div class="lt-big">' + num(rd.total) + "<small> / 300 · range " + num(rd.lo) + "–" + num(rd.hi) + "</small></div>" +
@@ -2678,9 +2752,8 @@
         '<a class="tm-go" id="pr-mock-go" href="#/mock/' + m.id + (fin && m.full ? "/sim" : "") + '">▶ Start mock test</a><a class="tm-short" href="#/mock">All ' + MOCK.length + " mock tests and your scores</a></section>"
       : '<a class="cta card g-violet" href="#/mock"><span class="cta-l"><small>Timed, real exam format</small><b>📝 Mock tests</b></span><span class="cta-go">▶</span></a>';
     return mock + '<div class="glist">' +
-      '<a class="grow" href="#/parts"><span class="g-ico">⏱</span><span class="g-txt"><b>Exam parts, timed</b><small>10 questions at the real pace' + (w ? " · weakest: " + esc(w.name) + " (" + w.acc + "%)" : "") + '</small></span><span class="g-go">▶</span></a>' +
+      '<a class="grow" href="#/parts"><span class="g-ico">⏱</span><span class="g-txt"><b>Exam parts, timed</b><small>10 questions at the real pace' + (w ? " · weakest: " + esc(w.name) + " (" + w.acc + "%)" : "") + (function () { bankRefresh(); setTimeout(aiqFill, 3000); return newQAvail(weakListenPart()) ? " · plus new questions" : ""; })() + '</small></span><span class="g-go">▶</span></a>' +
       (function () { var c = examCoverage(); return c && c.all ? '<a class="grow" href="#/sprint"><span class="g-ico">🔤</span><span class="g-txt"><b>Exam words</b><small>' + c.have + " of the " + c.all + ' words the tests use most are in your review · 10 more</small></span><span class="g-go">▶</span></a>' : ""; })() +
-      (function () { var lk = weakListenPart(); bankRefresh(); return newQAvail(lk) ? '<a class="grow" href="#/newq/' + lk + '"><span class="g-ico">🎧</span><span class="g-txt"><b>New listening questions</b><small>3 never-seen questions for ' + esc(PART_NAME[lk]) + ', with your weak words</small></span><span class="g-go">▶</span></a>' : ""; })() +
       '<a class="grow" href="#/mistakes"><span class="g-ico">📒</span><span class="g-txt"><b>Mistake notebook</b><small>' + (mis ? mis + " to fix" + (rep ? " · " + rep + " keep coming back" : "") : "Nothing to fix right now") + '</small></span><span class="g-go">▶</span></a></div>';
   }
 
@@ -2728,9 +2801,31 @@
     if (out.length < n) examFresh(n - out.length).forEach(function (w) { if (out.indexOf(w.hanzi) < 0) out.push(w.hanzi); });
     return out;
   }
+  /* A small stock of AI questions fetched while online, so "New questions" also works offline (and opens instantly).
+     At most 2 AI calls each 12 hours: the weakest listening part and one reading passage. Used after the bank, before a live call. */
+  var AIQ_KEY = "cbChinese.aiq1";
+  function aiqAll() { try { var o = JSON.parse(localStorage.getItem(AIQ_KEY) || "null"); return o && typeof o === "object" && o.k ? o : { at: 0, k: {} }; } catch (e) { return { at: 0, k: {} }; } }
+  function aiqSave(o) { try { localStorage.setItem(AIQ_KEY, JSON.stringify(o)); } catch (e) { /* full: no stock */ } }
+  function aiqStock(k) { var a = aiqAll().k[k]; return Array.isArray(a) ? a.length : 0; }
+  function aiqTake(k) { var o = aiqAll(), a = o.k[k] || [], got = a.shift() || null; o.k[k] = a; aiqSave(o); return got; }
+  function aiqFill() {
+    var o = aiqAll();
+    if (!aiOn() || navigator.onLine === false || Date.now() - (o.at || 0) < 12 * 36e5) return;
+    o.at = Date.now(); aiqSave(o);
+    var words = weakWordList(8), lk = weakListenPart(), jobs = [];
+    if (aiqStock(lk) < 1) jobs.push(["listen", lk, { part: lk, words: words }]);
+    if (aiqStock("R3") < 1) jobs.push(["passage", "R3", { words: words }]);
+    jobs.forEach(function (j) {
+      AI.call(j[0], j[2]).then(function (r) {
+        if (!r.ok) return;
+        var x = aiqAll(), a = x.k[j[1]] || (x.k[j[1]] = []);
+        a.push({ res: r.result, words: j[0] === "passage" ? r.result.used_words : null }); if (a.length > 3) a.shift(); aiqSave(x);
+      });
+    });
+  }
   var NEW_PARTS = { L1: "Listening part 1 · true or false", L2: "Listening part 2 · short dialogues", L3: "Listening part 3 · longer dialogues", R3: "Reading part 3 · a passage from your weak words" };
   function weakListenPart() { var w = weakParts().filter(function (p) { return /^L/.test(p.k); })[0]; return w ? w.k : "L2"; }
-  function newQAvail(k) { return aiOn() || bankUnseen(function (r) { return k === "R3" ? r.kind === "passage" : r.kind === "listen" && r.part === k; }).length > 0; }
+  function newQAvail(k) { return aiOn() || aiqStock(k) > 0 || bankUnseen(function (r) { return k === "R3" ? r.kind === "passage" : r.kind === "listen" && r.part === k; }).length > 0; }
   /* #/newq/L1|L2|L3|R3: new questions in the exam format: team-checked ones from the bank first, otherwise the AI writes them */
   function viewNewQ(k) {
     if (!NEW_PARTS[k]) { location.replace("#/newq/" + weakListenPart()); return; }
@@ -2743,7 +2838,18 @@
       runMistakeDrill("all", { items: entries, title: read ? "New reading passage" : "New listening · " + PART_NAME[k], icon: read ? "📖" : "🎧", exit: "#/parts", again: "#/newq/" + k, againFn: function () { viewNewQ(k); } });
     }
     function fromBank() { bankMark(bank); return [].concat.apply([], bank.map(bankEntries)); }
+    function fromAI(res, words) {
+      var stamp = Date.now().toString(36), entries = read ? pxOf(res, "ai" + stamp).map(function (x, i) { return { kind: "aix", x: x, key: "ai:" + stamp + ":" + i, skill: "passage", statsOnly: true }; })
+        : res.items.map(function (d, i) { var x = lxOf(k, d, "ai" + stamp + i); return { kind: "aix", x: x, key: "ai:" + stamp + ":" + i, skill: x.skill, statsOnly: true }; });
+      go(bank.length ? fromBank().concat(entries).slice(0, read ? 9 : 3) : entries, words);
+      setTimeout(aiqFill, 1500); // top the stock up for next time
+    }
     if (bank.length >= need) { go(fromBank()); return; }
+    var stock = aiqTake(k); if (stock && stock.res) { fromAI(stock.res, stock.words); return; }
+    if (navigator.onLine === false) {
+      if (bank.length) { go(fromBank()); return; }
+      render(head + '<section class="card"><p class="sub">You are offline and the new questions saved on this phone are used up. Connect once and new ones are fetched for you.</p><a class="btn primary" href="#/parts">Exam parts</a></section>', "games"); return;
+    }
     if (!aiOn()) {
       if (bank.length) { go(fromBank()); return; }
       render(head + '<section class="card"><p class="sub">New questions need the AI assistant (Me → More settings → AI assistant). Your exam parts still work without it.</p><a class="btn primary" href="#/parts">Exam parts</a></section>', "games"); return;
@@ -2757,12 +2863,11 @@
         render(head + '<section class="card"><div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + '</div><div class="actions"><button class="btn primary" id="nq-again">Try again</button><a class="btn" href="#/parts">Back</a></div></section>', "games");
         document.getElementById("nq-again").onclick = function () { viewNewQ(k); }; return;
       }
-      var stamp = Date.now().toString(36), entries = read ? pxOf(res.result, "ai" + stamp).map(function (x, i) { return { kind: "aix", x: x, key: "ai:" + stamp + ":" + i, skill: "passage", statsOnly: true }; })
-        : res.result.items.map(function (d, i) { var x = lxOf(k, d, "ai" + stamp + i); return { kind: "aix", x: x, key: "ai:" + stamp + ":" + i, skill: x.skill, statsOnly: true }; });
-      go(bank.length ? fromBank().concat(entries).slice(0, read ? 9 : 3) : entries, read ? res.result.used_words : null);
+      fromAI(res.result, read ? res.result.used_words : null);
     });
   }
   function newQSection() {
+    bankRefresh(); setTimeout(aiqFill, 2500); // keep a few questions on the phone for offline use
     var rows = ["L1", "L2", "L3", "R3"].filter(newQAvail);
     if (!rows.length) return "";
     return '<section class="card"><h3>✨ New questions, never seen before</h3><p class="sub">In the real exam format and built around your weak words. Questions checked by the C&amp;B team come first; otherwise the AI writes them.</p><div class="glist">' +
@@ -4410,7 +4515,8 @@
         fa = fa.length ? [fa.length, Math.round(fa.reduce(function (a, x) { return a + num(x.h.total); }, 0) / fa.length)] : null;
         return { hsk5: h5Progress(), lessons: Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length, lessonsAll: DAYS.length, track: Object.keys(s.track || {}).filter(function (k) { return s.track[k]; }).length, trackAll: 72,
           due: due, ready: r ? { total: r.total, lo: r.lo, hi: r.hi, verdict: r.verdict[1], src: r.src } : null, mocks: ms, mfa: fa, exam: s.settings.examDate || "", goal: s.settings.dailyGoal || 30,
-          real: (function () { var x = realResult(); return x ? { l: x.l, r: x.r, w: x.w, d: x.date } : null; })(), fc: s.fcAtExam ? s.fcAtExam.t : null };
+          real: (function () { var x = realResult(); return x ? { l: x.l, r: x.r, w: x.w, d: x.date } : null; })(), fc: s.fcAtExam ? s.fcAtExam.t : null, lv: exLv(),
+          xh: (s.examHist || []).slice(-6).map(function (e) { return [e.lv, e.d, e.fc ? e.fc.t : null, e.real ? e.real.l + e.real.r + e.real.w : null]; }) };
       })(),
       streak: { n: Store.streak(), best: (s.streak && s.streak.best) || 0 },
       xpw: (function () { var o = [], ws = weekStart(t); for (var j = 7; j >= 0; j--) { var a = Store.addDays(ws, -7 * j), sum = 0; for (var k = 0; k < 7; k++) sum += s.log[Store.addDays(a, k)] || 0; o.push(sum); } return o; })(), // XP per week, this week last
@@ -5297,6 +5403,7 @@
     var cfg = sessionCfg(), cs = nextCoreSet() || nextCoreSet("found");
     var due = SRS.dueIds(WORDMAP).slice(0, rescue ? 5 : cfg.due), ew = examFresh(rescue ? 5 : cfg.fresh);
     var fresh = ew.length ? ew : cs ? cs.words.filter(function (w) { return !SRS.has(w.id); }).slice(0, rescue ? 5 : cfg.fresh) : [];
+    var el = examLeft(); if (el != null && el >= 0 && el <= 2) { fresh = []; ew = []; } // the last 2 days: review only, nothing new
     var steps = [];
     if (back) { // 5 minutes after a break: the oldest overdue words first, a couple of mistakes, then a short listening
       var old = SRS.dueIds(WORDMAP).sort(function (a, b) { var x = (SRS.get(a) || {}).due || "", y = (SRS.get(b) || {}).due || ""; return x < y ? -1 : x > y ? 1 : 0; }).slice(0, 8);
@@ -5362,6 +5469,40 @@
     return '<a class="cta card g-coral comeback" href="#/session/comeback"><span class="cta-l"><small>👋 Welcome back · ' + gap + ' days away</small><b>⏱ 5-minute restart</b><em>Your oldest reviews first, then a short listening. Small steps count.</em></span><span class="cta-go">▶</span></a>';
   }
 
+
+  /* ---------- the last two days before each learner's own exam ----------
+     The day before: a checklist (kept per exam date) and light review. Exam day: a short warm-up with easy words and one
+     strategy line per part. New words stop 2 days before the exam. Everything follows the date set in My exams. */
+  var EVE = [["ticket", "Admission ticket (准考证) printed or saved on the phone"], ["id", "The ID card or passport you registered with"], ["route", "Know where the test centre is and how long it takes to get there"],
+    ["early", "Plan to arrive 30 minutes early"], ["rules", "Read the test centre's rules (what you may bring)"], ["time", "Exam start time saved in My exams"], ["sleep", "Light review only today, then sleep early"]];
+  function eveDone() { var ex = Store.state.settings.examDate, c = (Store.state.eve || {})[ex] || {}; return EVE.filter(function (x) { return x[0] === "time" ? !!Store.state.settings.examTime || c.time : c[x[0]]; }).length; }
+  function viewEve() {
+    var s = Store.state, ex = s.settings.examDate, c = (s.eve || (s.eve = {}))[ex] || {};
+    var html = '<section class="card g-sun"><h2>🎒 Ready for tomorrow?</h2><p class="sub">HSK ' + exLv() + " · " + esc(lrnDate(ex)) + (s.settings.examTime ? " at " + esc(s.settings.examTime) : "") + '. Tick each one. Nothing new to learn today: a rested brain scores better than one more hour of study.</p></section>' +
+      '<section class="card"><ul class="eve-list">' + EVE.map(function (x) {
+        var on = x[0] === "time" ? !!s.settings.examTime || !!c.time : !!c[x[0]];
+        return '<li><label><input type="checkbox" data-eve="' + x[0] + '"' + (on ? " checked" : "") + "> " + esc(x[1]) + "</label>" + (x[0] === "time" && !s.settings.examTime ? ' <a href="#/exams">Set it ›</a>' : "") + "</li>";
+      }).join("") + '</ul><p class="sub" id="eve-n">' + eveDone() + "/" + EVE.length + ' ready</p></section>' +
+      '<section class="card"><h2>Light review</h2><p class="sub">10 minutes at most: your due words, then the strategy line for each part.</p><div class="actions"><a class="btn primary" href="#/review">🔁 Review due words</a><a class="btn" href="#/warmup">💡 Strategy per part</a></div></section>';
+    render(html, "home");
+    app.querySelectorAll("[data-eve]").forEach(function (b) {
+      b.onchange = function () { var cc = s.eve[ex] || (s.eve[ex] = {}), k = b.getAttribute("data-eve"); if (b.checked) cc[k] = 1; else delete cc[k]; Store.save(); document.getElementById("eve-n").textContent = eveDone() + "/" + EVE.length + " ready";
+        if (eveDone() === EVE.length) UI.toast("All set for tomorrow. Sleep well! 加油", "🌙"); };
+    });
+  }
+  /* exam morning: easy words she already knows (confidence, not new learning) and one tip per part */
+  function viewWarmup() {
+    var s = Store.state, srs = s.srs, known = shuffle(Object.keys(srs).filter(function (id) { return WORDMAP[id] && !/^h5-/.test(id) && srs[id].box >= 3; })).slice(0, 10).map(function (id) { return WORDMAP[id]; });
+    var parts = ["L1", "L2", "L3", "R1", "R2", "R3", "W1", "W2"];
+    var html = '<section class="card g-sun"><h2>🌅 Exam-morning warm-up</h2><p class="sub">' + (examLeft() === 0 ? "Today is the day" + (s.settings.examTime ? " · start at " + esc(s.settings.examTime) : "") + ". " : "") + "Wake your Chinese up with words you already know, then read one line per part. Don't learn anything new now.</p>" +
+      (known.length ? '<button class="btn primary big" id="wu-go">▶ ' + known.length + " easy words · 3 min</button>" : "") + "</section>" +
+      '<section class="card"><h2>One tip per part</h2>' + parts.map(function (k) { return '<h3 class="wu-h">' + esc(PART_NAME[k]) + "</h3>" + partTip(k); }).join("") +
+      '<p class="sub">If you are stuck: pick an answer and move on. A blank always scores 0, a guess sometimes scores. 加油！</p></section>';
+    render(html, "home");
+    var b = document.getElementById("wu-go");
+    if (b) b.onclick = function () { (s.warm || (s.warm = {}))[Store.today()] = 1; Store.save(); runDeck({ title: "Warm-up", words: known, mode: "review", back: "#/warmup" }); };
+  }
+
   /* ---------- exam countdown plan: the last EXAM_PLAN_DAYS days, one focus per day ----------
      Mock exam every third day (counted back from two days before the exam), the other days rotate through the
      exam sections weakest first (weakest twice as often), the day before is light, then exam day.
@@ -5400,8 +5541,8 @@
     if (left0 < 0 || left0 > EXAM_PLAN_DAYS) return [];
     for (var i = 0; i <= left0; i++) {
       var d = Store.addDays(t, i), left = left0 - i, e;
-      if (left === 0) e = { ico: "🎓", txt: "Exam day · 加油!", href: "#/ready", kind: "exam" };
-      else if (left === 1) e = { ico: "🌙", txt: "Light review only, then sleep early", href: "#/review", kind: "light" };
+      if (left === 0) e = { ico: "🎓", txt: "Exam day · morning warm-up, then 加油!", href: "#/warmup", kind: "exam" };
+      else if (left === 1) e = { ico: "🎒", txt: "Checklist for tomorrow and light review, then sleep early", href: "#/eve", kind: "light" };
       else if ((left - 2) % 3 === 0) {
         var nm = nextMock(left <= 8, planned);
         if (nm) planned.push(nm.m.id);
@@ -5788,9 +5929,9 @@
       '<section class="card"><h2>Where to get official papers</h2><p class="sub"><b>Best:</b> the official book <span class="zh">《HSK真题集 四级》</span> (Official Examination Papers of HSK Level 4, Chinese Testing International) with its audio — bookshops such as Fahasa or Tiki, or a Chinese centre. Your 14 Nov exam uses the HSK 2.0 format, so use HSK 2.0 papers (codes like H41xxx), not HSK 3.0 samples.</p>' +
       OFFICIAL_LINKS.map(function (r) { return '<a class="res-link" href="' + esc(r.url) + '" target="_blank" rel="noopener"><span class="cta-l"><b>' + esc(r.name) + '</b></span><span class="cta-go">↗</span></a>'; }).join("") + "</section>" +
       '<section class="card"><h2>Log a paper</h2><form id="of-form" class="mw-form" autocomplete="off">' +
-      '<label for="of-name">Paper</label><input id="of-name" maxlength="60" placeholder="e.g. H41003 / 真题集 Test 3"' + (real ? ' value="Real HSK 4 exam"' : "") + ">" +
+      '<label for="of-name">Paper</label><input id="of-name" maxlength="60" placeholder="e.g. H41003 / 真题集 Test 3"' + (real ? ' value="Real HSK ' + exLv() + ' exam"' : "") + ">" +
       '<label for="of-date">Date</label><input id="of-date" type="date" value="' + esc(real ? ex : Store.today()) + '">' +
-      '<label class="of-real"><input type="checkbox" id="of-real"' + (real ? " checked" : "") + "> This is my real HSK 4 result</label>" +
+      '<label class="of-real"><input type="checkbox" id="of-real"' + (real ? " checked" : "") + "> This is my real HSK " + exLv() + " result</label>" +
       '<div class="of-row"><div><label for="of-l">Listening</label><input id="of-l" type="number" inputmode="numeric" min="0" max="100" placeholder="/100"></div>' +
       '<div><label for="of-r">Reading</label><input id="of-r" type="number" inputmode="numeric" min="0" max="100" placeholder="/100"></div>' +
       '<div><label for="of-w">Writing</label><input id="of-w" type="number" inputmode="numeric" min="0" max="100" placeholder="/100"></div></div>' +
@@ -5810,7 +5951,9 @@
       var nums = ["of-l", "of-r", "of-w"].map(function (id) { return g(id) === "" ? NaN : +g(id); });
       if (nums.some(function (x) { return !isFinite(x) || x < 0 || x > 100; })) { err.textContent = "Enter each section score from 0 to 100."; err.hidden = false; return; }
       Store.state.official.push({ id: Date.now().toString(36), date: /^\d{4}-\d{2}-\d{2}$/.test(g("of-date")) ? g("of-date") : Store.today(), name: g("of-name") || "Official paper", l: Math.round(nums[0]), r: Math.round(nums[1]), w: Math.round(nums[2]), real: document.getElementById("of-real").checked });
-      Store.save(); Game.award(10); UI.toast("Official result saved", "📄"); viewOfficial();
+      Store.save(); Game.award(10); UI.toast("Official result saved", "📄");
+      if (document.getElementById("of-real").checked && realResult()) { location.hash = "#/exams"; return; } // straight on to "what's next"
+      viewOfficial();
     };
     app.querySelectorAll("[data-odel]").forEach(function (b) {
       b.onclick = function () {
@@ -5953,7 +6096,7 @@
   }
 
   window.App = {
-    practiceTop: practiceTop,
+    practiceTop: practiceTop, _sessionPlan: sessionPlan,
     esc: esc, M: M, PY: PY, SAY: SAY, shuffle: shuffle, render: render, setKeys: setKeys, typing: typing, rect: rect, norm: norm,
     dayWords: dayWords, studiedWords: studiedWords, levelBadge: levelBadge, SAYX: SAYX, refreshChrome: refreshChrome,
     markWork: markWork, resetWork: function () { workDone = false; }, readingSet: readingSet, _talk: viewTalk, packFromArg: packFromArg, packQuizDone: packQuizDone, h5Loaded: h5Loaded, x4Loaded: x4Loaded, ensureH5: ensureH5, ensureX4: ensureX4, get CORE() { return CORE; }, get COREMAP() { return COREMAP; }, get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }

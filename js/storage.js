@@ -30,7 +30,11 @@
       talkLog: [],    // finished AI role-plays, newest last (max 60): [{ d: date, id: scene id, s: score 0-10 or null, g: goal met, l: 4|5 }]
       fcAtExam: null, // the forecast frozen on exam day: { d, t, L, R, W }, to compare with the real result
       qlog: {},       // question key -> [right, wrong] over all time (the admin's "hardest questions" view adds these up across learners)
-      bankSeen: [],   // ids of shared-bank questions already practised (so the next round brings new ones)
+      bankSeen: [],
+      examHist: [],   // finished exams, oldest first (max 20): [{ lv: 4|5, d: date, fc: { t, L, R, W } | null, real: { l, r, w } | null }]
+      afterFor: "",   // the exam date whose "what's next" choice was made (the Home card stops asking)
+      eve: {},        // exam date -> { checklist item: 1 } for the day-before checklist
+      warm: {},       // date -> 1 when the exam-morning warm-up was started   // ids of shared-bank questions already practised (so the next round brings new ones)
       weekGoal: {},   // week-start date -> true once that week's study-days goal was met
       patternHide: {}, // pattern signature -> date it was dismissed (hidden for the rest of that day)
       patternAI: {},  // pattern signature -> saved AI explanation
@@ -69,7 +73,8 @@
     if (!obj || typeof obj !== "object") return d;
     Object.keys(d).forEach(function (k) {
       if (obj[k] == null) return;
-      d[k] = (typeof d[k] === "object" && !Array.isArray(d[k])) ? Object.assign(d[k], obj[k]) : obj[k];
+      // a default of null (fcAtExam) takes the saved value as it is; Object.assign(null, …) would throw and lose the whole progress
+      d[k] = (d[k] && typeof d[k] === "object" && !Array.isArray(d[k])) ? Object.assign(d[k], obj[k]) : obj[k];
     });
     d.version = 2;
     clean(d);
@@ -127,6 +132,21 @@
       var v = d.qlog[k];
       if (i >= 6000 || k.length > 80 || !Array.isArray(v)) { delete d.qlog[k]; return; }
       d.qlog[k] = [n(v[0]), n(v[1])];
+    });
+    var D8 = /^\d{4}-\d{2}-\d{2}$/, sec = function (x) { return Math.max(0, Math.min(100, Math.round(n(x)))); };
+    if (st.examLevel !== 5) st.examLevel = 4;
+    d.examHist = (Array.isArray(d.examHist) ? d.examHist : []).filter(function (e) { return e && D8.test(e.d); }).slice(-20).map(function (e) {
+      return { lv: e.lv === 5 ? 5 : 4, d: e.d, fc: e.fc && typeof e.fc === "object" ? { t: Math.round(n(e.fc.t)), L: Math.round(n(e.fc.L)), R: Math.round(n(e.fc.R)), W: Math.round(n(e.fc.W)) } : null,
+        real: e.real && typeof e.real === "object" ? { l: sec(e.real.l), r: sec(e.real.r), w: sec(e.real.w) } : null };
+    });
+    d.afterFor = D8.test(d.afterFor) ? d.afterFor : "";
+    ["eve", "warm"].forEach(function (k) {
+      var o = d[k] && typeof d[k] === "object" && !Array.isArray(d[k]) ? d[k] : {}, out = {};
+      Object.keys(o).filter(function (x) { return D8.test(x); }).sort().slice(-10).forEach(function (x) {
+        if (k === "warm") { if (o[x]) out[x] = 1; return; }
+        var c = {}; if (o[x] && typeof o[x] === "object") Object.keys(o[x]).slice(0, 12).forEach(function (y) { if (/^[a-z]{1,12}$/.test(y) && o[x][y]) c[y] = 1; }); out[x] = c;
+      });
+      d[k] = out;
     });
     d.bankSeen = (Array.isArray(d.bankSeen) ? d.bankSeen : []).map(function (x) { return Math.round(+x); }).filter(function (x) { return x > 0 && isFinite(x); }).slice(-2000);
     if (d.fcAtExam && (typeof d.fcAtExam !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(d.fcAtExam.d))) d.fcAtExam = null;

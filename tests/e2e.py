@@ -2081,7 +2081,7 @@ async def t_aiplus(b):
     t = await pg.inner_text("#app")
     check("new questions: Exam parts lists listening 1-3 and a reading passage", "New questions, never seen before" in t and await pg.locator("a[href^='#/newq/']").count() == 4, t[-600:])
     await go(pg, "#/games", 900)
-    check("new questions: Practice offers new listening questions", await pg.locator(".grow[href^='#/newq/L']").count() == 1)
+    check("new questions: Practice mentions them on the Exam parts row", "plus new questions" in await pg.inner_text(".grow[href='#/parts']"))
     # listening part 2 by the AI
     await go(pg, "#/newq/L2", 300); await pg.wait_for_selector("#qcard", timeout=15000)
     q = await pg.inner_text("#qcard")
@@ -2152,9 +2152,82 @@ async def t_aiplus(b):
     await ctx.close()
 
 
+async def t_examflow(b):
+    """Each learner's own exam: day-before checklist, exam-morning warm-up, no new words at the end, after the exam, history, offline questions."""
+    hist = [{"id": 3, "date": day(-20), "mode": "exam", "total": 210, "sections": {"listening": 70, "reading": 70, "writing": 70}, "full": False, "ws": False}]
+    srs = {"d01-%02d" % i: {"box": 4, "due": day(5), "right": 4, "wrong": 0, "added": day(-30), "last": day(-2)} for i in range(1, 13)}
+    # the day before
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(1)), "srs": srs, "mockHistory": hist})
+    await go(pg, "#/", 900)
+    t = await pg.inner_text("#today-main")
+    check("countdown: the day before, Today has the checklist and no new lesson", "Checklist for tomorrow" in t and "Lesson · Day" not in t, t)
+    plan = await pg.evaluate("App._sessionPlan().map(x=>x.id)")
+    check("countdown: no new words in the last 2 days", "new" not in plan, plan)
+    await go(pg, "#/eve", 600)
+    n = await pg.locator("[data-eve]").count()
+    for i in range(n):
+        await pg.locator("[data-eve]").nth(i).check()
+    check("countdown: the checklist counts what is ready and is kept for that exam", ("%d/%d ready" % (n, n)) in await pg.inner_text("#eve-n") and len(await pg.evaluate("Object.keys(Store.state.eve[Store.state.settings.examDate])")) >= n - 1)
+    await go(pg, "#/", 700)
+    check("countdown: the checklist step is ticked on Today", await pg.locator("#today-main li.done a[data-step='eve']").count() == 1)
+    await ctx.close()
+    # exam morning
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(0), examTime="09:00"), "srs": srs, "mockHistory": hist})
+    await go(pg, "#/", 900)
+    t = await pg.inner_text("#today-main")
+    check("countdown: on exam day Today is only the morning warm-up", "Exam-morning warm-up" in t and await pg.locator("#today-main li").count() == 1, t)
+    await go(pg, "#/warmup", 600)
+    t = await pg.inner_text("#app")
+    check("countdown: the warm-up has easy known words, the start time and one tip per part", await pg.locator("#wu-go").count() == 1 and "09:00" in t and await pg.locator(".ptip").count() == 8, t[:300])
+    await pg.click("#wu-go"); await pg.wait_for_timeout(500)
+    check("countdown: the warm-up deck opens and counts as done", "Warm-up" in await pg.inner_text("#app") and await pg.evaluate("!!Store.state.warm[Store.today()]"))
+    await ctx.close()
+    # after the exam: real result → what's next → history
+    off = [{"id": "r1", "date": day(-2), "name": "Real HSK 4 exam", "l": 80, "r": 75, "w": 70, "real": True}]
+    st = {"settings": settings(examDate=day(-2)), "srs": srs, "mockHistory": hist, "official": off, "fcAtExam": {"d": day(-2), "t": 205, "L": 70, "R": 70, "W": 65}}
+    ctx, pg = await open_app(b, st)
+    await go(pg, "#/", 900)
+    check("after: once the real result is in, Home asks what is next", await pg.locator("a.after-next[href='#/exams']").count() == 1 and await pg.locator("a.real-ask").count() == 0)
+    await pg.click("a.after-next"); await pg.wait_for_selector("[data-next]", timeout=10000)
+    t = await pg.inner_text("#app")
+    check("after: My exams compares real and forecast and offers 3 next steps", await pg.locator("[data-next]").count() == 3 and "225/300" in t and "20 points better" in t, t[:500])
+    await pg.click("[data-next='exam']"); await pg.select_option("#ex-lv", "5"); await pg.fill("#ex-d", day(40)); await pg.fill("#ex-t", "08:30"); await pg.click("#ex-save"); await pg.wait_for_timeout(500)
+    s2 = await pg.evaluate("({d:Store.state.settings.examDate, lv:Store.state.settings.examLevel, t:Store.state.settings.examTime, h:Store.state.examHist, fc:Store.state.fcAtExam})")
+    check("after: the next exam is saved and the last one goes into the history with forecast and result", s2["d"] == day(40) and s2["lv"] == 5 and s2["t"] == "08:30" and len(s2["h"]) == 1 and s2["h"][0]["fc"]["t"] == 205 and s2["h"][0]["real"]["l"] == 80 and s2["fc"] is None, s2)
+    check("after: My exams lists the past exam", "HSK 4 · " in await pg.inner_text("#app") and "real 225/300 (+20)" in await pg.inner_text("#app"))
+    await go(pg, "#/", 900)
+    check("after: Home counts down to the new exam and its level", "40 days to HSK 5" in await pg.inner_text(".home-head") and await pg.locator("a.after-next, a.real-ask").count() == 0)
+    await go(pg, "#/me", 700)
+    check("after: Me shows My exams with the level, days left and past exams", "HSK 5 · 40 days left · 1 past" in await pg.inner_text("a.me-row[href='#/exams']"))
+    sm = await pg.evaluate("Sync.summary().progress")
+    check("after: the admin summary has the level and the history", sm.get("lv") == 5 and sm.get("xh") and sm["xh"][0][2] == 205 and sm["xh"][0][3] == 225, sm.get("xh"))
+    await ctx.close()
+    ctx, pg = await open_app(b, st)
+    await go(pg, "#/exams", 900); await pg.click("[data-next='keep']"); await pg.wait_for_timeout(400)
+    check("after: Keep reviewing saves the exam and Home stops asking", await pg.evaluate("Store.state.afterFor") == day(-2) and len(await pg.evaluate("Store.state.examHist")) == 1)
+    await go(pg, "#/", 700)
+    check("after: no more after-exam cards on Home", await pg.locator("a.after-next, a.real-ask").count() == 0 and "Keep your Chinese going" in await pg.inner_text(".home-head"))
+    await ctx.close()
+    # offline: questions fetched earlier work without a connection
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": srs}, ai=True)
+    await pg.evaluate("localStorage.setItem('cbChinese.bank1', JSON.stringify({at: Date.now(), rows: []})); localStorage.removeItem('cbChinese.aiq1')")
+    await go(pg, "#/parts", 600)
+    await pg.wait_for_function("(JSON.parse(localStorage.getItem('cbChinese.aiq1')||'{}').k||{}).R3", timeout=15000)
+    check("offline: new questions are fetched ahead while online", await pg.evaluate("Object.keys(JSON.parse(localStorage.getItem('cbChinese.aiq1')).k).length") >= 1)
+    await ctx.set_offline(True)
+    await go(pg, "#/newq/R3", 300); await pg.wait_for_selector("#qcard", timeout=10000)
+    check("offline: a saved reading passage opens with no connection", "新员工" in await pg.inner_text("#qcard"))
+    await go(pg, "#/parts", 300); await go(pg, "#/newq/R3", 300); await pg.wait_for_timeout(600)
+    check("offline: when the saved ones are used up it says to connect", "offline" in await pg.inner_text("#app"))
+    await ctx.set_offline(False)
+    await go(pg, "#/games", 700)
+    check("clean-up: Practice keeps four rows (no separate new-questions row)", await pg.locator(".grow[href^='#/newq/']").count() == 0 and "plus new questions" in await pg.inner_text(".grow[href='#/parts']"))
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow)]
 PW = None
 
 

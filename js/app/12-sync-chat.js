@@ -96,10 +96,10 @@
   function syncMeta() { var st = Store.state; return { xp: st.xp, streak: Store.streak(), words: Object.keys(st.srs).length, last: st.streak.last || "" }; }
   function syncMark() { var st = Store.state; return st.xp + ":" + Object.keys(st.srs).length + ":" + (st.streak.last || ""); }
   /* Saves now. Resolves with "saved", "conflict", "same", "off" or an error code; never rejects. */
-  function syncNow(force) {
+  function syncNow(force, depth) {
     var c = syncCfg();
     if (c.off || !Store.available || !Store.state.settings.onboarded || !AI.available()) return Promise.resolve("off");
-    if (c.conflict && !force) { if (syncBehind(c.conflict.meta)) force = true; else return Promise.resolve("conflict"); } // paused earlier by a copy that isn't ahead: heal
+    if (c.conflict && !force) { if (syncBehind(c.conflict.meta)) force = true; else if (!syncBusy) return syncMerge(depth); else return syncBusy; } // paused earlier: heal (keep this phone) or combine both copies
     if (!c.code && !Store.state.xp) return Promise.resolve("off"); // nothing worth keeping yet
     if (syncBusy) return syncBusy;
     var mark = syncMark(); if (!force && c.code && c.mark === mark) return Promise.resolve("same");
@@ -115,11 +115,30 @@
         /* Usually not another phone: iOS suspended the app while a save was on its way, the server kept it, the reply was lost,
            so this phone still has the old number. When the server's copy is not ahead of this phone in anything, keep this phone. */
         if (!force && syncBehind(r.result.meta)) { n.rev = r.result.rev; syncSave(n); return syncNow(true); }
-        n.conflict = { at: r.result.updated_at, meta: r.result.meta || {} }; syncSave(n); return "conflict";
+        n.conflict = { at: r.result.updated_at, meta: r.result.meta || {} }; syncSave(n);
+        return syncMerge(depth); // another phone really studied too: combine both copies instead of asking
       }
       n.rev = r.result.rev; n.last = Date.now(); n.mark = mark; delete n.conflict; syncSave(n);
       if (first) UI.toast("Your progress is now backed up online (Me → Cloud backup)", "☁️");
       return "saved";
+    });
+    return syncBusy;
+  }
+  /* Two copies both moved on (two phones, or a save this phone never heard back about): fetch the cloud copy, merge it
+     into this phone item by item (js/storage.js combine), then save the result. If the cloud changes again in between,
+     try once more; after that the old "choose which one to keep" card is the fallback. */
+  function syncMerge(depth) {
+    depth = depth || 0;
+    var c = syncCfg(); if (depth > 1 || !c.code) return Promise.resolve("conflict");
+    syncBusy = AI.call("sync_get", { code: c.code }).then(function (r) {
+      syncBusy = null;
+      if (!r.ok || !r.result || !r.result.data) return "conflict";
+      try { Store.mergeIn(r.result.data); } catch (e) { return "conflict"; }
+      var n = syncCfg(); n.rev = r.result.rev; delete n.conflict; delete n.mark; syncSave(n);
+      try { buildIndex(); } catch (e) { /* the screens rebuild it when they need it */ }
+      UI.toast("Combined with your progress from another phone", "☁️");
+      if ((location.hash || "#/") === "#/" || /^#\/(me|progress)/.test(location.hash)) route();
+      return syncNow(false, depth + 1);
     });
     return syncBusy;
   }
@@ -133,7 +152,7 @@
     var stale = c.last && Date.now() - c.last > 2 * 864e5;
     if (!c.conflict && !(c.err && stale)) return "";
     return '<a class="card warn-card sync-paused" href="#/me"><b>☁️ Backup ' + (c.conflict ? "paused" : "failing") + "</b><small>" +
-      (c.conflict ? "Another copy of your progress was saved. Choose which one to keep in Me → Cloud backup. Until then the C&amp;B team sees old numbers." : "Your progress hasn't been saved online for " + Math.floor((Date.now() - c.last) / 864e5) + " days. Tap to check.") + "</small></a>";
+      (c.conflict ? "Another copy of your progress was saved. The app combines both the next time it is online, or open Me → Cloud backup to do it now." : "Your progress hasn't been saved online for " + Math.floor((Date.now() - c.last) / 864e5) + " days. Tap to check.") + "</small></a>";
   }
   /* ---------- Teacher chat (learner side) ----------
      Messages live on the server (see chat_get / chat_send in supabase/functions/ai/index.ts) and are reached with this
@@ -350,7 +369,7 @@
     function draw() {
       var c = syncCfg(), h = "";
       if (c.off) h = '<p class="sub">Off. Your progress is only on this phone.</p><div class="actions"><button class="btn primary small" id="y-on">Turn on</button><button class="btn small" id="y-code">Restore with a code</button></div>';
-      else if (c.conflict) h = '<p class="warn">Another phone saved this backup on ' + esc(c.conflict.at ? new Date(c.conflict.at).toLocaleString() : "an unknown date") + " (" + (c.conflict.meta.xp || 0) + " XP). This phone has " + Store.state.xp + ' XP. Choose which one to keep; backup is paused until you do.</p><div class="actions"><button class="btn primary small" id="y-take">Use the cloud copy</button><button class="btn small" id="y-keep">Keep this phone</button></div>';
+      else if (c.conflict) h = '<p class="warn">Another phone saved this backup on ' + esc(c.conflict.at ? new Date(c.conflict.at).toLocaleString() : "an unknown date") + " (" + (c.conflict.meta.xp || 0) + " XP). This phone has " + Store.state.xp + ' XP. The app combines both by itself when it is online; you can also do it now, or keep just one.</p><div class="actions"><button class="btn primary small" id="y-merge">Combine both</button><button class="btn small" id="y-take">Use the cloud copy</button><button class="btn small" id="y-keep">Keep this phone</button></div>';
       else h = '<p class="sub">' + (c.code ? "On. " + (c.last ? "Last saved: " + esc(new Date(c.last).toLocaleString()) + "." : "Not saved yet.") : "On. The first backup is made after your first study session.") +
         " A copy of your progress is saved on the app's server after you study. No account is needed. The C&amp;B team can see progress numbers such as XP, streak, scores and study days, but never your answers or notes.</p>" +
         (c.err ? '<p class="warn">Last try failed: ' + esc(AI.errMsg(c.err)) + "</p>" : "") +
@@ -368,6 +387,7 @@
       wireGoogle(document.getElementById("y-google"));
       on("y-go", function (b) { load(document.getElementById("y-in").value, b); });
       on("y-take", function (b) { load(c.code, b); });
+      on("y-merge", function (b) { b.disabled = true; syncMerge(0).then(function (r) { done(r === "saved" || r === "same" ? "Both copies combined" : AI.errMsg(r === "conflict" ? "network" : r), r === "saved" || r === "same" ? "☁️" : "⚠️"); }); });
       on("y-keep", function (b) { b.disabled = true; syncNow(true).then(function (r) { done(r === "saved" ? "This phone's progress is now the backup" : AI.errMsg(r), r === "saved" ? "☁️" : "⚠️"); }); });
       on("y-on", function () { var n = syncCfg(); delete n.off; syncSave(n); syncNow(true).then(draw); draw(); });
       on("y-off", function () {

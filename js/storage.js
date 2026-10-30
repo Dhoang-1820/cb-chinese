@@ -323,6 +323,79 @@
       exportJSON(); return "download";
     });
   }
+  /* ---------- merging two copies of the progress (this phone + the cloud backup) ----------
+     Used when another phone (or a save the server kept while this phone missed the reply) changed the backup.
+     Nothing is lost: each word card, mistake and lesson keeps its most recent or most advanced version, logs and lists
+     are combined, counters keep the higher number. This phone keeps its own settings. Returns a new, cleaned object. */
+  function combine(L, R) {
+    var out = JSON.parse(JSON.stringify(L)), o, k;
+    var later = function (a, b, f) { return String((b && b[f]) || "") > String((a && a[f]) || "") ? b : a; };
+    var each = function (obj, fn) { Object.keys(obj || {}).forEach(function (key) { fn(key, obj[key]); }); };
+    var mx = function (a, b) { return Math.max(n(a), n(b)); };
+    // word cards: the one answered last (then the one answered more)
+    each(R.srs, function (id, c) { var a = out.srs[id]; out.srs[id] = !a ? c : String(c.last || "") > String(a.last || "") || (String(c.last || "") === String(a.last || "") && n(c.right) + n(c.wrong) > n(a.right) + n(a.wrong)) ? c : a; });
+    each(R.days, function (d, r) {
+      var a = out.days[d]; if (!a) { out.days[d] = r; return; }
+      var m = Object.assign({}, r, a);
+      m.completed = !!(a.completed || r.completed); m.quizBest = mx(a.quizBest, r.quizBest);
+      m.completedOn = a.completed && r.completed ? (String(a.completedOn || "") < String(r.completedOn || "") ? a.completedOn : r.completedOn) : a.completed ? a.completedOn : r.completedOn;
+      m.practice = Object.assign({}, r.practice || {}, a.practice || {});
+      if (!(a.cu && r.cu) && m.completed) delete m.cu; // a full pass on either phone clears the catch-up mark
+      out.days[d] = m;
+    });
+    out.streak = later(L.streak, R.streak, "last"); out.streak = Object.assign({}, out.streak, { best: mx(L.streak && L.streak.best, R.streak && R.streak.best) });
+    each(R.log, function (d, x) { out.log[d] = mx(out.log[d], x); });
+    var logSum = 0; each(out.log, function (d, x) { logSum += n(x); });
+    out.xp = Math.max(n(L.xp), n(R.xp), logSum); out.freezes = mx(L.freezes, R.freezes);
+    each(R.badges, function (b, d) { if (!out.badges[b] || String(d) < String(out.badges[b])) out.badges[b] = d; });
+    each(R.games, function (g, r) { var a = out.games[g]; out.games[g] = !a ? r : Object.assign({}, a, { best: mx(a.best, r.best), plays: mx(a.plays, r.plays) }); });
+    each(R.mocks, function (m, r) { var a = out.mocks[m]; out.mocks[m] = !a ? r : Object.assign({}, n(r.plays) > n(a.plays) ? r : a, { best: mx(a.best, r.best), plays: mx(a.plays, r.plays) }); });
+    each(R.slog, function (d, r) {
+      var a = out.slog[d]; if (!a) { out.slog[d] = r; return; }
+      var m = n(r.m) > n(a.m) ? Object.assign({}, r) : Object.assign({}, a); m.k = {};
+      [a.k || {}, r.k || {}].forEach(function (src) { each(src, function (sk, v) { var c = m.k[sk] || [0, 0]; m.k[sk] = [mx(c[0], v && v[0]), mx(c[1], v && v[1])]; }); });
+      out.slog[d] = m;
+    });
+    var uni = function (a, b, keyOf, cap, sortBy) {
+      var seen = {}, list = [];
+      (a || []).concat(b || []).forEach(function (x) { var kk = keyOf(x); if (x && !seen[kk]) { seen[kk] = 1; list.push(x); } });
+      if (sortBy) list.sort(function (x, y) { var p = String(sortBy(x)), q = String(sortBy(y)); return p < q ? -1 : p > q ? 1 : 0; });
+      return cap ? list.slice(-cap) : list;
+    };
+    out.coachLog = uni(L.coachLog, R.coachLog, function (x) { return x.w + "|" + x.d; }, 6, function (x) { return x.d || x.w; });
+    out.mlog = uni(L.mlog, R.mlog, function (x) { return x.d + "|" + x.k + "|" + x.s; }, 600, function (x) { return x.d; });
+    out.trk = uni(L.trk, R.trk, function (x) { return x.w; }, 12, function (x) { return x.w; });
+    out.talkLog = uni(L.talkLog, R.talkLog, function (x) { return x.d + "|" + x.id + "|" + x.s + "|" + x.l; }, 60, function (x) { return x.d; });
+    out.mockHistory = uni(L.mockHistory, R.mockHistory, function (x) { return x.id + "|" + x.date + "|" + x.mode + "|" + x.total; }, 0, function (x) { return x.date; });
+    out.official = uni(L.official, R.official, function (x) { return x.id; }, 0, function (x) { return x.date; });
+    out.examHist = uni(L.examHist, R.examHist, function (x) { return x.lv + "|" + x.d; }, 20, function (x) { return x.d; });
+    out.reports = uni(L.reports, R.reports, function (x) { return x.id; });
+    out.custom = uni(L.custom, R.custom, function (x) { return x.id; });
+    out.bankSeen = uni(L.bankSeen, R.bankSeen, function (x) { return x; }, 2000);
+    out.fcAtExam = L.fcAtExam || R.fcAtExam; out.afterFor = String(L.afterFor || "") > String(R.afterFor || "") ? L.afterFor : R.afterFor;
+    each(R.qlog, function (q, v) { var a = out.qlog[q]; out.qlog[q] = a ? [mx(a[0], v[0]), mx(a[1], v[1])] : v; });
+    each(R.mistakes, function (q, r) { var a = out.mistakes[q]; out.mistakes[q] = !a ? r : later(a, r, "last"); });
+    each(R.skills, function (q, r) { var a = out.skills[q]; out.skills[q] = !a ? r : { r: mx(a.r, r.r), w: mx(a.w, r.w) }; });
+    each(R.grammar, function (q, r) { var a = out.grammar[q]; out.grammar[q] = !a ? r : { best: mx(a.best, r.best), passes: mx(a.passes, r.passes), mastered: !!(a.mastered || r.mastered), n: mx(a.n, r.n), d: String(a.d || "") > String(r.d || "") ? a.d : r.d }; });
+    each(R.wquiz, function (q, r) { var a = out.wquiz[q]; out.wquiz[q] = !a ? r : n(r.s) > n(a.s) ? r : a; });
+    each(R.packs, function (q, r) { var a = out.packs[q]; out.packs[q] = !a ? r : { b: mx(a.b, r.b), p: mx(a.p, r.p) }; });
+    each(R.stats, function (q, v) { out.stats[q] = mx(out.stats[q], v); });
+    each(R.eve, function (d, r) { out.eve[d] = Object.assign({}, r, out.eve[d] || {}); });
+    // simple "date or id -> done" maps: done on either phone is done
+    ["warm", "weekGoal", "patternHide", "patternAI", "sessions", "questChest", "track", "challenges"].forEach(function (f) {
+      o = out[f] || (out[f] = {}); each(R[f], function (q, v) { if (!(q in o)) o[q] = v; });
+    });
+    if (R.weekly && R.weekly.cur && (!out.weekly || !out.weekly.cur || String(R.weekly.cur.w || "") > String(out.weekly.cur.w || ""))) out.weekly = R.weekly;
+    for (k in out) if (!(k in L)) delete out[k];
+    return out;
+  }
+  /* merge a copy from the cloud into this phone's progress and save it; returns the merged state */
+  function mergeIn(remote) {
+    var r = merge(remote); // normalised like an import (compact decks unpacked, fields cleaned)
+    state = merge(combine(state, r));
+    save();
+    return state;
+  }
   function importJSON(text) {
     var obj = JSON.parse(text);
     var p = obj && obj.progress ? obj.progress : obj;
@@ -334,7 +407,7 @@
 
   window.Store = {
     get state() { return state; },
-    load: load, save: save, touch: touch, streak: streak, day: day, game: game,
+    load: load, save: save, touch: touch, streak: streak, day: day, game: game, mergeIn: mergeIn, _combine: combine,
     today: today, addDays: addDays, daysBetween: daysBetween,
     exportJSON: exportJSON, shareJSON: shareJSON, importJSON: importJSON, serialize: serialize, compact: compact, backup: backup, reset: reset,
     get available() { return available; }

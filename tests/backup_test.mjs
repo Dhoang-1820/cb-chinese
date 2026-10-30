@@ -66,4 +66,30 @@ const cardsOf = (srs) => JSON.stringify(Object.keys(srs).sort().map((id) => { co
   const edge = phone(NOW, state(n, 600)), e = edge.S.backup();
   t("just over 300,000 characters: compact, and much smaller", Array.isArray(e.srs["h5-0001"]) && JSON.stringify(e).length < 200000, n + " cards → " + JSON.stringify(e).length);
 }
+{ // ---- two phones studied: merging the cloud copy into this phone (Store.mergeIn) loses nothing ----
+  const base = { settings: { onboarded: true, examDate: "2026-11-14", lang: "vi" }, xp: 100, log: { "2026-10-01": 60, "2026-10-02": 40 },
+    srs: { a: { box: 3, due: "2026-10-10", right: 3, wrong: 0, added: "2026-10-01", last: "2026-10-05" }, b: { box: 2, due: "2026-10-09", right: 1, wrong: 1, added: "2026-10-01", last: "2026-10-04" } },
+    streak: { count: 2, last: "2026-10-02", best: 5 }, mistakes: { "m:1:R1-1": { kind: "mock", skill: "fill-word", wrong: 1, streak: 0, last: "2026-10-02" } },
+    mockHistory: [{ id: 1, date: "2026-10-02", mode: "exam", total: 200, sections: { listening: 70, reading: 70, writing: 60 } }], badges: { first: "2026-10-01" }, sessions: { "2026-10-02": true } };
+  const here = JSON.parse(JSON.stringify(base)), cloud = JSON.parse(JSON.stringify(base));
+  // this phone: studied card a again, a new card c, one more day
+  here.srs.a = { box: 4, due: "2026-10-20", right: 4, wrong: 0, added: "2026-10-01", last: "2026-10-08" }; here.srs.c = { box: 1, due: "2026-10-09", right: 0, wrong: 1, added: "2026-10-08", last: "2026-10-08" };
+  here.log["2026-10-08"] = 30; here.xp = 130; here.streak = { count: 1, last: "2026-10-08", best: 5 }; here.settings.lang = "en";
+  // the other phone: studied card b, took a mock, fixed the mistake, earned a badge, a later study day
+  cloud.srs.b = { box: 3, due: "2026-10-15", right: 2, wrong: 1, added: "2026-10-01", last: "2026-10-07" }; cloud.log["2026-10-07"] = 50; cloud.xp = 150;
+  cloud.mockHistory.push({ id: 2, date: "2026-10-07", mode: "exam", total: 220, sections: { listening: 80, reading: 70, writing: 70 } });
+  cloud.mistakes["m:1:R1-1"] = { kind: "mock", skill: "fill-word", wrong: 1, streak: 1, last: "2026-10-07" }; cloud.badges.mock = "2026-10-07"; cloud.streak = { count: 6, last: "2026-10-07", best: 6 };
+  const p = phone(NOW, here); p.S.mergeIn(cloud); const m = p.S.state, saved = p.saved();
+  t("merge: each card keeps its latest version from either phone", m.srs.a.box === 4 && m.srs.b.box === 3 && !!m.srs.c, JSON.stringify(m.srs));
+  t("merge: study days from both phones, XP covers both", m.log["2026-10-07"] === 50 && m.log["2026-10-08"] === 30 && m.xp >= 180, m.xp);
+  t("merge: mock attempts from both phones, no duplicates", m.mockHistory.length === 2 && m.mockHistory[1].id === 2);
+  t("merge: a mistake keeps its newer state, badges from both", m.mistakes["m:1:R1-1"].streak === 1 && m.badges.mock === "2026-10-07" && m.badges.first === "2026-10-01");
+  t("merge: the streak from the phone that studied last, best of both", m.streak.last === "2026-10-08" && m.streak.best === 6, JSON.stringify(m.streak));
+  t("merge: this phone keeps its own settings", m.settings.lang === "en");
+  t("merge: the result is saved on the phone", saved.srs.b.box === 3 && saved.mockHistory.length === 2);
+  const again = phone(NOW, JSON.parse(JSON.stringify(m))); again.S.mergeIn(JSON.parse(JSON.stringify(m)));
+  t("merge: merging the same copy twice changes nothing", JSON.stringify(again.S.state.srs) === JSON.stringify(m.srs) && again.S.state.mockHistory.length === 2 && again.S.state.xp === m.xp);
+  const big = phone(NOW, here); big.S.mergeIn(phone(NOW, state(4600, 1231)).S.backup());
+  t("merge: a compact cloud copy (very large deck) is unpacked before merging", Object.keys(big.S.state.srs).length === 4603 && !Array.isArray(big.S.state.srs["h5-0001"]));
+}
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

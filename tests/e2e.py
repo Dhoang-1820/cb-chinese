@@ -647,14 +647,17 @@ async def t_sync(b):
     await p2.evaluate("Game.award(10)"); await no_dialogs(p2)
     r2 = await p2.evaluate("Sync.now()"); k2 = await p2.evaluate(cfg)
     check("backup: the second phone saves on top", r2 in ("saved", "same") and k2.get("rev", 0) >= 2, (r2, k2))  # the start-up save may add one more  # "same" when the start-up save got there first
-    # the first phone must not overwrite it silently
-    await p1.evaluate("Game.award(5)"); await no_dialogs(p1)
+    # the first phone must not overwrite it: it combines both copies instead
+    await p2.evaluate("SRS.addMany(['d01-01'])")
+    r2b = await p2.evaluate("Sync.now(true)")
+    await p1.evaluate("SRS.addMany(['d01-02']); Game.award(5)"); await no_dialogs(p1)
     r1 = await p1.evaluate("Sync.now()")
-    check("backup: the first phone is told about the newer copy", r1 == "conflict", (r1, await p1.evaluate(cfg), await p2.evaluate(cfg)))
+    k1 = await p1.evaluate(cfg)
+    check("backup: the first phone combines the newer copy instead of overwriting it", r1 == "saved" and "conflict" not in k1 and await p1.evaluate("Store.state.xp") >= 51 and await p1.evaluate("!!Store.state.srs['d01-01'] && !!Store.state.srs['d01-02']"), (r2b, r1, k1))
+    got = await p2.evaluate("AI.call('sync_get',{code:%s}).then(r=>Object.keys(r.result.data.srs).sort().join(','))" % json.dumps(c["code"]))
+    check("backup: the cloud copy now has the words from both phones", "d01-01" in got and "d01-02" in got, got)
     await go(p1, "#/", 300); await go(p1, "#/me", 500); await p1.evaluate(opened)
-    check("backup: Me asks which copy to keep", await p1.locator("#y-take").count() == 1 and await p1.locator("#y-keep").count() == 1)
-    await p1.click("#y-take"); await p1.wait_for_timeout(900)
-    check("backup: 'Use the cloud copy' loads it", await p1.evaluate("Store.state.xp") == 51, await p1.evaluate("Store.state.xp"))
+    check("backup: nothing to choose in Me", await p1.locator("#y-take").count() == 0)
     await go(p1, "#/me", 500); await p1.evaluate(opened)
     await p1.click("#y-off"); await p1.wait_for_timeout(600)
     check("backup: turning off (and deleting) stops saving", await p1.evaluate("Sync.now()") == "off" and "code" not in await p1.evaluate(cfg))
@@ -1769,10 +1772,17 @@ async def t_sync_heal(b):
     check("sync_heal: the other phone (ahead) saves", await p2.evaluate("Sync.now()") == "saved")
     await p1.evaluate("Game.award(1)")
     r = await p1.evaluate("Sync.now()")
-    check("sync_heal: a copy that is ahead still pauses backup (nothing overwritten)", r == "conflict", r)
+    check("sync_heal: a copy that is ahead is combined with this phone (nothing overwritten)", r == "saved" and await p1.evaluate("Store.state.xp") >= 500, (r, await p1.evaluate("Store.state.xp")))
     await go(p1, "#/", 800)
+    check("sync_heal: Home shows no paused backup", await p1.locator(".sync-paused").count() == 0)
+    # the fallback when combining could not happen (e.g. offline at that moment): Home explains, Me offers "Combine both"
+    await p1.evaluate("(()=>{const c=JSON.parse(localStorage.getItem('cbChinese.sync'));c.conflict={at:new Date().toISOString(),meta:{xp:9999,words:0,last:''}};c.rev=0;localStorage.setItem('cbChinese.sync',JSON.stringify(c))})()")
+    await go(p1, "#/me", 300); await go(p1, "#/", 800)
     t = await p1.locator(".sync-paused").inner_text() if await p1.locator(".sync-paused").count() else ""
-    check("sync_heal: Home shows that backup is paused and links to Me", "Backup paused" in t and await p1.locator(".sync-paused").get_attribute("href") == "#/me", t)
+    check("sync_heal: a pause left over says the app combines both by itself", "combines both" in t and await p1.locator(".sync-paused").get_attribute("href") == "#/me", t)
+    await go(p1, "#/me/backup", 1200); await p1.wait_for_selector("#y-merge", timeout=10000)
+    await p1.click("#y-merge"); await p1.wait_for_function("!JSON.parse(localStorage.getItem('cbChinese.sync')).conflict", timeout=10000)
+    check("sync_heal: 'Combine both' merges and resumes the backup", "conflict" not in await p1.evaluate("JSON.parse(localStorage.getItem('cbChinese.sync'))"))
     await c1.close(); await c2.close()
 
 async def t_prep(b):

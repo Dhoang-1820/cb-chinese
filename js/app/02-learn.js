@@ -218,7 +218,7 @@
     var next = DAYS.filter(function (d) { return d.day > nd.day && !(st.days[d.day] || {}).completed; }).slice(0, 3);
     var allDone = DAYS.every(function (d) { return (st.days[d.day] || {}).completed; });
     var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("cb", true) +
-      '<section class="card learn-now g-violet"><small>' + (allDone ? "ALL LESSONS DONE · REVISIT" : "NOW · DAY " + nd.day + " OF " + cut) + '</small><b class="zh">' + esc(nd.title.zh) + "</b><em>" + M(nd.title) + "</em>" +
+      '<section class="card learn-now g-violet"><small>' + (allDone ? "ALL LESSONS DONE · REVISIT" : "NOW · DAY " + nd.day + (examLeft() != null && examLeft() >= 0 ? " OF " + cut + " BEFORE THE EXAM" : " OF " + DAYS.length)) + '</small><b class="zh">' + esc(nd.title.zh) + "</b><em>" + M(nd.title) + "</em>" +
       '<span class="ln-bar" role="img" aria-label="' + done + " of " + cut + ' lessons done"><i style="width:' + Math.min(100, Math.round(done / Math.max(1, cut) * 100)) + '%"></i></span>' +
       '<a class="tm-go" id="learn-go" href="#/day/' + nd.day + '">▶ ' + ((st.days[nd.day] || {}).best ? "Continue lesson" : "Start lesson") + "</a></section>" +
       (next.length ? '<section class="card ln-next"><h3 class="sec">Coming next</h3>' + next.map(function (d) {

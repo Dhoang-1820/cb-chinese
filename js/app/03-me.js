@@ -24,8 +24,9 @@
         return '<div class="bg-item' + (got ? "" : " locked") + '"><span class="bdg">' + b.icon + '</span><b>' + M({ vi: b.vi, en: b.en }) + "</b><small>" + M({ vi: b.dvi, en: b.den }) + "</small></div>";
       }).join("") + "</div></section></details>" +
       '<section class="card settings"><h2>Settings</h2>' +
-      row("Exam date", '<input type="date" id="s-exam" value="' + esc(set.examDate || "2026-11-14") + '">') +
-      '<p class="sub" id="s-exam-note">' + (examNote(set.examDate || "2026-11-14")) + "</p>" +
+      /* the exam (level, date, start time) is edited in one place: My exams */
+      row("Exam", '<a class="btn small" id="s-exam-link" href="#/exams">' + esc(examShort()) + " ›</a>") +
+      (examWarn(set.examDate) ? '<p class="sub" id="s-exam-note">' + examWarn(set.examDate) + "</p>" : "") +
       row("Meanings", sel("s-lang", [["both", "Việt + English"], ["vi", "Tiếng Việt"], ["en", "English"]], set.lang)) +
       row("Today's session length", sel("s-smode", [["quick", "Quick · ~7 min"], ["std", "Standard · ~15 min"], ["long", "Long · ~30 min"]], set.sessionMode || "std")) +
       row("Theme", sel("s-theme", [["auto", "System"], ["light", "Light"], ["dark", "Dark"]], set.theme)) +
@@ -36,8 +37,6 @@
       row("Background noise in listening", sel("s-noise", [["0", "Off"], ["1", "Light café"], ["2", "Busy room"]], String(set.noise || 0))) +
       row("Mock listening speed", sel("s-mrate", [["0", "Same as voice speed"], ["1", "1× (normal)"], ["1.15", "1.15× faster"], ["1.3", "1.3× fast"]], String(set.mockRate || 0))) +
       row("Text size", sel("s-ts", [["m", "Normal"], ["l", "Large"], ["xl", "Larger"]], set.textSize || "m")) +
-      row("Exam start time", '<input type="time" id="s-etime" value="' + esc(set.examTime || "") + '" aria-label="Exam start time">') +
-      '<p class="sub">Your last full mocks are planned at this hour, so your brain is used to the exam time.</p>' +
       row("Daily goal", sel("s-goal", [["20", "20 XP · chill"], ["30", "30 XP · steady"], ["50", "50 XP · serious"], ["80", "80 XP · intense"]], String(set.dailyGoal || 30))) +
       row("Lessons before the exam", sel("s-core", coreOptions().map(function (n) { return [String(n), n + " lessons"]; }), String(coreCut()))) +
       '<p class="sub">About ' + suggestCore() + " lessons fit before your exam at 5 a week. The rest are planned for after it.</p>" +
@@ -73,7 +72,6 @@
     document.getElementById("s-sfx").onchange = function () { sv("sfx", this.checked); if (this.checked) Audio2.sfx.good({ quiet: true }); };
     document.getElementById("s-rate").onchange = function () { sv("audioRate", parseFloat(this.value)); };
     document.getElementById("s-goal").onchange = function () { sv("dailyGoal", parseInt(this.value, 10)); };
-    document.getElementById("s-etime").onchange = function () { sv("examTime", /^\d{2}:\d{2}$/.test(this.value) ? this.value : ""); };
     document.getElementById("s-noise").onchange = function () { sv("noise", parseInt(this.value, 10)); Audio2.noise(set.noise); if (set.noise) { UI.toast("Noise plays while a recording plays", "🎧"); Audio2.play("你好，这是薪酬福利中文。", "F"); } else Audio2.stop(); };
     document.getElementById("s-mrate").onchange = function () { sv("mockRate", parseFloat(this.value)); };
     document.getElementById("s-smode").onchange = function () { sv("sessionMode", this.value); };
@@ -90,7 +88,6 @@
     };
     wireSync(); wireBackup(); wireAI();
     var sg = document.getElementById("s-guide"); if (sg) sg.onclick = function () { showGuide(); };
-    document.getElementById("s-exam").onchange = function () { if (this.value) { sv("examDate", this.value); document.getElementById("s-exam-note").textContent = examNote(this.value); UI.toast("Plan updated for " + this.value, "📅"); } };
     document.getElementById("s-core").onchange = function () { sv("coreTarget", parseInt(this.value, 10)); UI.toast("Plan updated", "📅"); };
     document.getElementById("s-test").onclick = function () { Audio2.noise(0); Audio2.play("你好，这是薪酬福利中文。", "F"); };
     var dl = document.getElementById("s-dl");
@@ -114,7 +111,10 @@
     function sel(id, opts, cur) { return '<select id="' + id + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select>"; }
   }
   /* HSK 3.0 replaces the HSK 2.0 test format from 13 Dec 2026; this app's drills and mock exams follow the 2.0 format. */
-  function examNote(d) { return d >= "2026-12-13" ? "⚠ This date is after 13 Dec 2026, when HSK 3.0 starts. The mocks and drills here follow the HSK 2.0 format, so check which format your test centre will use." : "Your whole plan (pace, final 2 weeks, mocks) follows this date. Change it any time."; }
+  /* a warning for exam dates after 13 Dec 2026 (HSK 3.0), or "" */
+  function examWarn(d) { return d && d >= "2026-12-13" ? "⚠ This date is after 13 Dec 2026, when HSK 3.0 starts. The mocks and drills here follow the HSK 2.0 format, so check which format your test centre will use." : ""; }
+  /* e.g. "HSK 4 · 23 Nov 2026 · 09:00", or "HSK 4 · no date" */
+  function examShort() { var st = Store.state.settings; return "HSK " + exLv() + " · " + (st.examDate ? lrnDate(st.examDate) : "no date") + (st.examTime ? " · " + st.examTime : ""); }
   /* ---------- AI assistant settings (Me) ---------- */
   function wireAI() {
     var box = document.getElementById("ai-box"); if (!box || !window.AI) return;

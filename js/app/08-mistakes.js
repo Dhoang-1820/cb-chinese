@@ -39,7 +39,7 @@
       (repeatItems().length ? '<a class="btn big" id="mis-rep" href="#/mistakes/repeat" style="margin-top:10px">🔁 Fix ' + plural(repeatItems().length, "repeat mistake") + "</a><p class=\"sub\">Missed " + Learn.REPEAT_N + "+ times in 14 days. Each clears after " + Learn.CLEAR_AFTER + " right answers in a row.</p>" : "") + "</section>";
     if (all.length) {
       html += '<section class="card"><h2>Open mistakes by skill</h2>' + Object.keys(bySkill).sort(function (a, b) { return bySkill[b] - bySkill[a]; }).map(function (k) {
-        return '<div class="sk-row"><span class="sk-n">' + skillName(k) + '</span><a class="btn small primary" href="#/mistakes/' + k + '">' + bySkill[k] + " ▶</a></div>";
+        return '<div class="sk-row"><span class="sk-n">' + skillName(k) + '</span><a class="btn small primary" href="#/mistakes/' + k + '">Practise ' + bySkill[k] + " ▶</a></div>";
       }).join("") + "</section>";
     }
     html += patternBox();

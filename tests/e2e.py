@@ -1981,7 +1981,7 @@ async def t_simple(b):
     await go(pg, "#/me", 800)
     t = await pg.inner_text("#app")
     check("me: no admin tools for a learner", "Content review" not in t and "Learner tracking" not in t and await pg.locator("a[href='#/learners']").count() == 0)
-    check("me: four key settings, the rest under More settings", await pg.locator("#s-exam").is_visible() and await pg.locator("#s-smode").is_visible() and not await pg.locator("#s-rate").is_visible())
+    check("me: four key settings, the rest under More settings", await pg.locator("#s-exam-link").is_visible() and await pg.locator("#s-smode").is_visible() and not await pg.locator("#s-rate").is_visible())
     for _ in range(5):
         await pg.click("#s-ver")
     await pg.wait_for_timeout(400)
@@ -2052,8 +2052,12 @@ async def t_boost(b):
     ctx, pg = await open_app(b, {"settings": settings(examDate=day(8), examTime="09:00"), "srs": {}})
     await go(pg, "#/exam", 1200); await pg.wait_for_selector(".ep-list li", timeout=10000)
     check("exam time: final-week full mocks start at the exam hour", "start at 09:00" in await pg.inner_text(".ep-list"))
-    await go(pg, "#/me", 600); await pg.evaluate("document.querySelector('.more-set').open=true")
-    check("exam time: set in Me > More settings", await pg.input_value("#s-etime") == "09:00")
+    await go(pg, "#/me", 600)
+    check("exam: Me shows the exam in one row that opens My exams (no second date or time field)", "09:00" in await pg.inner_text("#s-exam-link") and await pg.locator("#s-exam, #s-etime").count() == 0)
+    await pg.click("#s-exam-link"); await pg.wait_for_selector("#ex-t", timeout=10000)
+    check("exam time: set in My exams", await pg.input_value("#ex-t") == "09:00")
+    await pg.fill("#ex-t", "13:30"); await pg.click("#ex-save"); await pg.wait_for_timeout(400)
+    check("exam time: saving in My exams updates the plan", await pg.evaluate("Store.state.settings.examTime") == "13:30")
     await ctx.close()
 
     # 7. real result after the exam, compared with the frozen forecast
@@ -2235,9 +2239,37 @@ async def t_examflow(b):
     await ctx.close()
 
 
+async def t_quickui(b):
+    """Quick UI fixes: the right tab is lit, pop-ups sit at the bottom, clearer labels."""
+    hist = [{"id": 1, "date": day(-5), "mode": "exam", "total": 190, "sections": {"listening": 61, "reading": 69, "writing": 60}, "full": False, "ws": False}]
+    mis = {"m:1:R1-1": {"kind": "mock", "skill": "fill-word", "mock": 1, "item": "R1-1", "wrong": 2, "streak": 0, "added": day(-3)},
+           "m:1:R1-2": {"kind": "mock", "skill": "fill-word", "mock": 1, "item": "R1-2", "wrong": 1, "streak": 0, "added": day(-2)}}
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(20)), "srs": {}, "mockHistory": hist, "mistakes": mis, "mocks": {"1": {"best": 190, "plays": 1}}})
+    lit = lambda: pg.evaluate("(document.querySelector('.tabbar a.active')||{}).getAttribute && document.querySelector('.tabbar a.active').getAttribute('data-tab')")
+    for h, want in [("#/parts", "games"), ("#/mock/1", "games"), ("#/mock", "games"), ("#/exams", "me"), ("#/track", "learn"), ("#/eve", "home")]:
+        await go(pg, h, 500)
+        got = await lit()
+        check("tabs: %s lights %s" % (h, want), got == want, got)
+    await go(pg, "#/", 800)
+    t = await pg.inner_text(".rc-bars")
+    check("home: the L/R/W bars show each section's score", "61" in t and "69" in t and "60" in t, t)
+    await pg.evaluate("UI.toast('Test message','✅')"); await pg.wait_for_timeout(450)
+    box = await pg.evaluate("(()=>{const t=document.getElementById('toast').getBoundingClientRect(),b=document.querySelector('.tabbar').getBoundingClientRect();return {top:t.top,bottom:t.bottom,bar:b.top,h:innerHeight}})()")
+    check("pop-ups: shown just above the tab bar, not over the screen's title", box["bottom"] <= box["bar"] and box["top"] > box["h"] / 2, box)
+    await go(pg, "#/mistakes", 600)
+    check("notebook: the per-skill buttons say what they do", "Practise 2" in await pg.inner_text(".sk-row"))
+    check("chips: no '❤ 0' before the first heart", await pg.evaluate("document.getElementById('chip-heart').hidden") is True)
+    await pg.evaluate("UI.hearts()"); await pg.wait_for_timeout(1500)
+    check("chips: the heart counter appears with the first heart and says what it counts", await pg.evaluate("!document.getElementById('chip-heart').hidden") and "correct answer" in (await pg.get_attribute("#chip-heart", "aria-label") or ""))
+    check("chips: the pinyin button has a name that says what it does", "Pinyin" in (await pg.get_attribute("#btn-py", "aria-label") or ""))
+    await go(pg, "#/learn", 700)
+    check("learn: 'Day N of 30' says the 30 are the lessons before the exam", "BEFORE THE EXAM" in (await pg.inner_text(".learn-now small")).upper())
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow), ("quickui", t_quickui)]
 PW = None
 
 

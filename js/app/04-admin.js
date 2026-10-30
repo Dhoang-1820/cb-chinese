@@ -59,7 +59,7 @@
       case "Streak": return { text: n + " ơi, chuỗi ngày học bị ngắt rồi 😅 Làm một phiên ngắn hôm nay để bắt đầu lại nhé!", href: "#/session" };
       case "Reviews": return { text: "Chào " + n + ", có " + num((sm.vocab || {}).overdue) + " từ đang chờ em ôn lâu rồi. Ôn 10 phút hôm nay là nhớ lại ngay nhé!", href: "#/review" };
       case "Mistakes": return { text: n + " ơi, có vài câu em sai đi sai lại. Thử phần \"Fix repeat mistakes\" nhé: mỗi câu đúng 2 lần liền là xong.", href: "#/mistakes/repeat" };
-      case "Exam date": return { text: "Chào " + n + ", em kiểm tra lại ngày thi trong app (Me → Exam date) giúp mình nhé, để kế hoạch ôn thi tính đúng ngày.", href: "#/me" };
+      case "Exam date": return { text: "Chào " + n + ", em kiểm tra lại ngày thi trong app (Me → My exams) giúp mình nhé, để kế hoạch ôn thi tính đúng ngày.", href: "#/exams" };
       case "Update": return { text: "Chào " + n + ", app vừa có bản mới. Em đóng hẳn app rồi mở lại một lần để cập nhật nhé!", href: "" };
     }
     return null;
@@ -303,7 +303,7 @@
   /* one-tap buttons the teacher can attach to a message; each opens that screen on the learner's phone */
   var CHAT_ACTS = [["#/session", "Start Today's session"], ["#/session/comeback", "5-minute restart"], ["#/exam", "Open my exam plan"], ["#/mock/4/sim", "Full mock 4 in the simulator"], ["#/mock/5/sim", "Full mock 5 in the simulator"],
     ["#/mock/6/sim", "Full mock 6 in the simulator"], ["#/parts", "Practise one exam part"], ["#/parts/R1", "Reading part 1, timed"], ["#/parts/R3", "Reading part 3, timed"], ["#/parts/W1", "Writing part 1, timed"],
-    ["#/parts/W2", "Writing part 2, timed"], ["#/parts/L2", "Listening part 2, timed"], ["#/mistakes/repeat", "Fix my repeat mistakes"], ["#/mistakes", "Open my mistake notebook"], ["#/review", "Review due words"], ["#/me", "Check my cloud backup"]];
+    ["#/parts/W2", "Writing part 2, timed"], ["#/parts/L2", "Listening part 2, timed"], ["#/mistakes/repeat", "Fix my repeat mistakes"], ["#/mistakes", "Open my mistake notebook"], ["#/review", "Review due words"], ["#/exams", "Open My exams"], ["#/me", "Check my cloud backup"]];
   var ACHAT = { timer: null, id: "", msgs: [], prefill: null };
   /* "when" choices for a message; the time is the admin phone's local time */
   function whenHTML(id) {

@@ -214,7 +214,8 @@
     var s = Store.state, lv = Game.level(s.xp);
     var st = document.getElementById("chip-streak"); if (st) { st.innerHTML = "🔥 <b>" + Store.streak() + "</b>"; st.setAttribute("aria-label", "Streak: " + Store.streak() + " days"); }
     var xp = document.getElementById("chip-xp"); if (xp) { xp.innerHTML = "⭐ <b>" + s.xp + "</b>"; xp.setAttribute("aria-label", s.xp + " XP"); }
-    var hc = document.getElementById("chip-heart"); if (hc && !UI.heartsInFlight()) hc.innerHTML = UI.heartIcon() + "<b>" + (s.stats.hearts || 0) + "</b>";
+    var hc = document.getElementById("chip-heart"), nh = s.stats.hearts || 0;
+    if (hc && !UI.heartsInFlight()) { hc.innerHTML = UI.heartIcon() + "<b>" + nh + "</b>"; hc.hidden = nh === 0; hc.setAttribute("aria-label", nh + " hearts earned, one for each correct answer"); } // "❤ 0" read like "no lives left"
     var lvEl = document.getElementById("chip-lv"); if (lvEl) lvEl.textContent = "Lv " + lv.n;
     var n = SRS.dueIds(WORDMAP).length, b = document.getElementById("due-badge");
     if (b) { b.textContent = n; b.hidden = n === 0; }
@@ -482,7 +483,8 @@
     }
     else viewHome();
     fillExtras();
-    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "me", parts: "me", sprint: "games", chat: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home" }[v] || "home";
+    /* which tab is lit: the tab a screen is reached from (mock tests and exam parts live in Practice, My exams in Me) */
+    var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "games", parts: "games", newq: "games", sprint: "games", chat: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home", quiz: "learn", track: "learn", exams: "me", eve: "home", warmup: "home" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] || "C&B 中文";
     document.getElementById("page-title").textContent = title;

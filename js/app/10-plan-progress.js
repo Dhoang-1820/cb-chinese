@@ -497,7 +497,7 @@
       localStorage.setItem(k, Store.today());
       AI.weekly(document.createElement("div"), r.key, r.report, true).then(function (res) {
         if (!res || !res.ok) return; coachKeep(res);
-        UI.toast("Your coach has a new plan for this week", "🤖");
+        if ((location.hash || "#/") === "#/") UI.toast("Your coach has a new plan for this week", "🤖"); // only where the plan is shown, not over another screen
         var el = document.getElementById("coach-plan");
         if (el) el.outerHTML = planCard(); else if ((location.hash || "#/") === "#/") route();
       });

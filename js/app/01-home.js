@@ -299,7 +299,7 @@
     if (exam < 0) return "";
     if (!r) return exam <= 45 ? '<a class="card readyc empty" href="#/mock"><span class="rc-t"><small>Am I ready? · ' + exam + ' days left</small><b>Take one mock exam to find out</b><em>You get a score for each section</em></span><span class="rc-go">›</span></a>' : "";
     return '<a class="card readyc" href="#/ready"><span class="rc-t"><small>Am I ready? · ' + exam + " days left" + (r.src === "practice" ? " · rough" : "") + '</small><b>~' + r.total + "/300 <i class=\"tag " + r.verdict[0] + '">' + r.verdict[1] + "</i></b><em>" + readyLine(r) + " · weakest: " + r.weakest.name + '</em>' +
-      '<span class="rc-bars">' + r.secs.map(function (x) { return '<i title="' + x.name + " " + x.score + '/100"><u style="height:' + Math.max(6, x.score) + '%" class="' + (x.gap < 0 ? "low" : "") + '"></u><s>' + x.k + "</s></i>"; }).join("") + "</span></span><span class=\"rc-go\">›</span></a>";
+      '<span class="rc-bars">' + r.secs.map(function (x) { return '<i><b aria-hidden="true">' + x.score + '</b><u aria-hidden="true" style="height:' + Math.max(4, Math.round(x.score * 0.38)) + 'px" class="' + (x.gap < 0 ? "low" : "") + '"></u><s aria-hidden="true">' + x.k + '</s><span class="sr">' + x.name + " " + x.score + " of 100. </span></i>"; }).join("") + "</span></span><span class=\"rc-go\">›</span></a>";
   }
   function viewReady() {
     var r = readiness(), s = Store.state, exam = Store.daysBetween(Store.today(), s.settings.examDate || "2026-11-14"), p = planInfo();
@@ -468,9 +468,10 @@
       return '<button type="button" class="grow" data-next="' + k + '"><span class="g-ico">' + EXAM_NEXT[k][0] + '</span><span class="g-txt"><b>' + EXAM_NEXT[k][1] + "</b><small>" + EXAM_NEXT[k][2] + '</small></span><span class="g-go">›</span></button>';
     }).join("") + "</div>" + (rr ? "" : '<p class="sub">You can still log your score later in Me › Am I ready › Official papers.</p>') + "</section>";
     html += '<section class="card" id="ex-set"' + (past && !chosen ? " hidden" : "") + '><h2>' + (past ? "Next exam" : "Exam details") + "</h2>" +
-      '<label for="ex-lv">Level</label><select id="ex-lv"><option value="4"' + (lv === 4 ? " selected" : "") + '>HSK 4</option><option value="5"' + (lv === 5 ? " selected" : "") + ">HSK 5</option></select>" +
-      '<label for="ex-d">Date</label><input type="date" id="ex-d" value="' + esc(past ? "" : ex) + '"><label for="ex-t">Start time (optional)</label><input type="time" id="ex-t" value="' + esc(past ? "" : set.examTime || "") + '">' +
-      '<p class="mw-err" id="ex-err" hidden></p><button type="button" class="btn primary wide" id="ex-save">Save</button><p class="sub">The study plan, the 3-week exam plan and the countdown all follow this date. Change it any time.</p></section>';
+      '<div class="mw-form"><label for="ex-lv">Level</label><select id="ex-lv"><option value="4"' + (lv === 4 ? " selected" : "") + '>HSK 4</option><option value="5"' + (lv === 5 ? " selected" : "") + ">HSK 5</option></select>" +
+      '<label for="ex-d">Date</label><input type="date" id="ex-d" value="' + esc(past ? "" : ex) + '"><label for="ex-t">Start time <small>(optional · your final full mocks are planned at this hour)</small></label><input type="time" id="ex-t" value="' + esc(past ? "" : set.examTime || "") + '">' +
+      '<p class="mw-err" id="ex-err" hidden></p><button type="button" class="btn primary wide" id="ex-save">Save</button></div><p class="sub">The study plan, the 3-week exam plan and the countdown all follow this date. Change it any time.</p>' +
+      (!past && examWarn(ex) ? '<p class="sub bad-t">' + examWarn(ex) + "</p>" : "") + "</section>";
     var hist = (s.examHist || []).slice().reverse();
     if (hist.length) html += '<section class="card"><h2>Past exams</h2>' + hist.map(histRow).join("") + "</section>";
     render(html, "me");
@@ -517,7 +518,7 @@
     if (el === 1) { steps = steps.filter(function (x) { return x.id !== "lesson" && x.id !== "catchup"; }); steps.push({ id: "eve", ico: "🎒", name: "Checklist for tomorrow", sub: eveDone() + "/" + EVE.length + " ready · then light review and sleep early", href: "#/eve", done: eveDone() === EVE.length }); return steps; }
     var sc = examSchedule();
     if (sc.length && sc[0].kind !== "exam") steps.push({ id: "exam", ico: sc[0].ico, name: sc[0].txt, href: sc[0].href, done: sc[0].done,
-      sub: "Exam plan · " + plural(sc.length - 1, "day") + " left" + (sc[0].kind === "mock" && !s.settings.examTime && sc[0].left <= 8 ? " · set your exam start time in Me to rehearse at that hour" : "") });
+      sub: "Exam plan · " + plural(sc.length - 1, "day") + " left" + (sc[0].kind === "mock" && !s.settings.examTime && sc[0].left <= 8 ? " · set your exam start time in Me → My exams to rehearse at that hour" : "") });
     if (wqOffer()) steps.push({ id: "weekly", ico: "🧠", name: "Weekly review quiz", sub: "Words and grammar from the last 7 days", href: "#/weekly", done: false });
     return steps;
   }

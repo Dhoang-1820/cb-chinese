@@ -143,7 +143,7 @@
      the screen; the ❤️ counter in the top bar updates and bumps at the end. With Reduce Motion it just counts. */
   function hearts(x, y) {
     Store.state.stats.hearts = (Store.state.stats.hearts || 0) + 1; Store.save();
-    var chip = document.getElementById("chip-heart");
+    var chip = document.getElementById("chip-heart"); if (chip) chip.hidden = false; // shown from the first heart on
     if (reduced || !document.body.animate || !chip) { showCount(); return; }
     if (x == null) {
       if (Date.now() - lastTap.t < 1500) { x = lastTap.x; y = lastTap.y; }

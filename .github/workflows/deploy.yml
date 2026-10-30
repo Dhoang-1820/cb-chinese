@@ -71,9 +71,11 @@ jobs:
           key: audio-${{ hashFiles('data/*.js', 'data/hsk5/*.js', 'data/hsk4x/*.js', 'tools/gen_audio.py', 'tools/collect_texts.js') }}-${{ github.run_id }}
 
       # Bundles + minifies (esbuild), splits start-up data from lazy data, stamps the version.
-      - name: Build site
+      # TypeScript's checker over the server function (strict) and the app (no new findings, see tools/typecheck.js).
+      - name: Type check and build site
         run: |
-          npm install --no-save --no-package-lock esbuild@0.28.2
+          npm install --no-save --no-package-lock esbuild@0.28.2 typescript@5.9.3
+          node tools/typecheck.js
           node tools/build.js _site "$GITHUB_SHA"
 
       # Content, the AI service (fake Gemini, no key) and browser tests on a simulated iPhone. A failure stops the deploy.

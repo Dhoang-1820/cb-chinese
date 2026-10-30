@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "allowJs": true, "checkJs": true, "noEmit": true,
+    "target": "es2017", "lib": ["es2020", "dom", "dom.iterable"],
+    "strict": false, "noImplicitAny": false, "skipLibCheck": true, "types": []
+  },
+  "files": ["types/globals.d.ts", "js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/content.js", "js/talk.js", "js/games.js", "js/app.dev.js"]
+}

@@ -58,7 +58,7 @@ for (var j = 1; j <= 25; j++) MOCKS.push("data/core" + (j < 10 ? "0" + j : j) + 
 var SPLASH = ["750x1334", "1242x2208", "1125x2436", "828x1792", "1242x2688", "1170x2532", "1284x2778", "1179x2556", "1290x2796", "1206x2622", "1320x2868"].map(function (n) { return "icons/splash/" + n + ".png"; });
 var PRECACHE = [
   "./", "index.html", "css/style.css", "manifest.webmanifest",
-  "js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/content.js", "js/games.js", "js/app.js",
+  "js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/content.js", "js/games.js", "js/app.dev.js",
   "audio/manifest.js", "data/manifest.js", "vendor/hanzi-writer.min.js",
   "icons/icon-64.png", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
   "fonts/nunito-latin-wght-normal.woff2", "fonts/nunito-latin-ext-wght-normal.woff2", "fonts/nunito-vietnamese-wght-normal.woff2"

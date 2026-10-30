@@ -41,7 +41,6 @@
     ref_busy: "This item already has several open reports. Try again later.",
     not_found: "That report is no longer on the server.",
     not_proposed: "This fix is no longer available to accept.",
-    empty_patch: "There is nothing to change.",
     closed: "This report is already closed.",
     discuss_cap: "The discussion limit for this report is reached. Your note is saved.",
     bad_token: "That report cannot be found.",

@@ -1544,6 +1544,12 @@ body.on-tab #chip-heart, body.on-tab #btn-py, body.on-tab #btn-flag { display: n
 .hard-t b { font-weight: 700; overflow-wrap: anywhere; }
 .hard-t small { color: var(--muted); }
 .y-google:empty { display: none; }
+.part-row { align-items: center; }
+.pr-acts { display: flex; flex-direction: column; gap: 6px; flex: none; align-items: stretch; }
+.pr-acts .btn { min-width: 92px; text-align: center; }
+.sfb { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.sfb-b { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.sk-act { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
 .y-google { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--surface-2); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ai-ok, :root:not([data-theme="light"]) .bk-opts li.ok { color: #5fd3b0; } }
 :root[data-theme="dark"] .ai-ok, :root[data-theme="dark"] .bk-opts li.ok { color: #5fd3b0; }

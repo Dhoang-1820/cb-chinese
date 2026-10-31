@@ -241,6 +241,12 @@
   }
   function lrnHabit(r) {
     var sm = r.summary, html = "", end = lrnDay(r.updated_at), ds = sm.days28 || "", i;
+    if (Array.isArray(sm.fb) && sm.fb.length) {
+      var fc = { 1: 0, 2: 0, 3: 0 }; sm.fb.forEach(function (e) { if (fc[e[1]] != null) fc[e[1]]++; });
+      var lastF = sm.fb[sm.fb.length - 1];
+      html += '<section class="card lt-fb"><div class="lt-row"><b>How sessions felt</b><span>last 14 days</span></div><p>😓 Too hard <b>' + fc[1] + "</b> · 🙂 Just right <b>" + fc[2] + "</b> · 😴 Too easy <b>" + fc[3] + "</b></p>" +
+        '<p class="sub">Last: ' + esc(String(lastF[0])) + " · " + (lastF[1] === 1 ? "too hard" : lastF[1] === 3 ? "too easy" : "just right") + (fc[1] >= 2 && fc[1] >= fc[2] ? " · several hard days: a shorter session (Me → Today's session length) may help." : fc[3] >= 2 && fc[3] >= fc[2] ? " · often too easy: suggest a longer session or a full mock." : "") + "</p></section>";
+    }
     if (/^[01]{28}$/.test(ds)) {
       var first = Store.addDays(end, -27), lead = (new Date(first + "T00:00:00").getDay() + 6) % 7, cells = "";
       for (i = 0; i < lead; i++) cells += "<i></i>";

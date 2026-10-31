@@ -107,13 +107,7 @@
       fromAI(res.result, read ? res.result.used_words : null);
     });
   }
-  function newQSection() {
-    bankRefresh(); setTimeout(aiqFill, 2500); // keep a few questions on the phone for offline use
-    var rows = ["L1", "L2", "L3", "R3"].filter(newQAvail);
-    if (!rows.length) return "";
-    return '<section class="card"><h3>✨ New questions, never seen before</h3><p class="sub">In the real exam format and built around your weak words. Questions checked by the C&amp;B team come first; otherwise the AI writes them.</p><div class="glist">' +
-      rows.map(function (k) { return '<a class="grow" href="#/newq/' + k + '"><span class="g-txt"><b>' + esc(NEW_PARTS[k]) + "</b><small>" + (k === "R3" ? "1 passage · 2–3 questions" : "3 questions") + '</small></span><span class="tr-go">›</span></a>'; }).join("") + "</div></section>";
-  }
+
 
   /* ---------- mistake patterns (AI) ----------
      Sends the open mistakes as text (question + the right answer; the app does not keep what was chosen) and gets back

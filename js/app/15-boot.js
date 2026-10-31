@@ -76,7 +76,7 @@
   }
 
   window.App = {
-    practiceTop: practiceTop, _sessionPlan: sessionPlan,
+    practiceTop: practiceTop, _sessionPlan: sessionPlan, _fbAsk: function () { return fbAsk(); }, _wireFb: function () { wireFb(); },
     esc: esc, M: M, PY: PY, SAY: SAY, shuffle: shuffle, render: render, setKeys: setKeys, typing: typing, rect: rect, norm: norm,
     dayWords: dayWords, studiedWords: studiedWords, levelBadge: levelBadge, SAYX: SAYX, refreshChrome: refreshChrome,
     markWork: markWork, resetWork: function () { workDone = false; }, readingSet: readingSet, _talk: viewTalk, packFromArg: packFromArg, packQuizDone: packQuizDone, h5Loaded: h5Loaded, x4Loaded: x4Loaded, ensureH5: ensureH5, ensureX4: ensureX4, get CORE() { return CORE; }, get COREMAP() { return COREMAP; }, get DAYS() { return DAYS; }, get DAYMAP() { return DAYMAP; }, get WORDS() { return WORDS; }, get WORDMAP() { return WORDMAP; }

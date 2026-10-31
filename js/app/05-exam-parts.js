@@ -111,20 +111,22 @@
   function viewParts(k) {
     if (PARTS.some(function (p) { return p.k === k; })) { if (!runPart(k)) location.replace("#/parts"); return; }
     var weak = weakParts(), acc = {}; Learn.report(5, true).forEach(function (r) { acc[r.skill] = Math.round(r.acc * 100); });
-    var html = '<section class="card g-violet"><h2>⏱ Exam parts</h2><p class="sub">Ten questions from one part of the exam, with one clock at the real pace. Your open mistakes from that part come first. Questions come from the shorter tests, so the full-length tests stay new for your rehearsals.</p>' +
+    bankRefresh(); setTimeout(aiqFill, 2500); // keep a few new questions on the phone for offline use
+    var anyNew = ["L1", "L2", "L3", "R3"].some(newQAvail);
+    var html = '<section class="card g-violet"><h2>⏱ Exam parts</h2><p class="sub">Ten questions from one part of the exam, on one clock at the real pace. Your open mistakes from that part come first.</p>' +
       (weak.length ? '<a class="btn primary big" href="#/parts/' + weak[0].k + '">▶ Your weakest: ' + esc(weak[0].name) + " (" + weak[0].acc + "%)</a>" : "") + "</section>";
+    /* one row per part: the timed 10, and (listening, reading passages) 3 never-seen questions */
     var sec = "";
     PARTS.forEach(function (p) {
       var s0 = SEC_ICON[p.k.charAt(0)];
       if (s0 !== sec) { if (sec) html += "</div></section>"; sec = s0; html += '<section class="card"><h3>' + s0 + '</h3><div class="glist">'; }
-      var n = Math.min(p.n, partItems(p.k).length);
-      html += '<a class="grow" href="#/parts/' + p.k + '"><span class="g-txt"><b>' + esc(p.name) + " · " + esc(p.what) + "</b><small>" + n + " questions · " + fmtTime(n * p.sec) + " min" + (acc[p.skill] != null ? " · you: " + acc[p.skill] + "%" : "") + '</small></span><span class="tr-go">›</span></a>';
+      var n = Math.min(p.n, partItems(p.k).length), nq = NEW_PARTS[p.k] && newQAvail(p.k);
+      html += '<div class="grow part-row"><span class="g-txt"><b>' + esc(p.name) + " · " + esc(p.what) + "</b><small>" + n + " questions · " + fmtTime(n * p.sec) + " min" + (acc[p.skill] != null ? " · you: " + acc[p.skill] + "%" : "") + "</small></span>" +
+        '<span class="pr-acts"><a class="btn small primary" href="#/parts/' + p.k + '" aria-label="' + esc(p.name) + ', timed, ' + n + ' questions">Timed · ' + n + "</a>" +
+        (nq ? '<a class="btn small" href="#/newq/' + p.k + '" aria-label="' + esc(p.name) + ', new questions">New · ' + (p.k === "R3" ? "1 text" : "3") + "</a>" : "") + "</span></div>";
     });
-    html += "</div></section>" + newQSection() + '<section class="card"><h3>More practice, untimed</h3><div class="glist">' +
-      '<a class="grow" href="#/game/bank"><span class="g-txt"><b>🗃️ Word Bank</b><small>Six words, five gaps · Reading part 1</small></span><span class="tr-go">›</span></a>' +
-      '<a class="grow" href="#/game/wordorder"><span class="g-txt"><b>🧱 Arrange the Words</b><small>Writing part 1</small></span><span class="tr-go">›</span></a>' +
-      '<a class="grow" href="#/game/picture"><span class="g-txt"><b>🖼️ Picture Writing</b><small>Writing part 2 · AI scores your sentence</small></span><span class="tr-go">›</span></a></div></section>';
-    render(html, "me");
+    html += "</div></section>" + (anyNew ? '<p class="sub center">“New” = questions you have never seen, built around your weak words: checked by the C&amp;B team when available, otherwise written by AI. Untimed games are in Practice → All games.</p>' : "");
+    render(html, "games");
   }
   /* Practice tab, "For the exam": the mock test to take next, timed exam parts and the mistake notebook */
   function practiceTop() {

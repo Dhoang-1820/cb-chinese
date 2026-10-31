@@ -37,16 +37,18 @@
     var html = '<section class="card g-coral"><h2>📒 Mistake notebook</h2><p class="sub">Every wrong answer from quizzes, games and mock exams lands here. Get it right ' + Learn.CLEAR_AFTER + " times in a row to clear it.</p>" +
       '<p class="score-big">' + all.length + "</p>" + (all.length ? '<a class="btn big" id="mis-all" href="#/mistakes/all">▶ Drill all mistakes</a>' : "") +
       (repeatItems().length ? '<a class="btn big" id="mis-rep" href="#/mistakes/repeat" style="margin-top:10px">🔁 Fix ' + plural(repeatItems().length, "repeat mistake") + "</a><p class=\"sub\">Missed " + Learn.REPEAT_N + "+ times in 14 days. Each clears after " + Learn.CLEAR_AFTER + " right answers in a row.</p>" : "") + "</section>";
-    if (all.length) {
-      html += '<section class="card"><h2>Open mistakes by skill</h2>' + Object.keys(bySkill).sort(function (a, b) { return bySkill[b] - bySkill[a]; }).map(function (k) {
-        return '<div class="sk-row"><span class="sk-n">' + skillName(k) + '</span><a class="btn small primary" href="#/mistakes/' + k + '">Practise ' + bySkill[k] + " ▶</a></div>";
-      }).join("") + "</section>";
-    }
+    /* one list of skills (it replaces "open mistakes by skill" + "weak-area report"): accuracy, the tip when it is
+       under 80%, and one button — your open mistakes in that skill first, otherwise a practice for it */
+    var accOf = {}; rep.forEach(function (x) { accOf[x.skill] = x; });
+    var ks = Object.keys(accOf).concat(Object.keys(bySkill).filter(function (k) { return !accOf[k]; }));
+    ks.sort(function (a, b) { var x = accOf[a] ? accOf[a].acc : 2, y = accOf[b] ? accOf[b].acc : 2; return x - y || (bySkill[b] || 0) - (bySkill[a] || 0); });
+    html += '<section class="card sk-list"><h2>Your skills</h2>' + (ks.length ? '<p class="sub">Weakest first: accuracy across all your answers. Clear the open mistakes, then keep practising until a skill is above 80%.</p>' + ks.map(function (k) {
+      var x = accOf[k], open = bySkill[k] || 0, weak = !x || x.acc < 0.8;
+      var btn = open ? '<a class="btn small primary" href="#/mistakes/' + k + '">Practise ' + open + " ▶</a>" : weak && x ? practiceLink(k) : "";
+      return '<div class="sk-block"><div class="sk-row"><span class="sk-n">' + skillName(k) + "</span>" + (x ? accBar(x.acc) : '<span class="muted">new</span>') + "</div>" +
+        (x && weak ? '<p class="sub">' + esc(x.info.tip) + "</p>" : "") + (btn ? '<div class="sk-act">' + (open ? '<span class="muted">' + plural(open, "open mistake") + "</span>" : "") + btn + "</div>" : "") + "</div>";
+    }).join("") : '<p class="sub">Answer a few quizzes, games or a mock exam to see your skills.</p>') + "</section>";
     html += patternBox();
-    html += '<section class="card"><h2>Weak-area report</h2>' + (rep.length ? '<p class="sub">Accuracy across all your answers, weakest first.</p>' + rep.map(function (x) {
-      return '<div class="sk-block"><div class="sk-row"><span class="sk-n">' + skillName(x.skill) + "</span>" + accBar(x.acc) + "</div>" +
-        (x.acc < 0.8 ? '<p class="sub">' + esc(x.info.tip) + "</p>" + practiceLink(x.skill) : "") + "</div>";
-    }).join("") : '<p class="sub">Answer a few quizzes, games or a mock exam to see your report.</p>') + "</section>";
     render(html, "review");
     wirePatterns();
   }

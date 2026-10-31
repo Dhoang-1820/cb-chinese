@@ -413,6 +413,7 @@
           xh: (s.examHist || []).slice(-6).map(function (e) { return [e.lv, e.d, e.fc ? e.fc.t : null, e.real ? e.real.l + e.real.r + e.real.w : null]; }) };
       })(),
       streak: { n: Store.streak(), best: (s.streak && s.streak.best) || 0 },
+      fb: (s.fb || []).filter(function (e) { return e.d >= Store.addDays(t, -13); }).map(function (e) { return [e.d.slice(5), e.r]; }), // how sessions felt, last 14 days
       xpw: (function () { var o = [], ws = weekStart(t); for (var j = 7; j >= 0; j--) { var a = Store.addDays(ws, -7 * j), sum = 0; for (var k = 0; k < 7; k++) sum += s.log[Store.addDays(a, k)] || 0; o.push(sum); } return o; })(), // XP per week, this week last
       trk: (s.trk || []).slice(-8).map(function (e) { return [e.w.slice(2), e.r, e.m, e.c]; }), // [week start (yy-mm-dd), readiness, words in box 4-5, words in review]
       /* HSK 4 course words only (hsk: 4 tells the admin screen so): the lesson words, HSK 4 Core and HSK 1–3 Foundation,

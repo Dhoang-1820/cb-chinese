@@ -75,6 +75,22 @@
     if (!el) { el = document.createElement("div"); el.id = "session-bar"; el.className = "session-bar"; document.body.appendChild(el); }
     el.innerHTML = '<span>' + st.icon + " Step " + st.n + "/" + st.of + " · " + esc(st.name) + '</span><i style="width:' + Math.round((st.n - 1) / st.of * 100) + '%"></i>';
   }
+  /* one tap after a session: how it felt. Kept with the progress, so the C&B team sees it in Learner tracking. */
+  var FB = { 1: ["😓", "Too hard"], 2: ["🙂", "Just right"], 3: ["😴", "Too easy"] };
+  function fbAsk() {
+    var t = Store.today(), had = (Store.state.fb || []).filter(function (e) { return e.d === t; })[0];
+    return '<div class="sfb" id="sfb"><p class="sub">' + (had ? "Thanks! Today felt: " + FB[had.r][0] + " " + FB[had.r][1] : "How did today feel?") + "</p>" + (had ? "" :
+      '<div class="sfb-b" role="group" aria-label="How did today feel?">' + [1, 2, 3].map(function (r) { return '<button type="button" class="btn small" data-fb="' + r + '"><span aria-hidden="true">' + FB[r][0] + "</span> " + FB[r][1] + "</button>"; }).join("") + "</div>") + "</div>";
+  }
+  function wireFb() {
+    var box = document.getElementById("sfb"); if (!box) return;
+    box.onclick = function (ev) {
+      var b = ev.target.closest("[data-fb]"); if (!b) return;
+      var s = Store.state, t = Store.today(); s.fb = (s.fb || []).filter(function (e) { return e.d !== t; }); s.fb.push({ d: t, r: +b.getAttribute("data-fb") });
+      if (s.fb.length > 60) s.fb.splice(0, s.fb.length - 60);
+      Store.save(); box.outerHTML = fbAsk(); syncSoon();
+    };
+  }
   function viewSession(arg) {
     var rescue = arg === "rescue", back = arg === "comeback", light = rescue || back, myHash = light ? "#/session/" + arg : "#/session";
     var steps = sessionPlan(light ? arg : null), k = 0, s = Store.state, start = { xp: s.xp, hearts: s.stats.hearts || 0, srs: Object.keys(s.srs).length, mis: Learn.count() };
@@ -105,7 +121,8 @@
       var xp = s.xp - start.xp, hearts = (s.stats.hearts || 0) - start.hearts, added = Object.keys(s.srs).length - start.srs, cleared = Math.max(0, start.mis - Learn.count());
       render('<div class="card result">' + UI.anim("cat-love", 150, UI.mascot("cheer", 96)) + "<h2>" + (rescue ? "Streak saved! 🔥" : back ? "Welcome back! 🎉" : "Session complete! 🎉") + "</h2>" +
         '<div class="sum-grid"><div><b>+' + xp + '</b><span>XP' + (first ? " (incl. +10 bonus)" : "") + '</span></div><div><b>' + hearts + '</b><span>❤️ hearts</span></div><div><b>' + added + '</b><span>new words</span></div><div><b>' + cleared + '</b><span>mistakes cleared</span></div></div>' +
-        '<p class="sub">🔥 Streak: ' + Store.streak() + " day" + (Store.streak() === 1 ? "" : "s") + '</p><div class="actions center"><a class="btn primary" href="#/">Home</a>' + (light ? '<a class="btn" href="#/session">▶ Full session</a>' : '<a class="btn" href="#/listen-mode">🎧 Keep listening</a>') + "</div></div>", "home");
+        '<p class="sub">🔥 Streak: ' + Store.streak() + " day" + (Store.streak() === 1 ? "" : "s") + '</p><div class="actions center"><a class="btn primary" href="#/">Home</a>' + (light ? '<a class="btn" href="#/session">▶ Full session</a>' : '<a class="btn" href="#/listen-mode">🎧 Keep listening</a>') + "</div>" + fbAsk() + "</div>", "home");
+      wireFb();
       UI.confetti(140);
     }
     if (!steps.length) { render('<div class="card result"><h2>Nothing to do right now</h2><a class="btn primary" href="#/learn">Learn</a></div>', "home"); return; }

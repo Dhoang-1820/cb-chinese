@@ -2093,7 +2093,7 @@ async def t_aiplus(b):
     # entry points
     await go(pg, "#/parts", 900)
     t = await pg.inner_text("#app")
-    check("new questions: Exam parts lists listening 1-3 and a reading passage", "New questions, never seen before" in t and await pg.locator("a[href^='#/newq/']").count() == 4, t[-600:])
+    check("new questions: Exam parts offers New on listening 1-3 and reading part 3", await pg.locator(".part-row a[href^='#/newq/']").count() == 4 and "New · 3" in t, t[-600:])
     await go(pg, "#/games", 900)
     check("new questions: Practice mentions them on the Exam parts row", "plus new questions" in await pg.inner_text(".grow[href='#/parts']"))
     # listening part 2 by the AI
@@ -2136,6 +2136,12 @@ async def t_aiplus(b):
     await go(pg, "#/learners/hard", 300); await pg.wait_for_selector(".hard-row, .empty", timeout=15000)
     t = await pg.inner_text("#ad-body")
     check("hardest: the most-missed question is listed first with its mock and part", await pg.locator(".hard-row").count() >= 1 and "Mock 1 · Reading part 1" in t and "%" in t, t[:400])
+    # how sessions felt, in the admin's Habit view
+    await pg.evaluate("Store.state.fb=[{d:Store.today(),r:3}];Store.save()")
+    check("feedback: saved with the backup", await pg.evaluate("Sync.now(true)") == "saved")
+    key = await pg.evaluate("Content.admin('learners_list',{}).then(r=>r.result.rows.filter(x=>x.summary&&x.summary.fb&&x.summary.fb.length)[0].id.slice(0,8))")
+    await go(pg, "#/learners/%s/habit" % key, 300); await pg.wait_for_selector(".lt-fb", timeout=15000)
+    check("feedback: the admin sees how sessions felt", "Too easy 1" in await pg.inner_text(".lt-fb"), await pg.inner_text(".lt-fb"))
     # Google sign-in: link this backup
     await go(pg, "#/me/backup", 1200); await pg.wait_for_selector("#g-link", timeout=10000)
     check("google: the backup screen offers Sign in with Google", await pg.locator("#g-link").count() == 1)
@@ -2257,7 +2263,19 @@ async def t_quickui(b):
     box = await pg.evaluate("(()=>{const t=document.getElementById('toast').getBoundingClientRect(),b=document.querySelector('.tabbar').getBoundingClientRect();return {top:t.top,bottom:t.bottom,bar:b.top,h:innerHeight}})()")
     check("pop-ups: shown just above the tab bar, not over the screen's title", box["bottom"] <= box["bar"] and box["top"] > box["h"] / 2, box)
     await go(pg, "#/mistakes", 600)
-    check("notebook: the per-skill buttons say what they do", "Practise 2" in await pg.inner_text(".sk-row"))
+    t = await pg.inner_text(".sk-list")
+    check("notebook: one skills list with what each button does (no second weak-area list)", "Your skills" in t and "Practise 2" in t and "2 open mistakes" in t and "Weak-area report" not in await pg.inner_text("#app") and "Open mistakes by skill" not in await pg.inner_text("#app"), t)
+    await go(pg, "#/ready", 600)
+    check("ready: no second focus list; it points to the notebook", await pg.locator(".focus-plan").count() == 0 and await pg.locator("a[href='#/mistakes']").count() >= 1)
+    await go(pg, "#/parts", 600)
+    rows = await pg.locator(".part-row").count()
+    check("exam parts: one row per part with a Timed button", rows == 8 and await pg.locator(".part-row a[href='#/parts/R1']").inner_text() == "Timed · 10", rows)
+    # how today felt: one tap, kept with the progress, shown to the admin
+    await pg.evaluate("document.getElementById('app').insertAdjacentHTML('beforeend', App._fbAsk()); App._wireFb()")
+    await pg.click("[data-fb='1']")
+    check("feedback: one tap saves how today felt", await pg.evaluate("Store.state.fb.slice(-1)[0].r") == 1 and "Too hard" in await pg.inner_text("#sfb"))
+    sm = await pg.evaluate("Sync.summary().fb")
+    check("feedback: the admin summary has the last 14 days", sm and sm[-1][1] == 1, sm)
     check("chips: no '❤ 0' before the first heart", await pg.evaluate("document.getElementById('chip-heart').hidden") is True)
     await pg.evaluate("UI.hearts()"); await pg.wait_for_timeout(1500)
     check("chips: the heart counter appears with the first heart and says what it counts", await pg.evaluate("!document.getElementById('chip-heart').hidden") and "correct answer" in (await pg.get_attribute("#chip-heart", "aria-label") or ""))

@@ -327,9 +327,8 @@
         return '<a class="task" href="#/mistakes' + (x.open ? "/" + x.skill : "") + '"><span class="tk-ico">' + x.info.icon + "</span><span><b>" + esc(x.info.en) + " · " + Math.round(x.acc * 100) + '%</b><small class="sub fp-why">' + x.n + " answers" + (x.open ? " · " + x.open + " open mistakes" : "") + " · " + esc(x.info.tip) + "</small></span></a>";
       }).join("") : '<p class="sub">No single skill stands out yet. Practise this section to find the weak spot.</p>') +
       '<div class="actions"><a class="btn primary small" href="' + SEC_GO[r.weakest.k] + '">Practise ' + r.weakest.name + ' ▶</a><a class="btn small" href="#/mock">📝 Take a mock</a></div></section>';
-    html += focusCard();
     if (p.inBuffer) html += todayCard();
-    html += '<p class="sub center"><a href="#/progress">Full progress and score history ›</a></p>';
+    html += '<p class="sub center"><a href="#/mistakes">All your skills, weakest first (mistake notebook) ›</a><br><a href="#/progress">Full progress and score history ›</a></p>';
     render(html, "home");
   }
 

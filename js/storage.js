@@ -34,7 +34,8 @@
       examHist: [],   // finished exams, oldest first (max 20): [{ lv: 4|5, d: date, fc: { t, L, R, W } | null, real: { l, r, w } | null }]
       afterFor: "",   // the exam date whose "what's next" choice was made (the Home card stops asking)
       eve: {},        // exam date -> { checklist item: 1 } for the day-before checklist
-      warm: {},       // date -> 1 when the exam-morning warm-up was started   // ids of shared-bank questions already practised (so the next round brings new ones)
+      warm: {},       // date -> 1 when the exam-morning warm-up was started
+      fb: [],         // how Today's session felt, one per day (max 60): [{ d: date, r: 1 too hard | 2 just right | 3 too easy }]   // ids of shared-bank questions already practised (so the next round brings new ones)
       weekGoal: {},   // week-start date -> true once that week's study-days goal was met
       patternHide: {}, // pattern signature -> date it was dismissed (hidden for the rest of that day)
       patternAI: {},  // pattern signature -> saved AI explanation
@@ -140,6 +141,9 @@
         real: e.real && typeof e.real === "object" ? { l: sec(e.real.l), r: sec(e.real.r), w: sec(e.real.w) } : null };
     });
     d.afterFor = D8.test(d.afterFor) ? d.afterFor : "";
+    var fbSeen = {};
+    d.fb = (Array.isArray(d.fb) ? d.fb : []).filter(function (e) { return e && D8.test(e.d) && [1, 2, 3].indexOf(e.r) >= 0; }).reverse()
+      .filter(function (e) { if (fbSeen[e.d]) return false; fbSeen[e.d] = 1; return true; }).reverse().slice(-60).map(function (e) { return { d: e.d, r: e.r }; });
     ["eve", "warm"].forEach(function (k) {
       var o = d[k] && typeof d[k] === "object" && !Array.isArray(d[k]) ? d[k] : {}, out = {};
       Object.keys(o).filter(function (x) { return D8.test(x); }).sort().slice(-10).forEach(function (x) {
@@ -371,6 +375,7 @@
     out.examHist = uni(L.examHist, R.examHist, function (x) { return x.lv + "|" + x.d; }, 20, function (x) { return x.d; });
     out.reports = uni(L.reports, R.reports, function (x) { return x.id; });
     out.custom = uni(L.custom, R.custom, function (x) { return x.id; });
+    out.fb = uni(L.fb, R.fb, function (x) { return x.d; }, 60, function (x) { return x.d; });
     out.bankSeen = uni(L.bankSeen, R.bankSeen, function (x) { return x; }, 2000);
     out.fcAtExam = L.fcAtExam || R.fcAtExam; out.afterFor = String(L.afterFor || "") > String(R.afterFor || "") ? L.afterFor : R.afterFor;
     each(R.qlog, function (q, v) { var a = out.qlog[q]; out.qlog[q] = a ? [mx(a[0], v[0]), mx(a[1], v[1])] : v; });

@@ -94,7 +94,7 @@
   }
   function syncShow(code) { return String(code || "").replace(/(.{4})(?=.)/g, "$1-"); }
   function syncMeta() { var st = Store.state; return { xp: st.xp, streak: Store.streak(), words: Object.keys(st.srs).length, last: st.streak.last || "" }; }
-  function syncMark() { var st = Store.state; return st.xp + ":" + Object.keys(st.srs).length + ":" + (st.streak.last || ""); }
+  function syncMark() { var st = Store.state; return st.xp + ":" + Object.keys(st.srs).length + ":" + (st.streak.last || "") + ":" + (st.fb || []).length; } // fb: a feedback tap alone is worth a save
   /* Saves now. Resolves with "saved", "conflict", "same", "off" or an error code; never rejects. */
   function syncNow(force, depth) {
     var c = syncCfg();

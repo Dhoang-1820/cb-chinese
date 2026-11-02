@@ -153,6 +153,24 @@ test('two changed pages give a plural title', async () => {
   assert.equal(report.title, 'HSK watch: 2 pages changed (2026-10-12)');
 });
 
+test('the same lines changing on several pages (shared menu) are reported once', async () => {
+  const dir = await tmp();
+  const menu = (extra) => `<ul><li><a href="/news/1">2026年考试日历</a></li>${extra}</ul>`;
+  pages['/m1'] = page(menu('') + '<p>HSK level 4 has 100 questions.</p>');
+  pages['/m2'] = page(menu('') + '<p>News list for the organiser.</p>');
+  pages['/m3'] = page(menu('') + '<p>HSK level 4 has 100 questions.</p><p>Writing part changed.</p>');
+  await check([src('m1'), src('m2'), src('m3')], dir, week(0));
+  const add = '<li><a href="/news/2">2027年考试日历</a></li>';
+  pages['/m1'] = page(menu(add) + '<p>HSK level 4 has 100 questions.</p>');
+  pages['/m2'] = page(menu(add) + '<p>News list for the organiser.</p>');
+  pages['/m3'] = page(menu(add) + '<p>HSK level 4 has 90 questions.</p><p>Writing part changed.</p>');
+  const report = buildReport(await check([src('m1'), src('m2'), src('m3')], dir, week(1)));
+  assert.equal(report.title, 'HSK watch: 2 changes on 3 pages (2026-10-12)');
+  assert.equal((report.body.match(/2027年考试日历/g) || []).length, 2, 'the menu change is printed once (m1) and again inside m3\'s own, different change');
+  assert.match(report.body, /shared menu or footer/);
+  assert.match(report.body, /90 questions/);
+});
+
 test('volatile fragments alone do not alert', async () => {
   const dir = await tmp();
   const body = (o) =>

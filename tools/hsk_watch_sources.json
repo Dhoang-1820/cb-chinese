@@ -37,6 +37,13 @@
       "verified": false
     },
     {
+      "id": "cti-calendar-2027",
+      "name": "Chinese Testing International: 2027 test calendar",
+      "url": "https://www.chinesetest.cn/news/51618992",
+      "why": "Exam dates for 2027 (the link appeared on the site menu on 2 Nov 2026, issue #2). From 2027 replace the 2026 entry with the next year's link. May be drawn by JavaScript or be an image (see cti-news).",
+      "verified": false
+    },
+    {
       "id": "clec-home",
       "name": "Center for Language Education and Cooperation (CLEC, formerly Hanban)",
       "url": "http://www.chinese.cn/",

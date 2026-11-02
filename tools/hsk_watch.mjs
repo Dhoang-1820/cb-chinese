@@ -447,17 +447,20 @@ export function buildReport(run, { summary = null } = {}) {
   const { changed, unreachable, date } = run;
   if (changed.length === 0 && unreachable.length === 0) return null;
 
-  const title = changed.length
-    ? `HSK watch: ${plural(changed.length, 'page')} changed (${date})`
-    : `HSK watch: ${plural(unreachable.length, 'page')} could not be reached (${date})`;
-
-  // Sources that returned exactly the same text show the same change: print it once.
+  // Sources that returned exactly the same text, or whose change is exactly the same lines (usually the site's
+  // shared menu or footer, e.g. a new calendar link on every page), show one change: print it once.
+  const changeText = (r) => diffExcerpt(r.diff, { maxLines: Infinity }).text;
   const groups = [];
   for (const r of changed) {
-    const first = r.sameAs && groups.find((g) => g.main.id === r.sameAs);
+    const first = (r.sameAs && groups.find((g) => g.main.id === r.sameAs)) || groups.find((g) => changeText(g.main) === changeText(r));
     if (first) first.also.push(r);
     else groups.push({ main: r, also: [] });
   }
+  const title = changed.length
+    ? groups.length < changed.length
+      ? `HSK watch: ${plural(groups.length, 'change')} on ${plural(changed.length, 'page')} (${date})`
+      : `HSK watch: ${plural(changed.length, 'page')} changed (${date})`
+    : `HSK watch: ${plural(unreachable.length, 'page')} could not be reached (${date})`;
 
   const budget = Math.floor(MAX_BODY_CHARS / Math.max(1, groups.length));
   const parts = [];
@@ -468,7 +471,9 @@ export function buildReport(run, { summary = null } = {}) {
     parts.push('```diff', ex.text, '```');
     if (ex.more > 0) parts.push('', `... and ${plural(ex.more, 'more changed line')} not shown.`);
     if (also.length) {
-      parts.push('', `The same change was seen on: ${also.map((r) => `${r.name} (<${r.url}>)`).join('; ')}. These pages returned identical text, so they are probably one page.`);
+      const sameText = also.every((r) => r.sameAs === main.id);
+      parts.push('', `The same change was seen on: ${also.map((r) => `${r.name} (<${r.url}>)`).join('; ')}. ` +
+        (sameText ? 'These pages returned identical text, so they are probably one page.' : 'Exactly the same lines changed on each, so this is most likely the site\'s shared menu or footer, not the pages\' own content.'));
     }
     parts.push('');
   }

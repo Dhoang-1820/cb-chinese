@@ -17,12 +17,13 @@ HSK3.0
 [/HSKK]
 [/YCT]
 [/BCT]
-[/MCT]
 [/GYC]
-2026年考试日历
-[/news/50278976]
 考生须知
 [/regulation]
+2027年考试日历
+[/news/51618992]
+2026年考试日历
+[/news/50278976]
 成绩服务
 成绩查询 [/query-score]
 成绩复议 [/report-sketch]

@@ -5,36 +5,46 @@
       "url": "https://www.chinesetest.cn/",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-26T05:46:44.766Z",
-      "lines": 156
+      "lastChecked": "2026-11-02T07:14:13.341Z",
+      "lines": 157,
+      "cfg": "{\"links\":true,\"ignore\":[]}",
+      "lastChanged": "2026-11-02T07:14:13.341Z"
     },
     "cti-hsk": {
       "url": "https://www.chinesetest.cn/HSK",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-26T05:46:44.766Z",
-      "lines": 135
+      "lastChecked": "2026-11-02T07:14:13.341Z",
+      "lines": 136,
+      "cfg": "{\"links\":true,\"ignore\":[]}",
+      "lastChanged": "2026-11-02T07:14:13.341Z"
     },
     "cti-hsk4": {
       "url": "https://www.chinesetest.cn/HSK/4",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-26T05:46:44.766Z",
-      "lines": 156
+      "lastChecked": "2026-11-02T07:14:13.341Z",
+      "lines": 157,
+      "cfg": "{\"links\":true,\"ignore\":[]}",
+      "lastChanged": "2026-11-02T07:14:13.341Z"
     },
     "cti-news": {
       "url": "https://www.chinesetest.cn/news",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-26T05:46:44.766Z",
-      "lines": 98
+      "lastChecked": "2026-11-02T07:14:13.341Z",
+      "lines": 99,
+      "cfg": "{\"links\":true,\"ignore\":[]}",
+      "lastChanged": "2026-11-02T07:14:13.341Z"
     },
     "cti-calendar-2026": {
       "url": "https://www.chinesetest.cn/news/50278989",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-26T05:46:44.766Z",
-      "lines": 99
+      "lastChecked": "2026-11-02T07:14:13.341Z",
+      "lines": 100,
+      "cfg": "{\"links\":true,\"ignore\":[]}",
+      "lastChanged": "2026-11-02T07:14:13.341Z"
     },
     "clec-home": {
       "url": "http://www.chinese.cn/",
@@ -47,10 +57,11 @@
       "url": "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/s5987/202103/t20210329_523304.html",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-10-26T05:46:44.766Z",
-      "lines": 48,
-      "lastChanged": "2026-10-26T05:46:44.766Z"
+      "lastChecked": "2026-11-02T07:14:13.341Z",
+      "lines": 45,
+      "lastChanged": "2026-10-26T05:46:44.766Z",
+      "cfg": "{\"links\":false,\"ignore\":[\"网站地图\"]}"
     }
   },
-  "lastRun": "2026-10-26T05:46:44.766Z"
+  "lastRun": "2026-11-02T07:14:13.341Z"
 }

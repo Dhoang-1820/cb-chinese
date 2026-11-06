@@ -25,14 +25,14 @@
     watchDom();
     document.getElementById("btn-flag").onclick = function () { openReport(); };
     var hch = document.getElementById("chip-heart");
-    if (hch) { hch.setAttribute("role", "button"); hch.setAttribute("tabindex", "0"); hch.setAttribute("title", "Hearts earned from correct answers");
-      hch.onclick = function () { var n = Store.state.stats.hearts || 0; UI.toast(n + " hearts earned · one for each correct answer", "❤️"); }; }
+    if (hch) { hch.setAttribute("role", "button"); hch.setAttribute("tabindex", "0"); hch.setAttribute("title", tx("Hearts earned from correct answers"));
+      hch.onclick = function () { var n = Store.state.stats.hearts || 0; UI.toast(tx("{n} hearts earned · one for each correct answer", { n: n }), "❤️"); }; }
     document.getElementById("btn-py").onclick = function () {
       Store.state.settings.showPinyin = !Store.state.settings.showPinyin; Store.save(); applySettings();
-      UI.toast(Store.state.settings.showPinyin ? "Pinyin on" : "Pinyin off", "拼");
+      UI.toast(Store.state.settings.showPinyin ? tx("Pinyin on") : tx("Pinyin off"), "拼");
     };
     if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addListener(applySettings);
-    if (!BUNDLED && !window.CB_MANIFEST) { render('<p class="warn">data/manifest.js is missing.</p>'); return; }
+    if (!BUNDLED && !window.CB_MANIFEST) { render('<p class="warn">' + tx("data/manifest.js is missing.") + '</p>'); return; }
     (BUNDLED ? Promise.resolve() : loadAll(window.CB_MANIFEST.concat(window.CB_CORE_FILES || []).concat(window.CB_EXTRA_FILES || []))).then(function () {
       buildIndex();
       try { weekTick(); } catch (e) { console.warn(e); }
@@ -55,7 +55,7 @@
       }).catch(function (e) { console.warn("SW registration failed", e); });
       autoUpdate();
     }
-    try { if (sessionStorage.getItem("cbUpdated")) { sessionStorage.removeItem("cbUpdated"); setTimeout(function () { UI.toast("App updated", "✨"); }, 600); } } catch (e) {}
+    try { if (sessionStorage.getItem("cbUpdated")) { sessionStorage.removeItem("cbUpdated"); setTimeout(function () { UI.toast(tx("App updated"), "✨"); }, 600); } } catch (e) {}
   }
 
   /* When a new version takes over, reload once — but only on a "safe" screen, never mid-lesson or mid-game. */

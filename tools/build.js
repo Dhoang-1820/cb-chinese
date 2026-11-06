@@ -100,7 +100,7 @@ const bank = sb.window.CB_BANK && Array.isArray(sb.window.CB_BANK.rows) ? sb.win
 sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(sb.window.CB_MOCK) + ";window.CB_BANK=" + J(bank) + ";"));
 
 // ---- 3. app bundle (same order as index.html; data/audio manifests stay separate) ----
-const APP_FILES = ["js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/content.js", "js/talk.js", "js/games.js", "js/app.js"];
+const APP_FILES = ["js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/content.js", "js/i18n-vi.js", "js/i18n.js", "js/talk.js", "js/games.js", "js/app.js"];
 const joinApp = require("./join_app.js").join; // js/app/*.js: feature files of one scope, joined in order
 let app = APP_FILES.map((f) => (f === "js/app.js" ? joinApp() : read(f))).join("\n;\n").replace('var BUILD = "dev";', 'var BUILD = "' + VERSION + '";');
 if (!app.includes('var BUILD = "' + VERSION + '"')) throw new Error("BUILD marker not found in js/app.js");

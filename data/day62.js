@@ -182,8 +182,8 @@ window.CB_DAYS.push({
       en: "何况 argues a fortiori: if the easier case A is already so, the harder case B certainly is. It often follows 连……都 or 都 in the first clause and may end with 呢 or a question mark. It can also add a further reason, meaning 'besides'."
     },
     examples: [
-      { zh: "这道题连实习生都会做，何况是有五年经验的人？", py: "Zhè dào tí lián shíxíshēng dōu huì zuò, hékuàng shì yǒu wǔ nián jīngyàn de rén?", vi: "Câu này đến thực tập sinh còn làm được, huống chi là người có năm năm kinh nghiệm?", en: "Even interns can do this question, let alone someone with five years of experience." },
-      { zh: "简历都没有认真写，何况面试呢？", py: "Jiǎnlì dōu méiyǒu rènzhēn xiě, hékuàng miànshì ne?", vi: "CV còn không viết nghiêm túc, huống chi là phỏng vấn?", en: "They didn't even write the CV carefully, so how would they handle the interview?" },
+      { zh: "这道题连实习生都会做，何况是有五年经验的人？", py: "Zhè dào tí lián shíxíshēng dōu huì zuò, hékuàng shì yǒu wǔ nián jīngyàn de rén?", vi: "Câu này đến thực tập sinh còn làm được, huống chi là người có năm năm kinh nghiệm?", en: "Even interns can do this question, so of course someone with five years of experience can." },
+      { zh: "连简历都没有认真写，何况准备面试呢？", py: "Lián jiǎnlì dōu méiyǒu rènzhēn xiě, hékuàng zhǔnbèi miànshì ne?", vi: "Đến CV còn không viết nghiêm túc, huống chi là chuẩn bị phỏng vấn?", en: "They didn't even write the CV carefully, so how could they prepare for the interview?" },
       { zh: "平时就很忙，何况现在是月底。", py: "Píngshí jiù hěn máng, hékuàng xiànzài shì yuèdǐ.", vi: "Ngày thường đã bận rồi, huống chi bây giờ lại là cuối tháng.", en: "We're busy even on ordinary days, and besides it's month-end now." }
     ]
   },
@@ -199,7 +199,7 @@ window.CB_DAYS.push({
     translate: [
       { vi: "Chúng tôi nhận được hơn hai trăm CV.", en: "We received more than two hundred CVs.", zh: "我们收到了两百多份简历。", py: "Wǒmen shōudàole liǎng bǎi duō fèn jiǎnlì." },
       { vi: "Sau hai vòng phỏng vấn, chúng tôi chọn được ba người phù hợp.", en: "After two rounds of interviews we picked three suitable candidates.", zh: "经过两轮面试，我们选出了三个合适的人选。", py: "Jīngguò liǎng lún miànshì, wǒmen xuǎnchūle sān gè héshì de rénxuǎn." },
-      { vi: "Ngày thường đã bận rồi, huống chi bây giờ lại là cuối tháng.", en: "We're busy on ordinary days, let alone at month-end.", zh: "平时就很忙，何况现在是月底。", py: "Píngshí jiù hěn máng, hékuàng xiànzài shì yuèdǐ." }
+      { vi: "Ngày thường đã bận rồi, huống chi bây giờ lại là cuối tháng.", en: "We're busy even on ordinary days, and all the more so now at month-end.", zh: "平时就很忙，何况现在是月底。", py: "Píngshí jiù hěn máng, hékuàng xiànzài shì yuèdǐ." }
     ]
   },
 
@@ -213,6 +213,6 @@ window.CB_DAYS.push({
     { q: "根据对话，筛选之后第一步是什么？", options: ["参加复试", "做笔试", "发录用通知", "办入职手续"], answer: 1 },
     { q: "根据对话，谁来负责复试？", options: ["林浩一个人", "只有黄玲", "阮经理和薪酬部门的主管", "应聘者自己"], answer: 2 },
     { q: "这道题连实习生都会做，___是有五年经验的人？", options: ["何况", "否则", "于是", "反而"], answer: 0, explain: { vi: "连……都……，何况……: đến… còn…, huống chi…", en: "连……都……，何况…… = even…, let alone…" } },
-    { q: "选出正确的句子：", options: ["简历都没有认真写，何况面试呢？", "何况简历都没有认真写，面试呢？", "简历何况都没有认真写，面试呢？", "简历都没有认真写，面试何况？"], answer: 0 }
+    { q: "选出正确的句子：", options: ["连简历都没有认真写，何况准备面试呢？", "何况连简历都没有认真写，准备面试呢？", "连简历何况都没有认真写，准备面试呢？", "连简历都没有认真写，准备面试何况？"], answer: 0 }
   ]
 });

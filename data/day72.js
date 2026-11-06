@@ -192,10 +192,10 @@ window.CB_DAYS.push({
   exercises: {
     fill: [
       { zh: "计算平均工资之前，先___少数极高的数据。", answer: "剔除", vi: "Trước khi tính lương bình quân, hãy loại bỏ vài số liệu cực cao.", en: "Before calculating average pay, first exclude the few extremely high figures." },
-      { zh: "发现异常以后，要先___，再下结论。", answer: "核实", vi: "Phát hiện bất thường rồi thì phải xác minh trước, sau đó mới kết luận.", en: "After spotting something unusual, verify first, then draw a conclusion." },
+      { zh: "发现异常以后，要先___这个数据是真是假，再下结论。", answer: "核实", vi: "Phát hiện bất thường rồi thì phải xác minh số liệu này thật hay giả trước, sau đó mới kết luận.", en: "After spotting something unusual, first verify whether the figure is genuine, then draw a conclusion." },
       { zh: "新员工的工资比老员工还高，这就是薪酬___。", answer: "倒挂", vi: "Lương nhân viên mới còn cao hơn nhân viên cũ, đó là lương bị đảo ngược.", en: "New hires earning more than long-serving staff is pay inversion." },
       { zh: "公司不允许任何形式的性别___。", answer: "歧视", vi: "Công ty không cho phép bất kỳ hình thức phân biệt giới tính nào.", en: "The company does not allow any form of gender discrimination." },
-      { zh: "实际发放的工资和计划之间有一点___。", answer: "偏差", vi: "Lương thực phát và kế hoạch có chút sai lệch.", en: "There is a small deviation between the pay actually paid and the plan." }
+      { zh: "工资计算出现了一点___，要马上改正。", answer: "偏差", vi: "Việc tính lương bị sai lệch một chút, phải sửa ngay.", en: "There was a small error in the pay calculation; it must be corrected at once." }
     ],
     translate: [
       { vi: "Công ty kiên trì nguyên tắc cùng việc cùng lương.", en: "The company upholds the principle of equal pay for equal work.", zh: "公司坚持同工同酬的原则。", py: "Gōngsī jiānchí tónggōng tóngchóu de yuánzé." },

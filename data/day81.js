@@ -193,7 +193,7 @@ window.CB_DAYS.push({
       { zh: "业务员的___按每个月的回款金额来计算。", answer: "佣金", vi: "Hoa hồng của nhân viên kinh doanh được tính theo số tiền thu về mỗi tháng.", en: "A sales rep's commission is calculated on each month's collections." },
       { zh: "我们的提成采用___式，销售额越高，比例越高。", answer: "阶梯", vi: "Hoa hồng của chúng tôi tính theo bậc, doanh thu càng cao, tỷ lệ càng cao.", en: "Our commission is tiered: the higher the sales, the higher the rate." },
       { zh: "只有本季度销量___，才能拿到全额奖金。", answer: "达标", vi: "Chỉ khi doanh số quý này đạt chỉ tiêu mới nhận đủ tiền thưởng.", en: "Only if this quarter's sales volume meets the target do you get the full bonus." },
-      { zh: "客户还没付款，所以这笔订单还不算___。", answer: "回款", vi: "Khách chưa thanh toán nên đơn này chưa tính là đã thu tiền.", en: "The customer hasn't paid, so this order doesn't count as collected yet." },
+      { zh: "客户还没付款，所以这笔订单还没有___。", answer: "回款", vi: "Khách chưa thanh toán nên đơn này chưa thu được tiền.", en: "The customer hasn't paid, so the money for this order hasn't been collected yet." },
       { zh: "我们的提成不___，所以业务员都很有积极性。", answer: "封顶", vi: "Hoa hồng của chúng tôi không có trần nên nhân viên kinh doanh đều rất hăng hái.", en: "Our commission has no cap, so the reps are all highly motivated." }
     ],
     translate: [
@@ -206,7 +206,7 @@ window.CB_DAYS.push({
   quiz: [
     { q: "“佣金”的意思是：", options: [{ vi: "Lương cơ bản", en: "Base salary" }, { vi: "Hoa hồng", en: "Commission" }, { vi: "Thưởng cuối năm", en: "Year-end bonus" }, { vi: "Phụ cấp đi lại", en: "Travel allowance" }], answer: 1 },
     { q: "“超额”的拼音是：", options: ["chāoyé", "chǎo'é", "chāo'é", "cāo'é"], answer: 2 },
-    { q: "客户还没付款，这笔订单还不算___。", options: ["回款", "配额", "封顶", "达标"], answer: 0, explain: { vi: "回款 là tiền hàng đã thu về; chưa thanh toán thì chưa tính là 回款.", en: "回款 means payment collected; with no payment, it isn't 回款 yet." } },
+    { q: "客户还没付款，这笔订单还没有___。", options: ["回款", "配额", "封顶", "达标"], answer: 0, explain: { vi: "回款 là tiền hàng đã thu về; chưa thanh toán thì chưa tính là 回款.", en: "回款 means payment collected; with no payment, it isn't 回款 yet." } },
     { q: "“封顶”在提成方案里的意思是：", options: [{ vi: "Tăng tỷ lệ", en: "Raise the rate" }, { vi: "Chia theo bậc", en: "Tier the rate" }, { vi: "Thu hồi hoa hồng", en: "Claw back commission" }, { vi: "Đặt mức trần", en: "Set a ceiling" }], answer: 3 },
     { q: "根据对话，提成什么时候才发？", options: ["签订单的那天", "客户付款（回款）以后", "年底统一发", "客户退货的时候"], answer: 1 },
     { q: "“阶梯式提成”的特点是：", options: ["销量越高，比例越高", "每个人金额相同", "只发一次", "比例固定不变"], answer: 0 },

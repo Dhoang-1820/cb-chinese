@@ -65,7 +65,7 @@ window.CB_DAYS.push({
       id: "d76-05", hanzi: "立案", pinyin: "lì'àn", pos: "v.", level: "Beyond HSK4",
       vi: "thụ lý; tiếp nhận (hồ sơ, vụ việc)", en: "to accept (a case or application)",
       collocations: [
-        { zh: "立案案件", py: "lì'àn ànjiàn", vi: "thụ lý vụ việc", en: "to accept a case" },
+        { zh: "予以立案", py: "yǔyǐ lì'àn", vi: "chấp nhận thụ lý", en: "to accept a case" },
         { zh: "不予立案", py: "bù yǔ lì'àn", vi: "không thụ lý", en: "to decline to accept" }
       ],
       example: {
@@ -167,7 +167,7 @@ window.CB_DAYS.push({
       { speaker: "林浩", zh: "如果仲裁庭作出的裁决我们不同意呢？", py: "Rúguǒ zhòngcáitíng zuòchū de cáijué wǒmen bù tóngyì ne?", vi: "Nếu chúng ta không đồng ý với phán quyết của hội đồng trọng tài thì sao ạ?", en: "What if we disagree with the tribunal's ruling?" },
       { speaker: "阮经理", zh: "对裁决不服的话，可以按规定向法院起诉，到时候要先问法务。还有，时效是法律规定的，具体以现行规定为准，所以我们要尽早处理。", py: "Duì cáijué bù fú dehuà, kěyǐ àn guīdìng xiàng fǎyuàn qǐsù, dào shíhou yào xiān wèn fǎwù. Háiyǒu, shíxiào shì fǎlǜ guīdìng de, jùtǐ yǐ xiànxíng guīdìng wéi zhǔn, suǒyǐ wǒmen yào jǐnzǎo chǔlǐ.", vi: "Nếu không đồng ý với phán quyết thì có thể khởi kiện ra tòa theo quy định, lúc đó phải hỏi bộ phận pháp chế trước. Ngoài ra, thời hiệu do pháp luật quy định, cụ thể lấy quy định hiện hành làm chuẩn, nên chúng ta phải xử lý sớm.", en: "If we disagree with a ruling, we can sue in court as the rules allow, and we would ask Legal first. Also, time limits are set by law and the current rules prevail, so we should deal with it early." },
       { speaker: "林浩", zh: "明白了。我今天就开始整理材料，先把时间线做出来。", py: "Míngbai le. Wǒ jīntiān jiù kāishǐ zhěnglǐ cáiliào, xiān bǎ shíjiānxiàn zuò chūlái.", vi: "Em hiểu rồi. Hôm nay em bắt đầu sắp xếp hồ sơ, làm trước một dòng thời gian.", en: "Understood. I'll start organising the documents today and build a timeline first." },
-      { speaker: "阮经理", zh: "好。就算最后胜诉，也不是我们的目标；目标是把问题解决好，同时保护好和员工的关系。", py: "Hǎo. Jiùsuàn zuìhòu shèngsù, yě bú shì wǒmen de mùbiāo; mùbiāo shì bǎ wèntí jiějué hǎo, tóngshí bǎohù hǎo hé yuángōng de guānxi.", vi: "Được. Dù cuối cùng thắng kiện cũng không phải mục tiêu của chúng ta; mục tiêu là giải quyết tốt vấn đề và giữ được quan hệ với nhân viên.", en: "Good. Even winning in the end is not our goal; the goal is to resolve the problem well and protect our relationship with employees." }
+      { speaker: "阮经理", zh: "好。胜诉并不是我们的目标；目标是把问题解决好，同时保护好和员工的关系。", py: "Hǎo. Shèngsù bìng bú shì wǒmen de mùbiāo; mùbiāo shì bǎ wèntí jiějué hǎo, tóngshí bǎohù hǎo hé yuángōng de guānxi.", vi: "Được. Thắng kiện không phải là mục tiêu của chúng ta; mục tiêu là giải quyết tốt vấn đề và giữ được quan hệ với nhân viên.", en: "Good. Winning the case is not our goal; the goal is to resolve the problem well and protect our relationship with employees." }
     ],
     notes: [
       { zh: "考勤记录", py: "kǎoqín jìlù", vi: "dữ liệu chấm công", en: "attendance records" },

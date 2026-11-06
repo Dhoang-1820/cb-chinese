@@ -22,7 +22,7 @@
   }
   function PY(t) { return '<span class="py">' + esc(t) + "</span>"; }
   function SAY(t, voice, big) {
-    return '<button type="button" class="say' + (big ? " big" : "") + '" data-say="' + esc(t) + '"' + (voice ? ' data-voice="' + voice + '"' : "") + ' aria-label="Play audio">' +
+    return '<button type="button" class="say' + (big ? " big" : "") + '" data-say="' + esc(t) + '"' + (voice ? ' data-voice="' + voice + '"' : "") + ' aria-label="' + tx("Play audio") + '">' +
       '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg></button>';
   }
   function shuffle(a) {
@@ -54,17 +54,17 @@
     return true;
   }
   function crashScreen(msg) {
-    var html = '<section class="card result crash" role="alert"><h2>Something broke on this screen</h2>' +
-      '<p class="sub">Your progress is saved. Reload to carry on. The error was noted under Me → Problem reports.</p>' +
+    var html = '<section class="card result crash" role="alert"><h2>' + tx("Something broke on this screen") + '</h2>' +
+      '<p class="sub">' + tx("Your progress is saved. Reload to carry on. The error was noted under Me → Problem reports.") + '</p>' +
       '<p class="sub crash-msg">' + esc(String(msg || "").slice(0, 160)) + "</p>" +
-      '<div class="actions center"><button type="button" class="btn primary" id="crash-reload">Reload</button>' + (/^#\/?$/.test(location.hash || "#/") ? "" : '<a class="btn" href="#/">Home</a>') + "</div></section>";
+      '<div class="actions center"><button type="button" class="btn primary" id="crash-reload">' + tx("Reload") + '</button>' + (/^#\/?$/.test(location.hash || "#/") ? "" : '<a class="btn" href="#/">' + tx("Home") + '</a>') + "</div></section>";
     try { render(html); } catch (e) { app.innerHTML = html; }
     var b = document.getElementById("crash-reload"); if (b) b.onclick = function () { location.reload(); };
   }
   function crashBar() {
     if (document.getElementById("crash-bar")) return;
     var d = document.createElement("div"); d.id = "crash-bar"; d.setAttribute("role", "alert");
-    d.innerHTML = '<span>Something went wrong. If this screen is stuck, reload.</span><button type="button" class="btn small" id="cb-reload">Reload</button><button type="button" class="x" id="cb-x" aria-label="Dismiss">✕</button>';
+    d.innerHTML = '<span>' + tx("Something went wrong. If this screen is stuck, reload.") + '</span><button type="button" class="btn small" id="cb-reload">' + tx("Reload") + '</button><button type="button" class="x" id="cb-x" aria-label="' + tx("Dismiss") + '">✕</button>';
     document.body.appendChild(d);
     document.getElementById("cb-reload").onclick = function () { location.reload(); };
     document.getElementById("cb-x").onclick = function () { d.remove(); };
@@ -155,9 +155,9 @@
 
   function levelBadge(l) {
     var m = /^HSK([1-6])$/.exec(l || "");
-    return m ? '<span class="tag t-hsk">HSK ' + m[1] + "</span>" : l === "Mine" ? '<span class="tag t-mine">My word</span>' : '<span class="tag t-dom">C&amp;B · beyond HSK 4</span>';
+    return m ? '<span class="tag t-hsk">HSK ' + m[1] + "</span>" : l === "Mine" ? '<span class="tag t-mine">' + tx("My word") + '</span>' : '<span class="tag t-dom">' + tx("C&amp;B · beyond HSK 4") + '</span>';
   }
-  function boxBadge(id) { var c = SRS.get(id); return c ? '<span class="tag t-box">Box ' + c.box + "</span>" : ""; }
+  function boxBadge(id) { var c = SRS.get(id); return c ? '<span class="tag t-box">' + tx("Box {n}", { n: c.box }) + "</span>" : ""; }
   function dayWords(d) {
     if (!d) return [];
     if (d.type === "review") {
@@ -203,6 +203,9 @@
     root.classList.remove("ts-l", "ts-xl"); if (s.textSize === "l" || s.textSize === "xl") root.classList.add("ts-" + s.textSize);
     b.classList.remove("lang-vi", "lang-en", "lang-both");
     b.classList.add("lang-" + s.lang);
+    /* tab bar labels live in index.html; show them in the interface language */
+    var TABS = { home: tx("Home"), learn: tx("Learn"), games: tx("Practice"), review: tx("Review"), me: tx("Me") };
+    Object.keys(TABS).forEach(function (k) { var l = document.querySelector('.tabbar a[data-tab="' + k + '"] > span:not(.ti)'); if (l) l.textContent = TABS[k]; });
     var py = document.getElementById("btn-py");
     if (py) py.setAttribute("aria-pressed", s.showPinyin ? "true" : "false");
     /* status bar colour: one meta per colour scheme; a manual theme sets both to that theme's background */
@@ -212,11 +215,11 @@
   var THEME_BG = { light: "#ece8fa", dark: "#17161f" }; // --bg in css/style.css
   function refreshChrome() {
     var s = Store.state, lv = Game.level(s.xp);
-    var st = document.getElementById("chip-streak"); if (st) { st.innerHTML = "🔥 <b>" + Store.streak() + "</b>"; st.setAttribute("aria-label", "Streak: " + Store.streak() + " days"); }
-    var xp = document.getElementById("chip-xp"); if (xp) { xp.innerHTML = "⭐ <b>" + s.xp + "</b>"; xp.setAttribute("aria-label", s.xp + " XP"); }
+    var st = document.getElementById("chip-streak"); if (st) { st.innerHTML = "🔥 <b>" + Store.streak() + "</b>"; st.setAttribute("aria-label", tx("Streak: {n} days", { n: Store.streak() })); }
+    var xp = document.getElementById("chip-xp"); if (xp) { xp.innerHTML = "⭐ <b>" + s.xp + "</b>"; xp.setAttribute("aria-label", tx("{n} XP", { n: s.xp })); }
     var hc = document.getElementById("chip-heart"), nh = s.stats.hearts || 0;
-    if (hc && !UI.heartsInFlight()) { hc.innerHTML = UI.heartIcon() + "<b>" + nh + "</b>"; hc.hidden = nh === 0; hc.setAttribute("aria-label", nh + " hearts earned, one for each correct answer"); } // "❤ 0" read like "no lives left"
-    var lvEl = document.getElementById("chip-lv"); if (lvEl) lvEl.textContent = "Lv " + lv.n;
+    if (hc && !UI.heartsInFlight()) { hc.innerHTML = UI.heartIcon() + "<b>" + nh + "</b>"; hc.hidden = nh === 0; hc.setAttribute("aria-label", tx("{n} hearts earned, one for each correct answer", { n: nh })); } // "❤ 0" read like "no lives left"
+    var lvEl = document.getElementById("chip-lv"); if (lvEl) lvEl.textContent = tx("Lv {n}", { n: lv.n });
     var n = SRS.dueIds(WORDMAP).length, b = document.getElementById("due-badge");
     if (b) { b.textContent = n; b.hidden = n === 0; }
   }
@@ -302,7 +305,7 @@
   }
   function packGet(kind, n) { return packList(kind).filter(function (p) { return p.pack === n; })[0] || null; }
   function packFromArg(arg) { var m = /^p-(h5|x4)-(\d{1,2})$/.exec(arg || ""); return m ? { kind: m[1], n: +m[2], pack: packGet(m[1], +m[2]) } : null; }
-  function packName(kind) { return kind === "h5" ? "HSK 5 words" : "Extra HSK 4 words"; }
+  function packName(kind) { return kind === "h5" ? tx("HSK 5 words") : tx("Extra HSK 4 words"); }
   function packHome(kind) { return kind === "h5" ? "#/learn/h5" : "#/learn/extra"; }
   function packRec(kind, n) { return (Store.state.packs || {})[kind + "-" + n] || null; }
   /* A pack is finished when its quiz was passed (8 of 10, or every question in a short pack). */
@@ -335,12 +338,12 @@
     var X = x4Index(), c = X.col[w.id], opp = X.opp[w.id] || [], html = "", have = {};
     (w.collocations || []).forEach(function (x) { have[x.zh] = 1; });
     var ph = c ? c.phrases.filter(function (x) { return !have[x.zh]; }) : [];
-    if (ph.length) html += '<div class="wx-b"><h4 class="wx-h">Common phrases</h4>' + ph.map(function (x) {
+    if (ph.length) html += '<div class="wx-b"><h4 class="wx-h">' + tx("Common phrases") + '</h4>' + ph.map(function (x) {
       return '<div class="coll"><div><span class="zh">' + esc(x.zh) + "</span> " + PY(x.py) + '<div class="dim">' + M(x) + "</div></div>" + SAYX(x.zh) + "</div>";
     }).join("") + "</div>";
     opp.forEach(function (o) {
-      html += '<div class="wx-b"><h4 class="wx-h">Opposite</h4><div class="coll"><div>' + wordBtn(o.other.ref, o.other.hanzi) + " " + PY(o.other.pinyin) + '<div class="dim">' + M(o.other) + "</div></div></div>" +
-        '<details class="wx-d"><summary>Example for each</summary>' + [o.me, o.other].map(function (x) { return '<div class="wx-ex"><span class="zh">' + esc(x.example.zh) + "</span>" + PY(x.example.py) + '<div class="dim">' + M(x.example) + "</div></div>"; }).join("") + "</details></div>";
+      html += '<div class="wx-b"><h4 class="wx-h">' + tx("Opposite") + '</h4><div class="coll"><div>' + wordBtn(o.other.ref, o.other.hanzi) + " " + PY(o.other.pinyin) + '<div class="dim">' + M(o.other) + "</div></div></div>" +
+        '<details class="wx-d"><summary>' + tx("Example for each") + '</summary>' + [o.me, o.other].map(function (x) { return '<div class="wx-ex"><span class="zh">' + esc(x.example.zh) + "</span>" + PY(x.example.py) + '<div class="dim">' + M(x.example) + "</div></div>"; }).join("") + "</details></div>";
     });
     return html;
   }
@@ -370,11 +373,11 @@
     return missing(v, parts).map(function (k) { return k === "full" ? ensureFull() : k === "mocks" ? ensureMocks() : k === "h5" ? ensureH5() : ensureX4(); });
   }
   function missingHTML(miss) {
-    if (miss.indexOf("full") >= 0 || miss.indexOf("mocks") >= 0) return '<p class="warn">Couldn\'t load this part of the app. Check your connection and try again.</p>';
+    if (miss.indexOf("full") >= 0 || miss.indexOf("mocks") >= 0) return '<p class="warn">' + tx("Couldn't load this part of the app. Check your connection and try again.") + '</p>';
     var h5 = miss.indexOf("h5") >= 0;
-    return (h5 ? levelSwitch(5) : "") + '<div class="card result" id="pack-miss">' + UI.mascot("think", 80) + "<h2>" + (h5 ? "HSK 5 is not on this phone yet" : "These extra words are not on this phone yet") + "</h2>" +
-      '<p class="sub">Connect to the internet and open this screen once. After that it works offline.</p>' +
-      '<div class="actions center"><button class="btn primary" id="miss-retry">Try again</button><a class="btn" href="#/">Home</a></div></div>';
+    return (h5 ? levelSwitch(5) : "") + '<div class="card result" id="pack-miss">' + UI.mascot("think", 80) + "<h2>" + (h5 ? tx("HSK 5 is not on this phone yet") : tx("These extra words are not on this phone yet")) + "</h2>" +
+      '<p class="sub">' + tx("Connect to the internet and open this screen once. After that it works offline.") + '</p>' +
+      '<div class="actions center"><button class="btn primary" id="miss-retry">' + tx("Try again") + '</button><a class="btn" href="#/">' + tx("Home") + '</a></div></div>';
   }
   function buildIndex() {
     DAYS = (window.CB_DAYS || []).slice().sort(function (a, b) { return a.day - b.day; });
@@ -398,7 +401,7 @@
     WORD_RE = null;
   }
   function wordHome(w) { return w._mine ? "#/learn/mine" : w._pk ? "#/pack/" + w._pk + "/" + w._pn : w._set ? "#/core/" + w._set : "#/day/" + w._day + "/words"; }
-  function wordPlace(w) { return w._mine ? "My words" : w._pk ? (w._pk === "h5" ? "HSK 5 pack " : "Extra HSK 4 pack ") + w._pn : w._set ? (w._set > 100 ? "HSK 1–3 set F" + (w._set - 100) : "Core set " + w._set) : "Day " + w._day; }
+  function wordPlace(w) { return w._mine ? tx("My words") : w._pk ? (w._pk === "h5" ? tx("HSK 5 pack {n}", { n: w._pn }) : tx("Extra HSK 4 pack {n}", { n: w._pn })) : w._set ? (w._set > 100 ? tx("HSK 1–3 set F{n}", { n: w._set - 100 }) : tx("Core set {n}", { n: w._set })) : tx("Day {n}", { n: w._day }); }
   function nextCoreSet(track) {
     for (var i = 0; i < CORE.length; i++) if ((track === "found") === (CORE[i].track === "found") && CORE[i].words.some(function (w) { return !SRS.has(w.id); })) return CORE[i];
     return null;
@@ -419,7 +422,7 @@
     var v = parts[0] || "";
     document.body.classList.remove("sim");
     if (EXAM && EXAM.strict && !EXAM.finished && !(v === "mock" && parseInt(parts[1], 10) === EXAM.id && /^(listening|reading|writing|result)$/.test(parts[2] || ""))) { // simulator: leaving (or going back to the intro) ends the attempt
-      clearExamTimer(); EXAM = null; UI.toast("Simulator attempt ended", "🎯");
+      clearExamTimer(); EXAM = null; UI.toast(tx("Simulator attempt ended"), "🎯");
     }
     if (!(v === "mock" && parts[2] && !/^(result|review|sim)$/.test(parts[2]))) clearExamTimer();
     document.body.classList.toggle("on-tab", v === "" || v === "games" || v === "review" || v === "me" || (v === "learn" && !parts[1])); // hearts, 拼 and ⚑ only where they matter // leaving an exam pauses its clock
@@ -486,7 +489,7 @@
     /* which tab is lit: the tab a screen is reached from (mock tests and exam parts live in Practice, My exams in Me) */
     var tab = { "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "games", parts: "games", newq: "games", sprint: "games", chat: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home", quiz: "learn", track: "learn", exams: "me", eve: "home", warmup: "home" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
-    var title = TITLES[v] || "C&B 中文";
+    var title = TITLES[v] ? tx(TITLES[v]) : "C&B 中文";
     document.getElementById("page-title").textContent = title;
     document.title = (TITLES[v] ? title + " · " : "") + "C&B 中文";
     app.setAttribute("aria-label", title);

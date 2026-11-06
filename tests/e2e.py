@@ -38,8 +38,10 @@ def settings(**extra):
     return s
 
 
-async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, **ctx_opts):
+async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, ui="en", **ctx_opts):
     """A fresh phone with the given saved state (None = first run). Returns (context, page).
+    ui: this device's interface language (the app defaults to Vietnamese; most checks read English text, so "en";
+    None leaves the device default alone).
     seed=False adds nothing to storage on later page loads, for tests that check what is left after a reload.
     watch: a list that collects the URL of every request the phone makes, from the very first one."""
     dev = dict(PW.devices["iPhone 14"]); dev.pop("default_browser_type", None)
@@ -58,6 +60,8 @@ async def open_app(browser, state=None, path="", ai=False, expect_errors=False, 
         init += "localStorage.setItem('cbChinese.ai',%s);" % json.dumps(json.dumps({"url": AI_URL, "code": ""}))
     else:  # never call the real AI service from a test
         init += "localStorage.setItem('cbChinese.ai',%s);" % json.dumps(json.dumps({"url": "http://localhost:1/off", "code": ""}))
+    if seed and ui:
+        init += "localStorage.setItem('cbChinese.uiLang','%s');" % ui
     if init:
         await ctx.add_init_script(init)
     pg = await ctx.new_page()
@@ -2360,12 +2364,47 @@ async def t_sweep(b):
             if len(mine) > before or crash: errs.append((r, ok, (mine[before:] or ["crash screen"])[0][:120]))
             await no_dialogs(pg)
     check("sweep: %d taps on the main screens raise no script error" % tapped, not errs, errs[:6])
+async def t_vi(b):
+    """Vietnamese interface: the default on a new device, switchable in Me → Settings, kept after a reload,
+    and every main screen still renders in Vietnamese."""
+    tabs = "() => [...document.querySelectorAll('.tabbar a > span:not(.ti)')].map(e => e.textContent).join('|')"
+    ctx, pg = await open_app(b, None, ui=None)
+    await pg.wait_for_timeout(900)
+    t = await pg.evaluate(tabs)
+    check("vi: a new device shows the Vietnamese tab bar", "Trang chủ" in t and "Home" not in t, t)
+    await ctx.close()
+    st = {"settings": settings(), "srs": {}}
+    ctx, pg = await open_app(b, st, ui=None)
+    await go(pg, "#/me", 500)
+    has = await pg.evaluate("() => !!document.getElementById('s-ui') && document.getElementById('s-ui').value")
+    check("vi: Me → Settings has the interface language switch, set to Vietnamese", has == "vi", has)
+    await pg.select_option("#s-ui", "en"); await pg.wait_for_timeout(400)
+    t = await pg.evaluate(tabs)
+    saved = await pg.evaluate("() => JSON.parse(localStorage.getItem('cbChinese.progress.v1') || '{}').settings.uiLang")
+    check("vi: choosing English switches the tab bar and saves the choice", "Home" in t and saved == "en", (t, saved))
+    await pg.reload(); await pg.wait_for_timeout(900)
+    t = await pg.evaluate(tabs)
+    check("vi: the choice survives a reload", "Home" in t, t)
+    await go(pg, "#/me", 500); await pg.select_option("#s-ui", "vi"); await pg.wait_for_timeout(400)
+    h2 = await pg.evaluate("() => [...document.querySelectorAll('#app h2')].map(e => e.textContent).join('|')")
+    check("vi: back to Vietnamese, the Settings heading is Vietnamese", "Cài đặt" in h2, h2[:200])
+    bad = []
+    for r in ["#/", "#/learn", "#/games", "#/review", "#/me", "#/progress", "#/mistakes", "#/mock", "#/mock/5", "#/track", "#/plan", "#/grammar", "#/day/61/words", "#/exams", "#/ready", "#/game/builder", "#/game/bank"]:
+        await go(pg, r, 400); await no_dialogs(pg)
+        res = await pg.evaluate("() => { const t = document.getElementById('app').innerText; return { crash: /Something broke|Đã xảy ra lỗi/.test(t) || t.trim().length < 15, junk: /\\b(undefined|NaN)\\b|\\{\\w+\\}/.test(t) }; }")
+        if res["crash"] or res["junk"]: bad.append((r, res))
+    check("vi: main screens render in Vietnamese with no crash, 'undefined' or unfilled {placeholder}", not bad, bad)
     await ctx.close()
 
 
-GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
-          ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow), ("quickui", t_quickui), ("sweep", t_sweep)]
+GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5),
+          ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync),
+          ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip),
+          ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn),
+          ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
+          ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi)]
 PW = None
 
 

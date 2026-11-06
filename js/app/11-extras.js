@@ -1,6 +1,6 @@
   /* ---------- loading placeholders ---------- */
   function skeleton() {
-    return '<div class="skel" aria-label="Loading" role="status"><i class="sk-h"></i><i class="sk-card"></i><i class="sk-line"></i><i class="sk-line short"></i><i class="sk-card"></i></div>';
+    return '<div class="skel" aria-label="' + tx("Loading") + '" role="status"><i class="sk-h"></i><i class="sk-card"></i><i class="sk-line"></i><i class="sk-line short"></i><i class="sk-card"></i></div>';
   }
 
   /* ---------- "leave this quiz?" ----------
@@ -18,7 +18,7 @@
   document.addEventListener("click", function (e) {
     var a = e.target.closest(".tabbar a, .appbar .brand");
     if (!a || !inActivity()) return;
-    var msg = simRunning() ? "Leave the exam simulator? The attempt will end and your answers will be lost." : "Leave now? Your progress in this activity won't be saved.";
+    var msg = simRunning() ? tx("Leave the exam simulator? The attempt will end and your answers will be lost.") : tx("Leave now? Your progress in this activity won't be saved.");
     if (!window.confirm(msg)) { e.preventDefault(); e.stopPropagation(); }
   }, true);
 
@@ -48,14 +48,14 @@
     function setup() {
       var st = Store.state.settings, ex = st.examDate || "2026-11-14";
       function opts(list, cur) { return list.map(function (g) { return '<button type="button" class="su-o' + (cur === g[0] ? " on" : "") + '" aria-pressed="' + (cur === g[0]) + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join(""); }
-      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-mas">' + UI.mascot("wave", 52) + '</div><h2 id="guide-t">Welcome! Two quick choices</h2>' +
-        '<label class="su-l" for="su-exam">When is your HSK 4 exam?</label><input type="date" id="su-exam" value="' + esc(ex) + '">' +
-        '<p class="su-l">When will you study?</p><div class="su-opts su-4" id="su-time">' +
-        opts([["07:00", "Morning", "7:00"], ["12:30", "Lunch", "12:30"], ["20:00", "Evening", "20:00"], ["21:30", "Late", "21:30"]], st.remindTime || "20:00") + "</div>" +
-        '<p class="su-l">Days a week</p><div class="su-opts" id="su-days">' +
-        opts([["3", "3 days", "light"], ["5", "5 days", "steady"], ["7", "Daily", "fastest"]], String(st.weeklyDays || 5)) + "</div>" +
-        '<p class="sub su-note">You can change these, and your daily goal, under Me.</p>' +
-        '<div class="actions center"><button class="btn primary" id="su-go">Continue ›</button></div></div>';
+      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-mas">' + UI.mascot("wave", 52) + '</div><h2 id="guide-t">' + tx("Welcome! Two quick choices") + '</h2>' +
+        '<label class="su-l" for="su-exam">' + tx("When is your HSK 4 exam?") + '</label><input type="date" id="su-exam" value="' + esc(ex) + '">' +
+        '<p class="su-l">' + tx("When will you study?") + '</p><div class="su-opts su-4" id="su-time">' +
+        opts([["07:00", tx("Morning"), "7:00"], ["12:30", tx("Lunch"), "12:30"], ["20:00", tx("Evening"), "20:00"], ["21:30", tx("Late"), "21:30"]], st.remindTime || "20:00") + "</div>" +
+        '<p class="su-l">' + tx("Days a week") + '</p><div class="su-opts" id="su-days">' +
+        opts([["3", tx("3 days"), tx("light")], ["5", tx("5 days"), tx("steady")], ["7", tx("Daily"), tx("fastest")]], String(st.weeklyDays || 5)) + "</div>" +
+        '<p class="sub su-note">' + tx("You can change these, and your daily goal, under Me.") + '</p>' +
+        '<div class="actions center"><button class="btn primary" id="su-go">' + tx("Continue ›") + '</button></div></div>';
       ["su-time", "su-days"].forEach(function (id) {
         wrap.querySelector("#" + id).onclick = function (e) {
           var b = e.target.closest(".su-o"); if (!b) return;
@@ -72,9 +72,9 @@
     function draw() {
       if (!Store.state.settings.setupDone && !(Store.state.settings.onboarded)) { setup(); return; }
       var g = GUIDE[i];
-      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-ico">' + g.icon + '</div><h2 id="guide-t">' + g.t + "</h2><p>" + g.d + "</p>" +
+      wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-ico">' + g.icon + '</div><h2 id="guide-t">' + tx(g.t) + "</h2><p>" + tx(g.d) + "</p>" +
         '<div class="g-dots">' + GUIDE.map(function (_, k) { return '<i class="' + (k === i ? "on" : "") + '"></i>'; }).join("") + "</div>" +
-        '<div class="actions center"><button class="btn" id="g-skip">' + (i < GUIDE.length - 1 ? "Skip" : "Close") + '</button><button class="btn primary" id="g-next">' + (i < GUIDE.length - 1 ? "Next ›" : "Let's go!") + "</button></div></div>";
+        '<div class="actions center"><button class="btn" id="g-skip">' + (i < GUIDE.length - 1 ? tx("Skip") : tx("Close")) + '</button><button class="btn primary" id="g-next">' + (i < GUIDE.length - 1 ? tx("Next ›") : tx("Let's go!")) + "</button></div></div>";
       wrap.querySelector("#g-skip").onclick = done;
       wrap.querySelector("#g-next").onclick = function () { if (i < GUIDE.length - 1) { i++; draw(); } else done(); };
     }
@@ -104,13 +104,13 @@
       var grp = function (g, title) {
         return '<h3 class="talk-grp">' + title + '</h3><div class="glist">' + (window.CB_TALK || []).filter(function (x) { return x.group === g; }).map(function (t) {
           var best = pr.best[t.id];
-          return '<a class="grow" href="#/talk/' + t.id + '"><span class="g-ico">' + t.icon + '</span><span class="g-txt"><b>' + L(t.t) + "</b><small>" + L(t.d) + (best != null ? " · best " + best + "/10" : "") + '</small></span><span class="g-go">▶</span></a>';
+          return '<a class="grow" href="#/talk/' + t.id + '"><span class="g-ico">' + t.icon + '</span><span class="g-txt"><b>' + L(t.t) + "</b><small>" + L(t.d) + (best != null ? " · " + tx("best {n}/10", { n: best }) : "") + '</small></span><span class="g-go">▶</span></a>';
         }).join("") + "</div>";
       };
-      render('<section class="card"><h2>🗣️ Role-play</h2><p class="sub">You are the HR person. The AI plays an employee, candidate or manager with a real problem, a mood and a detail you don\'t know yet. Use the company rules to solve the case; after that the talk moves on to related topics, so you can keep practising as long as you like. Tap Finish for your score. Each reply shows corrections, a level-up version of your sentence and new words.</p>' +
-        '<div class="seg talk-lvl" role="group" aria-label="Language level"><button type="button" class="chip' + (pr.level === "hsk4" ? " on" : "") + '" data-lvl="hsk4" aria-pressed="' + (pr.level === "hsk4") + '">HSK 4</button><button type="button" class="chip' + (pr.level === "hsk5" ? " on" : "") + '" data-lvl="hsk5" aria-pressed="' + (pr.level === "hsk5") + '">HSK 5</button></div></section>' +
-        grp("chat", "Just chat") + grp("daily", "Everyday HR") + grp("law", "Law & policy") +
-        (window.AI && AI.configured() ? "" : '<p class="warn">Set up AI first: Me → AI assistant.</p>'), "games");
+      render('<section class="card"><h2>' + tx("🗣️ Role-play") + '</h2><p class="sub">' + tx("You are the HR person. The AI plays an employee, candidate or manager with a real problem, a mood and a detail you don't know yet. Use the company rules to solve the case; after that the talk moves on to related topics, so you can keep practising as long as you like. Tap Finish for your score. Each reply shows corrections, a level-up version of your sentence and new words.") + '</p>' +
+        '<div class="seg talk-lvl" role="group" aria-label="' + tx("Language level") + '"><button type="button" class="chip' + (pr.level === "hsk4" ? " on" : "") + '" data-lvl="hsk4" aria-pressed="' + (pr.level === "hsk4") + '">HSK 4</button><button type="button" class="chip' + (pr.level === "hsk5" ? " on" : "") + '" data-lvl="hsk5" aria-pressed="' + (pr.level === "hsk5") + '">HSK 5</button></div></section>' +
+        grp("chat", tx("Just chat")) + grp("daily", tx("Everyday HR")) + grp("law", tx("Law & policy")) +
+        (window.AI && AI.configured() ? "" : '<p class="warn">' + tx("Set up AI first: Me → AI assistant.") + '</p>'), "games");
       [].forEach.call(document.querySelectorAll("[data-lvl]"), function (bt) { bt.onclick = function () { pr.level = bt.getAttribute("data-lvl"); saveTalkPrefs(pr); viewTalk(); }; });
       return;
     }
@@ -126,17 +126,17 @@
     function paint(force) { var el = document.getElementById("talk-log"); if (!el) return; if (!force && !nearBottom()) return; el.scrollTop = el.scrollHeight; window.scrollTo(0, document.body.scrollHeight); }
     function readAloud(zh) { if (pr.read && zh) Audio2.play(zh); }
     render('<div class="ghead"><a class="pill" href="' + (o.exit || "#/talk") + '">✕</a><b>' + sc.icon + " " + L(sc.t) + '</b><span class="ghr" id="t-n">0/' + MAX + '</span></div>' +
-      '<section class="card talk-brief"><p><b>Your goal:</b> ' + L(sc.goal) + ' <span class="tag">' + (pr.level === "hsk5" ? "HSK 5" : "HSK 4") + "</span></p>" +
-      (o.mini ? '<p class="sub" id="t-mini">Mini talk: ' + o.mini + " replies, then your score. Then the session goes on.</p>" : "") +
-      '<details class="talk-rules"' + (pr.best[sc.id] == null ? " open" : "") + '><summary>📋 Company rules for this case</summary><ul>' + sc.rules.map(function (r) { return "<li>" + L(r) + "</li>"; }).join("") + "</ul></details>" +
-      '<label class="talk-read"><input type="checkbox" id="t-read"' + (pr.read ? " checked" : "") + "> 🔊 Read replies aloud</label></section>" +
+      '<section class="card talk-brief"><p><b>' + tx("Your goal:") + '</b> ' + L(sc.goal) + ' <span class="tag">' + (pr.level === "hsk5" ? "HSK 5" : "HSK 4") + "</span></p>" +
+      (o.mini ? '<p class="sub" id="t-mini">' + tx("Mini talk: {n} replies, then your score. Then the session goes on.", { n: o.mini }) + "</p>" : "") +
+      '<details class="talk-rules"' + (pr.best[sc.id] == null ? " open" : "") + '><summary>' + tx("📋 Company rules for this case") + '</summary><ul>' + sc.rules.map(function (r) { return "<li>" + L(r) + "</li>"; }).join("") + "</ul></details>" +
+      '<label class="talk-read"><input type="checkbox" id="t-read"' + (pr.read ? " checked" : "") + "> " + tx("🔊 Read replies aloud") + "</label></section>" +
       '<div id="talk-log" class="talk-log" aria-live="polite"></div>' +
-      '<div class="talk-in"><div class="talk-hint"><button type="button" class="chip" id="t-hint">💡 Hint</button><span id="t-hint-t" class="dim"></span></div>' +
-      '<div class="talk-row"><input id="t-text" class="zh" lang="zh-CN" maxlength="120" autocomplete="off" aria-label="Your reply in Chinese" placeholder="用中文回答…">' +
-      (SR ? '<button type="button" class="btn small" id="t-mic" aria-label="Speak in Chinese">🎤</button>' : "") +
-      '<button type="button" class="btn primary small" id="t-send">Send</button></div>' +
-      (SR ? "" : '<p class="sub">Voice input is not available in this browser. Use your pinyin keyboard.</p>') +
-      '<div class="actions center"><button type="button" class="btn small" id="t-fin" hidden>🏁 Finish and get my score</button>' + (o.onDone ? '<button type="button" class="btn small" id="t-skip">Skip this step ›</button>' : "") + "</div></div>", "games");
+      '<div class="talk-in"><div class="talk-hint"><button type="button" class="chip" id="t-hint">' + tx("💡 Hint") + '</button><span id="t-hint-t" class="dim"></span></div>' +
+      '<div class="talk-row"><input id="t-text" class="zh" lang="zh-CN" maxlength="120" autocomplete="off" aria-label="' + tx("Your reply in Chinese") + '" placeholder="用中文回答…">' +
+      (SR ? '<button type="button" class="btn small" id="t-mic" aria-label="' + tx("Speak in Chinese") + '">🎤</button>' : "") +
+      '<button type="button" class="btn primary small" id="t-send">' + tx("Send") + '</button></div>' +
+      (SR ? "" : '<p class="sub">' + tx("Voice input is not available in this browser. Use your pinyin keyboard.") + '</p>') +
+      '<div class="actions center"><button type="button" class="btn small" id="t-fin" hidden>' + tx("🏁 Finish and get my score") + '</button>' + (o.onDone ? '<button type="button" class="btn small" id="t-skip">' + tx("Skip this step ›") + '</button>' : "") + "</div></div>", "games");
     var log = document.getElementById("talk-log"), inp = document.getElementById("t-text"), fin = document.getElementById("t-fin");
     document.getElementById("t-read").onchange = function () { pr.read = this.checked; saveTalkPrefs(pr); if (!pr.read) Audio2.stop(); };
     document.getElementById("t-hint").onclick = function () { document.getElementById("t-hint-t").textContent = lastHint || "试试问：具体是哪一项？"; };
@@ -156,11 +156,11 @@
       finished = true; var met = sm && sm.goal_met; Game.award(met ? 20 : 15); markWork();
       try { var tl = Store.state.talkLog || (Store.state.talkLog = []); tl.push({ d: Store.today(), id: sc.id, s: sm && sm.score != null ? Math.max(0, Math.min(10, Math.round(sm.score))) : null, g: !!met, l: pr.level === "hsk5" ? 5 : 4 }); if (tl.length > 60) tl.splice(0, tl.length - 60); Store.save(); syncSoon(); } catch (e) { /* the log is only for the teacher's view */ }
       if (sm && sm.score != null && (pr.best[sc.id] == null || sm.score > pr.best[sc.id])) { pr.best[sc.id] = sm.score; saveTalkPrefs(pr); }
-      log.insertAdjacentHTML("beforeend", '<div class="ai-card talk-end"><b>' + (sm ? (met ? "✅ Case solved" : "🟡 Case not fully solved") + " · " + sm.score + "/10" : "✅ Conversation done") + " · +" + (met ? 20 : 15) + " XP</b>" +
+      log.insertAdjacentHTML("beforeend", '<div class="ai-card talk-end"><b>' + (sm ? (met ? tx("✅ Case solved") : tx("🟡 Case not fully solved")) + " · " + sm.score + "/10" : tx("✅ Conversation done")) + " · +" + (met ? 20 : 15) + " XP</b>" +
         (sm && sm.comment ? '<p class="ai-exp">' + esc(sm.comment) + "</p>" : "") +
-        (sm && sm.phrase ? '<p class="sub">Phrase to remember: <span class="zh">' + esc(sm.phrase.zh) + "</span>" + SAY(sm.phrase.zh) + " " + esc(sm.phrase.pinyin) + " · " + esc(sm.phrase.meaning) + "</p>" : "") +
-        (o.onDone ? '<p class="sub">' + turns + ' replies.</p><div class="actions center"><button type="button" class="btn primary" id="t-cont">Continue ▶</button></div></div>'
-          : '<p class="sub">' + turns + ' replies. Play it again: the details and the mood change every time.</p><div class="actions center"><a class="btn" href="#/talk">More scenes</a><button type="button" class="btn primary" id="t-again">Again</button></div></div>'));
+        (sm && sm.phrase ? '<p class="sub">' + tx("Phrase to remember:") + ' <span class="zh">' + esc(sm.phrase.zh) + "</span>" + SAY(sm.phrase.zh) + " " + esc(sm.phrase.pinyin) + " · " + esc(sm.phrase.meaning) + "</p>" : "") +
+        (o.onDone ? '<p class="sub">' + tx("{n} replies.", { n: turns }) + '</p><div class="actions center"><button type="button" class="btn primary" id="t-cont">' + tx("Continue ▶") + '</button></div></div>'
+          : '<p class="sub">' + tx("{n} replies. Play it again: the details and the mood change every time.", { n: turns }) + '</p><div class="actions center"><a class="btn" href="#/talk">' + tx("More scenes") + '</a><button type="button" class="btn primary" id="t-again">' + tx("Again") + '</button></div></div>'));
       document.querySelector(".talk-in").hidden = true;
       if (o.onDone) document.getElementById("t-cont").onclick = function () { this.disabled = true; o.onDone(sm && sm.score != null ? sm.score : 0); };
       else document.getElementById("t-again").onclick = function () { viewTalk(sc.id); };
@@ -168,8 +168,8 @@
     }
     function send() {
       var text = inp.value.trim(); if (!text || busy || finished) return;
-      if (!/[㐀-鿿]/.test(text)) { UI.toast("Write your reply in Chinese", "✍️"); return; }
-      if (!window.AI || !AI.configured()) { UI.toast("Set up AI first: Me → AI assistant.", "🤖"); return; }
+      if (!/[㐀-鿿]/.test(text)) { UI.toast(tx("Write your reply in Chinese"), "✍️"); return; }
+      if (!window.AI || !AI.configured()) { UI.toast(tx("Set up AI first: Me → AI assistant."), "🤖"); return; }
       if (pr.read) Audio2.unlock(); // inside the tap, so iPhone allows the reply to be read when it arrives
       busy = true; inp.value = ""; turns++; document.getElementById("t-n").textContent = turns + "/" + MAX;
       var my = document.createElement("div"); my.className = "tb tb-me"; my.innerHTML = '<div class="zh">' + esc(text) + "</div>"; log.appendChild(my);
@@ -179,8 +179,8 @@
         if (!res.ok) { turns--; document.getElementById("t-n").textContent = turns + "/" + MAX; my.remove(); inp.value = text; UI.toast(AI.errMsg(res.error), "⚠️"); return; }
         var r = res.result, fb = r.feedback || {};
         hist.push({ role: "me", zh: text }); hist.push({ role: "ai", zh: r.reply.zh });
-        my.insertAdjacentHTML("beforeend", (fb.changed ? '<div class="tb-fix"><b>✎ ' + esc(fb.corrected) + "</b>" + (fb.note ? "<br>" + esc(fb.note) : "") + "</div>" : '<div class="tb-ok">✓ Good</div>') +
-          (fb.upgrade ? '<div class="tb-up"><span class="tb-up-l">⬆ Level up' + (fb.upgrade_point ? " · " + esc(fb.upgrade_point) : "") + '</span><span class="zh">' + esc(fb.upgrade) + "</span>" + SAY(fb.upgrade) + "</div>" : ""));
+        my.insertAdjacentHTML("beforeend", (fb.changed ? '<div class="tb-fix"><b>✎ ' + esc(fb.corrected) + "</b>" + (fb.note ? "<br>" + esc(fb.note) : "") + "</div>" : '<div class="tb-ok">' + tx("✓ Good") + '</div>') +
+          (fb.upgrade ? '<div class="tb-up"><span class="tb-up-l">' + tx("⬆ Level up") + (fb.upgrade_point ? " · " + esc(fb.upgrade_point) : "") + '</span><span class="zh">' + esc(fb.upgrade) + "</span>" + SAY(fb.upgrade) + "</div>" : ""));
         log.insertAdjacentHTML("beforeend", bubbleAI(r.reply, r.words));
         readAloud(r.reply.zh);
         lastHint = r.hint ? r.hint + (r.hint_pinyin ? " · " + r.hint_pinyin : "") : lastHint; document.getElementById("t-hint-t").textContent = "";
@@ -213,7 +213,7 @@
       var rec = new SR(); rec.lang = "zh-CN"; rec.interimResults = false; rec.maxAlternatives = 1;
       mic.disabled = true; mic.textContent = "● …";
       rec.onresult = function (e) { inp.value = e.results[0][0].transcript; };
-      rec.onerror = function () { UI.toast("Could not hear you. Check microphone permission.", "🎤"); };
+      rec.onerror = function () { UI.toast(tx("Could not hear you. Check microphone permission."), "🎤"); };
       rec.onend = function () { mic.disabled = false; mic.textContent = "🎤"; if (inp.value) inp.focus(); };
       try { rec.start(); } catch (e) { mic.disabled = false; mic.textContent = "🎤"; }
     };
@@ -222,44 +222,44 @@
   /* ---------- my own words ---------- */
   function viewMine() {
     var mine = Store.state.custom || [];
-    var html = '<a class="searchbar card" href="#/search">🔎 <span>Search ' + WORDS.length + ' words — hanzi, pinyin, Việt, English</span></a>' + learnSeg("mine") +
-      '<section class="card"><h2>Add a word from work</h2><p class="sub">Words you meet at work join flashcards, review, games and search. (There\'s no recording for your own words.)</p>' +
+    var html = '<a class="searchbar card" href="#/search">🔎 <span>' + tx("Search {n} words — hanzi, pinyin, Việt, English", { n: WORDS.length }) + '</span></a>' + learnSeg("mine") +
+      '<section class="card"><h2>' + tx("Add a word from work") + '</h2><p class="sub">' + tx("Words you meet at work join flashcards, review, games and search. (There's no recording for your own words.)") + '</p>' +
       '<form id="mw-form" class="mw-form" autocomplete="off">' +
-      '<label for="mw-hz">Chinese</label><input id="mw-hz" class="zh" lang="zh-CN" maxlength="12" required placeholder="例如：年终奖">' +
-      '<label for="mw-py">Pinyin <small>(optional)</small></label><input id="mw-py" maxlength="60" placeholder="niánzhōngjiǎng">' +
+      '<label for="mw-hz">' + tx("Chinese") + '</label><input id="mw-hz" class="zh" lang="zh-CN" maxlength="12" required placeholder="例如：年终奖">' +
+      '<label for="mw-py">' + tx("Pinyin") + ' <small>(' + tx("optional") + ')</small></label><input id="mw-py" maxlength="60" placeholder="niánzhōngjiǎng">' +
       '<label for="mw-vi">Tiếng Việt</label><input id="mw-vi" maxlength="120" placeholder="thưởng cuối năm">' +
-      '<label for="mw-en">English</label><input id="mw-en" maxlength="120" placeholder="year-end bonus">' +
-      '<label for="mw-ex">Example sentence <small>(optional)</small></label><input id="mw-ex" class="zh" lang="zh-CN" maxlength="60" placeholder="今年的年终奖什么时候发？">' +
-      '<p class="mw-err" id="mw-err" hidden></p><button class="btn primary wide" type="submit">＋ Add word</button></form></section>';
+      '<label for="mw-en">' + tx("English") + '</label><input id="mw-en" maxlength="120" placeholder="year-end bonus">' +
+      '<label for="mw-ex">' + tx("Example sentence") + ' <small>(' + tx("optional") + ')</small></label><input id="mw-ex" class="zh" lang="zh-CN" maxlength="60" placeholder="今年的年终奖什么时候发？">' +
+      '<p class="mw-err" id="mw-err" hidden></p><button class="btn primary wide" type="submit">' + tx("＋ Add word") + '</button></form></section>';
     if (mine.length) {
       var notIn = mine.filter(function (w) { return !SRS.has(w.id); }).length;
-      html += '<div class="actions"><a class="btn primary" href="#/cards/mine">🃏 Flashcards (' + mine.length + ")</a>" +
-        (notIn ? '<button class="btn" id="mw-add-all">＋ Add ' + notIn + " to review</button>" : '<span class="ok-text">✓ All in review</span>') + "</div>";
+      html += '<div class="actions"><a class="btn primary" href="#/cards/mine">' + tx("🃏 Flashcards ({n})", { n: mine.length }) + "</a>" +
+        (notIn ? '<button class="btn" id="mw-add-all">' + tx("＋ Add {n} to review", { n: notIn }) + "</button>" : '<span class="ok-text">' + tx("✓ All in review") + '</span>') + "</div>";
       html += mine.slice().reverse().map(function (w) {
         return '<article class="word card" id="w-' + esc(w.id) + '"><div class="w-top"><div><div class="hz">' + esc(w.hanzi) + "</div>" + (w.pinyin ? PY(w.pinyin) : "") + "</div>" +
-          '<button class="btn small bad-btn" data-del="' + esc(w.id) + '" aria-label="Delete ' + esc(w.hanzi) + '">Delete</button></div>' +
+          '<button class="btn small bad-btn" data-del="' + esc(w.id) + '" aria-label="' + tx("Delete {w}", { w: esc(w.hanzi) }) + '">' + tx("Delete") + '</button></div>' +
           '<div class="w-mean">' + M(w) + '</div><div class="tags">' + levelBadge("Mine") + boxBadge(w.id) + "</div>" +
           (w.example ? '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(w.example.zh) + "</span></div></div>" : "") + "</article>";
       }).join("");
-    } else html += '<p class="empty">No words yet — add your first one above.</p>';
+    } else html += '<p class="empty">' + tx("No words yet — add your first one above.") + '</p>';
     render(html, "learn");
     document.getElementById("mw-form").onsubmit = function (e) {
       e.preventDefault();
       var v = function (id) { return document.getElementById(id).value.trim(); };
       var hz = v("mw-hz"), err = document.getElementById("mw-err");
       function fail(m) { err.textContent = m; err.hidden = false; }
-      if (!/[㐀-鿿]/.test(hz)) return fail("Enter the word in Chinese characters.");
-      if (!v("mw-vi") && !v("mw-en")) return fail("Add a meaning in Vietnamese or English.");
-      if (WORDS.some(function (w) { return w.hanzi === hz; })) return fail(hz + " is already in the app — search for it instead.");
+      if (!/[㐀-鿿]/.test(hz)) return fail(tx("Enter the word in Chinese characters."));
+      if (!v("mw-vi") && !v("mw-en")) return fail(tx("Add a meaning in Vietnamese or English."));
+      if (WORDS.some(function (w) { return w.hanzi === hz; })) return fail(tx("{w} is already in the app — search for it instead.", { w: hz }));
       var w = { id: "u" + Date.now().toString(36), hanzi: hz, pinyin: v("mw-py"), vi: v("mw-vi"), en: v("mw-en"), pos: "", level: "Mine", added: Store.today() };
       if (/[㐀-鿿]/.test(v("mw-ex"))) w.example = { zh: v("mw-ex"), py: "", vi: "", en: "" };
       Store.state.custom.push(w); SRS.add(w.id); Store.save(); buildIndex();
-      UI.toast(hz + " added and in review", "➕"); viewMine();
+      UI.toast(tx("{w} added and in review", { w: hz }), "➕"); viewMine();
     };
     app.querySelectorAll("[data-del]").forEach(function (b) {
       b.onclick = function () {
         var id = b.getAttribute("data-del"), w = WORDMAP[id];
-        if (!window.confirm("Delete " + (w ? w.hanzi : "this word") + " from your words?")) return;
+        if (!window.confirm(tx("Delete {w} from your words?", { w: w ? w.hanzi : tx("this word") }))) return;
         Store.state.custom = Store.state.custom.filter(function (x) { return x.id !== id; });
         delete Store.state.srs[id]; Object.keys(Store.state.mistakes || {}).forEach(function (k) { if (k === "w:" + id) delete Store.state.mistakes[k]; });
         Store.save(); buildIndex(); refreshChrome(); viewMine();

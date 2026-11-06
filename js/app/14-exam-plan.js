@@ -515,7 +515,8 @@
      New entries store rep; older saved entries get it from the order, so old data needs no migration. */
   function mockHist() {
     var seen = {};
-    return byDate(Store.state.mockHistory || []).map(function (h) { var rep = h.rep === true || !!seen[h.id]; seen[h.id] = 1; return { h: h, rep: rep }; });
+    /* HSK 5 sets say nothing about the HSK 4 score: leave them out */
+    return byDate((Store.state.mockHistory || []).filter(function (h) { return !isH5Mock(h.id); })).map(function (h) { var rep = h.rep === true || !!seen[h.id]; seen[h.id] = 1; return { h: h, rep: rep }; });
   }
   function byDate(a) { return a.map(function (x, i) { return [x, i]; }).sort(function (p, q) { return p[0].date < q[0].date ? -1 : p[0].date > q[0].date ? 1 : p[1] - q[1]; }).map(function (p) { return p[0]; }); }
   function forecastCard(compact) {

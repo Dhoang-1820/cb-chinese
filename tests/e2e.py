@@ -1529,12 +1529,12 @@ async def t_mocks2(b):
     shape = await pg.evaluate("""(()=>{const c=m=>[m.listening.p1.length,m.listening.p2.length,m.listening.p3.length,m.reading.p1.length,m.reading.p2.length,
       m.reading.p3.reduce((a,p)=>a+p.questions.length,0),m.writing.p1.length,m.writing.p2.length].join(',');
       const by={};(window.CB_MOCK||[]).forEach(m=>by[m.id]=c(m));return by})()""")
-    check("mocks2: sets 7 and 8 load, with the same parts and counts as set 1", shape.get("7") == shape.get("1") and shape.get("8") == shape.get("1") and len(shape) == 8, shape)
+    check("mocks2: sets 7 and 8 load, with the same parts and counts as set 1", shape.get("7") == shape.get("1") and shape.get("8") == shape.get("1") and len([k for k in shape if int(k) < 100]) == 8, shape)
     await ctx.close()
     import subprocess
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
     out = subprocess.run(["node", "tools/validate.js"], cwd=root, capture_output=True, text=True)
-    check("mocks2: the content validator passes with 8 mock exams", out.returncode == 0 and "Mock exams        : 8" in out.stdout and "PASS  Mock exams well-formed" in out.stdout, out.stdout[-400:] + out.stderr[-400:])
+    check("mocks2: the content validator passes with 8 HSK 4 + 2 HSK 5 mock exams", out.returncode == 0 and "Mock exams        : 10" in out.stdout and "PASS  Mock exams well-formed" in out.stdout, out.stdout[-400:] + out.stderr[-400:])
 
 # ----------------------------------------------------------------------------------------------------------------------
 HOOK_Q = "(()=>{if(window.__qh)return;window.__qh=1;const o=Games._q.makeQ;Games._q.makeQ=function(w,t){const q=o(w,t);window.__q=q;return q}})()"

@@ -1675,5 +1675,7 @@ window.CB_I18N_VI = {
   "＋ Add {n} to review": "＋ Thêm {n} từ vào ôn tập",
   "about 7 minutes": "khoảng 7 phút",
   "about 15 minutes": "khoảng 15 phút",
-  "about 30 minutes": "khoảng 30 phút"
+  "about 30 minutes": "khoảng 30 phút",
+  "HSK 5 mock exams": "Đề thi thử HSK 5",
+  "For after HSK 4. Shortened sets (39 questions, ~40 min) in the same format; they do not count towards your HSK 4 score forecast.": "Dành cho sau HSK 4. Đề rút gọn (39 câu, ~40 phút) cùng dạng đề; không tính vào dự đoán điểm HSK 4 của bạn."
 };

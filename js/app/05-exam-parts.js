@@ -1,12 +1,16 @@
   /* ---------- mock exam ---------- */
-  var MOCK = [], MOCKMAP = {}, EXAM = null;
+  /* MOCK: the HSK 4 sets (score forecast, exam plan, suggestions); MOCK5: the HSK 5 sets (level: 5), listed on their own.
+     MOCKMAP holds both, so #/mock/<id> opens either. */
+  var MOCK = [], MOCK5 = [], MOCKMAP = {}, EXAM = null;
+  function isH5Mock(id) { var m = MOCKMAP[id]; return m ? m.level === 5 : +id >= 100; }
   var RESOURCES = [
     { name: "Study4 HSK 4 practice tests", url: "https://study4.com/tests/hsk-4/" },
     { name: "Official HSK sample papers (Hanban/CTI)", url: "http://www.chinesetest.cn/gosign.do?id=1&lid=0#" }
   ];
   function buildMockIndex() {
-    MOCK = (window.CB_MOCK || []).slice().sort(function (a, b) { return a.id - b.id; });
-    MOCKMAP = {}; MOCK.forEach(function (m) {
+    var all = (window.CB_MOCK || []).slice().sort(function (a, b) { return a.id - b.id; });
+    MOCK = all.filter(function (m) { return m.level !== 5; }); MOCK5 = all.filter(function (m) { return m.level === 5; });
+    MOCKMAP = {}; all.forEach(function (m) {
       MOCKMAP[m.id] = m;
       // sentence-ordering items (full-length reading part 2): answer "BAC" → index into the 6 possible orders
       m.reading.p2.forEach(function (it) { if (it.parts && typeof it.answer === "string") { it.orderKey = it.answer; it.options = ORDERS.slice(); it.answer = ORDERS.indexOf(it.orderKey); } });

@@ -165,11 +165,14 @@
     var html = '<section class="card"><h2>' + tx("Mock HSK 4 Exams") + '</h2><p class="sub">' + tx("Original questions in the real exam format. The shorter tests are about 40% of the real length (~30 minutes); a <b>full-length</b> test has all 100 questions and the real timing (~100 minutes) to train your stamina. Scored /300 like the real test — 180+ is a pass.") + "</p></section>" +
       '<a class="cta card g-violet" href="#/parts"><span class="cta-l"><small>' + tx("10 questions at the real exam's pace") + "</small><b>" + tx("⏱ Practise one exam part") + "</b><em>" + (weakParts()[0] ? tx("Weakest: {name} · {acc}%", { name: esc(weakParts()[0].name), acc: weakParts()[0].acc }) : tx("Listening, reading or writing, one part at a time")) + '</em></span><span class="cta-go">▶</span></a>';
     if (!MOCK.length) html += '<p class="warn">' + tx("No mock exams loaded.") + "</p>";
-    MOCK.forEach(function (m) {
+    function mockCard(m) {
       var rec = s.mocks[m.id];
-      html += '<a class="cta card' + (rec && rec.best >= 180 ? " g-teal" : " g-blue") + '" href="#/mock/' + m.id + '">' +
+      return '<a class="cta card' + (rec && rec.best >= 180 ? " g-teal" : " g-blue") + '" href="#/mock/' + m.id + '">' +
         '<span class="cta-l">' + (m.full ? "<small>" + tx("Full length · 100 questions · ~100 min") + "</small>" : "") + '<b>' + esc(m.title) + '</b><em>' + (rec ? tx("Best {score}/300 ({attempts})", { score: num(rec.best), attempts: rec.plays > 1 ? tx("{n} attempts", { n: num(rec.plays) }) : tx("{n} attempt", { n: num(rec.plays) }) }) + (rec.best >= 180 ? " · " + tx("Pass ✓") : "") + " · " + tx("Repeat: a retake counts less") : tx("New · not attempted yet")) + "</em></span><span class=\"cta-go\">▶</span></a>";
-    });
+    }
+    MOCK.forEach(function (m) { html += mockCard(m); });
+    if (MOCK5.length) html += '<section class="card" id="mock5-head"><h2>' + tx("HSK 5 mock exams") + '</h2><p class="sub">' + tx("For after HSK 4. Shortened sets (39 questions, ~40 min) in the same format; they do not count towards your HSK 4 score forecast.") + '</p></section>' +
+      MOCK5.map(mockCard).join("");
     html += '<a class="cta card g-blue" href="#/official"><span class="cta-l"><small>' + tx("Done an official paper?") + "</small><b>" + tx("📄 Log your official score") + "</b><em>" + tx("Improves your score forecast") + '</em></span><span class="cta-go">▶</span></a>';
     html += '<section class="card"><h2>' + tx("More practice") + '</h2><p class="sub">' + tx("Want the real official questions too? These are legitimate free resources:") + "</p>" +
       RESOURCES.map(function (r) { return '<a class="res-link" href="' + esc(r.url) + '" target="_blank" rel="noopener"><span class="cta-l"><b>' + esc(r.name) + "</b></span><span class=\"cta-go\">↗</span></a>"; }).join("") + "</section>";

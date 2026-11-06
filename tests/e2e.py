@@ -1533,12 +1533,12 @@ async def t_mocks2(b):
     shape = await pg.evaluate("""(()=>{const c=m=>[m.listening.p1.length,m.listening.p2.length,m.listening.p3.length,m.reading.p1.length,m.reading.p2.length,
       m.reading.p3.reduce((a,p)=>a+p.questions.length,0),m.writing.p1.length,m.writing.p2.length].join(',');
       const by={};(window.CB_MOCK||[]).forEach(m=>by[m.id]=c(m));return by})()""")
-    check("mocks2: sets 7 and 8 load, with the same parts and counts as set 1", shape.get("7") == shape.get("1") and shape.get("8") == shape.get("1") and len(shape) == 8, shape)
+    check("mocks2: sets 7 and 8 load, with the same parts and counts as set 1", shape.get("7") == shape.get("1") and shape.get("8") == shape.get("1") and len([k for k in shape if int(k) < 100]) == 8, shape)
     await ctx.close()
     import subprocess
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
     out = subprocess.run(["node", "tools/validate.js"], cwd=root, capture_output=True, text=True)
-    check("mocks2: the content validator passes with 8 mock exams", out.returncode == 0 and "Mock exams        : 8" in out.stdout and "PASS  Mock exams well-formed" in out.stdout, out.stdout[-400:] + out.stderr[-400:])
+    check("mocks2: the content validator passes with 8 HSK 4 + 2 HSK 5 mock exams", out.returncode == 0 and "Mock exams        : 10" in out.stdout and "PASS  Mock exams well-formed" in out.stdout, out.stdout[-400:] + out.stderr[-400:])
 
 # ----------------------------------------------------------------------------------------------------------------------
 HOOK_Q = "(()=>{if(window.__qh)return;window.__qh=1;const o=Games._q.makeQ;Games._q.makeQ=function(w,t){const q=o(w,t);window.__q=q;return q}})()"
@@ -2397,6 +2397,55 @@ async def t_vi(b):
     await ctx.close()
 
 
+
+async def t_split(b):
+    """Screen chunks (tools/split_app.js): the start-up bundle loads no chunk, a chunked screen loads its chunk once,
+    and a chunk that cannot load shows a message instead of a blank screen."""
+    st = {"settings": settings(), "srs": {}}
+    ctx, pg = await open_app(b, st)
+    got = []; pg.on("request", lambda r: got.append(r.url) if "/app-" in r.url else None)
+    await go(pg, "#/", 700)
+    check("split: Home loads no screen chunk", not got, got)
+    await go(pg, "#/progress", 900)
+    t = await pg.evaluate("() => document.getElementById('app').innerText")
+    check("split: Progress loads its chunk and renders", any("app-plan." in u for u in got) and len(t.strip()) > 40, (got, t[:80]))
+    n = len(got); await go(pg, "#/plan", 600); await go(pg, "#/progress", 600)
+    check("split: the chunk is fetched only once", len(got) == n, got)
+    await ctx.close()
+    if not BUNDLED_SITE: return
+    ctx, pg = await open_app(b, st, expect_errors=True)
+    await pg.route("**/app-track.*.js", lambda r: r.abort())
+    await go(pg, "#/track", 900)
+    t = await pg.evaluate("() => document.getElementById('app').innerText")
+    check("split: a chunk that fails to load shows a message", "Couldn't load this part of the app" in t, t[:160])
+    await ctx.close()
+
+
+BUNDLED_SITE = True  # the test site is a build (tests/run.sh); chunks exist only there
+
+
+async def t_mocks5(b):
+    """HSK 5 mock exams: listed in their own section, open like the HSK 4 sets, and an HSK 5 result does not move
+    the HSK 4 score forecast."""
+    y = (TODAY - datetime.timedelta(days=1)).isoformat()
+    h4 = {"id": 4, "date": y, "mode": "exam", "strict": True, "total": 150, "sections": {"listening": 50, "reading": 50, "writing": 50}, "full": True, "ws": False}
+    h5 = {"id": 101, "date": y, "mode": "exam", "strict": True, "total": 290, "sections": {"listening": 97, "reading": 97, "writing": 96}, "full": False, "ws": False}
+    texts = []
+    for hist in ([h4], [h4, h5]):
+        ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mockHistory": hist, "mocks": {str(h["id"]): {"best": h["total"], "plays": 1} for h in hist}})
+        await go(pg, "#/mock", 900)
+        if len(hist) == 1:
+            info = await pg.evaluate("() => ({ head: !!document.getElementById('mock5-head'), h5: [...document.querySelectorAll('#app a[href^=\"#/mock/10\"]')].map(a => a.getAttribute('href')), h4: document.querySelectorAll('#app a[href=\"#/mock/1\"]').length })")
+            check("mocks5: the mock list has an HSK 5 section with sets 101 and 102", info["head"] and "#/mock/101" in info["h5"] and "#/mock/102" in info["h5"] and info["h4"] == 1, info)
+            await go(pg, "#/mock/101", 700)
+            t = await pg.evaluate("() => document.getElementById('app').innerText")
+            check("mocks5: an HSK 5 set opens its intro screen", "HSK 5" in t and "not found" not in t, t[:160])
+        await go(pg, "#/progress", 900)
+        texts.append(await pg.evaluate("() => { const h = [...document.querySelectorAll('#app h2')].find(e => /forecast/i.test(e.textContent)); return h ? h.closest('section').innerText : ''; }"))
+        await ctx.close()
+    check("mocks5: an HSK 5 result leaves the HSK 4 forecast unchanged", texts[0] and texts[0] == texts[1] and "150" in texts[0], texts)
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5),
           ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync),
           ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip),
@@ -2404,7 +2453,7 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
-          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split)]
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5)]
 PW = None
 
 

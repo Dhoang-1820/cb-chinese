@@ -1334,7 +1334,7 @@ window.CB_TRACK.push(
             zh: "员工离职时，公司应当出具离职证明。",
             py: "Yuángōng lízhí shí, gōngsī yīngdāng chūjù lízhí zhèngmíng.",
             vi: "Khi nhân viên nghỉ việc, công ty phải cấp giấy xác nhận thôi việc.",
-            en: "When an employee leaves, the company must issue a resignation certificate."
+            en: "When an employee leaves, the company must issue a certificate of employment termination."
           }
         }
       ]
@@ -1569,7 +1569,7 @@ window.CB_TRACK.push(
           },
           cn: {
             zh: "休息日加班",
-            py: "xiūxírì jiābān",
+            py: "xiūxīrì jiābān",
             gloss: {
               vi: "Làm thêm vào ngày nghỉ cuối tuần; ở Trung Quốc có thể sắp xếp nghỉ bù thay vì trả tiền, còn làm vào ngày lễ pháp định thì phải trả tiền.",
               en: "Working extra on a weekend rest day; in China time off can replace pay, but work on a statutory holiday must be paid."
@@ -1581,7 +1581,7 @@ window.CB_TRACK.push(
           },
           ex: {
             zh: "休息日加班可以先安排补休，不能补休的再支付加班费。",
-            py: "Xiūxírì jiābān kěyǐ xiān ānpái bǔxiū, bù néng bǔxiū de zài zhīfù jiābānfèi.",
+            py: "Xiūxīrì jiābān kěyǐ xiān ānpái bǔxiū, bù néng bǔxiū de zài zhīfù jiābānfèi.",
             vi: "Làm thêm vào ngày nghỉ có thể sắp xếp nghỉ bù trước, trường hợp không nghỉ bù được thì trả tiền làm thêm giờ.",
             en: "Work on a rest day can first be compensated with time off, and only if that is not possible is overtime pay paid."
           }
@@ -1926,7 +1926,7 @@ window.CB_TRACK.push(
           },
           cn: {
             zh: "绩效奖金",
-            py: "jīxiào jiǎngjīn",
+            py: "jìxiào jiǎngjīn",
             gloss: {
               vi: "Khoản tiền thưởng gắn với kết quả đánh giá; nếu hợp đồng hoặc quy chế đã cam kết và nhân viên đạt điều kiện thì khó từ chối trả.",
               en: "A bonus tied to evaluation results; if the contract or policy has promised it and the employee meets the conditions, it is hard to refuse."
@@ -1938,7 +1938,7 @@ window.CB_TRACK.push(
           },
           ex: {
             zh: "绩效奖金根据季度考核结果发放。",
-            py: "Jīxiào jiǎngjīn gēnjù jìdù kǎohé jiéguǒ fāfàng.",
+            py: "Jìxiào jiǎngjīn gēnjù jìdù kǎohé jiéguǒ fāfàng.",
             vi: "Thưởng hiệu suất được trả dựa trên kết quả đánh giá hằng quý.",
             en: "The performance bonus is paid based on the quarterly appraisal results."
           }
@@ -2225,8 +2225,8 @@ window.CB_TRACK.push(
             en: "The concept is the same. State which period is being back-paid and which period the tax and insurance relate to, because the tax treatment of back pay may differ between the two countries."
           },
           ex: {
-            zh: "调薪从一月一日生效，差额会在下个月补发工资。",
-            py: "Tiáoxīn cóng yī yuè yī rì shēngxiào, chā'é huì zài xià gè yuè bǔfā gōngzī.",
+            zh: "调薪从一月一日生效，下个月会补发工资差额。",
+            py: "Tiáoxīn cóng yī yuè yī rì shēngxiào, xià gè yuè huì bǔfā gōngzī chā'é.",
             vi: "Điều chỉnh lương có hiệu lực từ ngày một tháng một, phần chênh lệch sẽ được truy lĩnh vào tháng sau.",
             en: "The pay adjustment takes effect from January 1, and the difference will be back-paid next month."
           }

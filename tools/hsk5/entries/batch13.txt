@@ -6,7 +6,7 @@
 志愿者|n.|volunteer|tình nguyện viên|很多 大学生 报名 当 志愿者 。|Many university students sign up to be volunteers.|Rất nhiều sinh viên đăng ký làm tình nguyện viên.
 制定|v.|to formulate; to draw up|đặt ra, xây dựng (quy định, kế hoạch)|人事 部门 正在 制定 新 的 加班 制度 。|The HR department is drawing up a new overtime policy.|Phòng nhân sự đang xây dựng chế độ làm thêm giờ mới.
 制造|v.|to manufacture; to make|chế tạo, sản xuất|这 家 工厂 主要 制造 汽车 零件 。|This factory mainly manufactures car parts.|Nhà máy này chủ yếu sản xuất linh kiện ô tô.
-制作|v.|to make; to produce|chế tác, làm ra|她 用 一 个 晚上 制作 了 这 张 表格 。|She spent one evening making this spreadsheet.|Cô ấy dành một buổi tối để làm bảng biểu này.
+制作|v.|to make; to produce|chế tác, làm ra|她 用 一 个 晚上 制作 了 这 张 表格 。|She spent one evening making this table.|Cô ấy dành một buổi tối để làm bảng biểu này.
 秩序|n.|order|trật tự|请 大家 排队 上车 ， 注意 秩序 。|Please queue to board, everyone, and keep order.|Xin mọi người xếp hàng lên xe, chú ý giữ trật tự.
 智慧|n.|wisdom; intelligence|trí tuệ|解决 这 个 问题 需要 经验 和 智慧 。|Solving this problem takes experience and wisdom.|Giải quyết vấn đề này cần kinh nghiệm và trí tuệ.
 中介|n.|agent; intermediary|môi giới, trung gian|我 是 通过 中介 租 到 这 套 房子 的 。|I rented this flat through an agent.|Tôi thuê được căn nhà này qua môi giới.
@@ -66,7 +66,7 @@
 总之|conj.|in short; in a word|tóm lại|总之 ， 这 件 事 你 不用 担心 。|In short, you needn't worry about this matter.|Tóm lại, chuyện này bạn không cần lo.
 阻止|v.|to stop; to prevent|ngăn cản, ngăn chặn|他 决定 辞职 ， 谁 也 阻止 不{bu} 了{liǎo} 。|He has decided to resign and nobody can stop him.|Anh ấy đã quyết định xin nghỉ việc, không ai ngăn được.
 组|n./m./v.|group; team; to form|tổ, nhóm|经理 把 我们 分 成 了 三 个 组 。|The manager divided us into three groups.|Giám đốc chia chúng tôi thành ba nhóm.
-组成|v.|to make up; to compose|tạo thành, cấu thành|这 个 小组 由 五 名 员工 组成 。|This team is made up of five employees.|Nhóm này gồm năm nhân viên tạo thành.
+组成|v.|to make up; to compose|tạo thành, cấu thành|这 个 小组 由 五 名 员工 组成 。|This team is made up of five employees.|Nhóm này do năm nhân viên tạo thành.
 组合|v./n.|to combine; combination|tổ hợp, kết hợp|这 两 种 颜色 组合 在 一起 很 好看 。|These two colours look good combined.|Hai màu này kết hợp với nhau rất đẹp.
 组织|v./n.|to organise; organisation|tổ chức|公司 每 年 组织 员工 去 旅游 一 次 。|The company organises a staff trip once a year.|Mỗi năm công ty tổ chức cho nhân viên đi du lịch một lần.
 最初|n.|at first; initially|lúc đầu, ban đầu|最初 我 不 习惯 这里 的 天气 。|At first I was not used to the weather here.|Lúc đầu tôi không quen với thời tiết ở đây.

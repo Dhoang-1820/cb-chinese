@@ -46,7 +46,7 @@
 翻|v.|to turn over; to flip through; to translate|lật, giở; dịch|请 大家 把 书 翻 到 第 二十 页 。|Everyone, please turn to page twenty.|Mời mọi người giở sách đến trang hai mươi.
 繁荣|adj.|prosperous; flourishing|phồn vinh, thịnh vượng|这 几 年 这里 的 经济 越来越 繁荣 。|In recent years the economy here has become more and more prosperous.|Mấy năm nay kinh tế ở đây ngày càng phồn vinh.
 反而|adv.|on the contrary; instead|trái lại, ngược lại|吃 了 药 以后 ， 他 的 病 反而 更 重 了 。|After taking the medicine, his illness got worse instead.|Uống thuốc xong, bệnh của anh ấy trái lại còn nặng hơn.
-反复|adv.|repeatedly; again and again|lặp đi lặp lại, nhiều lần|这 份 合同 我 反复 检查 了 三 遍 。|I checked this contract over three times.|Bản hợp đồng này tôi đã kiểm tra đi kiểm tra lại ba lần.
+反复|adv.|repeatedly; again and again|lặp đi lặp lại, nhiều lần|这 份 合同 我 反复 检查 了 三 遍 。|I checked this contract three times over.|Bản hợp đồng này tôi đã kiểm tra đi kiểm tra lại ba lần.
 反应|n./v.|reaction; to react|phản ứng|听到 这个 消息 ， 他 没有 什么 反应 。|He showed little reaction on hearing the news.|Nghe tin này, anh ấy không có phản ứng gì.
 反映|v.|to reflect; to report (to superiors)|phản ánh|员工 向 经理 反映 了 加班 的 问题 。|Staff reported the overtime problem to the manager.|Nhân viên đã phản ánh vấn đề tăng ca với giám đốc.
 反正|adv.|anyway; in any case|dù sao, đằng nào cũng|反正 今天 不 忙 ， 我们 慢慢 走 吧 。|We're not busy today anyway, so let's walk slowly.|Dù sao hôm nay cũng không bận, chúng ta đi từ từ thôi.
@@ -83,7 +83,7 @@
 改正|v.|to correct; to put right|sửa, sửa chữa (lỗi)|发现 错误 以后 要 马上 改正 。|Once you find a mistake, correct it at once.|Sau khi phát hiện sai sót phải sửa ngay.
 盖|v./n.|to cover; to build; lid|đậy, đắp; xây; nắp|我们 小区 旁边 正在 盖 一 座 新 楼 。|A new building is going up beside our housing estate.|Bên cạnh khu nhà chúng tôi đang xây một tòa nhà mới.
 概念|n.|concept; idea|khái niệm|这 两 个 概念 很 容易 弄 错 。|These two concepts are easily confused.|Hai khái niệm này rất dễ nhầm lẫn.
-干脆|adj./adv.|straightforward; simply; just|dứt khoát; thẳng thắn|既然 来不及 ， 我们 干脆 明天 再 去 吧 。|Since there isn't enough time, let's just go tomorrow.|Đã không kịp thì chúng ta dứt khoát mai hãy đi.
+干脆|adj./adv.|straightforward; simply; just|dứt khoát; thẳng thắn|既然 来不及 ， 我们 干脆 明天 再 去 吧 。|Since there isn't enough time, let's just go tomorrow.|Đã không kịp rồi thì thôi, mai chúng ta hẵng đi.
 干燥|adj.|dry; arid|khô, khô hanh|北方 的 冬天 很 干燥 ， 要 多 喝 水 。|Winter in the north is very dry, so drink plenty of water.|Mùa đông miền Bắc rất khô hanh, phải uống nhiều nước.
 赶紧|adv.|hurriedly; at once|vội vàng, mau chóng|快 下雨 了 ， 我们 赶紧 回家 吧 。|It's about to rain; let's hurry home.|Sắp mưa rồi, chúng ta mau về nhà thôi.
 赶快|adv.|quickly; at once|nhanh lên, mau|客人 快 到 了 ， 你 赶快 准备 一下 。|The guests are nearly here; get ready quickly.|Khách sắp đến rồi, bạn mau chuẩn bị đi.

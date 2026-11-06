@@ -43,7 +43,7 @@
 数|v.|to count|đếm|请 你 数 一下 ， 今天 来 了 多少 人 。|Please count how many people have come today.|Bạn đếm thử xem hôm nay có bao nhiêu người đến.
 数码|n./adj.|digital|kỹ thuật số|他 买 了 一 台 新 的 数码 相机 。|He bought a new digital camera.|Anh ấy mua một chiếc máy ảnh kỹ thuật số mới.
 摔倒|v.|to fall down|ngã, té ngã|路 上 很 滑 ， 奶奶 不 小心 摔倒 了 。|The road was slippery and Grandma accidentally fell.|Đường rất trơn, bà không cẩn thận bị ngã.
-甩|v.|to swing; to fling; to dump (a partner)|vung, quăng, vẩy; đá (người yêu)|他 洗 完 手 以后 把 水 甩 干{gān} 了 。|After washing his hands he shook the water off.|Rửa tay xong anh ấy vẩy cho khô nước.
+甩|v.|to swing; to fling; to dump (a partner)|vung, quăng, vẩy; đá (người yêu)|他 洗 完 手 以后 把 手 上 的 水 甩 掉 了 。|After washing his hands he shook the water off.|Rửa tay xong anh ấy vẩy cho khô nước.
 双方|n.|both sides; the two parties|đôi bên, hai bên|经过 讨论 ， 双方 都 同意 了 这个 价格 。|After discussion, both sides agreed to this price.|Qua thảo luận, hai bên đều đồng ý mức giá này.
 税|n.|tax|thuế|每 个 月 的 工资 都 要 交 税 。|Tax must be paid on every month's salary.|Tiền lương mỗi tháng đều phải nộp thuế.
 说不定|adv.|perhaps; maybe|không chừng, biết đâu|你 再 等 一会儿 ， 说不定 他 马上 就 来 。|Wait a little longer; maybe he'll be here any minute.|Bạn đợi thêm một lát, biết đâu anh ấy đến ngay.
@@ -61,7 +61,7 @@
 随手|adv.|conveniently; in passing|tiện tay|离开 办公室 的 时候 请 随手 关 灯 。|Please switch off the light as you leave the office.|Khi rời văn phòng xin tiện tay tắt đèn.
 碎|adj./v.|broken; in pieces; to smash|vỡ, vụn; làm vỡ|杯子 掉 在 地上 ， 摔 碎 了 。|The cup fell on the floor and smashed.|Cái cốc rơi xuống đất, vỡ tan rồi.
 损失|n./v.|loss; to lose|tổn thất, thiệt hại|这 次 错误 给 公司 带来 了 很 大 损失 。|This mistake caused the company a heavy loss.|Sai lầm lần này đã gây tổn thất lớn cho công ty.
-缩短|v.|to shorten|rút ngắn|新 地铁 缩短 了 我 上班 的 时间 。|The new metro line has shortened my journey to work.|Tuyến tàu điện ngầm mới đã rút ngắn thời gian đi làm của tôi.
+缩短|v.|to shorten|rút ngắn|新 地铁 缩短 了 我 上班 路 上 的 时间 。|The new metro line has shortened my journey to work.|Tuyến tàu điện ngầm mới đã rút ngắn thời gian đi làm của tôi.
 所|m./part.|(measure word for schools, hospitals); that which|ngôi, nơi (lượng từ); cái mà|我们 两 个 人 是 同一 所 大学 毕业 的 。|The two of us graduated from the same university.|Hai chúng tôi tốt nghiệp cùng một trường đại học.
 锁|n./v.|lock; to lock|khóa; khóa lại|你 出门 的 时候 别 忘 了 锁 门 。|Don't forget to lock the door when you go out.|Khi ra ngoài bạn đừng quên khóa cửa.
 台阶|n.|step; flight of steps|bậc thềm, bậc thang|门口 有 三 个 台阶 ， 走 的 时候 小心 。|There are three steps at the door; mind how you go.|Trước cửa có ba bậc thềm, khi đi cẩn thận nhé.

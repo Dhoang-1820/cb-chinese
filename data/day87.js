@@ -142,7 +142,7 @@ window.CB_DAYS.push({
         zh: "听完电话以后，黄玲能把内容完整地复述出来。",
         py: "Tīngwán diànhuà yǐhòu, Huáng Líng néng bǎ nèiróng wánzhěng de fùshù chūlái.",
         vi: "Nghe điện thoại xong, Hoàng Linh có thể kể lại đầy đủ nội dung.",
-        en: "After a phone call, Huang Ling can retell the whole content accurately."
+        en: "After a phone call, Huang Ling can retell the content in full."
       }
     }
   ],

@@ -41,19 +41,19 @@ window.CB_TRACK.push(
         {
           "zh": "您的工作表现我们都看在眼里。",
           "py": "Nín de gōngzuò biǎoxiàn wǒmen dōu kàn zài yǎnlǐ.",
-          "vi": "Biểu hiện công việc của anh chúng tôi đều ghi nhận.",
+          "vi": "Kết quả làm việc của anh chúng tôi đều ghi nhận.",
           "en": "We have noticed your work performance."
         },
         {
           "zh": "调薪需要参考岗位级别和市场水平。",
-          "py": "Diàoxīn xūyào cānkǎo gǎngwèi jíbié hé shìchǎng shuǐpíng.",
+          "py": "Tiáoxīn xūyào cānkǎo gǎngwèi jíbié hé shìchǎng shuǐpíng.",
           "vi": "Điều chỉnh lương cần tham khảo cấp bậc vị trí và mặt bằng thị trường.",
           "en": "A raise has to take the job grade and market level into account."
         },
         {
           "zh": "这个幅度还要经过总部审批。",
           "py": "Zhège fúdù hái yào jīngguò zǒngbù shěnpī.",
-          "vi": "Mức tăng này còn phải qua phê duyệt của tổng bộ.",
+          "vi": "Mức tăng này còn phải qua phê duyệt của trụ sở chính.",
           "en": "The size of the raise still needs HQ approval."
         },
         {
@@ -208,7 +208,7 @@ window.CB_TRACK.push(
               "t": {
                 "zh": "不知道，您自己去问总部吧。",
                 "py": "Bù zhīdào, nín zìjǐ qù wèn zǒngbù ba.",
-                "vi": "Không biết, anh tự đi hỏi tổng bộ đi.",
+                "vi": "Không biết, anh tự đi hỏi trụ sở chính đi.",
                 "en": "I do not know; go and ask HQ yourself."
               },
               "good": false,
@@ -221,7 +221,7 @@ window.CB_TRACK.push(
               "t": {
                 "zh": "具体幅度还要部门经理和总部审批，我现在不能给您确定的数字。",
                 "py": "Jùtǐ fúdù hái yào bùmén jīnglǐ hé zǒngbù shěnpī, wǒ xiànzài bù néng gěi nín quèdìng de shùzì.",
-                "vi": "Mức cụ thể còn phải do quản lý bộ phận và tổng bộ duyệt, hiện tôi không thể đưa con số chắc chắn.",
+                "vi": "Mức cụ thể còn phải do quản lý bộ phận và trụ sở chính duyệt, hiện tôi không thể đưa con số chắc chắn.",
                 "en": "The exact figure still needs approval from your manager and HQ, so I cannot give you a definite number now."
               },
               "good": true,
@@ -870,7 +870,7 @@ window.CB_TRACK.push(
               "t": {
                 "zh": "那我们也没办法，薪资是总部决定的。",
                 "py": "Nà wǒmen yě méi bànfǎ, xīnzī shì zǒngbù juédìng de.",
-                "vi": "Vậy chúng tôi cũng bó tay, lương do tổng bộ quyết định.",
+                "vi": "Vậy chúng tôi cũng bó tay, lương do trụ sở chính quyết định.",
                 "en": "Then we cannot help; pay is decided by HQ."
               },
               "good": false,
@@ -918,7 +918,7 @@ window.CB_TRACK.push(
             {
               "t": {
                 "zh": "晋升要看能力，不是时间长就行。",
-                "py": "Jìnshēng yào kàn nénglì, bú shì shíjiān zhǎng jiù xíng.",
+                "py": "Jìnshēng yào kàn nénglì, bú shì shíjiān cháng jiù xíng.",
                 "vi": "Thăng tiến dựa vào năng lực, không phải cứ lâu là được.",
                 "en": "Promotion depends on ability, not just on length of service."
               },
@@ -1223,7 +1223,7 @@ window.CB_TRACK.push(
         {
           "other": {
             "zh": "十二月的奖金总额比十一月多了很多，请解释一下。",
-            "py": "Shíèr yuè de jiǎngjīn zǒngé bǐ shíyī yuè duō le hěn duō, qǐng jiěshì yíxià.",
+            "py": "Shí'èr yuè de jiǎngjīn zǒng'é bǐ shíyī yuè duō le hěn duō, qǐng jiěshì yíxià.",
             "vi": "Tổng tiền thưởng tháng mười hai nhiều hơn tháng mười một rất nhiều, xin giải thích.",
             "en": "December's total bonus is much higher than November's. Please explain."
           },
@@ -1244,7 +1244,7 @@ window.CB_TRACK.push(
             {
               "t": {
                 "zh": "十二月包含年终奖，是按照奖金管理办法和绩效结果发放的，审批记录我马上给您调出来。",
-                "py": "Shíèr yuè bāohán niánzhōngjiǎng, shì ànzhào jiǎngjīn guǎnlǐ bànfǎ hé jìxiào jiéguǒ fāfàng de, shěnpī jìlù wǒ mǎshàng gěi nín diàochūlái.",
+                "py": "Shí'èr yuè bāohán niánzhōngjiǎng, shì ànzhào jiǎngjīn guǎnlǐ bànfǎ hé jìxiào jiéguǒ fāfàng de, shěnpī jìlù wǒ mǎshàng gěi nín diàochūlái.",
                 "vi": "Tháng mười hai có thưởng cuối năm, chi theo quy chế thưởng và kết quả hiệu suất, hồ sơ phê duyệt tôi lấy ra ngay.",
                 "en": "December includes the year-end bonus, paid under the bonus measures and performance results; I will pull up the approval records now."
               },
@@ -1322,15 +1322,15 @@ window.CB_TRACK.push(
           "other": {
             "zh": "员工社保缴费基数和实际工资有差异，原因是什么？",
             "py": "Yuángōng shèbǎo jiǎofèi jīshù hé shíjì gōngzī yǒu chāyì, yuányīn shì shénme?",
-            "vi": "Mức đóng bảo hiểm xã hội của nhân viên có chênh lệch so với lương thực tế, nguyên nhân là gì?",
+            "vi": "Mức lương đóng bảo hiểm xã hội của nhân viên có chênh lệch so với lương thực tế, nguyên nhân là gì?",
             "en": "There is a gap between employees' social insurance contribution base and actual pay. What is the reason?"
           },
           "choices": [
             {
               "t": {
                 "zh": "差异主要是因为部分员工中途调薪，缴费基数按规定在固定时间统一调整。具体明细我整理成表格给您。",
-                "py": "Chāyì zhǔyào shì yīnwèi bùfèn yuángōng zhōngtú diàoxīn, jiǎofèi jīshù àn guīdìng zài gùdìng shíjiān tǒngyì tiáozhěng. Jùtǐ míngxì wǒ zhěnglǐ chéng biǎogé gěi nín.",
-                "vi": "Chênh lệch chủ yếu do một số nhân viên được điều chỉnh lương giữa kỳ, mức đóng theo quy định được điều chỉnh đồng loạt vào thời điểm cố định. Tôi sẽ tổng hợp bảng chi tiết cho ông.",
+                "py": "Chāyì zhǔyào shì yīnwèi bùfèn yuángōng zhōngtú tiáoxīn, jiǎofèi jīshù àn guīdìng zài gùdìng shíjiān tǒngyì tiáozhěng. Jùtǐ míngxì wǒ zhěnglǐ chéng biǎogé gěi nín.",
+                "vi": "Chênh lệch chủ yếu do một số nhân viên được điều chỉnh lương giữa kỳ, mức lương đóng bảo hiểm theo quy định được điều chỉnh đồng loạt vào thời điểm cố định. Tôi sẽ tổng hợp bảng chi tiết cho ông.",
                 "en": "The gap is mainly because some employees had mid-period raises, and the contribution base is adjusted together at a fixed time under the rules. I will put the details in a table for you."
               },
               "good": true,
@@ -1343,7 +1343,7 @@ window.CB_TRACK.push(
               "t": {
                 "zh": "社保基数都是这样，每家公司都一样。",
                 "py": "Shèbǎo jīshù dōu shì zhèyàng, měi jiā gōngsī dōu yíyàng.",
-                "vi": "Mức đóng bảo hiểm xã hội đều như vậy, công ty nào cũng giống nhau.",
+                "vi": "Mức lương đóng bảo hiểm xã hội đều như vậy, công ty nào cũng giống nhau.",
                 "en": "Contribution bases are always like this; every company is the same."
               },
               "good": false,
@@ -1484,7 +1484,7 @@ window.CB_TRACK.push(
           "zh": "感谢工会一直以来的支持与配合。",
           "py": "Gǎnxiè gōnghuì yìzhí yǐlái de zhīchí yǔ pèihé.",
           "vi": "Cảm ơn công đoàn đã luôn ủng hộ và phối hợp.",
-          "en": "Thank the union for its continued support and cooperation."
+          "en": "We thank the union for its continued support and cooperation."
         },
         {
           "zh": "公司想先听听工会和员工代表的意见。",
@@ -1494,7 +1494,7 @@ window.CB_TRACK.push(
         },
         {
           "zh": "这个方案还只是草案，没有最终决定。",
-          "py": "Zhège fāngàn hái zhǐshì cǎoàn, méiyǒu zuìzhōng juédìng.",
+          "py": "Zhège fāng'àn hái zhǐshì cǎo'àn, méiyǒu zuìzhōng juédìng.",
           "vi": "Phương án này mới chỉ là dự thảo, chưa quyết định cuối cùng.",
           "en": "This plan is only a draft; nothing is final."
         },
@@ -1518,7 +1518,7 @@ window.CB_TRACK.push(
         },
         {
           "zh": "方案确定后，会提前通知全体员工。",
-          "py": "Fāngàn quèdìng hòu, huì tíqián tōngzhī quántǐ yuángōng.",
+          "py": "Fāng'àn quèdìng hòu, huì tíqián tōngzhī quántǐ yuángōng.",
           "vi": "Sau khi phương án được xác định sẽ thông báo trước cho toàn thể nhân viên.",
           "en": "Once the plan is settled, all employees will be notified in advance."
         },
@@ -1557,7 +1557,7 @@ window.CB_TRACK.push(
             {
               "t": {
                 "zh": "对不起，让您担心了。目前只是草案，我们今天正想先听听工会的意见。",
-                "py": "Duìbuqǐ, ràng nín dānxīn le. Mùqián zhǐshì cǎoàn, wǒmen jīntiān zhèng xiǎng xiān tīngting gōnghuì de yìjiàn.",
+                "py": "Duìbuqǐ, ràng nín dānxīn le. Mùqián zhǐshì cǎo'àn, wǒmen jīntiān zhèng xiǎng xiān tīngting gōnghuì de yìjiàn.",
                 "vi": "Xin lỗi đã làm ông lo lắng. Hiện mới là dự thảo, hôm nay chúng tôi đang muốn nghe ý kiến công đoàn trước.",
                 "en": "I am sorry to have worried you. It is only a draft for now, and we wanted to hear the union's views today."
               },
@@ -1606,7 +1606,7 @@ window.CB_TRACK.push(
             {
               "t": {
                 "zh": "这个担忧很重要。我会记下来，方案会考虑员工的休息时间，也会符合劳动法规的规定。",
-                "py": "Zhège dānyōu hěn zhòngyào. Wǒ huì jì xiàlái, fāngàn huì kǎolǜ yuángōng de xiūxī shíjiān, yě huì fúhé láodòng fǎguī de guīdìng.",
+                "py": "Zhège dānyōu hěn zhòngyào. Wǒ huì jì xiàlái, fāng'àn huì kǎolǜ yuángōng de xiūxī shíjiān, yě huì fúhé láodòng fǎguī de guīdìng.",
                 "vi": "Lo ngại này rất quan trọng. Tôi sẽ ghi lại, phương án sẽ cân nhắc thời gian nghỉ của người lao động và phù hợp quy định pháp luật lao động.",
                 "en": "That concern matters. I will note it; the plan will consider employees' rest time and comply with labour regulations."
               },
@@ -1634,7 +1634,7 @@ window.CB_TRACK.push(
         {
           "other": {
             "zh": "我们希望在方案正式实施前，能参与讨论。",
-            "py": "Wǒmen xīwàng zài fāngàn zhèngshì shíshī qián, néng cānyù tǎolùn.",
+            "py": "Wǒmen xīwàng zài fāng'àn zhèngshì shíshī qián, néng cānyù tǎolùn.",
             "vi": "Chúng tôi mong trước khi phương án chính thức thực hiện được tham gia thảo luận.",
             "en": "We hope to take part in the discussion before the plan is formally implemented."
           },
@@ -1683,7 +1683,7 @@ window.CB_TRACK.push(
         {
           "other": {
             "zh": "如果员工不同意新的方案，公司会怎么办？",
-            "py": "Rúguǒ yuángōng bù tóngyì xīn de fāngàn, gōngsī huì zěnme bàn?",
+            "py": "Rúguǒ yuángōng bù tóngyì xīn de fāng'àn, gōngsī huì zěnme bàn?",
             "vi": "Nếu người lao động không đồng ý phương án mới, công ty sẽ làm thế nào?",
             "en": "If employees do not agree with the new plan, what will the company do?"
           },
@@ -1692,7 +1692,7 @@ window.CB_TRACK.push(
               "t": {
                 "zh": "不同意也没用，总部已经定了。",
                 "py": "Bù tóngyì yě méiyòng, zǒngbù yǐjīng dìng le.",
-                "vi": "Không đồng ý cũng vô ích, tổng bộ đã quyết rồi.",
+                "vi": "Không đồng ý cũng vô ích, trụ sở chính đã quyết rồi.",
                 "en": "Disagreeing is pointless; HQ has already decided."
               },
               "good": false,
@@ -1704,7 +1704,7 @@ window.CB_TRACK.push(
             {
               "t": {
                 "zh": "我们会认真听取意见，必要时调整方案，不会在没有充分沟通的情况下强行实施。",
-                "py": "Wǒmen huì rènzhēn tīngqǔ yìjiàn, bìyào shí tiáozhěng fāngàn, bú huì zài méiyǒu chōngfèn gōutōng de qíngkuàng xià qiángxíng shíshī.",
+                "py": "Wǒmen huì rènzhēn tīngqǔ yìjiàn, bìyào shí tiáozhěng fāng'àn, bú huì zài méiyǒu chōngfèn gōutōng de qíngkuàng xià qiángxíng shíshī.",
                 "vi": "Chúng tôi sẽ lắng nghe nghiêm túc, khi cần sẽ điều chỉnh phương án, không cưỡng ép thực hiện khi chưa trao đổi đầy đủ.",
                 "en": "We will listen carefully, adjust the plan if necessary, and not force it through without full communication."
               },
@@ -1732,7 +1732,7 @@ window.CB_TRACK.push(
         {
           "other": {
             "zh": "那什么时候可以看到修改后的方案？",
-            "py": "Nà shénme shíhòu kěyǐ kàndào xiūgǎi hòu de fāngàn?",
+            "py": "Nà shénme shíhòu kěyǐ kàndào xiūgǎi hòu de fāng'àn?",
             "vi": "Vậy khi nào có thể xem phương án đã sửa?",
             "en": "So when can we see the revised plan?"
           },
@@ -1766,7 +1766,7 @@ window.CB_TRACK.push(
             {
               "t": {
                 "zh": "我们争取下个月初把修改后的方案发给您，并提前通知全体员工。",
-                "py": "Wǒmen zhēngqǔ xià gè yuè chū bǎ xiūgǎi hòu de fāngàn fā gěi nín, bìng tíqián tōngzhī quántǐ yuángōng.",
+                "py": "Wǒmen zhēngqǔ xià gè yuè chū bǎ xiūgǎi hòu de fāng'àn fā gěi nín, bìng tíqián tōngzhī quántǐ yuángōng.",
                 "vi": "Chúng tôi cố gắng đầu tháng sau gửi phương án đã sửa cho ông và thông báo trước cho toàn thể nhân viên.",
                 "en": "We will aim to send you the revised plan early next month and notify all employees in advance."
               },
@@ -1881,7 +1881,7 @@ window.CB_TRACK.push(
         {
           "zh": "我们需要总部批准这三个新增岗位。",
           "py": "Wǒmen xūyào zǒngbù pīzhǔn zhè sān gè xīnzēng gǎngwèi.",
-          "vi": "Chúng tôi cần tổng bộ phê duyệt ba vị trí mới này.",
+          "vi": "Chúng tôi cần trụ sở chính phê duyệt ba vị trí mới này.",
           "en": "We need HQ to approve these three new positions."
         },
         {
@@ -1969,7 +1969,7 @@ window.CB_TRACK.push(
               "t": {
                 "zh": "总部去年答应过的，现在应该批准。",
                 "py": "Zǒngbù qùnián dāyìng guò de, xiànzài yīnggāi pīzhǔn.",
-                "vi": "Năm ngoái tổng bộ đã hứa, bây giờ nên phê duyệt.",
+                "vi": "Năm ngoái trụ sở chính đã hứa, bây giờ nên phê duyệt.",
                 "en": "HQ promised last year, so it should approve it now."
               },
               "good": false,
@@ -1981,7 +1981,7 @@ window.CB_TRACK.push(
             {
               "t": {
                 "zh": "主要是因为订单增长，研发和销售的工作量明显增加。我把近三个季度的数据放在第二页。",
-                "py": "Zhǔyào shì yīnwèi dìngdān zēngzhǎng, yánfā hé xiāoshòu de gōngzuòliàng míngxiǎn zēngjiā. Wǒ bǎ jìn sān gè jìdù de shùjù fàng zài dìèr yè.",
+                "py": "Zhǔyào shì yīnwèi dìngdān zēngzhǎng, yánfā hé xiāoshòu de gōngzuòliàng míngxiǎn zēngjiā. Wǒ bǎ jìn sān gè jìdù de shùjù fàng zài dì'èr yè.",
                 "vi": "Chủ yếu do đơn hàng tăng, khối lượng công việc ở nghiên cứu phát triển và kinh doanh tăng rõ rệt. Số liệu ba quý gần nhất tôi để ở trang hai.",
                 "en": "Mainly because orders are growing and workload in R and D and sales has clearly increased. The last three quarters' data is on page two."
               },
@@ -2030,7 +2030,7 @@ window.CB_TRACK.push(
             {
               "t": {
                 "zh": "总预算比去年增加约百分之八，其中新增编制占一半左右，其余是调薪和社保成本的变化。",
-                "py": "Zǒng yùsuàn bǐ qùnián zēngjiā yuē bǎifēnzhī bā, qízhōng xīnzēng biānzhì zhàn yíbàn zuǒyòu, qíyú shì diàoxīn hé shèbǎo chéngběn de biànhuà.",
+                "py": "Zǒng yùsuàn bǐ qùnián zēngjiā yuē bǎifēnzhī bā, qízhōng xīnzēng biānzhì zhàn yíbàn zuǒyòu, qíyú shì tiáoxīn hé shèbǎo chéngběn de biànhuà.",
                 "vi": "Tổng ngân sách tăng khoảng tám phần trăm so với năm ngoái, trong đó biên chế mới chiếm khoảng một nửa, phần còn lại là thay đổi do điều chỉnh lương và chi phí bảo hiểm xã hội.",
                 "en": "The total budget is up about eight percent; new headcount accounts for roughly half, and the rest comes from raises and social insurance cost changes."
               },
@@ -2094,7 +2094,7 @@ window.CB_TRACK.push(
         {
           "other": {
             "zh": "好，会后请把方案和数据表发给我。",
-            "py": "Hǎo, huìhòu qǐng bǎ fāngàn hé shùjùbiǎo fā gěi wǒ.",
+            "py": "Hǎo, huìhòu qǐng bǎ fāng'àn hé shùjùbiǎo fā gěi wǒ.",
             "vi": "Được, sau họp hãy gửi phương án và bảng số liệu cho tôi.",
             "en": "OK, after the meeting please send me the proposal and the data table."
           },
@@ -2102,7 +2102,7 @@ window.CB_TRACK.push(
             {
               "t": {
                 "zh": "好的，会后一小时内我把会议纪要、方案和数据表一起发给您。谢谢李总监。",
-                "py": "Hǎo de, huìhòu yì xiǎoshí nèi wǒ bǎ huìyì jìyào, fāngàn hé shùjùbiǎo yìqǐ fā gěi nín. Xièxie Lǐ zǒngjiān.",
+                "py": "Hǎo de, huìhòu yì xiǎoshí nèi wǒ bǎ huìyì jìyào, fāng'àn hé shùjùbiǎo yìqǐ fā gěi nín. Xièxie Lǐ zǒngjiān.",
                 "vi": "Vâng, trong vòng một giờ sau họp tôi sẽ gửi biên bản, phương án và bảng số liệu cùng lúc cho ông. Cảm ơn giám đốc Lý.",
                 "en": "Yes, within an hour after the meeting I will send the minutes, proposal and data table together. Thank you, Director Li."
               },

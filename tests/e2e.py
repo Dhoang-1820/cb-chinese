@@ -2285,9 +2285,32 @@ async def t_quickui(b):
     await ctx.close()
 
 
+
+async def t_mocks5(b):
+    """HSK 5 mock exams: listed in their own section, open like the HSK 4 sets, and an HSK 5 result does not move
+    the HSK 4 score forecast."""
+    y = (TODAY - datetime.timedelta(days=1)).isoformat()
+    h4 = {"id": 4, "date": y, "mode": "exam", "strict": True, "total": 150, "sections": {"listening": 50, "reading": 50, "writing": 50}, "full": True, "ws": False}
+    h5 = {"id": 101, "date": y, "mode": "exam", "strict": True, "total": 290, "sections": {"listening": 97, "reading": 97, "writing": 96}, "full": False, "ws": False}
+    texts = []
+    for hist in ([h4], [h4, h5]):
+        ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mockHistory": hist, "mocks": {str(h["id"]): {"best": h["total"], "plays": 1} for h in hist}})
+        await go(pg, "#/mock", 900)
+        if len(hist) == 1:
+            info = await pg.evaluate("() => ({ head: !!document.getElementById('mock5-head'), h5: [...document.querySelectorAll('#app a[href^=\"#/mock/10\"]')].map(a => a.getAttribute('href')), h4: document.querySelectorAll('#app a[href=\"#/mock/1\"]').length })")
+            check("mocks5: the mock list has an HSK 5 section with sets 101 and 102", info["head"] and "#/mock/101" in info["h5"] and "#/mock/102" in info["h5"] and info["h4"] == 1, info)
+            await go(pg, "#/mock/101", 700)
+            t = await pg.evaluate("() => document.getElementById('app').innerText")
+            check("mocks5: an HSK 5 set opens its intro screen", "HSK 5" in t and "not found" not in t, t[:160])
+        await go(pg, "#/progress", 900)
+        texts.append(await pg.evaluate("() => { const h = [...document.querySelectorAll('#app h2')].find(e => /forecast/i.test(e.textContent)); return h ? h.closest('section').innerText : ''; }"))
+        await ctx.close()
+    check("mocks5: an HSK 5 result leaves the HSK 4 forecast unchanged", texts[0] and texts[0] == texts[1] and "150" in texts[0], texts)
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow), ("quickui", t_quickui)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow), ("quickui", t_quickui), ("mocks5", t_mocks5)]
 PW = None
 
 

@@ -2285,9 +2285,35 @@ async def t_quickui(b):
     await ctx.close()
 
 
+
+async def t_split(b):
+    """Screen chunks (tools/split_app.js): the start-up bundle loads no chunk, a chunked screen loads its chunk once,
+    and a chunk that cannot load shows a message instead of a blank screen."""
+    st = {"settings": settings(), "srs": {}}
+    ctx, pg = await open_app(b, st)
+    got = []; pg.on("request", lambda r: got.append(r.url) if "/app-" in r.url else None)
+    await go(pg, "#/", 700)
+    check("split: Home loads no screen chunk", not got, got)
+    await go(pg, "#/progress", 900)
+    t = await pg.evaluate("() => document.getElementById('app').innerText")
+    check("split: Progress loads its chunk and renders", any("app-plan." in u for u in got) and len(t.strip()) > 40, (got, t[:80]))
+    n = len(got); await go(pg, "#/plan", 600); await go(pg, "#/progress", 600)
+    check("split: the chunk is fetched only once", len(got) == n, got)
+    await ctx.close()
+    if not BUNDLED_SITE: return
+    ctx, pg = await open_app(b, st, expect_errors=True)
+    await pg.route("**/app-track.*.js", lambda r: r.abort())
+    await go(pg, "#/track", 900)
+    t = await pg.evaluate("() => document.getElementById('app').innerText")
+    check("split: a chunk that fails to load shows a message", "Couldn't load this part of the app" in t, t[:160])
+    await ctx.close()
+
+
+BUNDLED_SITE = True  # the test site is a build (tests/run.sh); chunks exist only there
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow), ("quickui", t_quickui)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow), ("quickui", t_quickui), ("split", t_split)]
 PW = None
 
 

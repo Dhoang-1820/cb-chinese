@@ -74,7 +74,7 @@ jobs:
       # TypeScript's checker over the server function (strict) and the app (no new findings, see tools/typecheck.js).
       - name: Type check and build site
         run: |
-          npm install --no-save --no-package-lock esbuild@0.28.2 typescript@5.9.3
+          npm install --no-save --no-package-lock esbuild@0.28.2 typescript@5.9.3 acorn@8.15.0 eslint-scope@8.4.0
           node tools/typecheck.js
           node tools/build.js _site "$GITHUB_SHA"
 

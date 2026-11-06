@@ -13,7 +13,7 @@ const QUIZ_LEN = 10;
 const LEVELS = ["HSK4", "Beyond HSK4"];               // lesson words (data/dayNN.js)
 const PACK_LEVELS = { h5: ["HSK5"], x4: ["HSK1", "HSK2", "HSK3", "HSK4"] }; // word packs loaded on demand (data/hsk5, data/hsk4x)
 /* the detailed checks of the newer content live in their own tools; this one runs them all, so one command covers everything */
-const MORE = ["validate_grammar.js", "validate_drills.js", "validate_hsk5.js", "validate_hsk5_drills.js", "validate_hsk4x.js"];
+const MORE = ["validate_grammar.js", "validate_drills.js", "validate_hsk5.js", "validate_hsk5_drills.js", "validate_hsk4x.js", "validate_hsk3.js"];
 const TONE_VOWELS = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/g;
 const CJK = /^[㐀-鿿]+$/;
 

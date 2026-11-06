@@ -7,18 +7,18 @@
     var recent = Object.keys(Store.state.srs).map(function (id) { return WORDMAP[id]; }).filter(Boolean)
       .sort(function (a, b) { return (Store.state.srs[b.id].added || "").localeCompare(Store.state.srs[a.id].added || ""); });
     var pool = (due.length ? due : recent).filter(function (w) { return Audio2.has(w.hanzi); }).slice(0, 30);
-    if (!pool.length) { render('<div class="card result">' + UI.mascot("wow", 80) + '<h2>Nothing to play yet</h2><p class="sub">' + (Audio2.available() ? "Add some words to review first." : "Audio isn't generated yet — it's created when you deploy.") + '</p><a class="btn primary" href="#/learn">Learn</a></div>', "review"); return; }
+    if (!pool.length) { render('<div class="card result">' + UI.mascot("wow", 80) + '<h2>' + tx("Nothing to play yet") + '</h2><p class="sub">' + (Audio2.available() ? tx("Add some words to review first.") : tx("Audio isn't generated yet — it's created when you deploy.")) + '</p><a class="btn primary" href="#/learn">' + tx("Learn") + '</a></div>', "review"); return; }
     var i = 0, playing = false, rate = 1, token = 0, wake = null;
     var MS_ACTIONS = ["play", "pause", "nexttrack", "previoustrack"];
     LM = { stop: function () {
       token++; playing = false; Audio2.stop(); if (wake) { try { wake.release(); } catch (e) {} wake = null; }
       if ("mediaSession" in navigator) { MS_ACTIONS.forEach(function (a) { try { navigator.mediaSession.setActionHandler(a, null); } catch (e) {} }); try { navigator.mediaSession.metadata = null; } catch (e) {} }
     } };
-    render('<div class="ghead"><a class="pill" href="#/review">✕</a><b>🎧 Hands-free</b><span class="ghr" id="lm-n"></span></div>' +
-      '<p class="sub center">' + (due.length ? "Your due words" : "Your most recent words") + " · " + pool.length + ' words · keep the app open, screen stays on</p>' +
+    render('<div class="ghead"><a class="pill" href="#/review">✕</a><b>🎧 ' + tx("Hands-free") + '</b><span class="ghr" id="lm-n"></span></div>' +
+      '<p class="sub center">' + (due.length ? tx("Your due words") : tx("Your most recent words")) + " · " + tx("{n} words · keep the app open, screen stays on", { n: pool.length }) + '</p>' +
       '<div class="card lm-card" id="qcard"><div class="hz big zh" id="lm-hz"></div><div id="lm-py" class="lm-py"></div><div class="w-mean" id="lm-mean"></div><div class="lm-ex" id="lm-ex"></div></div>' +
-      '<div class="drill-btns"><button class="btn" id="lm-prev" aria-label="Previous">⏮</button><button class="btn primary" id="lm-play">▶ Start</button><button class="btn" id="lm-next" aria-label="Next">⏭</button></div>' +
-      '<div class="drill-btns"><button class="btn small" id="lm-rate">Speed 1×</button></div>', "review");
+      '<div class="drill-btns"><button class="btn" id="lm-prev" aria-label="' + tx("Previous") + '">⏮</button><button class="btn primary" id="lm-play">▶ ' + tx("Start") + '</button><button class="btn" id="lm-next" aria-label="' + tx("Next") + '">⏭</button></div>' +
+      '<div class="drill-btns"><button class="btn small" id="lm-rate">' + tx("Speed") + ' 1×</button></div>', "review");
     function show() {
       var w = pool[i];
       document.getElementById("lm-n").textContent = (i + 1) + "/" + pool.length;
@@ -26,7 +26,7 @@
       document.getElementById("lm-py").textContent = w.pinyin || "";
       document.getElementById("lm-mean").innerHTML = M(w);
       document.getElementById("lm-ex").innerHTML = w.example ? '<span class="zh">' + esc(w.example.zh) + "</span>" : "";
-      if ("mediaSession" in navigator && window.MediaMetadata) { try { navigator.mediaSession.metadata = new MediaMetadata({ title: w.hanzi + (w.pinyin ? "  " + w.pinyin : ""), artist: (w.vi || w.en || ""), album: "C&B Chinese · hands-free" }); } catch (e) {} }
+      if ("mediaSession" in navigator && window.MediaMetadata) { try { navigator.mediaSession.metadata = new MediaMetadata({ title: w.hanzi + (w.pinyin ? "  " + w.pinyin : ""), artist: (w.vi || w.en || ""), album: tx("C&B Chinese · hands-free") }); } catch (e) {} }
     }
     function wait(ms, t, fn) { setTimeout(function () { if (t === token && playing) fn(); }, ms / rate); }
     function step() {
@@ -41,7 +41,7 @@
     }
     function setPlaying(on) {
       playing = on; token++; Audio2.stop();
-      document.getElementById("lm-play").textContent = on ? "⏸ Pause" : "▶ Play";
+      document.getElementById("lm-play").textContent = on ? "⏸ " + tx("Pause") : "▶ " + tx("Play");
       if (on) {
         var t0 = token;
         if (navigator.wakeLock && navigator.wakeLock.request) navigator.wakeLock.request("screen").then(function (l) {
@@ -55,7 +55,7 @@
     document.getElementById("lm-play").onclick = function () { setPlaying(!playing); };
     document.getElementById("lm-next").onclick = function () { jump(1); };
     document.getElementById("lm-prev").onclick = function () { jump(-1); };
-    document.getElementById("lm-rate").onclick = function () { rate = rate === 1 ? 0.75 : 1; this.textContent = "Speed " + (rate === 1 ? "1×" : "0.75×"); };
+    document.getElementById("lm-rate").onclick = function () { rate = rate === 1 ? 0.75 : 1; this.textContent = tx("Speed") + " " + (rate === 1 ? "1×" : "0.75×"); };
     if ("mediaSession" in navigator) {
       try {
         navigator.mediaSession.setActionHandler("play", function () { setPlaying(true); });
@@ -106,55 +106,55 @@
     var steps = [];
     if (back) { // 5 minutes after a break: the oldest overdue words first, a couple of mistakes, then a short listening
       var old = SRS.dueIds(WORDMAP).sort(function (a, b) { var x = (SRS.get(a) || {}).due || "", y = (SRS.get(b) || {}).due || ""; return x < y ? -1 : x > y ? 1 : 0; }).slice(0, 8);
-      if (old.length) steps.push({ id: "review", icon: "🔁", name: "Review " + plural(old.length, "overdue word"), ids: old });
-      else if (fresh.length) steps.push({ id: "new", icon: "📘", name: plural(fresh.length, "new word"), words: fresh });
-      if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: "Fix up to 2 mistakes", n: 2 });
-      if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: "Listen to 2 sentences", n: 2 });
-      else steps.push({ id: "type", icon: "⌨️", name: "Type 1 sentence", n: 1 });
+      if (old.length) steps.push({ id: "review", icon: "🔁", name: old.length === 1 ? tx("Review 1 overdue word") : tx("Review {n} overdue words", { n: old.length }), ids: old });
+      else if (fresh.length) steps.push({ id: "new", icon: "📘", name: fresh.length === 1 ? tx("1 new word") : tx("{n} new words", { n: fresh.length }), words: fresh });
+      if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: tx("Fix up to {n} mistakes", { n: 2 }), n: 2 });
+      if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: tx("Listen to {n} sentences", { n: 2 }), n: 2 });
+      else steps.push({ id: "type", icon: "⌨️", name: tx("Type 1 sentence"), n: 1 });
       return steps;
     }
     if (rescue) { // 2 minutes: five cards (due ones, otherwise five new words), then one short listening or typing step
-      if (due.length) steps.push({ id: "review", icon: "🔁", name: "Review " + plural(due.length, "due word"), ids: due });
-      else if (fresh.length) steps.push({ id: "new", icon: "📘", name: plural(fresh.length, "new word"), words: fresh });
-      if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: "Listen to 2 sentences", n: 2 });
-      else steps.push({ id: "type", icon: "⌨️", name: "Type 1 sentence", n: 1 });
+      if (due.length) steps.push({ id: "review", icon: "🔁", name: due.length === 1 ? tx("Review 1 due word") : tx("Review {n} due words", { n: due.length }), ids: due });
+      else if (fresh.length) steps.push({ id: "new", icon: "📘", name: fresh.length === 1 ? tx("1 new word") : tx("{n} new words", { n: fresh.length }), words: fresh });
+      if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: tx("Listen to {n} sentences", { n: 2 }), n: 2 });
+      else steps.push({ id: "type", icon: "⌨️", name: tx("Type 1 sentence"), n: 1 });
       return steps;
     }
-    if (due.length) steps.push({ id: "review", icon: "🔁", name: "Review " + plural(due.length, "due word"), ids: due });
-    if (fresh.length) steps.push({ id: "new", icon: "📘", name: ew.length ? plural(fresh.length, "exam word") + " (used most in the tests)" : fresh.length + " new " + (isFound(cs) ? "HSK 1–3 Foundation" : "HSK 4 Core") + " words", words: fresh });
+    if (due.length) steps.push({ id: "review", icon: "🔁", name: due.length === 1 ? tx("Review 1 due word") : tx("Review {n} due words", { n: due.length }), ids: due });
+    if (fresh.length) steps.push({ id: "new", icon: "📘", name: ew.length ? (fresh.length === 1 ? tx("1 exam word (used most in the tests)") : tx("{n} exam words (used most in the tests)", { n: fresh.length })) : isFound(cs) ? tx("{n} new HSK 1–3 Foundation words", { n: fresh.length }) : tx("{n} new HSK 4 Core words", { n: fresh.length }), words: fresh });
     var pi = paceIssue();
-    if (pi) steps.push({ id: "pace", icon: "⏱", name: "Timed: " + PART_NAME[pi.k] + " (time ran out in your last mock)", part: pi.k });
-    if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: "Fix up to " + cfg.mis + " mistakes", n: cfg.mis });
+    if (pi) steps.push({ id: "pace", icon: "⏱", name: tx("Timed: {part} (time ran out in your last mock)", { part: PART_NAME[pi.k] }), part: pi.k });
+    if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: tx("Fix up to {n} mistakes", { n: cfg.mis }), n: cfg.mis });
     /* a weak typing skill turns the typing step into a focus step (never two typing steps); weak word order adds its own short step */
     var wt = weakSkill("typing"), wo = weakSkill("word-order");
-    if (wt) { var nt = Math.max(cfg.type, cfg.weak); steps.push({ id: "weak-type", icon: "🎯", name: "Typing focus: " + plural(nt, "sentence") + " (" + wt + "% so far)", n: nt }); }
-    else steps.push({ id: "type", icon: "⌨️", name: "Type " + plural(cfg.type, "sentence"), n: cfg.type });
-    if (wo) steps.push({ id: "weak-order", icon: "🧱", name: "Word order focus: " + plural(cfg.weak, "sentence") + " (" + wo + "% so far)", n: cfg.weak });
-    if (readingWeakest()) steps.push({ id: "reading", icon: "📖", name: "Reading: " + plural(cfg.read, "question") + " (your weakest section)", n: cfg.read });
-    if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: "Listen to " + plural(cfg.listen, "sentence"), n: cfg.listen });
+    if (wt) { var nt = Math.max(cfg.type, cfg.weak); steps.push({ id: "weak-type", icon: "🎯", name: nt === 1 ? tx("Typing focus: 1 sentence ({p}% so far)", { p: wt }) : tx("Typing focus: {n} sentences ({p}% so far)", { n: nt, p: wt }), n: nt }); }
+    else steps.push({ id: "type", icon: "⌨️", name: cfg.type === 1 ? tx("Type 1 sentence") : tx("Type {n} sentences", { n: cfg.type }), n: cfg.type });
+    if (wo) steps.push({ id: "weak-order", icon: "🧱", name: cfg.weak === 1 ? tx("Word order focus: 1 sentence ({p}% so far)", { p: wo }) : tx("Word order focus: {n} sentences ({p}% so far)", { n: cfg.weak, p: wo }), n: cfg.weak });
+    if (readingWeakest()) steps.push({ id: "reading", icon: "📖", name: cfg.read === 1 ? tx("Reading: 1 question (your weakest section)") : tx("Reading: {n} questions (your weakest section)", { n: cfg.read }), n: cfg.read });
+    if (Audio2.available()) steps.push({ id: "listen", icon: "🎧", name: cfg.listen === 1 ? tx("Listen to 1 sentence") : tx("Listen to {n} sentences", { n: cfg.listen }), n: cfg.listen });
     /* writing part 2 every day while the AI is on: two sentences, scored by the AI examiner */
-    if (window.AI && AI.available()) steps.push({ id: "write", icon: "✍️", name: "Write 2 sentences (AI scores them)", n: 2 });
+    if (window.AI && AI.available()) steps.push({ id: "write", icon: "✍️", name: tx("Write 2 sentences (AI scores them)"), n: 2 });
     /* optional last step, only with the AI on and online: a 3-reply role-play on the current lesson's topic */
     var tsc = window.AI && AI.available() ? talkForSession() : null;
-    if (tsc) steps.push({ id: "talk", icon: "🗣️", name: "Talk 3 minutes (optional): " + (Store.state.settings.lang === "vi" ? tsc.t.vi : tsc.t.en), scene: tsc.id, optional: true });
+    if (tsc) steps.push({ id: "talk", icon: "🗣️", name: tx("Talk 3 minutes (optional): {t}", { t: Store.state.settings.lang === "vi" ? tsc.t.vi : tsc.t.en }), scene: tsc.id, optional: true });
     return steps;
   }
   function sessionCTA() {
     var s = Store.state, done = (s.sessions || {})[Store.today()], steps = sessionPlan();
-    return '<a class="cta card g-violet session-cta' + (done ? " done" : "") + '" href="#/session"><span class="cta-l"><small>' + (done ? "Done today ✓ · run again anytime" : "One tap · " + sessionCfg().label) + "</small><b>▶ Today's session</b><em>" +
-      esc(steps.map(function (x) { return x.icon; }).join(" ")) + " " + steps.length + " steps</em></span><span class=\"cta-go\">▶</span></a>";
+    return '<a class="cta card g-violet session-cta' + (done ? " done" : "") + '" href="#/session"><span class="cta-l"><small>' + (done ? tx("Done today ✓ · run again anytime") : tx("One tap · {label}", { label: tx(sessionCfg().label) })) + "</small><b>▶ " + tx("Today's session") + "</b><em>" +
+      esc(steps.map(function (x) { return x.icon; }).join(" ")) + " " + tx("{n} steps", { n: steps.length }) + "</em></span><span class=\"cta-go\">▶</span></a>";
   }
   /* A tiny version of today that still counts for the streak and the weekly goal. */
   function shortLink() {
     var s = Store.state, t = Store.today();
     if ((s.log[t] || 0) > 0 || (s.sessions || {})[t] || rescueCard()) return "";
-    return '<a class="mini-link has-dog" href="#/session/rescue">' + UI.anim("dog-peek", 46, "⏱") + "<span>Short on time? Do the 2-minute version</span></a>";
+    return '<a class="mini-link has-dog" href="#/session/rescue">' + UI.anim("dog-peek", 46, "⏱") + "<span>" + tx("Short on time? Do the 2-minute version") + "</span></a>";
   }
   /* After your study time with a streak running and nothing studied yet: offer the 2-minute rescue. */
   function rescueCard() {
     var s = Store.state, t = Store.today(), now = new Date(), hour = now.getHours() + now.getMinutes() / 60;
     if (Store.streak() < 1 || (s.log[t] || 0) > 0 || hour < atRiskHour()) return "";
-    return '<a class="cta card g-coral" href="#/session/rescue"><span class="cta-l"><small>🔥 ' + Store.streak() + '-day streak at risk</small><b>⏱ 2-minute rescue</b><em>Five cards and a short listening — keeps your streak alive</em></span><span class="cta-go">▶</span></a>';
+    return '<a class="cta card g-coral" href="#/session/rescue"><span class="cta-l"><small>🔥 ' + tx("{n}-day streak at risk", { n: Store.streak() }) + '</small><b>⏱ ' + tx("2-minute rescue") + '</b><em>' + tx("Five cards and a short listening — keeps your streak alive") + '</em></span><span class="cta-go">▶</span></a>';
   }
   /* The last day with study before today (null if none). */
   function lastStudyDay() {
@@ -165,7 +165,7 @@
   function comebackCard() {
     var s = Store.state, t = Store.today(), last = lastStudyDay(), gap = last ? Store.daysBetween(last, t) : 0;
     if (!last || gap < 2 || (s.log[t] || 0) > 0) return "";
-    return '<a class="cta card g-coral comeback" href="#/session/comeback"><span class="cta-l"><small>👋 Welcome back · ' + gap + ' days away</small><b>⏱ 5-minute restart</b><em>Your oldest reviews first, then a short listening. Small steps count.</em></span><span class="cta-go">▶</span></a>';
+    return '<a class="cta card g-coral comeback" href="#/session/comeback"><span class="cta-l"><small>👋 ' + tx("Welcome back · {n} days away", { n: gap }) + '</small><b>⏱ ' + tx("5-minute restart") + '</b><em>' + tx("Your oldest reviews first, then a short listening. Small steps count.") + '</em></span><span class="cta-go">▶</span></a>';
   }
 
 
@@ -177,28 +177,28 @@
   function eveDone() { var ex = Store.state.settings.examDate, c = (Store.state.eve || {})[ex] || {}; return EVE.filter(function (x) { return x[0] === "time" ? !!Store.state.settings.examTime || c.time : c[x[0]]; }).length; }
   function viewEve() {
     var s = Store.state, ex = s.settings.examDate, c = (s.eve || (s.eve = {}))[ex] || {};
-    var html = '<section class="card g-sun"><h2>🎒 Ready for tomorrow?</h2><p class="sub">HSK ' + exLv() + " · " + esc(lrnDate(ex)) + (s.settings.examTime ? " at " + esc(s.settings.examTime) : "") + '. Tick each one. Nothing new to learn today: a rested brain scores better than one more hour of study.</p></section>' +
+    var html = '<section class="card g-sun"><h2>🎒 ' + tx("Ready for tomorrow?") + '</h2><p class="sub">HSK ' + exLv() + " · " + esc(lrnDate(ex)) + (s.settings.examTime ? " " + tx("at {time}", { time: esc(s.settings.examTime) }) : "") + ". " + tx("Tick each one. Nothing new to learn today: a rested brain scores better than one more hour of study.") + '</p></section>' +
       '<section class="card"><ul class="eve-list">' + EVE.map(function (x) {
         var on = x[0] === "time" ? !!s.settings.examTime || !!c.time : !!c[x[0]];
-        return '<li><label><input type="checkbox" data-eve="' + x[0] + '"' + (on ? " checked" : "") + "> " + esc(x[1]) + "</label>" + (x[0] === "time" && !s.settings.examTime ? ' <a href="#/exams">Set it ›</a>' : "") + "</li>";
-      }).join("") + '</ul><p class="sub" id="eve-n">' + eveDone() + "/" + EVE.length + ' ready</p></section>' +
-      '<section class="card"><h2>Light review</h2><p class="sub">10 minutes at most: your due words, then the strategy line for each part.</p><div class="actions"><a class="btn primary" href="#/review">🔁 Review due words</a><a class="btn" href="#/warmup">💡 Strategy per part</a></div></section>';
+        return '<li><label><input type="checkbox" data-eve="' + x[0] + '"' + (on ? " checked" : "") + "> " + esc(tx(x[1])) + "</label>" + (x[0] === "time" && !s.settings.examTime ? ' <a href="#/exams">' + tx("Set it") + ' ›</a>' : "") + "</li>";
+      }).join("") + '</ul><p class="sub" id="eve-n">' + tx("{n}/{m} ready", { n: eveDone(), m: EVE.length }) + '</p></section>' +
+      '<section class="card"><h2>' + tx("Light review") + '</h2><p class="sub">' + tx("10 minutes at most: your due words, then the strategy line for each part.") + '</p><div class="actions"><a class="btn primary" href="#/review">🔁 ' + tx("Review due words") + '</a><a class="btn" href="#/warmup">💡 ' + tx("Strategy per part") + '</a></div></section>';
     render(html, "home");
     app.querySelectorAll("[data-eve]").forEach(function (b) {
-      b.onchange = function () { var cc = s.eve[ex] || (s.eve[ex] = {}), k = b.getAttribute("data-eve"); if (b.checked) cc[k] = 1; else delete cc[k]; Store.save(); document.getElementById("eve-n").textContent = eveDone() + "/" + EVE.length + " ready";
-        if (eveDone() === EVE.length) UI.toast("All set for tomorrow. Sleep well! 加油", "🌙"); };
+      b.onchange = function () { var cc = s.eve[ex] || (s.eve[ex] = {}), k = b.getAttribute("data-eve"); if (b.checked) cc[k] = 1; else delete cc[k]; Store.save(); document.getElementById("eve-n").textContent = tx("{n}/{m} ready", { n: eveDone(), m: EVE.length });
+        if (eveDone() === EVE.length) UI.toast(tx("All set for tomorrow. Sleep well! 加油"), "🌙"); };
     });
   }
   /* exam morning: easy words she already knows (confidence, not new learning) and one tip per part */
   function viewWarmup() {
     var s = Store.state, srs = s.srs, known = shuffle(Object.keys(srs).filter(function (id) { return WORDMAP[id] && !/^h5-/.test(id) && srs[id].box >= 3; })).slice(0, 10).map(function (id) { return WORDMAP[id]; });
     var parts = ["L1", "L2", "L3", "R1", "R2", "R3", "W1", "W2"];
-    var html = '<section class="card g-sun"><h2>🌅 Exam-morning warm-up</h2><p class="sub">' + (examLeft() === 0 ? "Today is the day" + (s.settings.examTime ? " · start at " + esc(s.settings.examTime) : "") + ". " : "") + "Wake your Chinese up with words you already know, then read one line per part. Don't learn anything new now.</p>" +
-      (known.length ? '<button class="btn primary big" id="wu-go">▶ ' + known.length + " easy words · 3 min</button>" : "") + "</section>" +
-      '<section class="card"><h2>One tip per part</h2>' + parts.map(function (k) { return '<h3 class="wu-h">' + esc(PART_NAME[k]) + "</h3>" + partTip(k); }).join("") +
-      '<p class="sub">If you are stuck: pick an answer and move on. A blank always scores 0, a guess sometimes scores. 加油！</p></section>';
+    var html = '<section class="card g-sun"><h2>🌅 ' + tx("Exam-morning warm-up") + '</h2><p class="sub">' + (examLeft() === 0 ? tx("Today is the day") + (s.settings.examTime ? " · " + tx("start at {time}", { time: esc(s.settings.examTime) }) : "") + ". " : "") + tx("Wake your Chinese up with words you already know, then read one line per part. Don't learn anything new now.") + "</p>" +
+      (known.length ? '<button class="btn primary big" id="wu-go">▶ ' + tx("{n} easy words · 3 min", { n: known.length }) + "</button>" : "") + "</section>" +
+      '<section class="card"><h2>' + tx("One tip per part") + '</h2>' + parts.map(function (k) { return '<h3 class="wu-h">' + esc(PART_NAME[k]) + "</h3>" + partTip(k); }).join("") +
+      '<p class="sub">' + tx("If you are stuck: pick an answer and move on. A blank always scores 0, a guess sometimes scores. 加油！") + '</p></section>';
     render(html, "home");
     var b = document.getElementById("wu-go");
-    if (b) b.onclick = function () { (s.warm || (s.warm = {}))[Store.today()] = 1; Store.save(); runDeck({ title: "Warm-up", words: known, mode: "review", back: "#/warmup" }); };
+    if (b) b.onclick = function () { (s.warm || (s.warm = {}))[Store.today()] = 1; Store.save(); runDeck({ title: tx("Warm-up"), words: known, mode: "review", back: "#/warmup" }); };
   }
 

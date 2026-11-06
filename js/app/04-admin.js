@@ -1,28 +1,28 @@
   /* ---------- Admin: learner tracking (Me → Learner tracking). Numbers only: the server never sends answers or notes. ----------
      Reads the study summary each phone saves with its backup (see studySummary0). Older apps send less, so every block checks what it has. */
   function agoText(iso) {
-    var ms = Date.now() - new Date(iso).getTime(); if (!isFinite(ms)) return "unknown";
-    var h = Math.floor(ms / 36e5); return h < 1 ? "less than an hour ago" : h < 24 ? h + " h ago" : Math.floor(h / 24) + " d ago";
+    var ms = Date.now() - new Date(iso).getTime(); if (!isFinite(ms)) return tx("unknown");
+    var h = Math.floor(ms / 36e5); return h < 1 ? tx("less than an hour ago") : h < 24 ? tx("{n} h ago", { n: h }) : tx("{n} d ago", { n: Math.floor(h / 24) });
   }
   var DAYRE = /^\d{4}-\d{2}-\d{2}$/;
-  function lrnName(r) { var m = r.meta || {}; return m.label || "Learner " + String(r.id).slice(0, 6); }
+  function lrnName(r) { var m = r.meta || {}; return m.label || tx("Learner {id}", { id: String(r.id).slice(0, 6) }); }
   function lrnKey(r) { return String(r.id).slice(0, 8); }
   function lrnDay(iso) { var d = new Date(iso); if (!isFinite(d.getTime())) return Store.today(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function lrnIdle(r) { var l = (r.meta || {}).last; return DAYRE.test(l || "") ? Math.max(0, Store.daysBetween(l, Store.today())) : null; }
   /* A skill as a readable name. Phones before this fix sent some raw ids ("fill-word", "listen-tf"), so map those here too. */
   function lrnSkill(x) { x = String(x || ""); return Learn.SKILLS[x] || Object.prototype.hasOwnProperty.call(AI.SKILL_NAMES, x) ? tipSkillName(x) : x; }
-  var LRN_MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  function lrnDate(d) { return Number(d.slice(8, 10)) + " " + LRN_MON[Number(d.slice(5, 7)) - 1] + " " + d.slice(0, 4); }
+  function lrnMon(i) { return [tx("Jan"), tx("Feb"), tx("Mar"), tx("Apr"), tx("May"), tx("Jun"), tx("Jul"), tx("Aug"), tx("Sep"), tx("Oct"), tx("Nov"), tx("Dec")][i]; }
+  function lrnDate(d) { return Number(d.slice(8, 10)) + " " + lrnMon(Number(d.slice(5, 7)) - 1) + " " + d.slice(0, 4); }
   /* An exam date that is missing, past or more than ~4 months away is most likely a wrong setting, and then the countdown
      and the pace numbers mean nothing. The course plan is about 3 months, hence 120 days. */
   var LRN_EXAM_FAR = 120;
   function lrnExamWarn(r) {
     var pg = r.summary && r.summary.progress; if (!pg) return null;
     var e = pg.exam || "";
-    if (!DAYRE.test(e)) return "No exam date set, so the app uses its default · check it";
+    if (!DAYRE.test(e)) return tx("No exam date set, so the app uses its default · check it");
     var dl = Store.daysBetween(Store.today(), e);
-    if (dl < 0) return "Exam date " + lrnDate(e) + " has passed · set the next one";
-    if (dl > LRN_EXAM_FAR) return "Exam date is " + lrnDate(e) + " (" + dl + " days away) · check it";
+    if (dl < 0) return tx("Exam date {d} has passed · set the next one", { d: lrnDate(e) });
+    if (dl > LRN_EXAM_FAR) return tx("Exam date is {d} ({n} days away) · check it", { d: lrnDate(e), n: dl });
     return null;
   }
   /* Stale reviews: 30+ words waiting more than 3 days is already several skipped review days at this course's pace
@@ -30,23 +30,23 @@
   var LRN_OVERDUE = 30, LRN_OVERDUE_HOT = 100, LRN_REPEAT = 10;
   function lrnAlerts(r) {
     var out = [], sm = r.summary || {}, d = lrnIdle(r), st = sm.streak, vo = sm.vocab, up = Math.floor((Date.now() - new Date(r.updated_at).getTime()) / 864e5), ew = lrnExamWarn(r);
-    var cl = r.client || {}, op = r.last_open ? (Date.now() - new Date(r.last_open).getTime()) / 864e5 : null, bk = { off: "turned off", paused: "paused", err: "failing" }[cl.b];
+    var cl = r.client || {}, op = r.last_open ? (Date.now() - new Date(r.last_open).getTime()) / 864e5 : null, bk = { off: tx("turned off"), paused: tx("paused"), err: tx("failing") }[cl.b];
     var bkAlert = !!bk && op != null && op < 7; // the phone itself says its backup is not working: that explains old numbers
-    if (bkAlert) out.push({ k: "Backup", t: "Backup is " + bk + " on " + lrnName(r) + "'s phone (seen " + agoText(r.last_open) + "), so new progress isn't reaching you", hot: true });
-    if (r.unread) out.push({ k: "Chat", t: plural(r.unread, "new message") + " from " + lrnName(r), hot: true });
-    if (cl.v && BUILD !== "dev" && cl.v !== BUILD && op != null && op < 7) out.push({ k: "Update", t: lrnName(r) + "'s app is an older version (" + String(cl.v).slice(0, 7) + ")", hot: false });
+    if (bkAlert) out.push({ k: "Backup", t: tx("Backup is {state} on {name}'s phone (seen {ago}), so new progress isn't reaching you", { state: bk, name: lrnName(r), ago: agoText(r.last_open) }), hot: true });
+    if (r.unread) out.push({ k: "Chat", t: r.unread === 1 ? tx("{n} new message from {name}", { n: r.unread, name: lrnName(r) }) : tx("{n} new messages from {name}", { n: r.unread, name: lrnName(r) }), hot: true });
+    if (cl.v && BUILD !== "dev" && cl.v !== BUILD && op != null && op < 7) out.push({ k: "Update", t: tx("{name}'s app is an older version ({v})", { name: lrnName(r), v: String(cl.v).slice(0, 7) }), hot: false });
     if (bkAlert) { /* no "no study" guess: the numbers are old because the backup is not working */ }
-    else if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1 && op != null && op < 2) out.push({ k: "No study", t: "Opens the app (" + agoText(r.last_open) + ") but nothing studied for " + d + " days", hot: true });
-    else if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1) out.push({ k: "No data", t: "Nothing received for " + up + " days · last study " + String(r.meta.last).slice(5) + ". Either not studying, or backup is paused on the phone: ask", hot: true });
-    else if (d != null && d >= 3) out.push({ k: "No study", t: "Nothing for " + d + " days · last " + String(r.meta.last).slice(5), hot: true });
-    else if (st && st.n === 0 && st.best >= 3 && d != null && d >= 1) out.push({ k: "Streak", t: "Streak broken · best was " + num(st.best) + " days", hot: false });
-    if (vo && num(vo.overdue) >= LRN_OVERDUE) out.push({ k: "Reviews", t: num(vo.overdue) + " words waiting more than 3 days", hot: num(vo.overdue) >= LRN_OVERDUE_HOT });
+    else if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1 && op != null && op < 2) out.push({ k: "No study", t: tx("Opens the app ({ago}) but nothing studied for {n} days", { ago: agoText(r.last_open), n: d }), hot: true });
+    else if (d != null && d >= 3 && isFinite(up) && up >= 3 && up <= d + 1) out.push({ k: "No data", t: tx("Nothing received for {n} days · last study {d}. Either not studying, or backup is paused on the phone: ask", { n: up, d: String(r.meta.last).slice(5) }), hot: true });
+    else if (d != null && d >= 3) out.push({ k: "No study", t: tx("Nothing for {n} days · last {d}", { n: d, d: String(r.meta.last).slice(5) }), hot: true });
+    else if (st && st.n === 0 && st.best >= 3 && d != null && d >= 1) out.push({ k: "Streak", t: tx("Streak broken · best was {n} days", { n: num(st.best) }), hot: false });
+    if (vo && num(vo.overdue) >= LRN_OVERDUE) out.push({ k: "Reviews", t: tx("{n} words waiting more than 3 days", { n: num(vo.overdue) }), hot: num(vo.overdue) >= LRN_OVERDUE_HOT });
     (sm.patterns || []).forEach(function (p) {
       if (p.kind !== "repeat" || num(p.n) < LRN_REPEAT) return; // n = misses of the same few items in 14 days; k = how many items (newer phones)
-      out.push({ k: "Mistakes", t: (p.k ? num(p.k) + (num(p.k) === 1 ? " item keeps" : " items keep") + " being missed · " : "The same items keep being missed · ") + num(p.n) + " misses in 14 days", hot: false });
+      out.push({ k: "Mistakes", t: (p.k ? (num(p.k) === 1 ? tx("{n} item keeps being missed · ", { n: num(p.k) }) : tx("{n} items keep being missed · ", { n: num(p.k) })) : tx("The same items keep being missed · ")) + tx("{n} misses in 14 days", { n: num(p.n) }), hot: false });
     });
     if (ew) out.push({ k: "Exam date", t: ew, hot: false });
-    if (!bkAlert && isFinite(up) && up >= 3 && !(d != null && d >= 3 && up <= d + 1)) out.push({ k: "Backup", t: "Last saved " + up + " days ago, so these numbers may be old", hot: false });
+    if (!bkAlert && isFinite(up) && up >= 3 && !(d != null && d >= 3 && up <= d + 1)) out.push({ k: "Backup", t: tx("Last saved {n} days ago, so these numbers may be old", { n: up }), hot: false });
     return out;
   }
   /* A ready message for each alert, in Vietnamese, with a matching button. The admin edits it or sends it as is. */
@@ -64,14 +64,18 @@
     }
     return null;
   }
+  /* an alert kind (a.k is compared in code, so it stays English) as shown on screen */
+  function lrnKLabel(k) {
+    return { Backup: tx("Backup"), Chat: tx("Chat"), Update: tx("Update"), "No study": tx("No study"), "No data": tx("No data"), Streak: tx("Streak"), Reviews: tx("Reviews"), Mistakes: tx("Mistakes"), "Exam date": tx("Exam date") }[k] || k;
+  }
   function lrnStatus(r) {
-    var sm = r.summary; if (!sm) return { t: "No data yet", c: "" };
+    var sm = r.summary; if (!sm) return { t: tx("No data yet"), c: "" };
     var d = lrnIdle(r), p = sm.pace;
-    return (d != null && d >= 3) || (p && num(p.exp) - num(p.done) >= 2) ? { t: "Behind plan", c: "lt-late" } : { t: "On track", c: "lt-ok" };
+    return (d != null && d >= 3) || (p && num(p.exp) - num(p.done) >= 2) ? { t: tx("Behind plan"), c: "lt-late" } : { t: tx("On track"), c: "lt-ok" };
   }
   function lrnDays(str, label) {
     if (!/^[01]{28}$/.test(str || "")) return "";
-    return '<div class="lrn-days" role="img" aria-label="' + esc(label || "Study days, last 28 days, oldest first") + ": " + str.split("").map(function (c) { return c === "1" ? "yes" : "no"; }).join(", ") + '">' +
+    return '<div class="lrn-days" role="img" aria-label="' + esc(label || tx("Study days, last 28 days, oldest first")) + ": " + str.split("").map(function (c) { return c === "1" ? tx("yes") : tx("no"); }).join(", ") + '">' +
       str.split("").map(function (c, i) { return '<i class="' + (c === "1" ? "on" : "") + (i === 27 ? " today" : "") + '"></i>'; }).join("") + "</div>";
   }
   function lrnTrend(sm) { // readiness change between the last two weekly snapshots
@@ -82,31 +86,32 @@
   function lrnPhone(r) {
     if (!r.last_open) return "";
     var mins = (Date.now() - new Date(r.last_open).getTime()) / 6e4, cl = r.client || {};
-    var bk = { on: "backup on", off: "backup off", paused: "backup paused", err: "backup failing" }[cl.b] || "";
-    return '<p class="lt-meta lt-phone"><span class="lt-dot' + (mins < 3 ? " on" : "") + '" aria-hidden="true"></span>' + (mins < 3 ? "<b>In the app now</b>" : "App opened " + esc(agoText(r.last_open))) + (bk ? " · " + bk : "") + "</p>";
+    var bk = { on: tx("backup on"), off: tx("backup off"), paused: tx("backup paused"), err: tx("backup failing") }[cl.b] || "";
+    return '<p class="lt-meta lt-phone"><span class="lt-dot' + (mins < 3 ? " on" : "") + '" aria-hidden="true"></span>' + (mins < 3 ? "<b>" + tx("In the app now") + "</b>" : tx("App opened {ago}", { ago: esc(agoText(r.last_open)) })) + (bk ? " · " + bk : "") + "</p>";
   }
   var SUGS = {};
   /* ---------- Message everyone: one message (and optional button) to the chosen learners, now or later ---------- */
   function lrnAll(rows, host) {
-    host.innerHTML = '<nav class="seg" aria-label="Learner tracking views"><a href="#/learners">Overview</a><a class="active" aria-current="page" href="#/learners/all">Everyone</a></nav>' +
-      '<section class="card chat-box"><h3>📣 Message everyone</h3><p class="sub">Each learner gets it in her own chat, like a normal message. Use it for news, reminders and the exam-day checklist.</p>' +
-      '<fieldset class="lt-to"><legend>To</legend>' + rows.map(function (r, i) {
-        return '<label class="lt-to-r"><input type="checkbox" data-to="' + i + '"' + (lrnTest(r) ? "" : " checked") + "> " + esc(lrnName(r)) + (lrnTest(r) ? ' <small class="muted">(test or inactive)</small>' : "") + "</label>";
+    host.innerHTML = '<nav class="seg" aria-label="' + tx("Learner tracking views") + '"><a href="#/learners">' + tx("Overview") + '</a><a class="active" aria-current="page" href="#/learners/all">' + tx("Everyone") + '</a></nav>' +
+      '<section class="card chat-box"><h3>📣 ' + tx("Message everyone") + '</h3><p class="sub">' + tx("Each learner gets it in her own chat, like a normal message. Use it for news, reminders and the exam-day checklist.") + '</p>' +
+      '<fieldset class="lt-to"><legend>' + tx("To") + '</legend>' + rows.map(function (r, i) {
+        return '<label class="lt-to-r"><input type="checkbox" data-to="' + i + '"' + (lrnTest(r) ? "" : " checked") + "> " + esc(lrnName(r)) + (lrnTest(r) ? ' <small class="muted">' + tx("(test or inactive)") + '</small>' : "") + "</label>";
       }).join("") + "</fieldset>" +
-      '<label class="sr" for="ab-act">Button to attach</label><select id="ab-act" class="ac-act"><option value="">No button</option>' + CHAT_ACTS.map(function (a) { return '<option value="' + esc(a[0]) + '">🔘 ' + esc(a[1]) + "</option>"; }).join("") + "</select>" + whenHTML("ab-when") +
-      '<div class="chat-form"><label class="sr" for="ab-in">Message</label><textarea id="ab-in" rows="3" maxlength="1000" placeholder="Write to everyone…"></textarea><button type="button" class="btn primary" id="ab-send">Send</button></div></section>';
+      '<label class="sr" for="ab-act">' + tx("Button to attach") + '</label><select id="ab-act" class="ac-act"><option value="">' + tx("No button") + '</option>' + CHAT_ACTS.map(function (a) { return '<option value="' + esc(a[0]) + '">🔘 ' + esc(tx(a[1])) + "</option>"; }).join("") + "</select>" + whenHTML("ab-when") +
+      '<div class="chat-form"><label class="sr" for="ab-in">' + tx("Message") + '</label><textarea id="ab-in" rows="3" maxlength="1000" placeholder="' + tx("Write to everyone…") + '"></textarea><button type="button" class="btn primary" id="ab-send">' + tx("Send") + '</button></div></section>';
     wireWhen("ab-when");
     document.getElementById("ab-send").onclick = function () {
       var btn = this, v = document.getElementById("ab-in").value.trim(), a = document.getElementById("ab-act").value, at = whenISO("ab-when");
       var ids = [].filter.call(host.querySelectorAll("[data-to]"), function (c) { return c.checked; }).map(function (c) { return rows[+c.getAttribute("data-to")].id; });
       if (!v && !a) { document.getElementById("ab-in").focus(); return; }
-      if (!ids.length) { UI.toast("Choose at least one learner", "👥"); return; }
-      if (at === "bad") { UI.toast("Pick a time in the future", "⏰"); return; }
+      if (!ids.length) { UI.toast(tx("Choose at least one learner"), "👥"); return; }
+      if (at === "bad") { UI.toast(tx("Pick a time in the future"), "⏰"); return; }
       btn.disabled = true;
       Content.admin("admin_broadcast", { ids: ids, body: v, action: a ? { href: a, label: CHAT_ACTS.filter(function (x) { return x[0] === a; })[0][1] } : null, at: at }).then(function (r) {
         btn.disabled = false;
         if (!r.ok) { UI.toast(AI.errMsg(r.error), "⚠️"); return; }
-        UI.toast((at ? "Scheduled for " : "Sent to ") + plural(r.result.sent, "learner"), at ? "⏰" : "📣");
+        var sn = r.result.sent;
+        UI.toast(at ? (sn === 1 ? tx("Scheduled for {n} learner", { n: sn }) : tx("Scheduled for {n} learners", { n: sn })) : (sn === 1 ? tx("Sent to {n} learner", { n: sn }) : tx("Sent to {n} learners", { n: sn })), at ? "⏰" : "📣");
         document.getElementById("ab-in").value = ""; document.getElementById("ab-act").value = ""; document.getElementById("ab-when").value = ""; document.getElementById("ab-when-at").hidden = true;
       });
     };
@@ -116,8 +121,8 @@
   function cheered() { try { return JSON.parse(localStorage.getItem(CHEER_KEY)) || []; } catch (e) { return []; } }
   function winKey(r, e) { return lrnKey(r) + ":" + e.k + ":" + e.d + ":" + (e.id || e.n || ""); }
   function winText(e) {
-    return e.k === "mock" ? (e.f ? "Full mock" : "Mock") + " Test " + num(e.id) + ": " + num(e.s) + "/300" + (num(e.s) >= 180 ? " ✓ pass" : "") :
-      e.k === "lessons" ? plural(num(e.n), "lesson") + " finished" : e.k === "streak" ? num(e.n) + "-day streak 🔥" : e.k === "talk" ? "Role-play goal met" + (e.s != null ? " · " + num(e.s) + "/10" : "") : "";
+    return e.k === "mock" ? (e.f ? tx("Full mock Test {id}: {s}/300", { id: num(e.id), s: num(e.s) }) : tx("Mock Test {id}: {s}/300", { id: num(e.id), s: num(e.s) })) + (num(e.s) >= 180 ? " ✓ " + tx("pass") : "") :
+      e.k === "lessons" ? (num(e.n) === 1 ? tx("{n} lesson finished", { n: num(e.n) }) : tx("{n} lessons finished", { n: num(e.n) })) : e.k === "streak" ? tx("{n}-day streak 🔥", { n: num(e.n) }) : e.k === "talk" ? tx("Role-play goal met") + (e.s != null ? " · " + num(e.s) + "/10" : "") : "";
   }
   function cheerMsg(r, e) {
     var n = lrnName(r);
@@ -131,10 +136,10 @@
     list.sort(function (a, b) { return a.e.d < b.e.d ? 1 : a.e.d > b.e.d ? -1 : 0; });
     if (!list.length) return "";
     WINS = list.slice(0, 8);
-    return '<h3 class="sec">Recent wins</h3><section class="card lt-wins">' + WINS.map(function (x, i) {
+    return '<h3 class="sec">' + tx("Recent wins") + '</h3><section class="card lt-wins">' + WINS.map(function (x, i) {
       var k = winKey(x.r, x.e), c = done.indexOf(k) >= 0;
       return '<div class="lt-win"><span class="lt-al-t"><b>' + esc(lrnName(x.r)) + "</b><small>" + esc(winText(x.e)) + " · " + esc(x.e.d.slice(5)) + "</small></span>" +
-        (c ? '<span class="muted">Cheered ✓</span>' : '<button type="button" class="btn small primary" data-cheer="' + i + '">👏 Cheer</button>') + "</div>";
+        (c ? '<span class="muted">' + tx("Cheered ✓") + '</span>' : '<button type="button" class="btn small primary" data-cheer="' + i + '">👏 ' + tx("Cheer") + '</button>') + "</div>";
     }).join("") + "</section>";
   }
   var WINS = [];
@@ -145,70 +150,70 @@
       var e = r.summary && r.summary.progress && r.summary.progress.exam;
       if (DAYRE.test(e || "")) { var dl = Store.daysBetween(Store.today(), e); if (dl >= 0 && (!soon || dl < soon.dl)) soon = { dl: dl, d: e }; }
     });
-    html += soon ? '<section class="card lt-exam"><small>HSK exam in</small><b>' + soon.dl + " days</b><span>" + esc(soon.d) + "</span></section>" : "";
+    html += soon ? '<section class="card lt-exam"><small>' + tx("HSK exam in") + '</small><b>' + tx("{n} days", { n: soon.dl }) + "</b><span>" + esc(soon.d) + "</span></section>" : "";
     var test = rows.filter(lrnTest); rows = rows.filter(function (r) { return !lrnTest(r); }); SUGS = {};
-    html += '<a class="btn big lt-all" href="#/learners/all">📣 Message everyone</a>';
+    html += '<a class="btn big lt-all" href="#/learners/all">📣 ' + tx("Message everyone") + '</a>';
     var al = []; // one card per learner, every alert a line inside it; learners with an urgent alert first
     rows.forEach(function (r) { var a = lrnAlerts(r); if (a.length) al.push({ r: r, a: a, hot: a.some(function (x) { return x.hot; }) }); });
     al.sort(function (x, y) { return (y.hot ? 1 : 0) - (x.hot ? 1 : 0); });
-    html += '<h3 class="sec">Needs attention</h3>' + (al.length ? al.map(function (x) {
+    html += '<h3 class="sec">' + tx("Needs attention") + '</h3>' + (al.length ? al.map(function (x) {
       return '<section class="card lt-alg"><b class="lt-alg-n">' + esc(lrnName(x.r)) + "</b>" + x.a.map(function (a) {
         var to = a.k === "Reviews" || a.k === "Mistakes" ? "practice" : a.k === "Exam date" ? "progress" : a.k === "Chat" || a.k === "Backup" || a.k === "Update" ? "chat" : "habit";
         var sg = lrnSug(x.r, a), sk = "";
         if (sg) { sk = String(Object.keys(SUGS).length); SUGS[sk] = { key: lrnKey(x.r), text: sg.text, href: sg.href }; }
-        return '<div class="lt-alrow"><a class="lt-al" href="#/learners/' + lrnKey(x.r) + "/" + to + '"><span class="lt-badge' + (a.hot ? " hot" : "") + '">' + esc(a.k) + '</span><span class="lt-al-t"><small>' + esc(a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>' +
-          (sg ? '<button type="button" class="btn small lt-sug" data-sug="' + sk + '" aria-label="Suggested message: ' + esc(a.k) + '">💬 Message</button>' : "") + "</div>";
+        return '<div class="lt-alrow"><a class="lt-al" href="#/learners/' + lrnKey(x.r) + "/" + to + '"><span class="lt-badge' + (a.hot ? " hot" : "") + '">' + esc(lrnKLabel(a.k)) + '</span><span class="lt-al-t"><small>' + esc(a.t) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>' +
+          (sg ? '<button type="button" class="btn small lt-sug" data-sug="' + sk + '" aria-label="' + tx("Suggested message: {kind}", { kind: esc(lrnKLabel(a.k)) }) + '">💬 ' + tx("Message") + '</button>' : "") + "</div>";
       }).join("") + "</section>";
-    }).join("") : '<p class="card sub">✓ Nothing needs attention.</p>');
+    }).join("") : '<p class="card sub">✓ ' + tx("Nothing needs attention.") + '</p>');
     html += lrnWins(rows);
-    if (test.length) html += '<details class="card lt-test"><summary>Inactive or test backups (' + test.length + ")</summary><p class=\"sub\">Under 100 XP and nothing for 14+ days: usually a test device or a backup started without the restore code. Hidden from alerts.</p>" +
-      test.map(function (r) { return '<a class="lt-al" href="#/learners/' + lrnKey(r) + '/progress"><span class="lt-al-t"><b>' + esc(lrnName(r)) + "</b><small>" + num((r.meta || {}).xp) + " XP · last " + esc(String((r.meta || {}).last || "–")) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>'; }).join("") + "</details>";
-    html += '<h3 class="sec">Learners</h3>' + rows.map(function (r) {
+    if (test.length) html += '<details class="card lt-test"><summary>' + tx("Inactive or test backups ({n})", { n: test.length }) + "</summary><p class=\"sub\">" + tx("Under 100 XP and nothing for 14+ days: usually a test device or a backup started without the restore code. Hidden from alerts.") + "</p>" +
+      test.map(function (r) { return '<a class="lt-al" href="#/learners/' + lrnKey(r) + '/progress"><span class="lt-al-t"><b>' + esc(lrnName(r)) + "</b><small>" + tx("{xp} XP · last {d}", { xp: num((r.meta || {}).xp), d: esc(String((r.meta || {}).last || "–")) }) + '</small></span><span class="lt-go" aria-hidden="true">›</span></a>'; }).join("") + "</details>";
+    html += '<h3 class="sec">' + tx("Learners") + '</h3>' + rows.map(function (r) {
       var sm = r.summary || {}, pg = sm.progress || {}, rd = pg.ready, st = lrnStatus(r), tr = lrnTrend(sm), idle = lrnIdle(r), pl = sm.pace;
       return '<div class="card lt-card"><a class="lt-open" href="#/learners/' + lrnKey(r) + '/progress"><div class="lt-row"><b>' + esc(lrnName(r)) + '</b><span class="lt-chip ' + st.c + '">' + esc(st.t) + "</span></div>" +
-        '<div class="lt-row lt-end"><div><small>Readiness</small><div class="lt-big">' + (rd ? num(rd.total) : "–") + "<small> / 300</small></div></div>" +
-        (tr != null ? '<b class="lt-d ' + (tr > 0 ? "lt-up" : tr < 0 ? "lt-dn" : "") + '"><span aria-hidden="true">' + (tr > 0 ? "▲ " : tr < 0 ? "▼ " : "") + "</span>" + (tr >= 0 ? "+" : "−") + Math.abs(tr) + " vs last week</b>" : "") + "</div>" +
-        '<p class="lt-meta">Streak <b>' + num((sm.streak || {}).n != null ? sm.streak.n : (r.meta || {}).streak) + ' d</b> · Last study <b>' + (idle == null ? "–" : idle === 0 ? "today" : idle + " d ago") + "</b> · Lessons <b>" + (pl ? num(pl.done) + "/" + num(pl.total) : num(pg.lessons) + "/" + num(pg.lessonsAll || 90)) + "</b></p>" +
-        lrnDays(sm.days28, "Study days, last 28 days, oldest first") + (lrnExamWarn(r) ? '<p class="lt-warn"><span aria-hidden="true">⚠ </span>' + esc(lrnExamWarn(r)) + "</p>" : "") + lrnPhone(r) + '</a><div class="lt-act"><a class="btn small' + (r.unread ? " primary" : "") + '" href="#/learners/' + lrnKey(r) + '/chat">💬 Chat' + (r.unread ? ' <span class="lt-unread">' + r.unread + " new</span>" : "") + "</a></div></div>";
+        '<div class="lt-row lt-end"><div><small>' + tx("Readiness") + '</small><div class="lt-big">' + (rd ? num(rd.total) : "–") + "<small> / 300</small></div></div>" +
+        (tr != null ? '<b class="lt-d ' + (tr > 0 ? "lt-up" : tr < 0 ? "lt-dn" : "") + '"><span aria-hidden="true">' + (tr > 0 ? "▲ " : tr < 0 ? "▼ " : "") + "</span>" + tx("{d} vs last week", { d: (tr >= 0 ? "+" : "−") + Math.abs(tr) }) + "</b>" : "") + "</div>" +
+        '<p class="lt-meta">' + tx("Streak") + ' <b>' + tx("{n} d", { n: num((sm.streak || {}).n != null ? sm.streak.n : (r.meta || {}).streak) }) + '</b> · ' + tx("Last study") + ' <b>' + (idle == null ? "–" : idle === 0 ? tx("today") : tx("{n} d ago", { n: idle })) + "</b> · " + tx("Lessons") + " <b>" + (pl ? num(pl.done) + "/" + num(pl.total) : num(pg.lessons) + "/" + num(pg.lessonsAll || 90)) + "</b></p>" +
+        lrnDays(sm.days28, tx("Study days, last 28 days, oldest first")) + (lrnExamWarn(r) ? '<p class="lt-warn"><span aria-hidden="true">⚠ </span>' + esc(lrnExamWarn(r)) + "</p>" : "") + lrnPhone(r) + '</a><div class="lt-act"><a class="btn small' + (r.unread ? " primary" : "") + '" href="#/learners/' + lrnKey(r) + '/chat">💬 ' + tx("Chat") + (r.unread ? ' <span class="lt-unread">' + tx("{n} new", { n: r.unread }) + "</span>" : "") + "</a></div></div>";
     }).join("");
     return html;
   }
   /* a bar with an optional tick for where the learner should be today */
   function lrnBar(label, done, all, exp, unit) {
     done = num(done); all = Math.max(1, num(all));
-    var gap = exp == null ? "" : num(exp) - done > 0 ? (num(exp) - done) + " " + unit + " behind" : done - num(exp) > 0 ? (done - num(exp)) + " " + unit + " ahead" : "on pace";
+    var gap = exp == null ? "" : num(exp) - done > 0 ? tx("{n} behind", { n: (num(exp) - done) + " " + unit }) : done - num(exp) > 0 ? tx("{n} ahead", { n: (done - num(exp)) + " " + unit }) : tx("on pace");
     return '<div class="lt-pace"><div class="lt-row"><span>' + esc(label) + "</span><span><b>" + done + "/" + all + "</b>" + (gap ? " · " + gap : "") + '</span></div><div class="lt-track"><i class="' + (exp != null && num(exp) - done > 0 ? "late" : "") + '" style="width:' + Math.min(100, done / all * 100) + '%"></i>' +
       (exp != null ? '<u style="left:calc(' + Math.min(100, num(exp) / all * 100) + '% - 1px)"></u>' : "") + "</div></div>";
   }
   function lrnProgress(r) {
     var sm = r.summary, pg = sm.progress || {}, rd = pg.ready, html = "", tr = sm.trk || [], pl = sm.pace;
-    if (Array.isArray(pg.xh) && pg.xh.length) html += '<section class="card lt-real"><b>📚 Past exams</b>' + pg.xh.slice().reverse().map(function (e) {
-      return '<p class="lt-meta">HSK ' + (e[0] === 5 ? 5 : 4) + " · " + esc(lrnDate(String(e[1]))) + (e[2] != null ? " · forecast ~" + num(e[2]) : "") + (e[3] != null ? " · real " + num(e[3]) + "/300" : " · no result") + "</p>"; }).join("") + "</section>";
-    if (pg.real) { var rt = num(pg.real.l) + num(pg.real.r) + num(pg.real.w); html += '<section class="card lt-real"><b>🎓 Real HSK ' + (pg.lv === 5 ? 5 : 4) + ": " + rt + "/300</b><p class=\"lt-meta\">L " + num(pg.real.l) + " · R " + num(pg.real.r) + " · W " + num(pg.real.w) + (pg.fc != null ? " · the app forecast ~" + num(pg.fc) + " (" + (rt - num(pg.fc) >= 0 ? "+" : "−") + Math.abs(rt - num(pg.fc)) + ")" : "") + "</p></section>"; }
+    if (Array.isArray(pg.xh) && pg.xh.length) html += '<section class="card lt-real"><b>📚 ' + tx("Past exams") + '</b>' + pg.xh.slice().reverse().map(function (e) {
+      return '<p class="lt-meta">HSK ' + (e[0] === 5 ? 5 : 4) + " · " + esc(lrnDate(String(e[1]))) + (e[2] != null ? " · " + tx("forecast ~{n}", { n: num(e[2]) }) : "") + (e[3] != null ? " · " + tx("real {n}/300", { n: num(e[3]) }) : " · " + tx("no result")) + "</p>"; }).join("") + "</section>";
+    if (pg.real) { var rt = num(pg.real.l) + num(pg.real.r) + num(pg.real.w); html += '<section class="card lt-real"><b>🎓 ' + tx("Real HSK {lv}: {n}/300", { lv: pg.lv === 5 ? 5 : 4, n: rt }) + "</b><p class=\"lt-meta\">" + tx("L {l} · R {r} · W {w}", { l: num(pg.real.l), r: num(pg.real.r), w: num(pg.real.w) }) + (pg.fc != null ? " · " + tx("the app forecast ~{n} ({d})", { n: num(pg.fc), d: (rt - num(pg.fc) >= 0 ? "+" : "−") + Math.abs(rt - num(pg.fc)) }) : "") + "</p></section>"; }
     if (rd) {
       var pts = tr.filter(function (e) { return e[1] != null; }).map(function (e) { return { x: String(e[0]).slice(3), y: num(e[1]) }; });
-      html += '<section class="card"><div class="lt-row"><b>Readiness</b><span class="lt-chip ' + (num(rd.lo) >= PASS ? "lt-ok" : num(rd.hi) < PASS ? "lt-late" : "") + '">' + esc(rd.verdict || "") + '</span></div><div class="lt-big">' + num(rd.total) + "<small> / 300 · range " + num(rd.lo) + "–" + num(rd.hi) + "</small></div>" +
-        (pts.length >= 2 ? lineChart(pts, { min: 100, max: 300, ref: PASS, refLabel: "pass " + PASS, h: 160 }) : '<p class="sub">The weekly line starts once there are two weeks of data.</p>') +
-        '<p class="sub">Estimate from ' + (rd.src === "mock" ? "mock exams" : "practice answers") + ". Dashed line = pass mark " + PASS + ".</p></section>";
-    } else html += '<section class="card"><b>Readiness</b><p class="sub">Not enough answers yet.</p></section>';
+      html += '<section class="card"><div class="lt-row"><b>' + tx("Readiness") + '</b><span class="lt-chip ' + (num(rd.lo) >= PASS ? "lt-ok" : num(rd.hi) < PASS ? "lt-late" : "") + '">' + esc(rd.verdict || "") + '</span></div><div class="lt-big">' + num(rd.total) + "<small> / 300 · " + tx("range {lo}–{hi}", { lo: num(rd.lo), hi: num(rd.hi) }) + "</small></div>" +
+        (pts.length >= 2 ? lineChart(pts, { min: 100, max: 300, ref: PASS, refLabel: tx("pass {n}", { n: PASS }), h: 160 }) : '<p class="sub">' + tx("The weekly line starts once there are two weeks of data.") + '</p>') +
+        '<p class="sub">' + (rd.src === "mock" ? tx("Estimate from mock exams. Dashed line = pass mark {n}.", { n: PASS }) : tx("Estimate from practice answers. Dashed line = pass mark {n}.", { n: PASS })) + "</p></section>";
+    } else html += '<section class="card"><b>' + tx("Readiness") + '</b><p class="sub">' + tx("Not enough answers yet.") + '</p></section>';
     var ws = lrnDay(r.updated_at), xs = (sm.xpw || []).map(function (v, i, a) { return { x: Store.addDays(ws, -((new Date(ws + "T00:00:00").getDay() + 6) % 7) - 7 * (a.length - 1 - i)).slice(5), y: num(v) }; });
-    html += '<section class="card"><b>XP per week</b>' + (xs.length ? '<div class="lt-big">' + xs[xs.length - 1].y + "<small> this week</small></div>" + barChart(xs, { h: 130 }) : '<p class="sub">No data yet.</p>') + "</section>";
+    html += '<section class="card"><b>' + tx("XP per week") + '</b>' + (xs.length ? '<div class="lt-big">' + xs[xs.length - 1].y + "<small> " + tx("this week") + "</small></div>" + barChart(xs, { h: 130 }) : '<p class="sub">' + tx("No data yet.") + '</p>') + "</section>";
     var wp = tr.filter(function (e) { return e[2] != null; }).map(function (e) { return { x: String(e[0]).slice(3), y: num(e[2]) }; });
-    html += '<section class="card"><b>Words that stuck</b><p class="sub">Words in the last two review boxes.</p>' + (wp.length >= 2 ? '<div class="lt-big">' + wp[wp.length - 1].y + "</div>" + lineChart(wp, { min: 0, h: 140 }) : '<div class="lt-big">' + (sm.vocab ? num(sm.vocab.mastered) : "–") + '</div><p class="sub">The weekly line starts once there are two weeks of data.</p>') + "</section>";
-    html += '<section class="card"><div class="lt-row"><b>Pace to the exam</b><small>tick = where they should be today</small></div>' +
-      (pl ? lrnBar("Lessons before the exam", pl.done, pl.total, pl.exp, "lessons") : lrnBar("Lessons", pg.lessons, pg.lessonsAll || 90, null, "")) +
-      lrnBar("24-week track sessions", pg.track, pg.trackAll || 72, null, "") +
-      (pg.hsk5 && (pg.hsk5.started || pg.hsk5.words) ? lrnBar("HSK 5 packs started", pg.hsk5.started, pg.hsk5.packs || 62, null, "") : "") + "</section>";
+    html += '<section class="card"><b>' + tx("Words that stuck") + '</b><p class="sub">' + tx("Words in the last two review boxes.") + '</p>' + (wp.length >= 2 ? '<div class="lt-big">' + wp[wp.length - 1].y + "</div>" + lineChart(wp, { min: 0, h: 140 }) : '<div class="lt-big">' + (sm.vocab ? num(sm.vocab.mastered) : "–") + '</div><p class="sub">' + tx("The weekly line starts once there are two weeks of data.") + '</p>') + "</section>";
+    html += '<section class="card"><div class="lt-row"><b>' + tx("Pace to the exam") + '</b><small>' + tx("tick = where they should be today") + '</small></div>' +
+      (pl ? lrnBar(tx("Lessons before the exam"), pl.done, pl.total, pl.exp, tx("lessons")) : lrnBar(tx("Lessons"), pg.lessons, pg.lessonsAll || 90, null, "")) +
+      lrnBar(tx("24-week track sessions"), pg.track, pg.trackAll || 72, null, "") +
+      (pg.hsk5 && (pg.hsk5.started || pg.hsk5.words) ? lrnBar(tx("HSK 5 packs started"), pg.hsk5.started, pg.hsk5.packs || 62, null, "") : "") + "</section>";
     var ms = pg.mocks || [];
-    html += '<section class="card"><div class="lt-row"><b>Mock exams</b><small>each part out of 100</small></div>' + (ms.length ?
-      '<table class="lt-tab"><thead><tr><th>Date</th><th>Listen</th><th>Read</th><th>Write</th><th>Total</th></tr></thead><tbody>' + ms.map(function (m) { return "<tr><td>" + esc(String(m.d).slice(5)) + (m.rep ? ' <small class="lt-rep">repeat</small>' : "") + "</td><td>" + num(m.l) + "</td><td>" + num(m.r) + "</td><td>" + num(m.w) + "</td><td><b>" + num(m.t) + "</b></td></tr>"; }).join("") + "</tbody></table>" +
+    html += '<section class="card"><div class="lt-row"><b>' + tx("Mock exams") + '</b><small>' + tx("each part out of 100") + '</small></div>' + (ms.length ?
+      '<table class="lt-tab"><thead><tr><th>' + tx("Date") + '</th><th>' + tx("Listen") + '</th><th>' + tx("Read") + '</th><th>' + tx("Write") + '</th><th>' + tx("Total") + '</th></tr></thead><tbody>' + ms.map(function (m) { return "<tr><td>" + esc(String(m.d).slice(5)) + (m.rep ? ' <small class="lt-rep">' + tx("repeat") + '</small>' : "") + "</td><td>" + num(m.l) + "</td><td>" + num(m.r) + "</td><td>" + num(m.w) + "</td><td><b>" + num(m.t) + "</b></td></tr>"; }).join("") + "</tbody></table>" +
       (ms.length >= 2 ? (function () {
-        var a = ms[0], b = ms[ms.length - 1], d = { Listening: num(b.l) - num(a.l), Reading: num(b.r) - num(a.r), Writing: num(b.w) - num(a.w) };
-        return '<p class="sub">Since the first mock shown: ' + Object.keys(d).map(function (k) { return k + " " + (d[k] >= 0 ? "+" : "−") + Math.abs(d[k]); }).join(" · ") + "</p>";
+        var a = ms[0], b = ms[ms.length - 1], d = [[tx("Listening"), num(b.l) - num(a.l)], [tx("Reading"), num(b.r) - num(a.r)], [tx("Writing"), num(b.w) - num(a.w)]];
+        return '<p class="sub">' + tx("Since the first mock shown: {list}", { list: d.map(function (k) { return k[0] + " " + (k[1] >= 0 ? "+" : "−") + Math.abs(k[1]); }).join(" · ") }) + "</p>";
       })() : "") +
       // mfa comes from phones with this version; older ones only have the table
-      (pg.mfa ? '<p class="sub">First-attempt average: <b>' + num(pg.mfa[1]) + "/300</b> over " + num(pg.mfa[0]) + " set" + (num(pg.mfa[0]) === 1 ? "" : "s") + ". Repeats (seen questions) count less in readiness.</p>" : "")
-      : '<p class="sub">No mock exam taken yet.</p>') + "</section>";
+      (pg.mfa ? '<p class="sub">' + (num(pg.mfa[0]) === 1 ? tx("First-attempt average: <b>{avg}/300</b> over {n} set. Repeats (seen questions) count less in readiness.", { avg: num(pg.mfa[1]), n: num(pg.mfa[0]) }) : tx("First-attempt average: <b>{avg}/300</b> over {n} sets. Repeats (seen questions) count less in readiness.", { avg: num(pg.mfa[1]), n: num(pg.mfa[0]) })) + "</p>" : "")
+      : '<p class="sub">' + tx("No mock exam taken yet.") + '</p>') + "</section>";
     return html;
   }
   function lrnPractice(r) {
@@ -216,27 +221,27 @@
     if (vo) {
       var all = Math.max(1, num(vo.all), num(vo.mastered) + num(vo.learning)), m = num(vo.mastered), l = num(vo.learning), h4 = vo.hsk === 4;
       // newer phones count HSK 4 course words only; older ones counted every word on the phone (HSK 5 and extra packs too)
-      html += '<section class="card"><div class="lt-row"><b>Vocabulary' + (h4 ? " · HSK 4" : "") + "</b><small>" + all + (h4 ? " HSK 4 course words" : " words on the phone (older app: HSK 5 and extra words included)") + "</small></div>" +
-        '<div class="lt-stack" role="img" aria-label="' + m + " mastered, " + l + " learning, " + Math.max(0, all - m - l) + ' not started"><i style="width:' + m / all * 100 + '%"></i><i class="b" style="width:' + l / all * 100 + '%"></i></div>' +
-        '<p class="lt-meta"><b>' + m + "</b> mastered · <b>" + l + "</b> learning · <b>" + Math.max(0, all - m - l) + "</b> not started</p>" +
-        (h4 && (num(vo.h5) || num(vo.ex)) ? '<p class="lt-meta">Also in review, not counted above: <b>' + num(vo.h5) + "</b> HSK 5 · <b>" + num(vo.ex) + "</b> extra or own words</p>" : "") +
-        '<div class="lt-boxes"><div><b>' + num(pg.due) + "</b><small>due now</small></div><div class=" + (num(vo.overdue) >= LRN_OVERDUE ? '"hot"' : '""') + "><b>" + num(vo.overdue) + "</b><small>waiting over 3 days</small></div></div>" +
-        '<p class="sub">A growing pile of old reviews means reviews are being skipped.</p></section>';
+      html += '<section class="card"><div class="lt-row"><b>' + tx("Vocabulary") + (h4 ? " · HSK 4" : "") + "</b><small>" + (h4 ? tx("{n} HSK 4 course words", { n: all }) : tx("{n} words on the phone (older app: HSK 5 and extra words included)", { n: all })) + "</small></div>" +
+        '<div class="lt-stack" role="img" aria-label="' + tx("{m} mastered, {l} learning, {s} not started", { m: m, l: l, s: Math.max(0, all - m - l) }) + '"><i style="width:' + m / all * 100 + '%"></i><i class="b" style="width:' + l / all * 100 + '%"></i></div>' +
+        '<p class="lt-meta">' + tx("<b>{m}</b> mastered · <b>{l}</b> learning · <b>{s}</b> not started", { m: m, l: l, s: Math.max(0, all - m - l) }) + "</p>" +
+        (h4 && (num(vo.h5) || num(vo.ex)) ? '<p class="lt-meta">' + tx("Also in review, not counted above: <b>{h5}</b> HSK 5 · <b>{ex}</b> extra or own words", { h5: num(vo.h5), ex: num(vo.ex) }) + "</p>" : "") +
+        '<div class="lt-boxes"><div><b>' + num(pg.due) + "</b><small>" + tx("due now") + "</small></div><div class=" + (num(vo.overdue) >= LRN_OVERDUE ? '"hot"' : '""') + "><b>" + num(vo.overdue) + "</b><small>" + tx("waiting over 3 days") + "</small></div></div>" +
+        '<p class="sub">' + tx("A growing pile of old reviews means reviews are being skipped.") + '</p></section>';
     }
     if (tk) {
       var ws = lrnDay(r.updated_at), wk = (tk.wk || []).map(function (v, i, a) { return { x: Store.addDays(ws, -((new Date(ws + "T00:00:00").getDay() + 6) % 7) - 7 * (a.length - 1 - i)).slice(5), y: num(v) }; });
       var sc = null; (window.CB_TALK || []).forEach(function (x) { if (tk.last && x.id === tk.last.id) sc = x; });
-      html += '<section class="card"><div class="lt-row"><b>AI role-play</b><span class="lt-chip">Level HSK ' + (num(tk.lvl) === 5 ? 5 : 4) + "</span></div>" +
-        '<div class="lt-boxes"><div><b>' + (wk.length ? wk[wk.length - 1].y : 0) + "</b><small>talks this week</small></div><div><b>" + (tk.avg == null ? "–" : tk.avg) + "</b><small>average score /10</small></div><div><b>" + num(tk.tried) + "/" + num(tk.all || 16) + "</b><small>scenes tried</small></div></div>" +
-        (wk.length ? '<p class="sub">Talks per week</p>' + barChart(wk, { h: 110 }) : "") +
-        (tk.last ? '<p class="lt-meta">Last talk: <b>' + esc(sc ? sc.t.en : tk.last.id) + "</b>" + (tk.last.s != null ? " · " + num(tk.last.s) + "/10" : "") + " · " + esc(String(tk.last.d).slice(5)) + "</p>" : '<p class="sub">No role-play finished yet.</p>') + "</section>";
-    } else html += '<section class="card"><b>AI role-play</b><p class="sub">This phone has an older app version, so there are no role-play numbers.</p></section>';
+      html += '<section class="card"><div class="lt-row"><b>' + tx("AI role-play") + '</b><span class="lt-chip">' + tx("Level HSK {n}", { n: num(tk.lvl) === 5 ? 5 : 4 }) + "</span></div>" +
+        '<div class="lt-boxes"><div><b>' + (wk.length ? wk[wk.length - 1].y : 0) + "</b><small>" + tx("talks this week") + "</small></div><div><b>" + (tk.avg == null ? "–" : tk.avg) + "</b><small>" + tx("average score /10") + "</small></div><div><b>" + num(tk.tried) + "/" + num(tk.all || 16) + "</b><small>" + tx("scenes tried") + "</small></div></div>" +
+        (wk.length ? '<p class="sub">' + tx("Talks per week") + '</p>' + barChart(wk, { h: 110 }) : "") +
+        (tk.last ? '<p class="lt-meta">' + tx("Last talk:") + ' <b>' + esc(sc ? sc.t.en : tk.last.id) + "</b>" + (tk.last.s != null ? " · " + num(tk.last.s) + "/10" : "") + " · " + esc(String(tk.last.d).slice(5)) + "</p>" : '<p class="sub">' + tx("No role-play finished yet.") + '</p>') + "</section>";
+    } else html += '<section class="card"><b>' + tx("AI role-play") + '</b><p class="sub">' + tx("This phone has an older app version, so there are no role-play numbers.") + '</p></section>';
     var tr = sm.trend || [];
-    html += '<section class="card"><div class="lt-row"><b>Skill accuracy</b><small>last 14 days · weakest first</small></div>' + (tr.length ? tr.slice(0, 6).map(function (t) {
+    html += '<section class="card"><div class="lt-row"><b>' + tx("Skill accuracy") + '</b><small>' + tx("last 14 days · weakest first") + '</small></div>' + (tr.length ? tr.slice(0, 6).map(function (t) {
       var d = t.before == null ? null : num(t.acc) - num(t.before);
-      return '<div class="lt-pace"><div class="lt-row"><span>' + esc(lrnSkill(t.skill)) + "</span><span><b>" + num(t.acc) + "%</b>" + (d == null ? "" : " · " + (d >= 0 ? "+" : "−") + Math.abs(d) + " pts") + '</span></div><div class="lt-track"><i class="' + (num(t.acc) < 60 ? "late" : "") + '" style="width:' + Math.min(100, num(t.acc)) + '%"></i></div></div>';
-    }).join("") : '<p class="sub">Not enough answers in the last 14 days.</p>') +
-      ((sm.patterns || []).length ? '<p class="sub">Mistake patterns: ' + sm.patterns.map(function (p) { return (p.kind === "skill" ? esc(lrnSkill(p.skill)) : "same items missed again") + " ×" + num(p.n); }).join(" · ") + "</p>" : "") + "</section>";
+      return '<div class="lt-pace"><div class="lt-row"><span>' + esc(lrnSkill(t.skill)) + "</span><span><b>" + num(t.acc) + "%</b>" + (d == null ? "" : " · " + tx("{d} pts", { d: (d >= 0 ? "+" : "−") + Math.abs(d) })) + '</span></div><div class="lt-track"><i class="' + (num(t.acc) < 60 ? "late" : "") + '" style="width:' + Math.min(100, num(t.acc)) + '%"></i></div></div>';
+    }).join("") : '<p class="sub">' + tx("Not enough answers in the last 14 days.") + '</p>') +
+      ((sm.patterns || []).length ? '<p class="sub">' + tx("Mistake patterns:") + " " + sm.patterns.map(function (p) { return (p.kind === "skill" ? esc(lrnSkill(p.skill)) : tx("same items missed again")) + " ×" + num(p.n); }).join(" · ") + "</p>" : "") + "</section>";
     return html;
   }
   function lrnHabit(r) {
@@ -244,27 +249,28 @@
     if (Array.isArray(sm.fb) && sm.fb.length) {
       var fc = { 1: 0, 2: 0, 3: 0 }; sm.fb.forEach(function (e) { if (fc[e[1]] != null) fc[e[1]]++; });
       var lastF = sm.fb[sm.fb.length - 1];
-      html += '<section class="card lt-fb"><div class="lt-row"><b>How sessions felt</b><span>last 14 days</span></div><p>😓 Too hard <b>' + fc[1] + "</b> · 🙂 Just right <b>" + fc[2] + "</b> · 😴 Too easy <b>" + fc[3] + "</b></p>" +
-        '<p class="sub">Last: ' + esc(String(lastF[0])) + " · " + (lastF[1] === 1 ? "too hard" : lastF[1] === 3 ? "too easy" : "just right") + (fc[1] >= 2 && fc[1] >= fc[2] ? " · several hard days: a shorter session (Me → Today's session length) may help." : fc[3] >= 2 && fc[3] >= fc[2] ? " · often too easy: suggest a longer session or a full mock." : "") + "</p></section>";
+      html += '<section class="card lt-fb"><div class="lt-row"><b>' + tx("How sessions felt") + '</b><span>' + tx("last 14 days") + '</span></div><p>😓 ' + tx("Too hard") + ' <b>' + fc[1] + "</b> · 🙂 " + tx("Just right") + " <b>" + fc[2] + "</b> · 😴 " + tx("Too easy") + " <b>" + fc[3] + "</b></p>" +
+        '<p class="sub">' + tx("Last:") + " " + esc(String(lastF[0])) + " · " + (lastF[1] === 1 ? tx("too hard") : lastF[1] === 3 ? tx("too easy") : tx("just right")) + (fc[1] >= 2 && fc[1] >= fc[2] ? " · " + tx("several hard days: a shorter session (Me → Today's session length) may help.") : fc[3] >= 2 && fc[3] >= fc[2] ? " · " + tx("often too easy: suggest a longer session or a full mock.") : "") + "</p></section>";
     }
     if (/^[01]{28}$/.test(ds)) {
       var first = Store.addDays(end, -27), lead = (new Date(first + "T00:00:00").getDay() + 6) % 7, cells = "";
       for (i = 0; i < lead; i++) cells += "<i></i>";
       for (i = 0; i < 28; i++) cells += '<i class="d' + (ds.charAt(i) === "1" ? " on" : "") + (i === 27 ? " today" : "") + '">' + Number(Store.addDays(first, i).slice(8)) + "</i>";
-      html += '<section class="card"><div class="lt-row"><b>Last 28 days</b><span><b>' + num(sm.active28) + "</b> study days of " + num(sm.span) + '</span></div><div class="lt-wd"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>' +
-        '<div class="lt-cal" role="img" aria-label="Study days, last 28 days, oldest first: ' + ds.split("").map(function (c) { return c === "1" ? "yes" : "no"; }).join(", ") + '">' + cells + '</div><p class="sub">Filled = studied · outline = missed · ring = last backup day</p></section>';
+      html += '<section class="card"><div class="lt-row"><b>' + tx("Last 28 days") + '</b><span>' + tx("<b>{n}</b> study days of {m}", { n: num(sm.active28), m: num(sm.span) }) + '</span></div><div class="lt-wd"><span>' + tx("Mon") + '</span><span>' + tx("Tue") + '</span><span>' + tx("Wed") + '</span><span>' + tx("Thu") + '</span><span>' + tx("Fri") + '</span><span>' + tx("Sat") + '</span><span>' + tx("Sun") + '</span></div>' +
+        '<div class="lt-cal" role="img" aria-label="' + tx("Study days, last 28 days, oldest first") + ": " + ds.split("").map(function (c) { return c === "1" ? tx("yes") : tx("no"); }).join(", ") + '">' + cells + '</div><p class="sub">' + tx("Filled = studied · outline = missed · ring = last backup day") + '</p></section>';
     }
     var wk = (sm.week || []).map(function (v, k, a) { var dd = Store.addDays(end, -(a.length - 1 - k)); return { x: WD[(new Date(dd + "T00:00:00").getDay() + 6) % 7], y: num(v) }; });
-    if (wk.some(function (x) { return x.y > 0; })) html += '<section class="card"><div class="lt-row"><b>Minutes, last 7 days</b><span>avg <b>' + Math.round(wk.reduce(function (a, x) { return a + x.y; }, 0) / wk.length) + "</b> min</span></div>" + barChart(wk, { h: 120 }) + "</section>";
+    if (wk.some(function (x) { return x.y > 0; })) html += '<section class="card"><div class="lt-row"><b>' + tx("Minutes, last 7 days") + '</b><span>' + tx("avg <b>{n}</b> min", { n: Math.round(wk.reduce(function (a, x) { return a + x.y; }, 0) / wk.length) }) + "</span></div>" + barChart(wk, { h: 120 }) + "</section>";
     var hk = Object.keys(sm.hours || {}).sort(function (a, b) { return sm.hours[b] - sm.hours[a]; }).slice(0, 3);
-    function hr(x) { return typeof x === "number" && isFinite(x) ? (x < 10 ? "0" : "") + x + ":00" : "not measured yet"; }
-    var rows = [["Usually starts at", hr(sm.usualHour) + (isFinite(sm.planHour) ? " (plan " + hr(sm.planHour) + ")" : "")],
-      ["Common start times", hk.length ? hk.map(function (h) { return hr(+h); }).join(" · ") : "not measured yet"], ["Minutes on a study day", sm.minutes == null ? "not measured yet" : sm.minutes + " min"],
-      ["Longest gap", num(sm.longestGap) + (num(sm.longestGap) === 1 ? " day" : " days")], ["Often skips", sm.skipDay || "no pattern"], ["Streak", num((sm.streak || {}).n) + (num((sm.streak || {}).n) === 1 ? " day" : " days") + " (best " + num((sm.streak || {}).best) + ")"]];
-    html += '<section class="card"><b>Rhythm</b>' + rows.map(function (x) { return '<div class="lt-kv"><span>' + esc(x[0]) + "</span><b>" + esc(x[1]) + "</b></div>"; }).join("") + "</section>";
+    function hr(x) { return typeof x === "number" && isFinite(x) ? (x < 10 ? "0" : "") + x + ":00" : tx("not measured yet"); }
+    var sn = num((sm.streak || {}).n), lg = num(sm.longestGap);
+    var rows = [[tx("Usually starts at"), hr(sm.usualHour) + (isFinite(sm.planHour) ? " " + tx("(plan {t})", { t: hr(sm.planHour) }) : "")],
+      [tx("Common start times"), hk.length ? hk.map(function (h) { return hr(+h); }).join(" · ") : tx("not measured yet")], [tx("Minutes on a study day"), sm.minutes == null ? tx("not measured yet") : tx("{n} min", { n: sm.minutes })],
+      [tx("Longest gap"), lg === 1 ? tx("{n} day", { n: lg }) : tx("{n} days", { n: lg })], [tx("Often skips"), sm.skipDay || tx("no pattern")], [tx("Streak"), (sn === 1 ? tx("{n} day", { n: sn }) : tx("{n} days", { n: sn })) + " " + tx("(best {n})", { n: num((sm.streak || {}).best) })]];
+    html += '<section class="card"><b>' + tx("Rhythm") + '</b>' + rows.map(function (x) { return '<div class="lt-kv"><span>' + esc(x[0]) + "</span><b>" + esc(x[1]) + "</b></div>"; }).join("") + "</section>";
     var pl = sm.plan;
-    html += '<section class="card"><div class="lt-row"><b>Coach plan' + (pl ? " · week of " + esc(pl.w) : "") + "</b>" + (pl ? "<span><b>" + pl.actions.filter(function (a) { return a.done; }).length + "</b>/" + pl.actions.length + " done</span>" : "") + "</div>" +
-      (pl && pl.actions.length ? '<ul class="plan-l">' + pl.actions.map(function (a) { return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">Done: </span>' : '<span class="sr">Open: </span>') + esc(a.text) + "</span></li>"; }).join("") + "</ul>" : '<p class="sub">No coach plan yet.</p>') + "</section>";
+    html += '<section class="card"><div class="lt-row"><b>' + tx("Coach plan") + (pl ? " · " + tx("week of {d}", { d: esc(pl.w) }) : "") + "</b>" + (pl ? "<span>" + tx("<b>{n}</b>/{m} done", { n: pl.actions.filter(function (a) { return a.done; }).length, m: pl.actions.length }) + "</span>" : "") + "</div>" +
+      (pl && pl.actions.length ? '<ul class="plan-l">' + pl.actions.map(function (a) { return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">' + tx("Done:") + ' </span>' : '<span class="sr">' + tx("Open:") + ' </span>') + esc(a.text) + "</span></li>"; }).join("") + "</ul>" : '<p class="sub">' + tx("No coach plan yet.") + '</p>') + "</section>";
     return html;
   }
   /* Week tab: the week the backup was saved in (so far) next to the week before, with the change as text and an arrow,

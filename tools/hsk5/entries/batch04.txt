@@ -1,4 +1,4 @@
-个别|adj.|individual; very few|cá biệt, riêng lẻ|只有 个别 员工 不 同意 这个 安排 。|Only a few individual employees disagree with this arrangement.|Chỉ có cá biệt vài nhân viên không đồng ý với sự sắp xếp này.
+个别|adj.|individual; very few|cá biệt, riêng lẻ|只有 个别 员工 不 同意 这个 安排 。|Only a few individual employees disagree with this arrangement.|Chỉ có một vài nhân viên không đồng ý với sự sắp xếp này.
 个人|n.|individual; personal|cá nhân|这 只是 我 个人 的 看法 ， 不 一定 对 。|This is only my personal view and may not be right.|Đây chỉ là quan điểm cá nhân của tôi, chưa chắc đã đúng.
 个性|n.|personality; individual character|cá tính|她 是 一 个 很 有 个性 的 女孩 。|She is a girl with a lot of personality.|Cô ấy là một cô gái rất có cá tính.
 各自|pron.|each; respective|mỗi người, tự mình|开 完 会 ， 大家 回 到 了 各自 的 座位 。|After the meeting, everyone went back to their own seats.|Họp xong, mọi người trở về chỗ ngồi của mình.
@@ -43,7 +43,7 @@
 光盘|n.|CD; disc|đĩa CD, đĩa quang|这 本 书 后面 有 一 张 听力 光盘 。|There is a listening CD at the back of this book.|Phía sau cuốn sách này có một đĩa CD luyện nghe.
 广场|n.|public square; plaza|quảng trường|晚上 很多 人 在 广场 上 跳舞 。|In the evening many people dance in the square.|Buổi tối rất nhiều người nhảy múa ở quảng trường.
 广大|adj.|vast; numerous|rộng lớn, đông đảo|这个 决定 受到 广大 员工 的 欢迎 。|This decision was welcomed by the staff at large.|Quyết định này được đông đảo nhân viên hoan nghênh.
-广泛|adj.|wide-ranging; extensive|rộng rãi|我们 广泛 地 听 了 大家 的 意见 。|We listened widely to everyone's opinions.|Chúng tôi đã lắng nghe rộng rãi ý kiến của mọi người.
+广泛|adj.|wide-ranging; extensive|rộng rãi|我们 广泛 听取 了 大家 的 意见 。|We listened widely to everyone's opinions.|Chúng tôi đã lắng nghe rộng rãi ý kiến của mọi người.
 规矩|n./adj.|rule; custom; well-behaved|quy củ, phép tắc|每 个 公司 都 有 自己 的 规矩 。|Every company has its own rules.|Công ty nào cũng có quy củ riêng.
 规律|n.|law; regular pattern|quy luật, nền nếp|他 的 生活 很 有 规律 ， 每 天 早 睡 早 起 。|His life is very regular; he goes to bed and gets up early every day.|Cuộc sống của anh ấy rất có nền nếp, ngày nào cũng ngủ sớm dậy sớm.
 规模|n.|scale; size|quy mô|这 家 公司 的 规模 比 我们 大 得 多 。|This company is much larger in scale than ours.|Quy mô của công ty này lớn hơn chúng tôi nhiều.

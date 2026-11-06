@@ -118,15 +118,15 @@ window.CB_DAYS.push({
       }
     },
     {
-      id: "d86-09", hanzi: "篇幅", pinyin: "piānfu", pos: "n.", level: "Beyond HSK4", neutral: true,
+      id: "d86-09", hanzi: "篇幅", pinyin: "piānfú", pos: "n.", level: "Beyond HSK4", neutral: true,
       vi: "độ dài (của bài viết)", en: "length (of an article)",
       collocations: [
-        { zh: "篇幅较长", py: "piānfu jiào cháng", vi: "độ dài khá dài", en: "fairly long" },
-        { zh: "占用篇幅", py: "zhànyòng piānfu", vi: "chiếm nhiều dung lượng bài", en: "to take up space" }
+        { zh: "篇幅较长", py: "piānfú jiào cháng", vi: "bài khá dài", en: "fairly long" },
+        { zh: "占用篇幅", py: "zhànyòng piānfú", vi: "chiếm nhiều dung lượng bài", en: "to take up space" }
       ],
       example: {
         zh: "这份招聘公告篇幅很长，但重点只有三条。",
-        py: "Zhè fèn zhāopìn gōnggào piānfu hěn cháng, dàn zhòngdiǎn zhǐ yǒu sān tiáo.",
+        py: "Zhè fèn zhāopìn gōnggào piānfú hěn cháng, dàn zhòngdiǎn zhǐ yǒu sān tiáo.",
         vi: "Thông báo tuyển dụng này rất dài, nhưng trọng điểm chỉ có ba điều.",
         en: "This job announcement is long, but it has only three key points."
       }

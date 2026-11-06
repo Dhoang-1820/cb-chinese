@@ -187,7 +187,7 @@ window.CB_DAYS.push({
     examples: [
       { zh: "一旦发现错误，就要马上通知财务部。", py: "Yídàn fāxiàn cuòwù, jiù yào mǎshàng tōngzhī cáiwùbù.", vi: "Một khi phát hiện sai sót thì phải báo ngay cho phòng tài chính.", en: "Once you find an error, notify the finance department immediately." },
       { zh: "一旦签了合同，双方就要按合同履行。", py: "Yídàn qiānle hétong, shuāngfāng jiù yào àn hétong lǚxíng.", vi: "Một khi đã ký hợp đồng thì hai bên phải thực hiện theo hợp đồng.", en: "Once the contract is signed, both sides must perform it as written." },
-      { zh: "一旦合同到期，公司就要尽早通知员工是否续签。", py: "Yídàn hétong dàoqī, gōngsī jiù yào jǐnzǎo tōngzhī yuángōng shìfǒu xùqiān.", vi: "Một khi hợp đồng hết hạn, công ty phải sớm thông báo cho nhân viên về việc có gia hạn hay không.", en: "Once a contract expires, the company must tell the employee as early as possible whether it will be renewed." }
+      { zh: "一旦合同到期，公司就要及时办理续签或者离职手续。", py: "Yídàn hétong dàoqī, gōngsī jiù yào jíshí bànlǐ xùqiān huòzhě lízhí shǒuxù.", vi: "Một khi hợp đồng hết hạn, công ty phải kịp thời làm thủ tục gia hạn hoặc nghỉ việc.", en: "Once a contract expires, the company must promptly handle either the renewal or the leaving formalities." }
     ]
   },
 
@@ -209,7 +209,7 @@ window.CB_DAYS.push({
   quiz: [
     { q: "“辞退”的意思是：", options: [{ vi: "Công ty cho nhân viên thôi việc", en: "The company dismisses an employee" }, { vi: "Nhân viên tự xin nghỉ", en: "The employee resigns" }, { vi: "Gia hạn hợp đồng", en: "To renew a contract" }, { vi: "Tăng lương", en: "To raise pay" }], answer: 0 },
     { q: "“违约金”的拼音是：", options: ["wěiyuējīn", "wéiyuēqīn", "wéiyuējīn", "wèiyuējīn"], answer: 2 },
-    { q: "___合同到期，公司就要尽早通知员工是否续签。", options: ["一旦", "既然", "虽然", "除非"], answer: 0, explain: { vi: "一旦……就……: một khi… thì… (tình huống có thể xảy ra, kéo theo việc phải làm).", en: "一旦……就…… = once … then … (a possible situation that triggers an action)." } },
+    { q: "___合同到期，公司就要及时办理续签或者离职手续。", options: ["一旦", "既然", "虽然", "除非"], answer: 0, explain: { vi: "一旦……就……: một khi… thì… (tình huống có thể xảy ra, kéo theo việc phải làm).", en: "一旦……就…… = once … then … (a possible situation that triggers an action)." } },
     { q: "“无固定期限”的意思是：", options: [{ vi: "Không xác định thời hạn", en: "Open-ended; no fixed term" }, { vi: "Thời hạn ba năm", en: "A three-year term" }, { vi: "Thử việc", en: "Probation" }, { vi: "Làm thêm giờ", en: "Overtime" }], answer: 0 },
     { q: "“竞业限制”的拼音是：", options: ["jīngyè xiànzhì", "jìngyè xiànzhī", "jìngyè xiànzhì", "jìngyé xiànzhì"], answer: 2 },
     { q: "根据对话，在中国发生劳动争议，一般要先做什么？", options: ["直接起诉", "先申请劳动仲裁", "先辞退员工", "先支付违约金"], answer: 1, explain: { vi: "Chị Nguyễn nói: 中国一般要先申请劳动仲裁.", en: "She says: 中国一般要先申请劳动仲裁." } },

@@ -55,24 +55,24 @@
     var App = A(), ch = challenge(), s = Store.state, chDone = !!s.challenges[Store.today()];
     function row(g) {
       var st = s.games[g.id] || {};
-      return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + g.name + "</b><small>" + g.desc + "</small></span>" +
-        (st.plays ? '<span class="g-best">Best ' + st.best + "</span>" : '<span class="g-go">▶</span>') + "</a>";
+      return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + tx(g.name) + "</b><small>" + tx(g.desc) + "</small></span>" +
+        (st.plays ? '<span class="g-best">' + tx("Best {n}", { n: st.best }) + "</span>" : '<span class="g-go">▶</span>') + "</a>";
     }
     /* Practice: what matters for the exam first, then the three games for the weakest skills, then everything else folded. */
-    var html = '<h2 class="gh">For the exam</h2>' + (App.practiceTop ? App.practiceTop() : "");
+    var html = '<h2 class="gh">' + tx("For the exam") + '</h2>' + (App.practiceTop ? App.practiceTop() : "");
     var rec = recommended();
-    html += '<h2 class="gh">Recommended for you</h2><div class="glist rec-games">' + rec.map(function (r) {
+    html += '<h2 class="gh">' + tx("Recommended for you") + '</h2><div class="glist rec-games">' + rec.map(function (r) {
       var g = BY[r.id], st = s.games[g.id] || {};
-      return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + g.name + "</b><small>" + g.desc + "</small></span>" +
-        (r.acc != null ? '<span class="g-acc" aria-label="Your accuracy ' + r.acc + '%">' + r.acc + "%</span>" : st.plays ? '<span class="g-best">Best ' + st.best + "</span>" : '<span class="g-go">▶</span>') + "</a>";
+      return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + tx(g.name) + "</b><small>" + tx(g.desc) + "</small></span>" +
+        (r.acc != null ? '<span class="g-acc" aria-label="' + tx("Your accuracy {n}%", { n: r.acc }) + '">' + r.acc + "%</span>" : st.plays ? '<span class="g-best">' + tx("Best {n}", { n: st.best }) + "</span>" : '<span class="g-go">▶</span>') + "</a>";
     }).join("") + "</div>";
     var n = 0; GROUPS.forEach(function (gr) { n += gr[1].length; });
-    html += '<details class="more all-games"><summary><span>All games (' + (n + 2) + ')</span></summary>' +
-      '<a class="gfeat ' + ch.cls + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="g-ico">' + ch.icon + '</span><span class="g-txt"><small>' + (chDone ? "Daily challenge · done ✓" : "Daily challenge · +15 XP") + "</small><b>" + ch.name + "</b><em>" + ch.desc + '</em></span><span class="g-go">▶</span></a>' +
-      '<div class="glist"><a class="grow" href="#/talk"><span class="g-ico">🗣️</span><span class="g-txt"><b>Talk it through</b><small>AI role-play · HR conversations</small></span><span class="g-go">▶</span></a>' +
-      '<a class="grow" href="#/read"><span class="g-ico">📖</span><span class="g-txt"><b>Reader</b><small>Paste a Chinese email. Tap any word.</small></span><span class="g-go">▶</span></a></div>';
+    html += '<details class="more all-games"><summary><span>' + tx("All games ({n})", { n: n + 2 }) + '</span></summary>' +
+      '<a class="gfeat ' + ch.cls + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="g-ico">' + ch.icon + '</span><span class="g-txt"><small>' + (chDone ? tx("Daily challenge · done ✓") : tx("Daily challenge · +15 XP")) + "</small><b>" + tx(ch.name) + "</b><em>" + tx(ch.desc) + '</em></span><span class="g-go">▶</span></a>' +
+      '<div class="glist"><a class="grow" href="#/talk"><span class="g-ico">🗣️</span><span class="g-txt"><b>' + tx("Talk it through") + '</b><small>' + tx("AI role-play · HR conversations") + '</small></span><span class="g-go">▶</span></a>' +
+      '<a class="grow" href="#/read"><span class="g-ico">📖</span><span class="g-txt"><b>' + tx("Reader") + '</b><small>' + tx("Paste a Chinese email. Tap any word.") + '</small></span><span class="g-go">▶</span></a></div>';
     GROUPS.forEach(function (gr) {
-      html += '<h2 class="gh">' + gr[0] + '</h2><div class="glist">' + gr[1].map(function (id) { return row(BY[id]); }).join("") + "</div>";
+      html += '<h2 class="gh">' + tx(gr[0]) + '</h2><div class="glist">' + gr[1].map(function (id) { return row(BY[id]); }).join("") + "</div>";
     });
     html += "</details>";
     App.render(html, "games");
@@ -89,7 +89,7 @@
 
   /* ---------- shared ---------- */
   function header(g, right) {
-    return '<div class="ghead"><a class="pill" href="' + (RUN.exit || "#/games") + '">✕</a><b>' + g.icon + " " + g.name + '</b><span class="ghr" id="ghr">' + (right || "") + "</span></div>";
+    return '<div class="ghead"><a class="pill" href="' + (RUN.exit || "#/games") + '">✕</a><b>' + g.icon + " " + tx(g.name) + '</b><span class="ghr" id="ghr">' + (right || "") + "</span></div>";
   }
   var RUN = {}; // options for the current run: { count, onDone, exit } (used by Today's session)
   /* extra.sid: where best score and plays are kept when it is not the game id (HSK 5 rounds: "confuse5", ...) · extra.head: header title */
@@ -102,14 +102,14 @@
     if (ch.id === id && !s.challenges[Store.today()]) { s.challenges[Store.today()] = true; bonus = 15; }
     Store.save();
     var mood = extra && extra.mood || (isBest ? "cheer" : "happy");
-    App.render(header(g) + '<div class="card result">' + UI.mascot(mood, 100) + "<h2>" + (extra && extra.title || "Score: " + score) + "</h2>" +
-      '<p class="sub">' + (extra && extra.sub ? extra.sub + " · " : "") + "Best " + st.best + (isBest && st.plays > 1 ? " · New record!" : "") + "</p>" +
-      '<p class="xp-earn">+' + (xp + bonus) + " XP" + (bonus ? ' <span class="tag t-sun">🎯 challenge +15</span>' : "") + "</p>" +
-      '<div class="actions center"><a class="btn primary" href="#/game/' + id + (extra && extra.arg ? "/" + extra.arg : "") + '" id="again">↻ Play again</a>' + (extra && extra.back ? '<a class="btn" href="' + extra.back[0] + '">' + extra.back[1] + "</a>" : '<a class="btn" href="#/games">All games</a>') + "</div></div>" +
+    App.render(header(g) + '<div class="card result">' + UI.mascot(mood, 100) + "<h2>" + (extra && extra.title || tx("Score: {n}", { n: score })) + "</h2>" +
+      '<p class="sub">' + (extra && extra.sub ? extra.sub + " · " : "") + tx("Best {n}", { n: st.best }) + (isBest && st.plays > 1 ? " · " + tx("New record!") : "") + "</p>" +
+      '<p class="xp-earn">+' + (xp + bonus) + " XP" + (bonus ? ' <span class="tag t-sun">🎯 ' + tx("challenge +15") + '</span>' : "") + "</p>" +
+      '<div class="actions center"><a class="btn primary" href="#/game/' + id + (extra && extra.arg ? "/" + extra.arg : "") + '" id="again">↻ ' + tx("Play again") + '</a>' + (extra && extra.back ? '<a class="btn" href="' + extra.back[0] + '">' + extra.back[1] + "</a>" : '<a class="btn" href="#/games">' + tx("All games") + '</a>') + "</div></div>" +
       (extra && extra.review ? extra.review : ""), "game");
     document.getElementById("again").onclick = function (e) { e.preventDefault(); run(id, extra && extra.arg); };
     if (isBest || bonus) UI.confetti(120);
-    if (bonus) UI.toast("Daily challenge complete!", "🎯");
+    if (bonus) UI.toast(tx("Daily challenge complete!"), "🎯");
     Game.award(xp + bonus);
   }
   function pickOthers(w, pool, n) {
@@ -129,10 +129,10 @@
   }
   function qHTML(q) {
     var App = A(), w = q.w, prompt, optF;
-    if (q.t === "h2m") { prompt = '<div class="hz big">' + App.esc(w.hanzi) + "</div>" + App.SAY(w.hanzi) + '<p class="sub">Pick the meaning</p>'; optF = function (o) { return App.M(o); }; }
-    else if (q.t === "m2h") { prompt = '<div class="w-mean big-mean">' + App.M(w) + '</div><p class="sub">Pick the Chinese word</p>'; optF = function (o) { return '<span class="zh">' + App.esc(o.hanzi) + "</span>"; }; }
-    else if (q.t === "h2p") { prompt = '<div class="hz big">' + App.esc(w.hanzi) + '</div><p class="sub">Pick the pinyin</p>'; optF = function (o) { return App.esc(o.pinyin); }; }
-    else { prompt = '<button class="btn listen-btn" data-say="' + App.esc(w.hanzi) + '">🔊 Play again</button><p class="sub">Listen and pick the word</p>'; optF = function (o) { return '<span class="zh">' + App.esc(o.hanzi) + "</span>"; }; }
+    if (q.t === "h2m") { prompt = '<div class="hz big">' + App.esc(w.hanzi) + "</div>" + App.SAY(w.hanzi) + '<p class="sub">' + tx("Pick the meaning") + '</p>'; optF = function (o) { return App.M(o); }; }
+    else if (q.t === "m2h") { prompt = '<div class="w-mean big-mean">' + App.M(w) + '</div><p class="sub">' + tx("Pick the Chinese word") + '</p>'; optF = function (o) { return '<span class="zh">' + App.esc(o.hanzi) + "</span>"; }; }
+    else if (q.t === "h2p") { prompt = '<div class="hz big">' + App.esc(w.hanzi) + '</div><p class="sub">' + tx("Pick the pinyin") + '</p>'; optF = function (o) { return App.esc(o.pinyin); }; }
+    else { prompt = '<button class="btn listen-btn" data-say="' + App.esc(w.hanzi) + '">🔊 ' + tx("Play again") + '</button><p class="sub">' + tx("Listen and pick the word") + '</p>'; optF = function (o) { return '<span class="zh">' + App.esc(o.hanzi) + "</span>"; }; }
     return '<div class="card qcard" id="qcard">' + prompt + '<div class="opts">' + q.opts.map(function (o, k) {
       return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[k] + "</span>" + optF(o) + "</button>";
     }).join("") + '</div><div id="qfb"></div></div>';
@@ -157,7 +157,7 @@
       if (opts.onAnswer) opts.onAnswer(ok, b);
       var App = A();
       document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '"><span class="zh">' + App.esc(q.w.hanzi) + "</span> " + App.esc(q.w.pinyin) + " — " + App.M(q.w) + "</div>" +
-        '<button class="btn primary wide" id="qnext">Next ›</button>';
+        '<button class="btn primary wide" id="qnext">' + tx("Next ›") + '</button>';
       document.getElementById("qnext").onclick = function () { done(ok); };
     };
     A().setKeys(function (e) {
@@ -228,7 +228,7 @@
     var pool = App.shuffle(sentences()).filter(function (s) {
       var c = chunk(s.core); return c.length >= 3 && new Set(c).size === c.length;
     }).slice(0, 8);
-    if (pool.length < 3) { App.render(header(g) + '<p class="empty">Study a few days first to unlock sentences.</p>', "game"); return; }
+    if (pool.length < 3) { App.render(header(g) + '<p class="empty">' + tx("Study a few days first to unlock sentences.") + '</p>', "game"); return; }
     var i = 0, score = 0, review = [];
     function draw() {
       if (i >= pool.length) return end();
@@ -236,14 +236,14 @@
       if (order.every(function (v, k) { return v === k; })) order.reverse();
       var placed = [];
       App.render(header(g, (i + 1) + "/" + pool.length) + bar(i, pool.length) +
-        '<div class="card bcard" id="qcard"><p class="sub">Tap the pieces in the right order</p>' +
-        '<div class="answer" id="ans"><span class="ph">Your sentence…</span></div>' +
+        '<div class="card bcard" id="qcard"><p class="sub">' + tx("Tap the pieces in the right order") + '</p>' +
+        '<div class="answer" id="ans"><span class="ph">' + tx("Your sentence…") + '</span></div>' +
         '<div class="pool" id="pool">' + order.map(function (k) { return '<button class="piece zh" data-k="' + k + '">' + App.esc(parts[k]) + "</button>"; }).join("") + "</div>" +
-        '<details class="hint-d"><summary>💡 Hint</summary><div class="tr">' + App.M(s) + "</div></details>" +
-        '<div id="qfb"></div><button class="btn primary wide" id="chk" disabled>Check</button></div>', "game");
+        '<details class="hint-d"><summary>💡 ' + tx("Hint") + '</summary><div class="tr">' + App.M(s) + "</div></details>" +
+        '<div id="qfb"></div><button class="btn primary wide" id="chk" disabled>' + tx("Check") + '</button></div>', "game");
       var ans = document.getElementById("ans"), poolEl = document.getElementById("pool"), chk = document.getElementById("chk");
       function sync() {
-        ans.innerHTML = placed.length ? placed.map(function (k) { return '<button class="piece zh in" data-k="' + k + '">' + App.esc(parts[k]) + "</button>"; }).join("") + '<span class="end zh">' + App.esc(s.end) + "</span>" : '<span class="ph">Your sentence…</span>';
+        ans.innerHTML = placed.length ? placed.map(function (k) { return '<button class="piece zh in" data-k="' + k + '">' + App.esc(parts[k]) + "</button>"; }).join("") + '<span class="end zh">' + App.esc(s.end) + "</span>" : '<span class="ph">' + tx("Your sentence…") + '</span>';
         poolEl.querySelectorAll(".piece").forEach(function (p) { p.classList.toggle("used", placed.indexOf(+p.dataset.k) >= 0); });
         chk.disabled = placed.length !== parts.length;
       }
@@ -257,13 +257,13 @@
         if (ok) { score++; Audio2.sfx.good(); UI.pop("+3 XP", null, innerHeight * 0.35, "good"); } else { Audio2.sfx.bad(); UI.shake(document.getElementById("qcard")); }
         ans.classList.add(ok ? "ok" : "no");
         review.push({ s: s, ok: ok });
-        document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Correct order:") + '<div class="ex-zh"><span class="zh">' + App.esc(s.core + s.end) + "</span>" + App.SAY(s.core + s.end) + "</div>" + App.PY(s.py) + '<div class="tr">' + App.M(s) + "</div></div>";
-        chk.textContent = i + 1 < pool.length ? "Next ›" : "See results";
+        document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? tx("✓ Correct!") : tx("✗ Correct order:")) + '<div class="ex-zh"><span class="zh">' + App.esc(s.core + s.end) + "</span>" + App.SAY(s.core + s.end) + "</div>" + App.PY(s.py) + '<div class="tr">' + App.M(s) + "</div></div>";
+        chk.textContent = i + 1 < pool.length ? tx("Next ›") : tx("See results");
       };
     }
     function end() {
-      finish("builder", score, score * 3, { title: score + " / " + pool.length + " sentences", mood: score === pool.length ? "cheer" : score >= pool.length / 2 ? "happy" : "sad",
-        review: '<h3 class="sec">Sentences</h3><div class="card akey">' + review.map(function (r) {
+      finish("builder", score, score * 3, { title: tx("{n} / {m} sentences", { n: score, m: pool.length }), mood: score === pool.length ? "cheer" : score >= pool.length / 2 ? "happy" : "sad",
+        review: '<h3 class="sec">' + tx("Sentences") + '</h3><div class="card akey">' + review.map(function (r) {
           return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "✗") + '</span><div><div class="zh">' + App.esc(r.s.core + r.s.end) + '</div><div class="dim">' + App.M(r.s) + "</div></div></div>";
         }).join("") + "</div>" });
     }
@@ -274,9 +274,9 @@
   function listen() {
     var App = A(), g = BY.listen, audio = Audio2.available();
     var pool = App.shuffle(App.studiedWords()).slice(0, 10), i = 0, score = 0;
-    App.render(header(g) + '<div class="card result">' + UI.mascot("wow", 88) + "<h2>Listen & Pick</h2>" +
-      '<p class="sub">' + (audio ? "Turn your sound on. You'll hear a word — pick the right hanzi." : "Audio isn't generated yet, so you'll get the pinyin instead.") + "</p>" +
-      '<button class="btn primary wide" id="go">Start</button></div>', "game");
+    App.render(header(g) + '<div class="card result">' + UI.mascot("wow", 88) + "<h2>" + tx("Listen & Pick") + "</h2>" +
+      '<p class="sub">' + (audio ? tx("Turn your sound on. You'll hear a word — pick the right hanzi.") : tx("Audio isn't generated yet, so you'll get the pinyin instead.")) + "</p>" +
+      '<button class="btn primary wide" id="go">' + tx("Start") + '</button></div>', "game");
     document.getElementById("go").onclick = draw; // tap = user gesture, so iOS allows audio
     function draw() {
       if (i >= pool.length) return finish("listen", score, score * 2, { title: score + " / " + pool.length, mood: score >= 8 ? "cheer" : score >= 5 ? "happy" : "sad" });
@@ -284,7 +284,7 @@
       if (pool[i + 1]) Audio2.prefetch(pool[i + 1].hanzi);
       if (!audio) q.t = "py2h";
       var body = q.t === "py2h"
-        ? '<div class="card qcard" id="qcard"><div class="big-py">' + App.esc(q.w.pinyin) + '</div><p class="sub">Pick the word</p><div class="opts">' + q.opts.map(function (o, k) { return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[k] + '</span><span class="zh">' + App.esc(o.hanzi) + "</span></button>"; }).join("") + '</div><div id="qfb"></div></div>'
+        ? '<div class="card qcard" id="qcard"><div class="big-py">' + App.esc(q.w.pinyin) + '</div><p class="sub">' + tx("Pick the word") + '</p><div class="opts">' + q.opts.map(function (o, k) { return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[k] + '</span><span class="zh">' + App.esc(o.hanzi) + "</span></button>"; }).join("") + '</div><div id="qfb"></div></div>'
         : qHTML(q);
       App.render(header(g, "⭐ " + score) + bar(i, pool.length) + body, "game");
       wireQ(q, function (ok) { if (ok) score++; i++; draw(); }, { onAnswer: function (ok) { if (ok) document.getElementById("ghr").textContent = "⭐ " + (score + 1); } });
@@ -306,8 +306,8 @@
     for (var k = 0; k < 4; k++) { var w = take(); left.push(w); right.push(w); }
     right = App.shuffle(right);
     App.render(header(g, '⏱ <b id="tl">60</b>') + '<div class="speedbar"><span id="tbar"></span></div>' +
-      '<div class="combo-row"><span>Score <b id="sc">0</b></span><span id="cb" class="combo"></span></div>' +
-      '<div class="match speed" id="board"></div><p class="hint center">Wrong match = −3 s and combo reset</p>', "game");
+      '<div class="combo-row"><span>' + tx("Score") + ' <b id="sc">0</b></span><span id="cb" class="combo"></span></div>' +
+      '<div class="match speed" id="board"></div><p class="hint center">' + tx("Wrong match = −3 s and combo reset") + '</p>', "game");
     var board = document.getElementById("board");
     function drawBoard() {
       board.innerHTML = '<div class="mcol" data-side="L">' + left.map(function (w, i) { return '<button class="mbtn zh" data-i="' + i + '">' + App.esc(w.hanzi) + "</button>"; }).join("") +
@@ -335,7 +335,7 @@
       }
       sel = null;
       document.getElementById("sc").textContent = score;
-      document.getElementById("cb").textContent = combo > 1 ? "🔥 combo ×" + Math.min(combo, 5) : "";
+      document.getElementById("cb").textContent = combo > 1 ? "🔥 " + tx("combo ×{n}", { n: Math.min(combo, 5) }) : "";
     };
     var t0 = Date.now(), last = 60;
     timer = setInterval(function () {
@@ -345,27 +345,27 @@
       el.textContent = Math.ceil(t);
       document.getElementById("tbar").style.width = (t / 60 * 100) + "%";
       if (Math.ceil(t) <= 5 && Math.ceil(t) !== last) { last = Math.ceil(t); Audio2.sfx.tap(); }
-      if (t <= 0) { clearInterval(timer); over = true; finish("speed", score, Math.ceil(score / 3), { title: score + " points", mood: score >= 60 ? "cheer" : "happy" }); }
+      if (t <= 0) { clearInterval(timer); over = true; finish("speed", score, Math.ceil(score / 3), { title: tx("{n} points", { n: score }), mood: score >= 60 ? "cheer" : "happy" }); }
     }, 100);
   }
 
   /* ---------- 4. Pinyin Race ---------- */
   function race() {
     var App = A(), g = BY.race, words = App.shuffle(App.studiedWords()), i = 0, score = 0, timeLeft = 90, timer = null, done = [];
-    App.render(header(g) + '<div class="card result">' + UI.mascot("wow", 88) + "<h2>Pinyin Race</h2>" +
-      '<p class="sub">You see the meaning (and hear it). Type the word — in <b>hanzi</b> with a Chinese keyboard, or <b>pinyin without tones</b>. 90 seconds.</p>' +
-      '<p class="tip">iPhone: Settings → General → Keyboard → Keyboards → Add → Chinese (Simplified) → <b>Pinyin – QWERTY</b>. Switch with 🌐.</p>' +
-      '<button class="btn primary wide" id="go">Start</button></div>', "game");
+    App.render(header(g) + '<div class="card result">' + UI.mascot("wow", 88) + "<h2>" + tx("Pinyin Race") + "</h2>" +
+      '<p class="sub">' + tx("You see the meaning (and hear it). Type the word — in <b>hanzi</b> with a Chinese keyboard, or <b>pinyin without tones</b>. 90 seconds.") + '</p>' +
+      '<p class="tip">' + tx("iPhone: Settings → General → Keyboard → Keyboards → Add → Chinese (Simplified) → <b>Pinyin – QWERTY</b>. Switch with 🌐.") + '</p>' +
+      '<button class="btn primary wide" id="go">' + tx("Start") + '</button></div>', "game");
     document.getElementById("go").onclick = function () {
       App.render(header(g, '⏱ <b id="tl">90</b>') + '<div class="speedbar"><span id="tbar"></span></div>' +
-        '<div class="combo-row"><span>Correct <b id="sc">0</b></span><span id="last" class="dim"></span></div>' +
+        '<div class="combo-row"><span>' + tx("Correct") + ' <b id="sc">0</b></span><span id="last" class="dim"></span></div>' +
         '<form class="card race" id="rf" autocomplete="off"><div id="prompt"></div>' +
-        '<input id="ri" class="race-in zh" lang="zh-CN" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="汉字 or pinyin">' +
-        '<div class="actions"><button class="btn primary" type="submit">Enter</button><button class="btn" type="button" id="skip">Skip</button></div></form>', "game");
+        '<input id="ri" class="race-in zh" lang="zh-CN" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="' + tx("汉字 or pinyin") + '">' +
+        '<div class="actions"><button class="btn primary" type="submit">' + tx("Enter") + '</button><button class="btn" type="button" id="skip">' + tx("Skip") + '</button></div></form>', "game");
       var input = document.getElementById("ri");
       function show() {
         var w = words[i % words.length];
-        document.getElementById("prompt").innerHTML = '<div class="w-mean big-mean">' + App.M(w) + "</div>" + App.SAY(w.hanzi, null, true) + '<p class="sub">' + w.hanzi.length + " character" + (w.hanzi.length > 1 ? "s" : "") + "</p>";
+        document.getElementById("prompt").innerHTML = '<div class="w-mean big-mean">' + App.M(w) + "</div>" + App.SAY(w.hanzi, null, true) + '<p class="sub">' + (w.hanzi.length > 1 ? tx("{n} characters", { n: w.hanzi.length }) : tx("{n} character", { n: w.hanzi.length })) + "</p>";
         input.value = ""; input.focus();
         if (Audio2.available()) Audio2.play(w.hanzi);
       }
@@ -392,7 +392,7 @@
         document.getElementById("tbar").style.width = Math.max(0, timeLeft / 90 * 100) + "%";
         if (timeLeft <= 0) {
           clearInterval(timer); input.blur();
-          finish("race", score, score * 2, { title: score + " words", mood: score >= 12 ? "cheer" : "happy",
+          finish("race", score, score * 2, { title: tx("{n} words", { n: score }), mood: score >= 12 ? "cheer" : "happy",
             review: done.length ? '<div class="card akey">' + done.map(function (r) { return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "↷") + '</span><div><span class="zh">' + App.esc(r.w.hanzi) + "</span> " + App.esc(r.w.pinyin) + '<div class="dim">' + App.M(r.w) + "</div></div></div>"; }).join("") + "</div>" : "" });
         }
       }, 200);
@@ -411,8 +411,8 @@
     var B = BOSSES[n] || BOSSES[5 * Math.min(6, Math.max(1, Math.ceil((pool[pool.length - 1] || { _day: 5 })._day / 5)))] || BOSSES[5];
     var hp = 100, lives = 3, combo = 0, correct = 0, qn = 0, words = App.shuffle(pool);
     var audio = Audio2.available(), types = audio ? ["h2m", "m2h", "h2p", "aud"] : ["h2m", "m2h", "h2p"];
-    App.render(header(g) + '<div class="card result boss-intro"><div class="boss-e big">' + B.e + '</div><h2 class="zh">' + B.zh + "</h2><p>" + B.en + '</p><p class="sub">Answer correctly to hit. Streaks hit harder. You have ❤️❤️❤️.</p>' +
-      '<button class="btn primary wide" id="go">⚔️ Fight</button></div>', "game");
+    App.render(header(g) + '<div class="card result boss-intro"><div class="boss-e big">' + B.e + '</div><h2 class="zh">' + B.zh + "</h2><p>" + tx(B.en) + '</p><p class="sub">' + tx("Answer correctly to hit. Streaks hit harder. You have ❤️❤️❤️.") + '</p>' +
+      '<button class="btn primary wide" id="go">⚔️ ' + tx("Fight") + '</button></div>', "game");
     document.getElementById("go").onclick = draw;
     function arena() {
       return '<div class="arena card g-boss"><div class="boss-e" id="bossE">' + B.e + '</div><div class="hp"><span id="hpb" style="width:' + hp + '%"></span></div>' +
@@ -435,13 +435,13 @@
           document.getElementById("lives").textContent = "❤️".repeat(lives) + "🖤".repeat(3 - lives);
           document.querySelector(".arena").classList.add("hurt");
         }
-        if (hp <= 0 || lives <= 0) { var nb = document.getElementById("qnext"); if (nb) nb.textContent = "Finish"; }
+        if (hp <= 0 || lives <= 0) { var nb = document.getElementById("qnext"); if (nb) nb.textContent = tx("Finish"); }
       } });
     }
     function end() {
       var win = hp <= 0;
       if (win) Store.state.stats.bossWins++;
-      finish("boss", correct, win ? 30 + correct : correct, { title: win ? "Victory! " + B.e + " defeated" : "Defeated… try again", sub: correct + " correct", mood: win ? "cheer" : "sad", arg: arg });
+      finish("boss", correct, win ? 30 + correct : correct, { title: win ? tx("Victory! {boss} defeated", { boss: B.e }) : tx("Defeated… try again"), sub: tx("{n} correct", { n: correct }), mood: win ? "cheer" : "sad", arg: arg });
     }
   }
 
@@ -454,7 +454,7 @@
     var types = Audio2.available() ? ["h2m", "m2h", "h2p", "aud"] : ["h2m", "m2h", "h2p"];
     function draw() {
       if (i >= pool.length && pack) App.packQuizDone(pa.kind, pa.n, score, pool.length);
-      if (i >= pool.length) return finish("quick", score, score * 2, { title: score + " / " + pool.length, arg: set ? arg : "", back: pack ? ["#/pack/" + pa.kind + "/" + pa.n, "Back to the pack"] : null, sub: pack ? (score >= pool.length * 0.8 ? "Pack finished ✓" : "Get " + Math.ceil(pool.length * 0.8) + " or more to finish the pack") : "", mood: score >= pool.length * 0.8 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad" });
+      if (i >= pool.length) return finish("quick", score, score * 2, { title: score + " / " + pool.length, arg: set ? arg : "", back: pack ? ["#/pack/" + pa.kind + "/" + pa.n, tx("Back to the pack")] : null, sub: pack ? (score >= pool.length * 0.8 ? tx("Pack finished ✓") : tx("Get {n} or more to finish the pack", { n: Math.ceil(pool.length * 0.8) })) : "", mood: score >= pool.length * 0.8 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad" });
       var q = makeQ(pool[i], i === 0 ? types.filter(function (t) { return t !== "aud"; }) : types);
       if (pool[i + 1]) Audio2.prefetch(pool[i + 1].hanzi);
       App.render(header(g, "⭐ " + score) + bar(i, pool.length) + qHTML(q), "game");
@@ -479,11 +479,11 @@
   }
   function drillCard(it, onDone, autoplay, rate) {
     var App = A();
-    var html = '<div class="card qcard" id="qcard"><p class="sub">Listen first. Reveal the text only when you\'re ready.</p>' +
-      '<div class="drill-btns"><button class="btn primary" id="d-play">▶ Play' + (rate ? " " + rate + "×" : "") + '</button><button class="btn" id="d-slow">🐢 0.75×</button></div>' +
+    var html = '<div class="card qcard" id="qcard"><p class="sub">' + tx("Listen first. Reveal the text only when you're ready.") + '</p>' +
+      '<div class="drill-btns"><button class="btn primary" id="d-play">▶ ' + tx("Play") + (rate ? " " + rate + "×" : "") + '</button><button class="btn" id="d-slow">🐢 0.75×</button></div>' +
       '<div id="d-text" class="drill-text" hidden><div class="ex-zh"><span class="zh">' + App.esc(it.zh) + "</span></div>" + (it.py ? App.PY(it.py) : "") + '<div class="tr">' + App.M(it) + "</div></div>" +
-      '<button class="btn wide" id="d-rev">👁 Reveal text</button>' +
-      '<div class="tf-btns" id="d-grade" hidden><button class="btn good-btn" id="d-ok">Understood ✔</button><button class="btn bad-btn" id="d-no">Missed ✘</button></div></div>';
+      '<button class="btn wide" id="d-rev">👁 ' + tx("Reveal text") + '</button>' +
+      '<div class="tf-btns" id="d-grade" hidden><button class="btn good-btn" id="d-ok">' + tx("Understood ✔") + '</button><button class="btn bad-btn" id="d-no">' + tx("Missed ✘") + '</button></div></div>';
     return { html: html, wire: function () {
       var play = function (r) { Audio2.play(it.zh, it.voice, null, r); };
       document.getElementById("d-play").onclick = function () { play(rate); };
@@ -505,7 +505,7 @@
     var App = A(), g = BY.drill, pool = App.shuffle(drillPool()).slice(0, RUN.count || 8), i = 0, score = 0;
     if (!pool.length && RUN.onDone) { var cb0 = RUN.onDone; RUN = {}; cb0(0); return; }
     if (!pool.length) {
-      App.render(header(g) + '<p class="empty">' + (Audio2.available() ? "Study a day first to unlock sentences." : "Audio isn't generated yet — it's created when you deploy.") + "</p>", "game");
+      App.render(header(g) + '<p class="empty">' + (Audio2.available() ? tx("Study a day first to unlock sentences.") : tx("Audio isn't generated yet — it's created when you deploy.")) + "</p>", "game");
       return;
     }
     /* Speed ladder: 4 "understood" in a row moves the playback speed up a step, 2 misses in a row move it down. */
@@ -516,13 +516,13 @@
     }
     var lad = function () { return LADDER[Math.max(0, Math.min(LADDER.length - 1, st.ladder || 0))]; };
     (function draw() {
-      if (i >= pool.length) { Audio2.noise(0); return finish("drill", score, score * 2, { title: score + " / " + pool.length + " understood", sub: "Speed now " + lad() + "×", mood: score >= 6 ? "cheer" : score >= 4 ? "happy" : "sad" }); }
+      if (i >= pool.length) { Audio2.noise(0); return finish("drill", score, score * 2, { title: tx("{n} / {m} understood", { n: score, m: pool.length }), sub: tx("Speed now {x}×", { x: lad() }), mood: score >= 6 ? "cheer" : score >= 4 ? "happy" : "sad" }); }
       var c = drillCard(pool[i], function (ok) {
         if (ok) score++; i++;
         if (!RUN.onDone) {
           if (ok) { st.ladderRun = Math.max(0, st.ladderRun || 0) + 1; st.ladderMiss = 0; } else { st.ladderMiss = (st.ladderMiss || 0) + 1; st.ladderRun = 0; }
-          if (st.ladderRun >= 4 && (st.ladder || 0) < LADDER.length - 1) { st.ladder = (st.ladder || 0) + 1; st.ladderRun = 0; UI.toast("Speed up! Now " + lad() + "×", "🎚️"); }
-          else if (st.ladderMiss >= 2 && (st.ladder || 0) > 0) { st.ladder--; st.ladderMiss = 0; UI.toast("Slowing to " + lad() + "× for now", "🎚️"); }
+          if (st.ladderRun >= 4 && (st.ladder || 0) < LADDER.length - 1) { st.ladder = (st.ladder || 0) + 1; st.ladderRun = 0; UI.toast(tx("Speed up! Now {x}×", { x: lad() }), "🎚️"); }
+          else if (st.ladderMiss >= 2 && (st.ladder || 0) > 0) { st.ladder--; st.ladderMiss = 0; UI.toast(tx("Slowing to {x}× for now", { x: lad() }), "🎚️"); }
           Store.save();
         }
         draw();
@@ -549,7 +549,7 @@
     return ((window.CB_DRILLS || {})[type]) || [];
   }
   function drillItems(type, lvl) { return drillSrc(type, lvl).filter(function (it) { return !(window.Content && Content.isHidden("drill:" + it.id)); }); }
-  function flagBtn(it) { return '<p class="sub"><button type="button" class="linklike w-flag" data-flag="drill:' + A().esc(it.id) + '">⚑ Report a problem</button></p>'; }
+  function flagBtn(it) { return '<p class="sub"><button type="button" class="linklike w-flag" data-flag="drill:' + A().esc(it.id) + '">⚑ ' + tx("Report a problem") + '</button></p>'; }
   /* One drill question → { html, wire(done) }. Used by the drill games and by the mistake notebook.
      o.used (word bank): indexes of bank words already used in this group. */
   function drillQ(type, it, o) {
@@ -566,45 +566,45 @@
             document.querySelectorAll(".opts .opt").forEach(function (o) { o.disabled = true; if (o.getAttribute("data-k") === String(answer)) o.classList.add("right"); else if (o === b) o.classList.add("wrong"); });
             (ok ? Audio2.sfx.good : Audio2.sfx.bad)(); if (!ok) UI.shake(document.getElementById("qcard"));
             if (App.markWork) App.markWork(); rec(ok);
-            document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Not quite.") + " " + (explain || "") + "</div>" + flag + '<button class="btn primary wide" id="qnext">Next ›</button>';
+            document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? tx("✓ Correct!") : tx("✗ Not quite.")) + " " + (explain || "") + "</div>" + flag + '<button class="btn primary wide" id="qnext">' + tx("Next ›") + '</button>';
             if (!ok && window.AI) AI.attachExplain(document.getElementById("qfb"));
             document.getElementById("qnext").onclick = function () { done(ok); };
           };
         } };
     }
     if (type === "confuse") {
-      return mc('<p class="sub">⚖️ Which word fits? · ' + it.words.map(esc).join(" / ") + '</p><p class="q zh">' + esc(it.q) + "</p>",
+      return mc('<p class="sub">⚖️ ' + tx("Which word fits?") + ' · ' + it.words.map(esc).join(" / ") + '</p><p class="q zh">' + esc(it.q) + "</p>",
         App.shuffle(it.words).map(function (w) { return [w, '<span class="zh">' + esc(w) + "</span>"]; }), it.answer,
         '<span class="zh">' + esc(it.q.replace("____", it.answer)) + "</span><br>" + App.M(it.explain));
     }
     if (type === "measure") {
-      return mc('<p class="sub">📏 Fill the blank</p><p class="q zh">' + esc(it.q) + "</p>",
+      return mc('<p class="sub">📏 ' + tx("Fill the blank") + '</p><p class="q zh">' + esc(it.q) + "</p>",
         App.shuffle(it.options.map(function (o, k) { return k; })).map(function (k) { return [String(k), '<span class="zh">' + esc(it.options[k]) + "</span>"]; }), it.answer,
         '<span class="zh">' + esc(it.q.replace("____", it.options[it.answer])) + "</span><br>" + App.M(it.explain));
     }
     if (type === "order") {
       var ORD = ["ABC", "ACB", "BAC", "BCA", "CAB", "CBA"];
       /* HSK 5 items are one sentence cut in three, so the parts carry no punctuation: show the full sentence (zh) in the answer */
-      return mc('<p class="sub">🔀 Put A, B, C in the right order</p><div class="abc">' + ["A", "B", "C"].map(function (k) { return "<p><b>" + k + '</b> <span class="zh">' + esc(it.parts[k]) + "</span></p>"; }).join("") + "</div>",
+      return mc('<p class="sub">🔀 ' + tx("Put A, B, C in the right order") + '</p><div class="abc">' + ["A", "B", "C"].map(function (k) { return "<p><b>" + k + '</b> <span class="zh">' + esc(it.parts[k]) + "</span></p>"; }).join("") + "</div>",
         ORD.map(function (o) { return [o, o.split("").join(" → ")]; }), it.answer,
-        '<span class="zh">' + (it.zh ? esc(it.zh) : it.answer.split("").map(function (k) { return esc(it.parts[k]); }).join("")) + "</span><br>" + App.M(it) + (it.clue ? '<br><b>Clue:</b> ' + App.M(it.clue) : ""));
+        '<span class="zh">' + (it.zh ? esc(it.zh) : it.answer.split("").map(function (k) { return esc(it.parts[k]); }).join("")) + "</span><br>" + App.M(it) + (it.clue ? '<br><b>' + tx("Clue:") + '</b> ' + App.M(it.clue) : ""));
     }
     if (type === "bank") {
       var used = (o && o.used) || [];
-      return mc('<p class="sub">🗃️ Choose the word that fits the gap</p><p class="q zh">' + esc(it.q) + "</p>",
+      return mc('<p class="sub">🗃️ ' + tx("Choose the word that fits the gap") + '</p><p class="q zh">' + esc(it.q) + "</p>",
         it.bank.map(function (w, k) { return [String(k), '<span class="zh">' + esc(w) + "</span>", k !== it.answer && used.indexOf(k) >= 0]; }), it.answer,
         '<span class="zh">' + esc(it.q.replace("____", it.bank[it.answer])) + "</span><br>" + App.M(it), "bank");
     }
     if (type === "wordorder") {
       var toks = it.tokens, order = App.shuffle(toks.map(function (_, k) { return k; }));
       if (order.every(function (v, k) { return v === k; })) order.reverse();
-      return { html: '<div class="card bcard" id="qcard"><p class="sub">🧱 Tap the words in the right order</p><div class="answer" id="ans"><span class="ph">Your sentence…</span></div>' +
+      return { html: '<div class="card bcard" id="qcard"><p class="sub">🧱 ' + tx("Tap the words in the right order") + '</p><div class="answer" id="ans"><span class="ph">' + tx("Your sentence…") + '</span></div>' +
           '<div class="pool" id="pool">' + order.map(function (k) { return '<button class="piece zh" data-k="' + k + '">' + esc(toks[k]) + "</button>"; }).join("") + "</div>" +
-          '<details class="hint-d"><summary>💡 Hint</summary><div class="tr">' + App.M(it) + '</div></details><div id="qfb"></div><button class="btn primary wide" id="chk" disabled>Check</button></div>',
+          '<details class="hint-d"><summary>💡 ' + tx("Hint") + '</summary><div class="tr">' + App.M(it) + '</div></details><div id="qfb"></div><button class="btn primary wide" id="chk" disabled>' + tx("Check") + '</button></div>',
         wire: function (done) {
           var placed = [], ans = document.getElementById("ans"), poolEl = document.getElementById("pool"), chk = document.getElementById("chk");
           function sync() {
-            ans.innerHTML = placed.length ? placed.map(function (k) { return '<button class="piece zh in" data-k="' + k + '">' + esc(toks[k]) + "</button>"; }).join("") : '<span class="ph">Your sentence…</span>';
+            ans.innerHTML = placed.length ? placed.map(function (k) { return '<button class="piece zh in" data-k="' + k + '">' + esc(toks[k]) + "</button>"; }).join("") : '<span class="ph">' + tx("Your sentence…") + '</span>';
             poolEl.querySelectorAll(".piece").forEach(function (p) { p.classList.toggle("used", placed.indexOf(+p.dataset.k) >= 0); });
             chk.disabled = placed.length !== toks.length;
           }
@@ -613,31 +613,31 @@
           chk.onclick = function () {
             if (chk.dataset.done) { done(chk.dataset.ok === "1"); return; }
             var got = placed.map(function (k) { return toks[k]; }).join(""), ok = got === it.answer || (it.alt || []).indexOf(got) >= 0; // alt: other orders that are also correct
-            chk.dataset.done = 1; chk.dataset.ok = ok ? "1" : "0"; chk.textContent = "Next ›";
+            chk.dataset.done = 1; chk.dataset.ok = ok ? "1" : "0"; chk.textContent = tx("Next ›");
             if (App.markWork) App.markWork(); rec(ok);
             (ok ? Audio2.sfx.good : Audio2.sfx.bad)(); if (!ok) UI.shake(document.getElementById("qcard"));
             ans.classList.add(ok ? "ok" : "no");
-            document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Correct order:") + '<div class="ex-zh"><span class="zh">' + esc(ok ? got : it.answer) + '</span></div><div class="tr">' + App.M(it) + "</div>" +
-              (it.point ? "<b>Pattern:</b> " + App.M(it.point) : "") + "</div>" + flag;
+            document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? tx("✓ Correct!") : tx("✗ Correct order:")) + '<div class="ex-zh"><span class="zh">' + esc(ok ? got : it.answer) + '</span></div><div class="tr">' + App.M(it) + "</div>" +
+              (it.point ? "<b>" + tx("Pattern:") + "</b> " + App.M(it.point) : "") + "</div>" + flag;
           };
         } };
     }
     // picture writing: write a sentence, automatic checks, then compare with model answers and self-grade
-    return { html: '<div class="card qcard" id="qcard"><p class="sub">🖼️ Write one sentence about the picture using the word</p><p class="w2-scene">' + esc(it.emoji) + ' <b class="zh">' + esc(it.word) + "</b></p>" +
-        '<textarea class="w2-input" id="pw" rows="2" placeholder="写一个句子…" lang="zh"></textarea><button class="btn primary wide" id="pw-check">Check</button><div id="qfb"></div></div>',
+    return { html: '<div class="card qcard" id="qcard"><p class="sub">🖼️ ' + tx("Write one sentence about the picture using the word") + '</p><p class="w2-scene">' + esc(it.emoji) + ' <b class="zh">' + esc(it.word) + "</b></p>" +
+        '<textarea class="w2-input" id="pw" rows="2" placeholder="写一个句子…" lang="zh"></textarea><button class="btn primary wide" id="pw-check">' + tx("Check") + '</button><div id="qfb"></div></div>',
       wire: function (done) {
         document.getElementById("pw-check").onclick = function () {
           var v = document.getElementById("pw").value.trim();
-          if (!v) { UI.toast("Write a sentence first", "✍️"); return; }
+          if (!v) { UI.toast(tx("Write a sentence first"), "✍️"); return; }
           this.hidden = true; if (App.markWork) App.markWork();
           var n = (v.match(/[㐀-鿿]/g) || []).length;
-          var checks = [[v.indexOf(it.word) >= 0, "Uses 「" + esc(it.word) + "」"], [n >= 7, "At least 7 characters (" + n + ")"], [/[。！？!?]$/.test(v), "Ends with 。/！/？"]];
+          var checks = [[v.indexOf(it.word) >= 0, tx("Uses 「{w}」", { w: esc(it.word) })], [n >= 7, tx("At least 7 characters ({n})", { n: n })], [/[。！？!?]$/.test(v), tx("Ends with 。/！/？")]];
           document.getElementById("qfb").innerHTML = '<div class="pw-checks">' + checks.map(function (c) { return '<p class="' + (c[0] ? "good-t" : "bad-t") + '">' + (c[0] ? "✔ " : "✘ ") + c[1] + "</p>"; }).join("") + "</div>" +
             '<p class="sub">' + App.M(it.scene) + "</p>" + it.samples.map(function (x) { return '<div class="w-ex"><div class="ex-zh"><span class="zh">' + esc(x.zh) + "</span>" + (h5 ? App.SAYX : App.SAY)(x.zh) + "</div>" + App.PY(x.py) + '<div class="tr">' + App.M(x) + "</div></div>"; }).join("") +
-            (window.AI && AI.configured() ? '<button class="btn wide" id="pw-ai">🤖 Get AI feedback on my sentence</button><div id="pw-ai-out"></div>' : "") +
-            '<p class="sub">Is your sentence correct and natural, like the models?</p><div class="tf-btns"><button class="btn good-btn" id="pw-ok">Correct ✔</button><button class="btn bad-btn" id="pw-no">Not quite ✘</button></div>' + flag;
+            (window.AI && AI.configured() ? '<button class="btn wide" id="pw-ai">🤖 ' + tx("Get AI feedback on my sentence") + '</button><div id="pw-ai-out"></div>' : "") +
+            '<p class="sub">' + tx("Is your sentence correct and natural, like the models?") + '</p><div class="tf-btns"><button class="btn good-btn" id="pw-ok">' + tx("Correct ✔") + '</button><button class="btn bad-btn" id="pw-no">' + tx("Not quite ✘") + '</button></div>' + flag;
           var aib = document.getElementById("pw-ai");
-          if (aib) aib.onclick = function () { aib.disabled = true; AI.grade(document.getElementById("pw-ai-out"), it, v).then(function () { aib.disabled = false; aib.textContent = "🤖 Check again"; }); };
+          if (aib) aib.onclick = function () { aib.disabled = true; AI.grade(document.getElementById("pw-ai-out"), it, v).then(function () { aib.disabled = false; aib.textContent = "🤖 " + tx("Check again"); }); };
           document.getElementById("pw-ok").onclick = function () { rec(true); Audio2.sfx.good(); done(true); };
           document.getElementById("pw-no").onclick = function () { rec(false); done(false); };
         };
@@ -661,20 +661,20 @@
   ];
   function coachGame() {
     var App = A(), g = BY.coach, n = Store.game("coach").plays % COACH.length, it = COACH[n];
-    if (!window.AI || !AI.configured()) { App.render(header(g) + '<p class="empty">The AI helper is not available. Open Me → AI assistant.</p>', "game"); return; }
-    App.render(header(g) + '<div class="card qcard" id="qcard"><p class="sub">✍️ Write 2-4 sentences in Chinese</p><p class="w2-scene">' + App.M(it.p) + "</p>" +
-      '<p class="sub">Use: ' + it.w.map(function (w) { return '<b class="zh">' + App.esc(w) + "</b>"; }).join("、") + "</p>" +
+    if (!window.AI || !AI.configured()) { App.render(header(g) + '<p class="empty">' + tx("The AI helper is not available. Open Me → AI assistant.") + '</p>', "game"); return; }
+    App.render(header(g) + '<div class="card qcard" id="qcard"><p class="sub">✍️ ' + tx("Write 2-4 sentences in Chinese") + '</p><p class="w2-scene">' + App.M(it.p) + "</p>" +
+      '<p class="sub">' + tx("Use:") + ' ' + it.w.map(function (w) { return '<b class="zh">' + App.esc(w) + "</b>"; }).join("、") + "</p>" +
       '<textarea class="w2-input" id="pc" rows="5" lang="zh" placeholder="写几个句子…" maxlength="400"></textarea>' +
-      '<button class="btn primary wide" id="pc-go">🤖 Get coach feedback</button><div id="pc-out"></div>' +
-      '<div class="actions center"><button class="btn" id="pc-next" hidden>Next prompt ›</button></div></div>', "game");
+      '<button class="btn primary wide" id="pc-go">🤖 ' + tx("Get coach feedback") + '</button><div id="pc-out"></div>' +
+      '<div class="actions center"><button class="btn" id="pc-next" hidden>' + tx("Next prompt ›") + '</button></div></div>', "game");
     var go = document.getElementById("pc-go"), out = document.getElementById("pc-out");
     go.onclick = function () {
       var v = document.getElementById("pc").value.trim();
-      if (!/[㐀-鿿]/.test(v)) { UI.toast("Write in Chinese first", "✍️"); return; }
+      if (!/[㐀-鿿]/.test(v)) { UI.toast(tx("Write in Chinese first"), "✍️"); return; }
       go.disabled = true; if (App.markWork) App.markWork();
       AI.coach(out, App.M(it.p).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(), it.w, v).then(function (res) {
         if (!go.isConnected) return;
-        go.disabled = false; go.textContent = "🤖 Check again";
+        go.disabled = false; go.textContent = "🤖 " + tx("Check again");
         var nx = document.getElementById("pc-next");
         if (res && res.ok && nx) {
           nx.hidden = false; nx.onclick = function () { coachGame(); };
@@ -685,7 +685,7 @@
   }
   /* arg "h5" plays the HSK 5 set of the same game; its best score and plays are kept apart (confuse5, order5, ...) */
   function drillGame(arg, type) {
-    var App = A(), lvl = arg === "h5" && H5_DESC[type] ? 5 : 4, g = BY[type], head = lvl === 5 ? { icon: g.icon, name: "HSK 5 · " + g.name } : g;
+    var App = A(), lvl = arg === "h5" && H5_DESC[type] ? 5 : 4, g = BY[type], head = lvl === 5 ? { icon: g.icon, name: "HSK 5 · " + tx(g.name) } : g;
     if (lvl === 5 && !RUN.exit) RUN.exit = "#/learn/h5p";
     var all = drillItems(type, lvl), items, usedBy = {};
     if (type === "bank") { // two exam-style groups, sentence by sentence; a word that was used is crossed out for the rest of its group
@@ -695,10 +695,10 @@
       if (RUN.count) items = items.slice(0, RUN.count);
     } else items = App.shuffle(all).slice(0, RUN.count || (type === "picture" ? 5 : type === "wordorder" ? 8 : 10));
     var i = 0, score = 0;
-    if (!items.length) { if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; cb(0); return; } App.render(header(head) + '<p class="empty">No drill content loaded.</p>', "game"); return; }
+    if (!items.length) { if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; cb(0); return; } App.render(header(head) + '<p class="empty">' + tx("No drill content loaded.") + '</p>', "game"); return; }
     (function draw() {
-      if (i >= items.length) return finish(type, score, score * 2, { title: score + " / " + items.length + " correct", mood: score >= items.length * 0.8 ? "cheer" : score >= items.length / 2 ? "happy" : "sad",
-        arg: lvl === 5 ? "h5" : "", sid: lvl === 5 ? type + "5" : type, head: head, back: lvl === 5 ? ["#/learn/h5p", "HSK 5 practice"] : null });
+      if (i >= items.length) return finish(type, score, score * 2, { title: tx("{n} / {m} correct", { n: score, m: items.length }), mood: score >= items.length * 0.8 ? "cheer" : score >= items.length / 2 ? "happy" : "sad",
+        arg: lvl === 5 ? "h5" : "", sid: lvl === 5 ? type + "5" : type, head: head, back: lvl === 5 ? ["#/learn/h5p", tx("HSK 5 practice")] : null });
       var it = items[i], q = drillQ(type, it, { used: usedBy[it.g] || [] });
       App.render(header(head, (i + 1) + "/" + items.length) + bar(i, items.length) + q.html, "game");
       q.wire(function (ok) { if (ok) score++; if (type === "bank") (usedBy[it.g] || (usedBy[it.g] = [])).push(it.answer); i++; draw(); });
@@ -710,15 +710,15 @@
     var App = A(), esc = App.esc, g = BY.reading, items = App.readingSet ? App.readingSet(RUN.count || 3) : [], i = 0, score = 0, review = [];
     if (!items.length) {
       if (RUN.onDone) { var cb = RUN.onDone; RUN = {}; cb(0); return; }
-      App.render(header(g) + '<p class="empty">No reading passages yet. Finish lesson 5 or take a mock exam first.</p>', "game"); return;
+      App.render(header(g) + '<p class="empty">' + tx("No reading passages yet. Finish lesson 5 or take a mock exam first.") + '</p>', "game"); return;
     }
     function opt(o) { return typeof o === "string" ? '<span class="zh">' + esc(o) + "</span>" : App.M(o); }
     (function draw() {
-      if (i >= items.length) return finish("reading", score, score * 3, { title: score + " / " + items.length + " correct", mood: score === items.length ? "cheer" : score >= items.length / 2 ? "happy" : "sad",
+      if (i >= items.length) return finish("reading", score, score * 3, { title: tx("{n} / {m} correct", { n: score, m: items.length }), mood: score === items.length ? "cheer" : score >= items.length / 2 ? "happy" : "sad",
         review: '<div class="card akey">' + review.map(function (r) { return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "✗") + '</span><div class="zh">' + esc(r.t) + "</div></div>"; }).join("") + "</div>" });
       var it = items[i], order = App.shuffle(it.options.map(function (_, k) { return k; })), same = i > 0 && items[i - 1].passage === it.passage;
       App.render(header(g, (i + 1) + "/" + items.length) + bar(i, items.length) +
-        '<div class="card qcard rd-drill" id="qcard"><p class="sub">📖 ' + esc(it.src) + (same ? " · same passage" : "") + '</p><div class="passage-in zh" lang="zh-CN">' + esc(it.passage) + "</div>" +
+        '<div class="card qcard rd-drill" id="qcard"><p class="sub">📖 ' + esc(it.src) + (same ? " · " + tx("same passage") : "") + '</p><div class="passage-in zh" lang="zh-CN">' + esc(it.passage) + "</div>" +
         '<p class="q zh">' + esc(it.q) + '</p><div class="opts">' + order.map(function (k, n) { return '<button class="opt" data-k="' + k + '"><span class="opt-n">' + "ABCD"[n] + "</span>" + opt(it.options[k]) + "</button>"; }).join("") +
         '</div><div id="qfb"></div></div>', "game");
       var answered = false;
@@ -732,9 +732,9 @@
         if (ok) score++;
         review.push({ ok: ok, t: it.q });
         /* lesson passages carry a line-by-line translation: shown after answering, never before */
-        document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Correct!" : "✗ Answer: ") + (ok ? "" : opt(it.options[it.answer])) + "</div>" +
-          (it.lines ? '<details class="hint-d"><summary>📖 Passage translation</summary>' + it.lines.map(function (l) { return '<p class="zh">' + esc(l.zh) + "</p>" + '<div class="tr">' + App.M(l) + "</div>"; }).join("") + "</details>" : "") +
-          '<button class="btn primary wide" id="qnext">Next ›</button>';
+        document.getElementById("qfb").innerHTML = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? tx("✓ Correct!") : tx("✗ Answer: ")) + (ok ? "" : opt(it.options[it.answer])) + "</div>" +
+          (it.lines ? '<details class="hint-d"><summary>📖 ' + tx("Passage translation") + '</summary>' + it.lines.map(function (l) { return '<p class="zh">' + esc(l.zh) + "</p>" + '<div class="tr">' + App.M(l) + "</div>"; }).join("") + "</details>" : "") +
+          '<button class="btn primary wide" id="qnext">' + tx("Next ›") + '</button>';
         if (!ok && window.AI) AI.attachExplain(document.getElementById("qfb"));
         document.getElementById("qnext").onclick = function () { i++; draw(); };
       };
@@ -761,16 +761,16 @@
     if (cset) { words = cset.words.slice(); dayN = arg; }
     else if (dayN && App.DAYMAP[dayN]) words = App.dayWords(App.DAYMAP[dayN]).slice();
     else words = App.shuffle(App.studiedWords()).slice(0, 5);
-    if (!words.length) { App.render(header(g) + '<p class="empty">Study a day first.</p>', "game"); return; }
-    App.render(header(g) + '<p class="empty">Loading stroke data…</p>', "game");
+    if (!words.length) { App.render(header(g) + '<p class="empty">' + tx("Study a day first.") + '</p>', "game"); return; }
+    App.render(header(g) + '<p class="empty">' + tx("Loading stroke data…") + '</p>', "game");
     loadHW().then(function () { session(); }).catch(function () {
-      App.render(header(g) + '<p class="empty">Couldn\'t load the writing module. Check your connection and try again.</p>', "game");
+      App.render(header(g) + '<p class="empty">' + tx("Couldn't load the writing module. Check your connection and try again.") + '</p>', "game");
     });
     function session() {
       var wi = 0, score = 0, results = [];
       (function drawWord() {
-        if (wi >= words.length) return finish("write", score, score * 3, { title: score + " / " + words.length + " words written well", arg: dayN || "", mood: score === words.length ? "cheer" : "happy",
-          review: '<div class="card akey">' + results.map(function (r) { return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "✗") + '</span><div><span class="zh">' + App.esc(r.w.hanzi) + "</span> " + App.esc(r.w.pinyin) + ' <span class="dim">· ' + (r.skipped ? "skipped" : r.miss + " slip" + (r.miss === 1 ? "" : "s")) + "</span></div></div>"; }).join("") + "</div>" });
+        if (wi >= words.length) return finish("write", score, score * 3, { title: tx("{n} / {m} words written well", { n: score, m: words.length }), arg: dayN || "", mood: score === words.length ? "cheer" : "happy",
+          review: '<div class="card akey">' + results.map(function (r) { return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "✗") + '</span><div><span class="zh">' + App.esc(r.w.hanzi) + "</span> " + App.esc(r.w.pinyin) + ' <span class="dim">· ' + (r.skipped ? tx("skipped") : r.miss === 1 ? tx("1 slip") : tx("{n} slips", { n: r.miss })) + "</span></div></div>"; }).join("") + "</div>" });
         var w = words[wi], chars = Array.from(w.hanzi).filter(function (c) { return /[㐀-鿿]/.test(c); }), ci = 0, miss = 0, skipped = false;
         (function drawChar() {
           if (ci >= chars.length) {
@@ -789,20 +789,20 @@
           App.render(header(g, (wi + 1) + "/" + words.length) + bar(wi, words.length) +
             '<div class="card hw-card"><div class="hw-word"><span class="zh">' + Array.from(w.hanzi).map(function (c, k) { return '<b class="' + (c === ch && k >= ci ? "cur" : "") + '">' + App.esc(c) + "</b>"; }).join("") + "</span>" + App.SAY(w.hanzi) +
             '<div>' + App.PY(w.pinyin) + '</div><div class="dim">' + App.M(w) + "</div></div>" +
-            '<div class="hw-box" id="hw"></div><p class="sub center" id="hw-msg">Watch the strokes, then trace the character.</p>' +
-            '<div class="drill-btns"><button class="btn" id="hw-anim">▶ Strokes</button><button class="btn primary" id="hw-quiz">✍️ Trace</button><button class="btn" id="hw-blind">🙈 Blind</button></div>' +
-            '<button class="btn wide" id="hw-skip">Skip ›</button></div>', "game");
+            '<div class="hw-box" id="hw"></div><p class="sub center" id="hw-msg">' + tx("Watch the strokes, then trace the character.") + '</p>' +
+            '<div class="drill-btns"><button class="btn" id="hw-anim">▶ ' + tx("Strokes") + '</button><button class="btn primary" id="hw-quiz">✍️ ' + tx("Trace") + '</button><button class="btn" id="hw-blind">🙈 ' + tx("Blind") + '</button></div>' +
+            '<button class="btn wide" id="hw-skip">' + tx("Skip ›") + '</button></div>', "game");
           var color = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim() || "#7c5cff";
           var wr = HanziWriter.create("hw", ch, { width: 260, height: 260, padding: 14, showCharacter: false, showOutline: true, strokeColor: color, radicalColor: color,
             drawingColor: "#333", drawingWidth: 22, highlightColor: "#1fae6d", outlineColor: "rgba(124,92,255,.18)", strokeAnimationSpeed: 1.2, delayBetweenStrokes: 180, charDataLoader: charLoader,
-            onLoadCharDataError: function () { skipped = true; var mm = document.getElementById("hw-msg"); if (mm) mm.textContent = "No stroke data for " + ch + " — skipping."; setTimeout(function () { advance(); }, 900); } });
+            onLoadCharDataError: function () { skipped = true; var mm = document.getElementById("hw-msg"); if (mm) mm.textContent = tx("No stroke data for {ch} — skipping.", { ch: ch }); setTimeout(function () { advance(); }, 900); } });
           var msg = document.getElementById("hw-msg");
           function quiz(blind) {
             if (blind) wr.hideOutline(); else wr.showOutline();
             wr.hideCharacter();
-            msg.textContent = blind ? "Write it from memory." : "Trace each stroke in order.";
+            msg.textContent = blind ? tx("Write it from memory.") : tx("Trace each stroke in order.");
             wr.quiz({ showHintAfterMisses: 2, onMistake: function () { miss++; }, onComplete: function (sum) {
-              msg.innerHTML = sum.totalMistakes ? "Done · " + sum.totalMistakes + " slip" + (sum.totalMistakes > 1 ? "s" : "") : "Perfect! ✨";
+              msg.innerHTML = sum.totalMistakes ? (sum.totalMistakes > 1 ? tx("Done · {n} slips", { n: sum.totalMistakes }) : tx("Done · {n} slip", { n: sum.totalMistakes })) : tx("Perfect! ✨");
               setTimeout(function () { advance(); }, 900);
             } });
           }
@@ -835,25 +835,25 @@
     var parts = it.free ? null : (function () { var c = chunk(it.core); var o = App.shuffle(c.slice()); if (o.join("") === c.join("")) o.reverse(); return o; })();
     var html = '<div class="card qcard" id="qcard">' +
       (it.free
-        ? '<p class="sub">Write your own sentence (at least 6 characters) that uses:</p><div class="hz big zh">' + App.esc(it.word) + "</div>" + '<div class="tr">' + App.M(it) + "</div>"
-        : '<p class="sub">Type these words as one correct sentence:</p><div class="pieces-static">' + parts.map(function (p) { return '<span class="piece zh">' + App.esc(p) + "</span>"; }).join("") + "</div>" +
-          '<details class="hint-d"><summary>💡 Meaning</summary><div class="tr">' + App.M(it) + "</div></details>") +
+        ? '<p class="sub">' + tx("Write your own sentence (at least 6 characters) that uses:") + '</p><div class="hz big zh">' + App.esc(it.word) + "</div>" + '<div class="tr">' + App.M(it) + "</div>"
+        : '<p class="sub">' + tx("Type these words as one correct sentence:") + '</p><div class="pieces-static">' + parts.map(function (p) { return '<span class="piece zh">' + App.esc(p) + "</span>"; }).join("") + "</div>" +
+          '<details class="hint-d"><summary>💡 ' + tx("Meaning") + '</summary><div class="tr">' + App.M(it) + "</div></details>") +
       '<textarea id="ty" class="w2-input ty-in zh" rows="2" lang="zh-CN" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="用拼音输入…"></textarea>' +
-      '<div id="qfb"></div><button class="btn primary wide" id="ty-chk">Check</button>' +
-      (opts.first ? '<p class="sub small">Tip: add the <b>Chinese (Simplified) – Pinyin</b> keyboard in iPhone Settings → General → Keyboard → Keyboards, then tap 🌐 to switch.</p>' : "") + "</div>";
+      '<div id="qfb"></div><button class="btn primary wide" id="ty-chk">' + tx("Check") + '</button>' +
+      (opts.first ? '<p class="sub small">' + tx("Tip: add the <b>Chinese (Simplified) – Pinyin</b> keyboard in iPhone Settings → General → Keyboard → Keyboards, then tap 🌐 to switch.") + '</p>' : "") + "</div>";
     return { html: html, wire: function () {
       var ta = document.getElementById("ty"), chk = document.getElementById("ty-chk"), done = false;
       chk.onclick = function () {
         if (done) { onDone(chk.dataset.ok === "1"); return; }
         var got = plain(ta.value);
         if (!got) { UI.shake(ta); return; }
-        done = true; ta.disabled = true; chk.textContent = "Next ›";
+        done = true; ta.disabled = true; chk.textContent = tx("Next ›");
         var ok, fb;
         if (it.free) {
           var hasWord = got.indexOf(it.word) >= 0, longEnough = Array.from(got).length >= 6;
-          fb = '<div class="qexp ' + (hasWord && longEnough ? "ok" : "no") + '">' + (hasWord ? "✓ Uses " : "✗ Doesn't use ") + '<span class="zh">' + App.esc(it.word) + "</span>" + (longEnough ? "" : " · a bit short") +
-            '<div class="ex-zh">Model: <span class="zh">' + App.esc(it.model) + "</span></div><p class=\"sub\">Is your sentence correct?</p>" +
-            '<div class="tf-btns"><button class="btn good-btn" id="ty-ok">Yes ✔</button><button class="btn bad-btn" id="ty-no">Not quite ✘</button></div></div>';
+          fb = '<div class="qexp ' + (hasWord && longEnough ? "ok" : "no") + '">' + (hasWord ? tx("✓ Uses ") : tx("✗ Doesn't use ")) + '<span class="zh">' + App.esc(it.word) + "</span>" + (longEnough ? "" : " · " + tx("a bit short")) +
+            '<div class="ex-zh">' + tx("Model:") + ' <span class="zh">' + App.esc(it.model) + "</span></div><p class=\"sub\">" + tx("Is your sentence correct?") + "</p>" +
+            '<div class="tf-btns"><button class="btn good-btn" id="ty-ok">' + tx("Yes ✔") + '</button><button class="btn bad-btn" id="ty-no">' + tx("Not quite ✘") + '</button></div></div>';
           document.getElementById("qfb").innerHTML = fb; chk.hidden = true;
           var fin = function (v) { chk.dataset.ok = v ? "1" : "0"; rec(v); (v ? Audio2.sfx.good : Audio2.sfx.bad)(); onDone(v); };
           document.getElementById("ty-ok").onclick = function () { fin(hasWord && longEnough); };
@@ -865,8 +865,8 @@
         var close = !ok && al.lcs >= Math.max(1, Math.round(target.length * 0.85)) && Math.abs(got.length - target.length) <= 2;
         var show = al.A.map(function (c, k) { return al.okA[k] ? '<span>' + App.esc(c) + "</span>" : '<span class="miss">' + App.esc(c) + "</span>"; }).join("");
         var yours = al.B.map(function (c, k) { return al.okB[k] ? '<span>' + App.esc(c) + "</span>" : '<span class="extra">' + App.esc(c) + "</span>"; }).join("");
-        fb = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? "✓ Perfect!" : close ? "≈ Almost — check the highlighted characters" : "✗ Not quite") +
-          (ok ? "" : '<div class="ty-row"><small>You</small><span class="zh">' + yours + '</span></div><div class="ty-row"><small>Answer</small><span class="zh">' + show + App.esc(it.end || "") + "</span></div>") +
+        fb = '<div class="qexp ' + (ok ? "ok" : "no") + '">' + (ok ? tx("✓ Perfect!") : close ? tx("≈ Almost — check the highlighted characters") : tx("✗ Not quite")) +
+          (ok ? "" : '<div class="ty-row"><small>' + tx("You") + '</small><span class="zh">' + yours + '</span></div><div class="ty-row"><small>' + tx("Answer") + '</small><span class="zh">' + show + App.esc(it.end || "") + "</span></div>") +
           (it.py ? App.PY(it.py) : "") + "</div>";
         document.getElementById("qfb").innerHTML = fb;
         chk.dataset.ok = ok ? "1" : "0"; rec(ok);
@@ -889,9 +889,9 @@
     if (RUN.count) { arr = arr.slice(0, RUN.count); free = []; }
     var pool = arr.concat(free), i = 0, score = 0, review = [];
     if (arr.length < (RUN.count ? 1 : 3) && RUN.onDone) { var cb1 = RUN.onDone; RUN = {}; cb1(0); return; }
-    if (arr.length < 3 && !RUN.count) { App.render(header(g) + '<p class="empty">Study a few days first to unlock sentences.</p>', "game"); return; }
+    if (arr.length < 3 && !RUN.count) { App.render(header(g) + '<p class="empty">' + tx("Study a few days first to unlock sentences.") + '</p>', "game"); return; }
     (function draw() {
-      if (i >= pool.length) return finish("type", score, score * 3, { title: score + " / " + pool.length + " typed correctly", mood: score >= pool.length - 1 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad",
+      if (i >= pool.length) return finish("type", score, score * 3, { title: tx("{n} / {m} typed correctly", { n: score, m: pool.length }), mood: score >= pool.length - 1 ? "cheer" : score >= pool.length / 2 ? "happy" : "sad",
         review: '<div class="card akey">' + review.map(function (r) { return '<div class="ak-row ' + (r.ok ? "ok" : "no") + '"><span class="ak-n">' + (r.ok ? "✓" : "✗") + '</span><div class="zh">' + App.esc(r.t) + "</div></div>"; }).join("") + "</div>" });
       var it = pool[i], c = typeCard(it, function (ok) { if (ok) score++; review.push({ ok: ok, t: it.free ? it.word + " · " + it.model : it.core + (it.end || "") }); i++; draw(); }, { first: i === 0 });
       App.render(header(g, (i + 1) + "/" + pool.length) + bar(i, pool.length) + c.html, "game");

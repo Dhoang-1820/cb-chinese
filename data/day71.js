@@ -63,7 +63,7 @@ window.CB_DAYS.push({
     },
     {
       id: "d71-05", hanzi: "增幅", pinyin: "zēngfú", pos: "n.", level: "Beyond HSK4",
-      vi: "mức tăng; biên độ tăng", en: "rate of increase; growth margin",
+      vi: "mức tăng; biên độ tăng", en: "rate of increase; growth rate",
       collocations: [
         { zh: "增幅较大", py: "zēngfú jiào dà", vi: "mức tăng khá lớn", en: "a fairly large increase" },
         { zh: "控制增幅", py: "kòngzhì zēngfú", vi: "kiểm soát mức tăng", en: "to hold down the increase" }

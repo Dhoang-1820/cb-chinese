@@ -36,43 +36,44 @@
     var tasks = [];
     var tkNext = null;
     (window.CB_TRACK || []).some(function (w) { for (var b = 1; b <= 3; b++) if (!tkDone(w.week, b)) { tkNext = { w: w.week, b: b, t: w.title.zh }; return true; } return false; });
-    tasks.push({ ico: "🔁", txt: due ? "Review " + due + " due word" + (due > 1 ? "s" : "") : "Review · all caught up", href: "#/review", done: !due });
+    tasks.push({ ico: "🔁", txt: due ? (due > 1 ? tx("Review {n} due words", { n: due }) : tx("Review 1 due word")) : tx("Review · all caught up"), href: "#/review", done: !due });
     var nMis = Learn.count(), lastMock = s.mockHistory.length ? s.mockHistory[s.mockHistory.length - 1].date : null;
     var studiedToday = Object.keys(s.days).some(function (k) { return s.days[k].completedOn === t; });
     if (p.inBuffer) {
       // Final 2 weeks: no new words — mock exams, mistakes, weakest skill and grammar
       var fullMock = MOCK.filter(function (m) { return m.full; })[0] || (window.CB_MOCK_FILES || []).length > 3 && { id: 4 };
       var mockRecent = lastMock && Store.daysBetween(lastMock, t) < 3;
-      tasks.push({ ico: "📝", txt: mockRecent ? "Mock exam done recently ✓ — next one in " + (3 - Store.daysBetween(lastMock, t)) + " day(s)" : "Take a mock exam" + (fullMock ? " (try the full-length one)" : ""), href: fullMock && !mockRecent ? "#/mock/" + fullMock.id : "#/mock", done: !!mockRecent });
-      if (nMis) tasks.push({ ico: "📒", txt: "Fix mistakes (" + nMis + " open)", href: "#/mistakes/all", done: false });
+      tasks.push({ ico: "📝", txt: mockRecent ? tx("Mock exam done recently ✓ — next one in {n} day(s)", { n: 3 - Store.daysBetween(lastMock, t) }) : fullMock ? tx("Take a mock exam (try the full-length one)") : tx("Take a mock exam"),href: fullMock && !mockRecent ? "#/mock/" + fullMock.id : "#/mock", done: !!mockRecent });
+      if (nMis) tasks.push({ ico: "📒", txt: tx("Fix mistakes ({n} open)", { n: nMis }), href: "#/mistakes/all", done: false });
       var weak = Learn.report(5)[0];
-      if (weak && weak.acc < 0.85) tasks.push({ ico: "🎯", txt: "Weakest skill: " + (s.settings.lang === "vi" ? weak.info.vi : weak.info.en) + " (" + Math.round(weak.acc * 100) + "%)", href: weak.open ? "#/mistakes/" + weak.skill : SKILL_LINK[weak.skill] || "#/mistakes", done: false });
+      if (weak && weak.acc < 0.85) tasks.push({ ico: "🎯", txt: tx("Weakest skill: {skill} ({pct}%)", { skill: s.settings.lang === "vi" ? weak.info.vi : weak.info.en, pct: Math.round(weak.acc * 100) }),href: weak.open ? "#/mistakes/" + weak.skill : SKILL_LINK[weak.skill] || "#/mistakes", done: false });
       var ga = grammarAct();
       if (ga) tasks.push({ ico: "📐", txt: ga.txt, href: ga.href, done: false });
-      if (nd) tasks.push({ ico: "📖", txt: "Day " + nd.day + " (only if you have time)", href: "#/day/" + nd.day, done: studiedToday });
+      if (nd) tasks.push({ ico: "📖", txt: tx("Day {n} (only if you have time)", { n: nd.day }), href: "#/day/" + nd.day, done: studiedToday });
     } else {
       var cu = nd && !p.afterExam ? cuLessons() : [];
-      if (cu.length) tasks.push({ ico: "⏳", txt: "Catch up: " + plural(cu.length, "short lesson") + " (Day " + cu.map(function (d) { return d.day; }).join(", ") + ")", href: "#/catchup", done: false });
-      else if (nd && !p.afterExam) tasks.push({ ico: "📖", txt: "Finish Day " + nd.day + (p.perDay > 1.05 ? " (+" + (Math.ceil(p.perDay) - 1) + " more to keep pace)" : ""), href: "#/day/" + nd.day, done: studiedToday });
-      else if (p.p2.next) tasks.push({ ico: "📖", txt: "Part 2 · Day " + p.p2.next.day + (p.p2.perDay > 1.05 ? " (+" + (Math.ceil(p.p2.perDay) - 1) + " more to keep pace)" : ""), href: "#/day/" + p.p2.next.day, done: studiedToday });
+      var cuDays = cu.map(function (d) { return d.day; }).join(", ");
+      if (cu.length) tasks.push({ ico: "⏳", txt: cu.length === 1 ? tx("Catch up: 1 short lesson (Day {days})", { days: cuDays }) : tx("Catch up: {n} short lessons (Day {days})", { n: cu.length, days: cuDays }), href: "#/catchup", done: false });
+      else if (nd && !p.afterExam) tasks.push({ ico: "📖", txt: p.perDay > 1.05 ? tx("Finish Day {n} (+{m} more to keep pace)", { n: nd.day, m: Math.ceil(p.perDay) - 1 }) : tx("Finish Day {n}", { n: nd.day }), href: "#/day/" + nd.day, done: studiedToday });
+      else if (p.p2.next) tasks.push({ ico: "📖", txt: p.p2.perDay > 1.05 ? tx("Part 2 · Day {n} (+{m} more to keep pace)", { n: p.p2.next.day, m: Math.ceil(p.p2.perDay) - 1 }) : tx("Part 2 · Day {n}", { n: p.p2.next.day }),href: "#/day/" + p.p2.next.day, done: studiedToday });
       if (!p.afterExam) {
         var cs = nextCoreSet(), fs = nextCoreSet("found");
         if (cs) {
           var addedToday = Object.keys(s.srs).some(function (id) { return /^k/.test(id) && s.srs[id].added === t; });
-          tasks.push({ ico: "📘", txt: "HSK 4 Core · Set " + cs.set + " (" + cs.words.filter(function (w) { return !SRS.has(w.id); }).length + " new words)", href: "#/core/" + cs.set, done: addedToday });
+          tasks.push({ ico: "📘", txt: tx("HSK 4 Core · Set {set} ({n} new words)", { set: cs.set, n: cs.words.filter(function (w) { return !SRS.has(w.id); }).length }),href: "#/core/" + cs.set, done: addedToday });
         }
         if (fs) {
           var checkedToday = Object.keys(s.srs).some(function (id) { return /^f/.test(id) && s.srs[id].added === t; });
-          tasks.push({ ico: "⚡", txt: "HSK 1–3 · Set F" + (fs.set - 100) + " quick check", href: "#/check/" + fs.set, done: checkedToday });
+          tasks.push({ ico: "⚡", txt: tx("HSK 1–3 · Set F{n} quick check", { n: fs.set - 100 }),href: "#/check/" + fs.set, done: checkedToday });
         }
       }
-      if (nMis) tasks.push({ ico: "📒", txt: "Fix mistakes (" + nMis + " open)", href: "#/mistakes/all", done: false });
+      if (nMis) tasks.push({ ico: "📒", txt: tx("Fix mistakes ({n} open)", { n: nMis }), href: "#/mistakes/all", done: false });
       var mockDue = !p.afterExam && p.done >= 10 && (!lastMock || Store.daysBetween(lastMock, t) >= 7);
-      if (mockDue) tasks.push({ ico: "📝", txt: "Take a mock exam", href: "#/mock", done: lastMock === t });
+      if (mockDue) tasks.push({ ico: "📝", txt: tx("Take a mock exam"), href: "#/mock", done: lastMock === t });
     }
-    if (tkNext && !p.afterExam) tasks.push({ ico: "💼", txt: "C&B track · Week " + tkNext.w + " · " + tkNext.t, href: "#/track/" + tkNext.w + "/" + tkNext.b, done: false });
+    if (tkNext && !p.afterExam) tasks.push({ ico: "💼", txt: tx("C&B track · Week {w} · {title}", { w: tkNext.w, title: tkNext.t }), href: "#/track/" + tkNext.w + "/" + tkNext.b, done: false });
     var goal = s.settings.dailyGoal || 30, xp = s.log[t] || 0;
-    tasks.push({ ico: "🎯", txt: "Daily goal · " + xp + "/" + goal + " XP", href: "#/games", done: xp >= goal });
+    tasks.push({ ico: "🎯", txt: tx("Daily goal · {xp}/{goal} XP", { xp: xp, goal: goal }),href: "#/games", done: xp >= goal });
     return tasks;
   }
   /* ---------- weak-spot plan: three concrete things to do today, from your own results ----------
@@ -83,7 +84,7 @@
     var weak = Learn.report(5).filter(function (x) { return x.acc < 0.85; });
     function skillAct(x) {
       used[x.skill] = 1; used["sec:" + x.info.sec] = 1;
-      return { ico: x.info.icon, txt: x.info[lang] + " · " + Math.round(x.acc * 100) + "%" + (x.open ? " · " + x.open + " to fix" : ""), why: x.info.tip, href: x.open ? "#/mistakes/" + x.skill : SKILL_LINK[x.skill] || "#/mistakes" };
+      return { ico: x.info.icon, txt: x.info[lang] + " · " + Math.round(x.acc * 100) + "%" + (x.open ? " · " + tx("{n} to fix", { n: x.open }) : ""), why: x.info.tip, href: x.open ? "#/mistakes/" + x.skill : SKILL_LINK[x.skill] || "#/mistakes" };
     }
     if (weak[0]) out.push(skillAct(weak[0]));
     var other = weak.filter(function (x) { return !used["sec:" + x.info.sec]; })[0] || weak.filter(function (x) { return !used[x.skill]; })[0];
@@ -92,25 +93,25 @@
     var lastMock = s.mockHistory.length ? s.mockHistory[s.mockHistory.length - 1].date : null, gap = lastMock ? Store.daysBetween(lastMock, t) : 99;
     if (out.length < 3 && (!lastMock || gap >= (p.inBuffer ? 3 : 7)) && !p.afterExam && (p.done >= 5 || p.inBuffer || lastMock)) {
       var tried = MOCK.slice().sort(function (a, b) { return ((s.mocks[a.id] || {}).plays || 0) - ((s.mocks[b.id] || {}).plays || 0) || (p.inBuffer && (b.full ? 1 : 0) - (a.full ? 1 : 0)); })[0];
-      add({ ico: "📝", txt: lastMock ? "Take a mock exam (last one " + gap + " days ago)" : "Take a mock exam to find your weak spots", why: "Mocks show which of the 13 skills to train next.", href: tried ? "#/mock/" + tried.id : "#/mock" });
+      add({ ico: "📝", txt: lastMock ? tx("Take a mock exam (last one {n} days ago)", { n: gap }) : tx("Take a mock exam to find your weak spots"), why: tx("Mocks show which of the 13 skills to train next."), href: tried ? "#/mock/" + tried.id : "#/mock" });
     }
     var due = SRS.dueIds(WORDMAP).length;
-    if (out.length < 3 && due) add({ ico: "🔁", txt: "Review " + plural(due, "due word"), why: "Words you review on time are the ones you keep.", href: "#/review" });
+    if (out.length < 3 && due) add({ ico: "🔁", txt: due === 1 ? tx("Review 1 due word") : tx("Review {n} due words", { n: due }), why: tx("Words you review on time are the ones you keep."), href: "#/review" });
     var nMis = Learn.count();
-    if (out.length < 3 && nMis) add({ ico: "📒", txt: "Clear " + nMis + " mistake" + (nMis === 1 ? "" : "s"), why: "Get each right twice in a row to clear it.", href: "#/mistakes/all" });
+    if (out.length < 3 && nMis) add({ ico: "📒", txt: nMis === 1 ? tx("Clear 1 mistake") : tx("Clear {n} mistakes", { n: nMis }), why: tx("Get each right twice in a row to clear it."), href: "#/mistakes/all" });
     var ga = grammarAct();
-    if (out.length < 3 && ga) add({ ico: "📐", txt: ga.txt, why: "5 questions; 4/5 twice masters it.", href: ga.href });
-    if (out.length < 3) add({ ico: "▶", txt: "Run Today's session", why: sessionCfg().label + " of mixed practice.", href: "#/session" });
+    if (out.length < 3 && ga) add({ ico: "📐", txt: ga.txt, why: tx("5 questions; 4/5 twice masters it."), href: ga.href });
+    if (out.length < 3) add({ ico: "▶", txt: tx("Run Today's session"), why: tx("{label} of mixed practice.", { label: tx(sessionCfg().label) }), href: "#/session" });
     return out;
   }
   function focusCard() {
     var acts = focusActions(); if (!acts.length) return "";
-    return '<section class="card focus-plan"><div class="sec-h"><h2>🎯 Your 3 focus actions</h2><span class="muted">from your results</span></div><div class="tasks">' +
+    return '<section class="card focus-plan"><div class="sec-h"><h2>🎯 ' + tx("Your 3 focus actions") + '</h2><span class="muted">' + tx("from your results") + '</span></div><div class="tasks">' +
       acts.map(function (a, i) { return '<a class="task" href="' + a.href + '"><span class="tk-box">' + (i + 1) + '</span><span class="tk-ico">' + a.ico + '</span><span><b>' + esc(a.txt) + '</b><small class="sub fp-why">' + esc(a.why) + "</small></span></a>"; }).join("") + "</div></section>";
   }
   function finalModeCard() {
     var p = planInfo();
-    return '<section class="card g-coral final-mode"><h2>🏁 Final ' + BUFFER_DAYS + ' days</h2><p class="sub">' + p.daysLeft + " day" + (p.daysLeft === 1 ? "" : "s") + " to the exam. No new words now: mock exams (the full-length one every few days), your mistakes, your weakest skill and grammar. Keep reviewing due words.</p></section>";
+    return '<section class="card g-coral final-mode"><h2>🏁 ' + tx("Final {n} days", { n: BUFFER_DAYS }) + '</h2><p class="sub">' + (p.daysLeft === 1 ? tx("1 day to the exam.") : tx("{n} days to the exam.", { n: p.daysLeft })) + " " + tx("No new words now: mock exams (the full-length one every few days), your mistakes, your weakest skill and grammar. Keep reviewing due words.") + "</p></section>";
   }
   function taskList(tasks) {
     return '<div class="tasks">' + tasks.map(function (k) {
@@ -119,27 +120,27 @@
   }
   function todayCard() {
     var p = planInfo(), st = STATUS[p.status], tasks = todayTasks(), n = tasks.filter(function (k) { return k.done; }).length;
-    return (p.inBuffer ? finalModeCard() : "") + '<section class="card today"><div class="sec-h"><h2>Today\'s plan</h2><span class="tag ' + st[2] + '">' + st[0] + " " + st[1] + "</span></div>" +
-      taskList(tasks) + '<div class="sec-h"><span class="muted">' + n + "/" + tasks.length + ' done</span><a href="#/plan">Full plan ›</a></div></section>';
+    return (p.inBuffer ? finalModeCard() : "") + '<section class="card today"><div class="sec-h"><h2>' + tx("Today's plan") + '</h2><span class="tag ' + st[2] + '">' + st[0] + " " + tx(st[1]) + "</span></div>" +
+      taskList(tasks) + '<div class="sec-h"><span class="muted">' + tx("{n}/{m} done", { n: n, m: tasks.length }) + '</span><a href="#/plan">' + tx("Full plan ›") + '</a></div></section>';
   }
   function corePaceHTML(p) {
     return ["core", "found"].map(function (track) {
       var sets = trackSets(track); if (!sets.length) return "";
       var done = sets.filter(function (set) { return set.words.every(function (w) { return SRS.has(w.id); }); }).length, left = sets.length - done;
       var perWeek = left ? Math.max(1, Math.ceil(left / p.studyLeft * 7)) : 0;
-      return '<p class="sub">' + trackName(track) + ": <b>" + done + "/" + sets.length + " sets</b> in review" + (left && p.afterExam ? "." : left ? " · pace needed about <b>" + perWeek + " set" + (perWeek > 1 ? "s" : "") + " a week</b>." : " — all done! 🎉") + "</p>";
+      return '<p class="sub">' + tx("{track}: <b>{done}/{total} sets</b> in review", { track: trackName(track), done: done, total: sets.length }) + (left && p.afterExam ? "." : left ? " · " + (perWeek > 1 ? tx("pace needed about <b>{n} sets a week</b>.", { n: perWeek }) : tx("pace needed about <b>1 set a week</b>.")) : " — " + tx("all done! 🎉")) + "</p>";
     }).join("");
   }
   function viewPlan() {
     var p = planInfo(), st = STATUS[p.status], s = Store.state;
-    var pace = p.remaining ? (p.perDay >= 1 ? p.perDay.toFixed(1) + " lessons a day" : "about " + Math.max(1, Math.ceil(p.perDay * 7)) + " lessons a week") : "All lessons done";
-    var html = '<section class="card g-sun"><h2>🗓️ Road to HSK 4</h2><p class="score-big">' + (p.daysLeft >= 0 ? p.daysLeft : 0) + ' <small>days left</small></p>' +
-      '<p><b>' + st[0] + " " + st[1] + "</b> · " + p.done + "/" + p.total + " days done" + (p.status !== "new" && p.status !== "done" ? " (plan: " + p.expected + ")" : "") + (p.cu ? " · " + p.cu + " of them as short catch-up lessons" : "") + "</p>" +
+    var pace = p.remaining ? (p.perDay >= 1 ? tx("{n} lessons a day", { n: p.perDay.toFixed(1) }) : tx("about {n} lessons a week", { n: Math.max(1, Math.ceil(p.perDay * 7)) })) : tx("All lessons done");
+    var html = '<section class="card g-sun"><h2>🗓️ ' + tx("Road to HSK 4") + '</h2><p class="score-big">' + (p.daysLeft >= 0 ? p.daysLeft : 0) + ' <small>' + tx("days left") + '</small></p>' +
+      '<p><b>' + st[0] + " " + tx(st[1]) + "</b> · " + tx("{done}/{total} days done", { done: p.done, total: p.total }) + (p.status !== "new" && p.status !== "done" ? " (" + tx("plan: {n}", { n: p.expected }) + ")" : "") + (p.cu ? " · " + tx("{n} of them as short catch-up lessons", { n: p.cu }) : "") + "</p>" +
       '<div class="xpbar"><span style="width:' + Math.round(p.done / p.total * 100) + '%"></span></div>' +
-      (p.afterExam ? '<p class="sub">Your exam date has passed. Keep going with Part 2 below, or set a new exam date in Settings.</p>' :
-        '<p class="sub">Pace needed: <b>' + pace + "</b> to finish by " + esc(p.finishBy) + ", leaving the last " + BUFFER_DAYS + " days for mock exams and review.</p>") + corePaceHTML(p) + "</section>";
+      (p.afterExam ? '<p class="sub">' + tx("Your exam date has passed. Keep going with Part 2 below, or set a new exam date in Settings.") + '</p>' :
+        '<p class="sub">' + tx("Pace needed: <b>{pace}</b> to finish by {date}, leaving the last {n} days for mock exams and review.", { pace: pace, date: esc(p.finishBy), n: BUFFER_DAYS }) + "</p>") + corePaceHTML(p) + "</section>";
     if (p.inBuffer) html += finalModeCard();
-    html += '<section class="card"><h2>Today</h2>' + taskList(todayTasks()) + "</section>";
+    html += '<section class="card"><h2>' + tx("Today") + '</h2>' + taskList(todayTasks()) + "</section>";
     // week-by-week timeline
     var t = Store.today(), weeks = [], cursor = t, lesson = DAYS.filter(function (d) { return d.day <= coreCut() && !(s.days[d.day] || {}).completed; }).map(function (d) { return d.day; });
     var perWeek = Math.max(1, Math.ceil(p.perDay * 7)), w = 0;
@@ -149,22 +150,22 @@
       weeks.push({ from: cursor, to: Store.daysBetween(end, p.exam) < 0 ? p.exam : end, days: take, buf: inBuf || !take.length });
       cursor = Store.addDays(end, 1); w++;
     }
-    if (!p.afterExam) html += '<section class="card"><h2>Week by week</h2>' + weeks.map(function (x, i) {
-      var lbl = x.days.length ? "Days " + x.days[0] + (x.days.length > 1 ? "–" + x.days[x.days.length - 1] : "") : "Mocks + review";
-      return '<div class="pw' + (i === 0 ? " now" : "") + '"><span class="pw-d">' + esc(x.from.slice(5)) + " → " + esc(x.to.slice(5)) + "</span><b>" + lbl + (i === 0 ? ' <small class="muted">· now</small>' : "") + "</b>" +
-        (x.buf ? '<span class="tag t-hsk">📝 Mocks</span>' : x.days.length ? '<span class="muted">' + x.days.length + " lessons</span>" : "") + "</div>";
-    }).join("") + '<div class="pw exam"><span class="pw-d">' + esc(p.exam.slice(5)) + "</span><b>🎓 HSK 4 exam</b></div></section>";
+    if (!p.afterExam) html += '<section class="card"><h2>' + tx("Week by week") + '</h2>' + weeks.map(function (x, i) {
+      var lbl = x.days.length ? tx("Days {range}", { range: x.days[0] + (x.days.length > 1 ? "–" + x.days[x.days.length - 1] : "") }) : tx("Mocks + review");
+      return '<div class="pw' + (i === 0 ? " now" : "") + '"><span class="pw-d">' + esc(x.from.slice(5)) + " → " + esc(x.to.slice(5)) + "</span><b>" + lbl + (i === 0 ? ' <small class="muted">· ' + tx("now") + '</small>' : "") + "</b>" +
+        (x.buf ? '<span class="tag t-hsk">📝 ' + tx("Mocks") + '</span>' : x.days.length ? '<span class="muted">' + tx("{n} lessons", { n: x.days.length }) + "</span>" : "") + "</div>";
+    }).join("") + '<div class="pw exam"><span class="pw-d">' + esc(p.exam.slice(5)) + "</span><b>🎓 " + tx("HSK 4 exam") + "</b></div></section>";
     // part 2: advanced C&B after the exam
     if (p.p2.total) {
       var p2days = DAYS.filter(function (d) { return d.day > coreCut() && !(s.days[d.day] || {}).completed; }).map(function (d) { return d.day; });
       var from = p.afterExam ? t : Store.addDays(p.exam, 1), wk = Math.max(1, Math.ceil(Store.daysBetween(from, p.p2.end) / 7)), per2 = Math.max(1, Math.ceil(p2days.length / wk)), rows = [];
       for (var k = 0; k < wk && p2days.length; k++) { var ds = p2days.splice(0, per2), f = Store.addDays(from, k * 7); rows.push({ from: f, to: Store.addDays(f, 6), days: ds }); }
-      html += '<section class="card"><h2>Part 2 · Advanced C&amp;B</h2><p class="sub">' + p.p2.done + "/" + p.p2.total + " days done · planned for the " + p.p2.weeks + " weeks after your exam, finishing by " + esc(p.p2.end) + ". Ahead of plan? You can start earlier.</p>" +
+      html += '<section class="card"><h2>' + tx("Part 2 · Advanced C&amp;B") + '</h2><p class="sub">' + tx("{done}/{total} days done · planned for the {weeks} weeks after your exam, finishing by {date}. Ahead of plan? You can start earlier.", { done: p.p2.done, total: p.p2.total, weeks: p.p2.weeks, date: esc(p.p2.end) }) + "</p>" +
         '<div class="xpbar"><span style="width:' + Math.round(p.p2.done / p.p2.total * 100) + '%"></span></div>' +
-        rows.map(function (x) { return '<div class="pw"><span class="pw-d">' + esc(x.from.slice(5)) + " → " + esc(x.to.slice(5)) + "</span><b>Days " + x.days[0] + (x.days.length > 1 ? "–" + x.days[x.days.length - 1] : "") + '</b><span class="muted">' + x.days.length + " lessons</span></div>"; }).join("") +
-        '<div class="pw exam"><span class="pw-d">' + esc(p.p2.end.slice(5)) + "</span><b>🏁 Course complete</b></div></section>";
+        rows.map(function (x) { return '<div class="pw"><span class="pw-d">' + esc(x.from.slice(5)) + " → " + esc(x.to.slice(5)) + "</span><b>" + tx("Days {range}", { range: x.days[0] + (x.days.length > 1 ? "–" + x.days[x.days.length - 1] : "") }) + '</b><span class="muted">' + tx("{n} lessons", { n: x.days.length }) + "</span></div>"; }).join("") +
+        '<div class="pw exam"><span class="pw-d">' + esc(p.p2.end.slice(5)) + "</span><b>🏁 " + tx("Course complete") + "</b></div></section>";
     }
-    html += '<p class="sub center">Change the exam date in <a href="#/me">Me → Settings</a>.</p>';
+    html += '<p class="sub center">' + tx('Change the exam date in <a href="#/me">Me → Settings</a>.') + '</p>';
     render(html, "home");
   }
 
@@ -208,29 +209,29 @@
     var weak = r.skills[0], strong = r.skills.length > 1 ? r.skills[r.skills.length - 1] : null;
     var fc = r.fc1 != null ? (r.fc0 != null ? "~" + r.fc1 + "/300 (" + (r.fc1 - r.fc0 >= 0 ? "+" : "") + (r.fc1 - r.fc0) + ")" : "~" + r.fc1 + "/300") : "—";
     return '<section class="card weekly"><div class="sec-h"><h2>📊 ' + title + '</h2><span class="muted">' + esc(r.start.slice(5)) + " → " + esc(r.end.slice(5)) + "</span></div>" +
-      '<div class="wk-grid"><div><b>' + r.active + '/7</b><small>active days</small></div><div><b>' + r.xp + '</b><small>XP</small></div><div><b>' + r.words + '</b><small>new words</small></div><div><b>' + Math.max(0, r.cards) + '</b><small>cards reviewed</small></div><div><b>' + r.mocks + '</b><small>mock/official tests</small></div><div><b>' + fc + "</b><small>forecast</small></div></div>" +
-      (r.skills.length ? r.skills.slice(0, 5).map(function (x) { return '<div class="sk-row"><span class="sk-n">' + skillName(x.k) + "</span>" + accBar(x.acc) + "</div>"; }).join("") : '<p class="sub">Answer at least 5 questions in a skill to see its accuracy for the week.</p>') +
-      (weak && weak.acc < 0.85 ? '<div class="focus"><b>Focus next week: ' + skillName(weak.k) + '</b><p class="sub">' + esc(Learn.SKILLS[weak.k].tip) + "</p>" + practiceLink(weak.k) + "</div>" :
-        strong ? '<p class="sub">Strongest: ' + skillName(strong.k) + " · " + Math.round(strong.acc * 100) + "%.</p>" : "") + "</section>";
+      '<div class="wk-grid"><div><b>' + r.active + '/7</b><small>' + tx("active days") + '</small></div><div><b>' + r.xp + '</b><small>XP</small></div><div><b>' + r.words + '</b><small>' + tx("new words") + '</small></div><div><b>' + Math.max(0, r.cards) + '</b><small>' + tx("cards reviewed") + '</small></div><div><b>' + r.mocks + '</b><small>' + tx("mock/official tests") + '</small></div><div><b>' + fc + "</b><small>" + tx("forecast") + "</small></div></div>" +
+      (r.skills.length ? r.skills.slice(0, 5).map(function (x) { return '<div class="sk-row"><span class="sk-n">' + skillName(x.k) + "</span>" + accBar(x.acc) + "</div>"; }).join("") : '<p class="sub">' + tx("Answer at least 5 questions in a skill to see its accuracy for the week.") + '</p>') +
+      (weak && weak.acc < 0.85 ? '<div class="focus"><b>' + tx("Focus next week: {skill}", { skill: skillName(weak.k) }) + '</b><p class="sub">' + esc(Learn.SKILLS[weak.k].tip) + "</p>" + practiceLink(weak.k) + "</div>" :
+        strong ? '<p class="sub">' + tx("Strongest: {skill} · {pct}%.", { skill: skillName(strong.k), pct: Math.round(strong.acc * 100) }) + "</p>" : "") + "</section>";
   }
   function weeklyCard() {
     var w = Store.state.weekly || {};
-    var html = w.cur ? weekHTML(weekSummary(w.cur, Store.today()), "This week so far") : "";
-    if (w.last) html += weekHTML(w.last, "Last week");
+    var html = w.cur ? weekHTML(weekSummary(w.cur, Store.today()), tx("This week so far")) : "";
+    if (w.last) html += weekHTML(w.last, tx("Last week"));
     return html;
   }
   function weeklyTeaser() {
     var w = Store.state.weekly || {};
     if (!w.last || Store.daysBetween(w.cur ? w.cur.start : Store.today(), Store.today()) > 2) return "";
     var r = w.last, weak = knownSkills(r)[0];
-    return '<a class="cta card g-violet" href="#/progress"><span class="cta-l"><small>Last week</small><b>📊 Weekly report</b><em>' + r.active + "/7 days · " + r.xp + " XP · " + r.words + " new words" + (weak && weak.acc < 0.85 ? " · focus: " + esc(Learn.SKILLS[weak.k].en) : "") + '</em></span><span class="cta-go">▶</span></a>';
+    return '<a class="cta card g-violet" href="#/progress"><span class="cta-l"><small>' + tx("Last week") + '</small><b>📊 ' + tx("Weekly report") + '</b><em>' + tx("{active}/7 days · {xp} XP · {words} new words", { active: r.active, xp: r.xp, words: r.words }) + (weak && weak.acc < 0.85 ? " · " + tx("focus: {skill}", { skill: esc(Learn.SKILLS[weak.k].en) }) : "") + '</em></span><span class="cta-go">▶</span></a>';
   }
 
   /* ---------- progress charts (inline SVG) ---------- */
   function lineChart(points, opts) {
     // points: [{x: label, y: number}], opts: {max, min, ref, refLabel, h}
     var W = 320, H = opts.h || 150, P = { l: 30, r: 10, t: 12, b: 22 }, n = points.length;
-    if (!n) return '<p class="sub">' + (opts.empty || "No data yet.") + "</p>";
+    if (!n) return '<p class="sub">' + (opts.empty || tx("No data yet.")) + "</p>";
     points = points.map(function (p) { return { x: p.x, y: num(p.y) }; });
     var max = opts.max != null ? opts.max : Math.max.apply(null, points.map(function (p) { return p.y; }).concat([1]));
     var min = opts.min || 0;
@@ -273,18 +274,18 @@
     for (var i = 0; i < 30; i++) { var d = Store.addDays(from, i); cum += added[d] || 0; words.push({ x: d.slice(5), y: cum }); }
     var xp = []; for (var j = 13; j >= 0; j--) { var dd = Store.addDays(t, -j); xp.push({ x: dd.slice(8), y: s.log[dd] || 0 }); }
     var sec = function (k) { return s.mockHistory.slice(-12).map(function (h, i) { return { x: String(i + 1), y: num((h.sections || {})[k]) }; }); };
-    var html = weeklyCard() + coachBox() + forecastCard(false) + '<section class="card"><div class="sec-h"><h2>📝 Mock exam scores</h2><span class="muted">' + (best ? "best " + best + "/300" : "") + "</span></div>" +
-      lineChart(mh, { max: 300, ref: 180, refLabel: "pass 180", empty: "Take a mock exam to start your score chart." }) + "</section>";
+    var html = weeklyCard() + coachBox() + forecastCard(false) + '<section class="card"><div class="sec-h"><h2>📝 ' + tx("Mock exam scores") + '</h2><span class="muted">' + (best ? tx("best {n}/300", { n: best }) : "") + "</span></div>" +
+      lineChart(mh, { max: 300, ref: 180, refLabel: tx("pass 180"), empty: tx("Take a mock exam to start your score chart.") }) + "</section>";
     if (s.mockHistory.length) {
-      html += '<section class="card"><h2>By section</h2><div class="spark3">' + ["listening", "reading", "writing"].map(function (k) {
+      html += '<section class="card"><h2>' + tx("By section") + '</h2><div class="spark3">' + ["listening", "reading", "writing"].map(function (k) {
         var pts = sec(k), last = pts[pts.length - 1].y;
-        return '<div><b>' + { listening: "🎧 Listening", reading: "📖 Reading", writing: "✍️ Writing" }[k] + "</b><span class=\"big-n\">" + last + "</span>" + lineChart(pts, { max: 100, h: 70 }) + "</div>";
+        return '<div><b>' + { listening: "🎧 " + tx("Listening"), reading: "📖 " + tx("Reading"), writing: "✍️ " + tx("Writing") }[k] + "</b><span class=\"big-n\">" + last + "</span>" + lineChart(pts, { max: 100, h: 70 }) + "</div>";
       }).join("") + "</div></section>";
     }
-    html += '<section class="card"><div class="sec-h"><h2>📘 Words in review</h2><span class="muted">' + Object.keys(s.srs).length + " / " + WORDS.length + "</span></div>" + lineChart(words, { max: Math.max(10, cum), empty: "" }) + "</section>";
-    html += '<section class="card"><div class="sec-h"><h2>⭐ XP · last 14 days</h2><span class="muted">goal ' + (s.settings.dailyGoal || 30) + "</span></div>" + barChart(xp, { ref: s.settings.dailyGoal || 30 }) + "</section>";
+    html += '<section class="card"><div class="sec-h"><h2>📘 ' + tx("Words in review") + '</h2><span class="muted">' + Object.keys(s.srs).length + " / " + WORDS.length + "</span></div>" + lineChart(words, { max: Math.max(10, cum), empty: "" }) + "</section>";
+    html += '<section class="card"><div class="sec-h"><h2>⭐ ' + tx("XP · last 14 days") + '</h2><span class="muted">' + tx("goal {n}", { n: s.settings.dailyGoal || 30 }) + "</span></div>" + barChart(xp, { ref: s.settings.dailyGoal || 30 }) + "</section>";
     var rep = Learn.report(3, true);
-    if (rep.length) html += '<section class="card"><div class="sec-h"><h2>🎯 Skills</h2><a href="#/mistakes">Details ›</a></div>' + rep.map(function (x) {
+    if (rep.length) html += '<section class="card"><div class="sec-h"><h2>🎯 ' + tx("Skills") + '</h2><a href="#/mistakes">' + tx("Details ›") + '</a></div>' + rep.map(function (x) {
       return '<div class="sk-row"><span class="sk-n">' + skillName(x.skill) + "</span>" + accBar(x.acc) + "</div>"; }).join("") + "</section>";
     render(html, "me");
     wireCoachBox();
@@ -326,8 +327,8 @@
     if (Store.state.settings.level !== 5) return "";
     var p = h5Progress(), next = 0;
     for (var k = 1; k <= p.packs && !next; k++) if (!packDone("h5", k)) next = k;
-    return '<a class="trackrow toolrow" id="h5-row" href="' + (next ? "#/pack/h5/" + next : "#/learn/h5") + '"><span class="t-ico">📗</span><span class="tr-t"><small>HSK 5 · ' + p.done + "/" + p.packs + " packs finished · " + p.words + " words in review</small><b>" +
-      (next ? "Continue with pack " + next : "All packs finished") + '</b></span><span class="tr-go">›</span></a>';
+    return '<a class="trackrow toolrow" id="h5-row" href="' + (next ? "#/pack/h5/" + next : "#/learn/h5") + '"><span class="t-ico">📗</span><span class="tr-t"><small>' + tx("HSK 5 · {done}/{packs} packs finished · {words} words in review", { done: p.done, packs: p.packs, words: p.words }) + "</small><b>" +
+      (next ? tx("Continue with pack {n}", { n: next }) : tx("All packs finished")) + '</b></span><span class="tr-go">›</span></a>';
   }
   /* The server keeps a summary of at most 8,000 characters (a longer one is stored as nothing). Make it fit:
      shorten the plan texts first, then drop the less important lists. */
@@ -481,10 +482,10 @@
   function planCard() {
     var c = coachLast(); if (!c || !c.actions.length || Store.daysBetween(c.d, Store.today()) > 9) return "";
     var st = coachStatus(c), n = st.filter(function (a) { return a.done; }).length;
-    return '<section class="card plan-card" id="coach-plan"><div class="sec-h"><h2>🤖 Coach\'s plan</h2><span class="muted">' + n + "/" + st.length + ' done</span></div><ul class="plan-l">' + st.map(function (a) {
+    return '<section class="card plan-card" id="coach-plan"><div class="sec-h"><h2>🤖 ' + tx("Coach's plan") + '</h2><span class="muted">' + tx("{n}/{m} done", { n: n, m: st.length }) + '</span></div><ul class="plan-l">' + st.map(function (a) {
       var name = AI.SKILL_NAMES[a.skill] || "Go", href = Object.prototype.hasOwnProperty.call(AI.SKILL_ROUTE, a.skill) ? AI.SKILL_ROUTE[a.skill] : "#/review";
-      return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">Done: </span>' : "") + esc(a.text) + "</span>" +
-        (a.done ? "" : '<a class="btn small" href="' + href + '">' + esc(name) + " · " + a.minutes + " min</a>") + "</li>";
+      return '<li class="' + (a.done ? "done" : "") + '"><span class="plan-c" aria-hidden="true">' + (a.done ? "✓" : "") + '</span><span class="plan-t">' + (a.done ? '<span class="sr">' + tx("Done:") + ' </span>' : "") + esc(a.text) + "</span>" +
+        (a.done ? "" : '<a class="btn small" href="' + href + '">' + esc(tx(name)) + " · " + tx("{n} min", { n: a.minutes }) + "</a>") + "</li>";
     }).join("") + "</ul></section>";
   }
   /* Once a week, when there is something to say, ask the coach without being asked (one AI call). Tried at most once a day. */
@@ -498,7 +499,7 @@
       localStorage.setItem(k, Store.today());
       AI.weekly(document.createElement("div"), r.key, r.report, true).then(function (res) {
         if (!res || !res.ok) return; coachKeep(res);
-        if ((location.hash || "#/") === "#/") UI.toast("Your coach has a new plan for this week", "🤖"); // only where the plan is shown, not over another screen
+        if ((location.hash || "#/") === "#/") UI.toast(tx("Your coach has a new plan for this week"), "🤖"); // only where the plan is shown, not over another screen
         var el = document.getElementById("coach-plan");
         if (el) el.outerHTML = planCard(); else if ((location.hash || "#/") === "#/") route();
       });
@@ -507,16 +508,16 @@
   function coachBox() {
     if (!window.AI || !AI.configured()) return "";
     var tags = AI.topTags(3);
-    return '<section class="card ai-weekly"><div class="sec-h"><h2>🤖 AI coach</h2><span class="tag">optional</span></div><p class="sub">Turns your numbers into 3 things to do next, and checks what you did with the plan from last week. It runs by itself once a week. Only counts are sent (study days, usual hour, accuracy per skill), no personal details.</p>' +
-      (tags.length ? '<p class="sub">Recurring mistakes from the paragraph coach: ' + tags.map(function (t) { return '<a href="' + t.link + '">' + esc(t.name) + " ×" + t.n + "</a>"; }).join(" · ") + "</p>" : "") +
-      '<button class="btn small primary" id="wk-ai">Coach me for next week</button><div id="wk-ai-out"></div></section>';
+    return '<section class="card ai-weekly"><div class="sec-h"><h2>🤖 ' + tx("AI coach") + '</h2><span class="tag">' + tx("optional") + '</span></div><p class="sub">' + tx("Turns your numbers into 3 things to do next, and checks what you did with the plan from last week. It runs by itself once a week. Only counts are sent (study days, usual hour, accuracy per skill), no personal details.") + '</p>' +
+      (tags.length ? '<p class="sub">' + tx("Recurring mistakes from the paragraph coach: {list}", { list: tags.map(function (t) { return '<a href="' + t.link + '">' + esc(t.name) + " ×" + t.n + "</a>"; }).join(" · ") }) + "</p>" : "") +
+      '<button class="btn small primary" id="wk-ai">' + tx("Coach me for next week") + '</button><div id="wk-ai-out"></div></section>';
   }
   function wireCoachBox() {
     var b = document.getElementById("wk-ai"); if (!b) return;
     b.onclick = function () {
-      var r = coachReport(); if (!r) { UI.toast("Study a little first, then ask", "📊"); return; }
+      var r = coachReport(); if (!r) { UI.toast(tx("Study a little first, then ask"), "📊"); return; }
       b.disabled = true;
-      AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, false).then(function (res) { coachKeep(res); b.disabled = false; b.textContent = "Refresh"; b.onclick = function () { b.disabled = true; AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, true).then(function (res2) { coachKeep(res2); b.disabled = false; }); }; });
+      AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, false).then(function (res) { coachKeep(res); b.disabled = false; b.textContent = tx("Refresh"); b.onclick = function () { b.disabled = true; AI.weekly(document.getElementById("wk-ai-out"), r.key, r.report, true).then(function (res2) { coachKeep(res2); b.disabled = false; }); }; });
     };
   }
 

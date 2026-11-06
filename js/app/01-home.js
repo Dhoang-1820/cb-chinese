@@ -21,24 +21,24 @@
     var lessonDone = Object.keys(s.days).some(function (k) { return s.days[k].completedOn === t; });
     var sessionDone = !!(s.sessions && s.sessions[t]), nd = nextDay();
     var items = [
-      { ok: xp >= goal, txt: "Earn " + goal + " XP", prog: Math.min(xp, goal) + "/" + goal, href: "#/session" },
-      { ok: lessonDone, txt: "Pass a lesson quiz (7+)", prog: lessonDone ? "1/1" : "0/1", href: "#/day/" + nd.day },
-      { ok: sessionDone, txt: "Finish Today's session", prog: sessionDone ? "1/1" : "0/1", href: "#/session" }
+      { ok: xp >= goal, txt: tx("Earn {n} XP", { n: goal }), prog: Math.min(xp, goal) + "/" + goal, href: "#/session" },
+      { ok: lessonDone, txt: tx("Pass a lesson quiz (7+)"), prog: lessonDone ? "1/1" : "0/1", href: "#/day/" + nd.day },
+      { ok: sessionDone, txt: tx("Finish Today's session"), prog: sessionDone ? "1/1" : "0/1", href: "#/session" }
     ];
     var n = items.filter(function (x) { return x.ok; }).length, opened = !!(s.questChest || {})[t];
     var thisW = sumXP(t, 7), lastW = sumXP(Store.addDays(t, -7), 7);
-    return '<section class="card quests"><div class="sec-h"><h2>Daily quests</h2><span class="muted">' + n + "/3</span></div>" +
+    return '<section class="card quests"><div class="sec-h"><h2>' + tx("Daily quests") + '</h2><span class="muted">' + n + "/3</span></div>" +
       weekRow() +
       items.map(function (x) { return '<a class="qrow' + (x.ok ? " done" : "") + '" href="' + x.href + '"><span class="qi">' + (x.ok ? "✓" : "") + "</span><span class=\"qt\">" + x.txt + '</span><span class="qp">' + x.prog + "</span></a>"; }).join("") +
-      '<button type="button" class="btn ' + (n === 3 && !opened ? "primary" : "") + ' wide qchest" id="q-chest"' + (n === 3 && !opened ? "" : " disabled") + ">" + (opened ? "🎁 Chest opened today" : n === 3 ? "🎁 Open chest · +20 XP" : "🎁 Finish all 3 to open the chest") + "</button>" +
-      '<p class="sub qweek">This week ' + thisW + " XP · last week " + lastW + " XP" + (thisW > lastW && lastW > 0 ? " · you are ahead 🚀" : lastW > 0 ? " · beat it!" : "") + "</p></section>";
+      '<button type="button" class="btn ' + (n === 3 && !opened ? "primary" : "") + ' wide qchest" id="q-chest"' + (n === 3 && !opened ? "" : " disabled") + ">" + (opened ? tx("🎁 Chest opened today") : n === 3 ? tx("🎁 Open chest · +20 XP") : tx("🎁 Finish all 3 to open the chest")) + "</button>" +
+      '<p class="sub qweek">' + tx("This week {a} XP · last week {b} XP", { a: thisW, b: lastW }) + (thisW > lastW && lastW > 0 ? " · " + tx("you are ahead 🚀") : lastW > 0 ? " · " + tx("beat it!") : "") + "</p></section>";
   }
   function wireQuests() {
     var b = document.getElementById("q-chest"); if (!b || b.disabled) return;
     b.onclick = function () {
       var s = Store.state, t = Store.today(); s.questChest = s.questChest || {}; if (s.questChest[t]) return;
-      s.questChest[t] = true; Store.save(); b.disabled = true; b.classList.remove("primary"); b.textContent = "🎁 Chest opened today";
-      Game.award(20); UI.confetti(90); Audio2.sfx.win(); UI.burst("cat-laugh", "+20 XP", "Quest chest opened");
+      s.questChest[t] = true; Store.save(); b.disabled = true; b.classList.remove("primary"); b.textContent = tx("🎁 Chest opened today");
+      Game.award(20); UI.confetti(90); Audio2.sfx.win(); UI.burst("cat-laugh", "+20 XP", tx("Quest chest opened"));
     };
   }
 
@@ -56,11 +56,11 @@
     s.weekGoal[w.ws] = true; var got = (s.freezes || 0) < 2; if (got) s.freezes = (s.freezes || 0) + 1; Store.save(); return got ? "freeze" : "met";
   }
   function weekRow() {
-    var w = weekInfo(), fr = Store.state.freezes || 0, L = ["M", "T", "W", "T", "F", "S", "S"];
-    return '<div class="wkrow" aria-label="Weekly goal: ' + w.n + " of " + w.goal + ' days"><div class="wk-ring' + (w.met ? " met" : "") + '" style="--p:' + Math.min(100, Math.round(w.n / w.goal * 100)) + '"><b>' + w.n + "</b><small>/" + w.goal + "</small></div>" +
-      '<div class="wk-t"><b>' + (w.met ? "Weekly goal met 🎉" : "Study " + w.goal + " days this week") + '</b><div class="wk-dots">' +
+    var w = weekInfo(), fr = Store.state.freezes || 0, L = I18N.lang() === "vi" ? ["T2", "T3", "T4", "T5", "T6", "T7", "CN"] : ["M", "T", "W", "T", "F", "S", "S"];
+    return '<div class="wkrow" aria-label="' + tx("Weekly goal: {n} of {g} days", { n: w.n, g: w.goal }) + '"><div class="wk-ring' + (w.met ? " met" : "") + '" style="--p:' + Math.min(100, Math.round(w.n / w.goal * 100)) + '"><b>' + w.n + "</b><small>/" + w.goal + "</small></div>" +
+      '<div class="wk-t"><b>' + (w.met ? tx("Weekly goal met 🎉") : tx("Study {n} days this week", { n: w.goal })) + '</b><div class="wk-dots">' +
       w.days.map(function (d, i) { return '<i class="' + (d.on ? "on" : "") + (d.today ? " now" : "") + '" title="' + d.d + '">' + (d.on ? "✓" : L[i]) + "</i>"; }).join("") + "</div>" +
-      '<small class="muted">🧊 ' + fr + " streak freeze" + (fr === 1 ? "" : "s") + " · earn more by hitting the goal</small></div></div>";
+      '<small class="muted">🧊 ' + (fr === 1 ? tx("1 streak freeze") : tx("{n} streak freezes", { n: fr })) + " · " + tx("earn more by hitting the goal") + "</small></div></div>";
   }
   function wordLabel(k) { var m = /^w:(.+)$/.exec(k), w = m && WORDMAP[m[1]]; return w ? w : null; }
   function patternCard() {
@@ -68,15 +68,15 @@
     if (!p) return "";
     if (p.type === "repeat") {
       var ws = p.keys.map(function (k, i) { var w = wordLabel(k); return w ? { w: w, n: p.counts[i] } : null; }).filter(Boolean);
-      var ev = ws.length ? ws.map(function (x) { return '<span class="zh">' + esc(x.w.hanzi) + "</span> ×" + x.n; }).join(" · ") : p.keys.length + " items";
-      return '<section class="card pattern" data-sig="' + esc(p.sig) + '"><div class="sec-h"><h2>🔎 Pattern spotted</h2><button type="button" class="x" id="pt-x" aria-label="Hide for today">✕</button></div>' +
-        "<p><b>You keep missing the same " + (ws.length ? "words" : "items") + ".</b></p><p class=\"pt-ev\">" + ev + ' <span class="muted">in the last ' + p.days + " days</span></p>" +
-        '<div class="actions"><button type="button" class="btn primary small" id="pt-go">Practise ' + (ws.length || p.keys.length) + ' ▶</button>' + (ws.length && window.AI && AI.configured() ? '<button type="button" class="btn small" id="pt-ai">🤖 Explain why</button>' : "") + '</div><div class="ai-out" id="pt-out"></div></section>';
+      var ev = ws.length ? ws.map(function (x) { return '<span class="zh">' + esc(x.w.hanzi) + "</span> ×" + x.n; }).join(" · ") : tx("{n} items", { n: p.keys.length });
+      return '<section class="card pattern" data-sig="' + esc(p.sig) + '"><div class="sec-h"><h2>🔎 ' + tx("Pattern spotted") + '</h2><button type="button" class="x" id="pt-x" aria-label="' + tx("Hide for today") + '">✕</button></div>' +
+        "<p><b>" + (ws.length ? tx("You keep missing the same words.") : tx("You keep missing the same items.")) + "</b></p><p class=\"pt-ev\">" + ev + ' <span class="muted">' + tx("in the last {n} days", { n: p.days }) + "</span></p>" +
+        '<div class="actions"><button type="button" class="btn primary small" id="pt-go">' + tx("Practise {n} ▶", { n: ws.length || p.keys.length }) + '</button>' + (ws.length && window.AI && AI.configured() ? '<button type="button" class="btn small" id="pt-ai">🤖 ' + tx("Explain why") + '</button>' : "") + '</div><div class="ai-out" id="pt-out"></div></section>';
     }
     var info = Learn.SKILLS[p.skill];
-    return '<section class="card pattern" data-sig="' + esc(p.sig) + '"><div class="sec-h"><h2>🔎 Pattern spotted</h2><button type="button" class="x" id="pt-x" aria-label="Hide for today">✕</button></div>' +
-      "<p><b>" + info.icon + " " + esc(info.en) + " keeps going wrong.</b></p><p class=\"pt-ev\">" + p.n + " wrong in the last " + p.days + " days · " + Math.round(p.acc * 100) + '% overall</p><p class="sub">' + esc(info.tip) + "</p>" +
-      '<div class="actions"><a class="btn primary small" href="#/mistakes' + (Learn.count(p.skill) ? "/" + p.skill : "") + '">Practise ▶</a></div></section>';
+    return '<section class="card pattern" data-sig="' + esc(p.sig) + '"><div class="sec-h"><h2>🔎 ' + tx("Pattern spotted") + '</h2><button type="button" class="x" id="pt-x" aria-label="' + tx("Hide for today") + '">✕</button></div>' +
+      "<p><b>" + info.icon + " " + tx("{skill} keeps going wrong.", { skill: esc(info.en) }) + "</b></p><p class=\"pt-ev\">" + tx("{n} wrong in the last {d} days · {p}% overall", { n: p.n, d: p.days, p: Math.round(p.acc * 100) }) + '</p><p class="sub">' + esc(info.tip) + "</p>" +
+      '<div class="actions"><a class="btn primary small" href="#/mistakes' + (Learn.count(p.skill) ? "/" + p.skill : "") + '">' + tx("Practise ▶") + '</a></div></section>';
   }
   function wirePattern() {
     var el = document.querySelector(".pattern"); if (!el) return;
@@ -87,13 +87,13 @@
     go.onclick = function () {
       if (!words.length) { location.hash = "#/mistakes"; return; }
       SRS.addMany(words.map(function (w) { return w.id; }));
-      runDeck({ title: "Words you keep missing", words: words, mode: "review", back: "#/" });
+      runDeck({ title: tx("Words you keep missing"), words: words, mode: "review", back: "#/" });
     };
     var ai = document.getElementById("pt-ai"), out = document.getElementById("pt-out");
     function show(res) { out.innerHTML = AI._askCard(res); }
     if (ai) ai.onclick = function () {
       if (s.patternAI[sig]) { show(s.patternAI[sig]); ai.hidden = true; return; }
-      ai.disabled = true; out.innerHTML = '<div class="ai-card ai-wait">🤖 Thinking…</div>';
+      ai.disabled = true; out.innerHTML = '<div class="ai-card ai-wait">🤖 ' + tx("Thinking…") + '</div>';
       AI.call("ask", { text: words[0].hanzi, context: words.slice(1, 4).map(function (w) { return w.hanzi; }).join(" "), preset: "similar" }).then(function (res) {
         ai.disabled = false;
         if (!res.ok) { out.innerHTML = '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + "</div>"; return; }
@@ -164,33 +164,33 @@
   function viewRead() {
     var saved = ""; try { saved = sessionStorage.getItem(READ_KEY) || ""; } catch (e) { /* ignore */ }
     var showPy = !!Store.state.settings.showPinyin;
-    render('<a class="back" href="#/games">‹ Games</a><section class="card reader"><div class="sec-h"><h2>📖 Reader</h2><span class="tag">real text</span></div>' +
-      '<p class="sub">Paste a Chinese email or message, then tap any word. The text stays on this phone.</p>' +
-      '<textarea id="rd-in" rows="4" maxlength="3000" placeholder="粘贴中文… Paste Chinese text here" aria-label="Chinese text">' + esc(saved) + "</textarea>" +
-      '<div class="actions"><button type="button" class="btn primary" id="rd-go">Read ▶</button><button type="button" class="btn" id="rd-paste">📋 Paste</button><button type="button" class="btn" id="rd-sample">Try a sample</button></div></section>' +
+    render('<a class="back" href="#/games">‹ ' + tx("Games") + '</a><section class="card reader"><div class="sec-h"><h2>📖 ' + tx("Reader") + '</h2><span class="tag">' + tx("real text") + '</span></div>' +
+      '<p class="sub">' + tx("Paste a Chinese email or message, then tap any word. The text stays on this phone.") + '</p>' +
+      '<textarea id="rd-in" rows="4" maxlength="3000" placeholder="粘贴中文… ' + tx("Paste Chinese text here") + '" aria-label="' + tx("Chinese text") + '">' + esc(saved) + "</textarea>" +
+      '<div class="actions"><button type="button" class="btn primary" id="rd-go">' + tx("Read ▶") + '</button><button type="button" class="btn" id="rd-paste">📋 ' + tx("Paste") + '</button><button type="button" class="btn" id="rd-sample">' + tx("Try a sample") + '</button></div></section>' +
       '<div id="rd-dict"></div><div id="rd-out"></div>', "games");
     var inp = document.getElementById("rd-in"), out = document.getElementById("rd-out"), dbox = document.getElementById("rd-dict"), toks = [];
     function dictCard() {
       if (DICT) { dbox.innerHTML = ""; return; }
-      dbox.innerHTML = '<section class="card rd-dl"><p><b>📚 Full dictionary</b> <span class="muted">· optional</span></p><p class="sub">Right now only the course words are recognised. Download the dictionary once (about 2 MB, English meanings) to look up any word, also offline.</p>' +
-        '<div class="actions"><button type="button" class="btn small primary" id="rd-dl">Download dictionary</button></div><p class="sub" id="rd-dlmsg" hidden></p></section>';
+      dbox.innerHTML = '<section class="card rd-dl"><p><b>📚 ' + tx("Full dictionary") + '</b> <span class="muted">· ' + tx("optional") + '</span></p><p class="sub">' + tx("Right now only the course words are recognised. Download the dictionary once (about 2 MB, English meanings) to look up any word, also offline.") + '</p>' +
+        '<div class="actions"><button type="button" class="btn small primary" id="rd-dl">' + tx("Download dictionary") + '</button></div><p class="sub" id="rd-dlmsg" hidden></p></section>';
       document.getElementById("rd-dl").onclick = getDict;
     }
     function getDict() {
       var b = document.getElementById("rd-dl"), msg = document.getElementById("rd-dlmsg");
-      if (b) { b.disabled = true; b.textContent = "Downloading…"; }
-      loadDict().then(function () { dictCard(); if (inp.value.trim()) run(); UI.toast("Dictionary ready", "📚"); },
-        function () { if (b) { b.disabled = false; b.textContent = "Download dictionary"; } if (msg) { msg.hidden = false; msg.textContent = navigator.onLine === false ? "You are offline. Connect once to download it." : "Could not download it. Try again."; } });
+      if (b) { b.disabled = true; b.textContent = tx("Downloading…"); }
+      loadDict().then(function () { dictCard(); if (inp.value.trim()) run(); UI.toast(tx("Dictionary ready"), "📚"); },
+        function () { if (b) { b.disabled = false; b.textContent = tx("Download dictionary"); } if (msg) { msg.hidden = false; msg.textContent = navigator.onLine === false ? tx("You are offline. Connect once to download it.") : tx("Could not download it. Try again."); } });
     }
     function run() {
       var text = inp.value.replace(/\r/g, "").trim();
       try { sessionStorage.setItem(READ_KEY, text); } catch (e) { /* ignore */ }
-      if (!/[㐀-鿿]/.test(text)) { out.innerHTML = '<p class="empty">Paste some Chinese text first.</p>'; return; }
+      if (!/[㐀-鿿]/.test(text)) { out.innerHTML = '<p class="empty">' + tx("Paste some Chinese text first.") + '</p>'; return; }
       toks = segment(text);
       var seen = {}, nCourse = 0, nDict = 0, nUnk = 0;
       toks.forEach(function (k) { if (k.w || k.d || k.x) { if (seen[k.t]) return; seen[k.t] = 1; if (k.w) nCourse++; else if (k.d) nDict++; else nUnk++; } });
       var html = "", sent = "", sents = [];
-      function endSent() { if (/[㐀-鿿]/.test(sent)) { sents.push(sent.trim()); html += (window.AI && AI.configured() ? '<button type="button" class="rd-ai" data-s="' + (sents.length - 1) + '" aria-label="Translate this sentence with AI">🤖</button>' : ""); } sent = ""; }
+      function endSent() { if (/[㐀-鿿]/.test(sent)) { sents.push(sent.trim()); html += (window.AI && AI.configured() ? '<button type="button" class="rd-ai" data-s="' + (sents.length - 1) + '" aria-label="' + tx("Translate this sentence with AI") + '">🤖</button>' : ""); } sent = ""; }
       toks.forEach(function (k, i) {
         if (k.w || k.d || k.x) {
           var py = showPy ? (k.w ? k.w.pinyin : k.d ? String((dictGet(k.t) || [{}])[0].py || "").replace(/ /g, "") : "") : "";
@@ -206,10 +206,10 @@
         }
       });
       endSent();
-      out.innerHTML = '<section class="card"><div class="rd-stats"><span class="rd-k c">' + nCourse + " from your course</span>" + (DICT ? '<span class="rd-k d">' + nDict + " other words</span>" : "") + (nUnk ? '<span class="rd-k x">' + nUnk + " not recognised</span>" : "") +
+      out.innerHTML = '<section class="card"><div class="rd-stats"><span class="rd-k c">' + tx("{n} from your course", { n: nCourse }) + "</span>" + (DICT ? '<span class="rd-k d">' + tx("{n} other words", { n: nDict }) + "</span>" : "") + (nUnk ? '<span class="rd-k x">' + tx("{n} not recognised", { n: nUnk }) + "</span>" : "") +
         '<label class="rd-py"><input type="checkbox" id="rd-pyt"' + (showPy ? " checked" : "") + "> Pinyin</label></div>" +
         '<div class="rd-text zh" id="rd-text">' + html + '</div><div id="rd-aiout"></div></section>' +
-        (DICT ? '<p class="sub center">Dictionary: <a href="https://www.mdbg.net/chinese/dictionary?page=cc-cedict" target="_blank" rel="noopener">CC-CEDICT</a>, CC BY-SA 4.0. Word splitting is automatic and can be wrong.</p>' : "");
+        (DICT ? '<p class="sub center">' + tx("Dictionary: {link}, CC BY-SA 4.0. Word splitting is automatic and can be wrong.", { link: '<a href="https://www.mdbg.net/chinese/dictionary?page=cc-cedict" target="_blank" rel="noopener">CC-CEDICT</a>' }) + '</p>' : "");
       document.getElementById("rd-pyt").onchange = function () { showPy = this.checked; run(); };
       var box = document.getElementById("rd-text");
       box.onclick = function (e) {
@@ -227,7 +227,7 @@
     }
     function askSentence(sentence, btn) {
       var host = document.getElementById("rd-aiout"); btn.disabled = true;
-      host.innerHTML = '<div class="ai-card ai-wait">🤖 Translating…</div>'; host.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      host.innerHTML = '<div class="ai-card ai-wait">🤖 ' + tx("Translating…") + '</div>'; host.scrollIntoView({ block: "nearest", behavior: "smooth" });
       AI.call("ask", { text: sentence.slice(0, 80), context: sentence, preset: "free", question: "Translate this sentence into Vietnamese and English. Then name the one word or pattern most worth learning from it." }).then(function (res) {
         btn.disabled = false;
         host.innerHTML = res.ok ? '<p class="sub zh rd-q">' + esc(sentence) + "</p>" + AI._askCard(res) : '<div class="ai-card ai-bad">⚠️ ' + esc(AI.errMsg(res.error)) + "</div>";
@@ -237,28 +237,28 @@
       if (!k) return;
       if (k.w) { openWordSheet(k.w.id, sentence); return; }
       var rs = k.d ? dictGet(k.t) : null, can = "speechSynthesis" in window;
-      UI.modal('<div class="wsheet"><div class="ws-top"><span class="hz big zh">' + esc(k.t) + "</span>" + (can ? '<button type="button" class="btn small" id="rt-say" aria-label="Listen">🔊</button>' : "") + "</div>" +
-        (rs ? rs.map(function (r) { return '<p class="ws-py">' + esc(r.py) + '</p><div class="ws-mean">' + esc(r.en) + "</div>"; }).join("") + '<span class="tag">Dictionary · English only</span>'
-            : '<p class="sub">This is not one of your course words.' + (DICT ? " The dictionary has no entry for it either." : " Download the full dictionary to look it up.") + "</p>") +
-        '<div class="actions center">' + (rs ? '<button type="button" class="btn primary" id="rt-save">➕ Save to My words</button>' : !DICT ? '<button type="button" class="btn primary" id="rt-dl" data-close>Download dictionary</button>' : "") + "</div>" +
-        (window.AI && AI.configured() ? '<div class="ws-ask" id="rt-ask"><button type="button" class="btn small ai-btn" id="rt-askbtn">🤖 Ask AI about this word</button></div>' : "") + "</div>");
+      UI.modal('<div class="wsheet"><div class="ws-top"><span class="hz big zh">' + esc(k.t) + "</span>" + (can ? '<button type="button" class="btn small" id="rt-say" aria-label="' + tx("Listen") + '">🔊</button>' : "") + "</div>" +
+        (rs ? rs.map(function (r) { return '<p class="ws-py">' + esc(r.py) + '</p><div class="ws-mean">' + esc(r.en) + "</div>"; }).join("") + '<span class="tag">' + tx("Dictionary · English only") + '</span>'
+            : '<p class="sub">' + tx("This is not one of your course words.") + " " + (DICT ? tx("The dictionary has no entry for it either.") : tx("Download the full dictionary to look it up.")) + "</p>") +
+        '<div class="actions center">' + (rs ? '<button type="button" class="btn primary" id="rt-save">➕ ' + tx("Save to My words") + '</button>' : !DICT ? '<button type="button" class="btn primary" id="rt-dl" data-close>' + tx("Download dictionary") + '</button>' : "") + "</div>" +
+        (window.AI && AI.configured() ? '<div class="ws-ask" id="rt-ask"><button type="button" class="btn small ai-btn" id="rt-askbtn">🤖 ' + tx("Ask AI about this word") + '</button></div>' : "") + "</div>");
       var say = document.getElementById("rt-say"); if (say) say.onclick = function () { speakZh(k.t); };
       var dl = document.getElementById("rt-dl"); if (dl) dl.onclick = function () { getDict(); dbox.scrollIntoView({ block: "center" }); };
       var ab = document.getElementById("rt-askbtn"); if (ab) ab.onclick = function () { AI.askBox(document.getElementById("rt-ask"), k.t, sentence); };
       var sv = document.getElementById("rt-save");
       if (sv) sv.onclick = function () {
-        if (WORDS.some(function (w) { return w.hanzi === k.t; })) { UI.toast("Already in the app", "➕"); return; }
+        if (WORDS.some(function (w) { return w.hanzi === k.t; })) { UI.toast(tx("Already in the app"), "➕"); return; }
         var w = { id: "u" + Date.now().toString(36), hanzi: k.t, pinyin: rs[0].py, vi: "", en: rs[0].en, pos: "", level: "Mine", added: Store.today() };
         if (sentence && sentence !== k.t) w.example = { zh: sentence.slice(0, 120), py: "", vi: "", en: "" };
         Store.state.custom.push(w); SRS.add(w.id); Store.save(); buildIndex(); refreshChrome();
-        sv.outerHTML = '<span class="tag t-box">Saved · in review</span>'; UI.toast(k.t + " saved to My words", "➕"); run();
+        sv.outerHTML = '<span class="tag t-box">' + tx("Saved · in review") + '</span>'; UI.toast(tx("{w} saved to My words", { w: k.t }), "➕"); run();
       };
     }
     document.getElementById("rd-go").onclick = run;
     document.getElementById("rd-sample").onclick = function () { inp.value = READ_SAMPLE; run(); };
     document.getElementById("rd-paste").onclick = function () {
-      if (!navigator.clipboard || !navigator.clipboard.readText) { inp.focus(); UI.toast("Press and hold in the box, then tap Paste", "📋"); return; }
-      navigator.clipboard.readText().then(function (t) { if (t) { inp.value = t.slice(0, 3000); run(); } else inp.focus(); }, function () { inp.focus(); UI.toast("Press and hold in the box, then tap Paste", "📋"); });
+      if (!navigator.clipboard || !navigator.clipboard.readText) { inp.focus(); UI.toast(tx("Press and hold in the box, then tap Paste"), "📋"); return; }
+      navigator.clipboard.readText().then(function (t) { if (t) { inp.value = t.slice(0, 3000); run(); } else inp.focus(); }, function () { inp.focus(); UI.toast(tx("Press and hold in the box, then tap Paste"), "📋"); });
     };
     dictCard();
     if (dictWanted() && !DICT) loadDict().then(function () { dictCard(); if (inp.value.trim()) run(); }, function () { /* offline and not cached: course words still work */ });
@@ -282,7 +282,7 @@
       var all = have.reduce(function (a, k) { return [a[0] + acc[k][0], a[1] + acc[k][1]]; }, [0, 0]), base = all[0] / all[1];
       /* practice is easier than the exam, so scale down; a section with too few answers borrows the overall rate */
       var est = function (k) { return Math.round((acc[k][1] >= 10 ? acc[k][0] / acc[k][1] : base) * 85); };
-      out = { src: "practice", L: est("L"), R: est("R"), W: est("W"), basis: all[1] + " practice answers", missing: ["L", "R", "W"].filter(function (k) { return acc[k][1] < 10; }) };
+      out = { src: "practice", L: est("L"), R: est("R"), W: est("W"), basis: tx("{n} practice answers", { n: all[1] }), missing: ["L", "R", "W"].filter(function (k) { return acc[k][1] < 10; }) };
       out.total = out.L + out.R + out.W; out.lo = Math.max(0, out.total - 40); out.hi = Math.min(300, out.total + 40);
     }
     out.margin = out.total - PASS;
@@ -292,43 +292,43 @@
     return out;
   }
   function readyLine(r) {
-    return r.margin === 0 ? "right on the pass mark" : r.margin > 0 ? "+" + r.margin + " over the pass mark" : Math.abs(r.margin) + " short of the pass mark";
+    return r.margin === 0 ? tx("right on the pass mark") : r.margin > 0 ? tx("+{n} over the pass mark", { n: r.margin }) : tx("{n} short of the pass mark", { n: Math.abs(r.margin) });
   }
   function readyCard() {
     var r = readiness(), exam = Store.daysBetween(Store.today(), Store.state.settings.examDate || "2026-11-14");
     if (exam < 0) return "";
-    if (!r) return exam <= 45 ? '<a class="card readyc empty" href="#/mock"><span class="rc-t"><small>Am I ready? · ' + exam + ' days left</small><b>Take one mock exam to find out</b><em>You get a score for each section</em></span><span class="rc-go">›</span></a>' : "";
-    return '<a class="card readyc" href="#/ready"><span class="rc-t"><small>Am I ready? · ' + exam + " days left" + (r.src === "practice" ? " · rough" : "") + '</small><b>~' + r.total + "/300 <i class=\"tag " + r.verdict[0] + '">' + r.verdict[1] + "</i></b><em>" + readyLine(r) + " · weakest: " + r.weakest.name + '</em>' +
-      '<span class="rc-bars">' + r.secs.map(function (x) { return '<i><b aria-hidden="true">' + x.score + '</b><u aria-hidden="true" style="height:' + Math.max(4, Math.round(x.score * 0.38)) + 'px" class="' + (x.gap < 0 ? "low" : "") + '"></u><s aria-hidden="true">' + x.k + '</s><span class="sr">' + x.name + " " + x.score + " of 100. </span></i>"; }).join("") + "</span></span><span class=\"rc-go\">›</span></a>";
+    if (!r) return exam <= 45 ? '<a class="card readyc empty" href="#/mock"><span class="rc-t"><small>' + tx("Am I ready?") + " · " + tx("{n} days left", { n: exam }) + '</small><b>' + tx("Take one mock exam to find out") + '</b><em>' + tx("You get a score for each section") + '</em></span><span class="rc-go">›</span></a>' : "";
+    return '<a class="card readyc" href="#/ready"><span class="rc-t"><small>' + tx("Am I ready?") + " · " + tx("{n} days left", { n: exam }) + (r.src === "practice" ? " · " + tx("rough") : "") + '</small><b>~' + r.total + "/300 <i class=\"tag " + r.verdict[0] + '">' + tx(r.verdict[1]) + "</i></b><em>" + readyLine(r) + " · " + tx("weakest: {sec}", { sec: tx(r.weakest.name) }) + '</em>' +
+      '<span class="rc-bars">' + r.secs.map(function (x) { return '<i><b aria-hidden="true">' + x.score + '</b><u aria-hidden="true" style="height:' + Math.max(4, Math.round(x.score * 0.38)) + 'px" class="' + (x.gap < 0 ? "low" : "") + '"></u><s aria-hidden="true">' + x.k + '</s><span class="sr">' + tx("{sec} {n} of 100.", { sec: tx(x.name), n: x.score }) + " </span></i>"; }).join("") + "</span></span><span class=\"rc-go\">›</span></a>";
   }
   function viewReady() {
     var r = readiness(), s = Store.state, exam = Store.daysBetween(Store.today(), s.settings.examDate || "2026-11-14"), p = planInfo();
-    var html = '<a class="back" href="#/">‹ Home</a>';
+    var html = '<a class="back" href="#/">‹ ' + tx("Home") + '</a>';
     if (!r) {
-      render(html + '<section class="card result">' + UI.mascot("think", 84) + "<h2>No result to judge yet</h2><p class=\"sub\">Answer a few practice questions or take one mock exam. Then this page shows a score for each section and what to fix first.</p>" +
-        '<div class="actions center"><a class="btn primary" href="#/mock">📝 Mock exams</a><a class="btn" href="#/session">▶ Today\'s session</a></div></section>', "home");
+      render(html + '<section class="card result">' + UI.mascot("think", 84) + "<h2>" + tx("No result to judge yet") + "</h2><p class=\"sub\">" + tx("Answer a few practice questions or take one mock exam. Then this page shows a score for each section and what to fix first.") + "</p>" +
+        '<div class="actions center"><a class="btn primary" href="#/mock">📝 ' + tx("Mock exams") + '</a><a class="btn" href="#/session">▶ ' + tx("Today's session") + '</a></div></section>', "home");
       return;
     }
     var need = PASS / 3;
-    html += '<section class="card ready-top"><div class="sec-h"><h2>Am I ready?</h2><span class="tag ' + r.verdict[0] + '">' + r.verdict[1] + "</span></div>" +
-      '<p class="score-big">~' + r.total + " <small>/300 · likely " + r.lo + "–" + r.hi + "</small></p>" +
-      '<p class="rd-line ' + (r.margin >= 0 ? "ok" : "no") + '"><b>' + readyLine(r) + "</b> (pass = " + PASS + ")" + (exam >= 0 ? " · " + exam + " day" + (exam === 1 ? "" : "s") + " left" : "") + "</p>" +
+    html += '<section class="card ready-top"><div class="sec-h"><h2>' + tx("Am I ready?") + '</h2><span class="tag ' + r.verdict[0] + '">' + tx(r.verdict[1]) + "</span></div>" +
+      '<p class="score-big">~' + r.total + " <small>" + tx("/300 · likely {lo}–{hi}", { lo: r.lo, hi: r.hi }) + "</small></p>" +
+      '<p class="rd-line ' + (r.margin >= 0 ? "ok" : "no") + '"><b>' + readyLine(r) + "</b> " + tx("(pass = {n})", { n: PASS }) + (exam >= 0 ? " · " + (exam === 1 ? tx("1 day left") : tx("{n} days left", { n: exam })) : "") + "</p>" +
       r.secs.map(function (x) {
-        return '<div class="rd-sec"><div class="rd-h"><b>' + x.name + '</b><span class="' + (x.gap < 0 ? "bad-t" : "good-t") + '">' + x.score + "/100 · " + (x.gap < 0 ? Math.round(-x.gap) + " below" : "+" + Math.round(x.gap) + " above") + ' the average needed</span></div>' +
+        return '<div class="rd-sec"><div class="rd-h"><b>' + tx(x.name) + '</b><span class="' + (x.gap < 0 ? "bad-t" : "good-t") + '">' + x.score + "/100 · " + (x.gap < 0 ? tx("{n} below the average needed", { n: Math.round(-x.gap) }) : tx("+{n} above the average needed", { n: Math.round(x.gap) })) + '</span></div>' +
           '<div class="rd-bar"><span class="' + (x.gap < 0 ? "low" : "") + '" style="width:' + Math.max(2, Math.min(100, x.score)) + '%"></span><i style="left:' + need + '%"></i></div></div>';
       }).join("") +
-      '<p class="sub">Based on ' + esc(r.basis) + ". " + (r.src === "practice"
-        ? "This is a <b>rough estimate</b> from practice answers, which are easier than the exam." + (r.missing.length ? " Too few answers yet for " + r.missing.map(function (k) { return SEC_NAME[k]; }).join(" and ") + "." : "") + " Take a mock exam for a real number."
-        : "The line marks 60, the average you need per section. HSK 4 only requires 180 in total, so a strong section can cover a weak one.") + "</p></section>";
+      '<p class="sub">' + tx("Based on {basis}.", { basis: esc(r.basis) }) + " " + (r.src === "practice"
+        ? tx("This is a <b>rough estimate</b> from practice answers, which are easier than the exam.") + (r.missing.length ? " " + tx("Too few answers yet for {secs}.", { secs: r.missing.map(function (k) { return tx(SEC_NAME[k]); }).join(" " + tx("and") + " ") }) : "") + " " + tx("Take a mock exam for a real number.")
+        : tx("The line marks 60, the average you need per section. HSK 4 only requires 180 in total, so a strong section can cover a weak one.")) + "</p></section>";
     /* what is pulling the weakest section down */
     var weak = Learn.report(5).filter(function (x) { return SEC_OF[x.info.sec] === r.weakest.k && x.acc < 0.8; }).slice(0, 3);
-    html += '<section class="card"><div class="sec-h"><h2>Fix first: ' + r.weakest.name + '</h2><span class="muted">' + r.weakest.score + "/100</span></div>" +
+    html += '<section class="card"><div class="sec-h"><h2>' + tx("Fix first: {sec}", { sec: tx(r.weakest.name) }) + '</h2><span class="muted">' + r.weakest.score + "/100</span></div>" +
       (weak.length ? weak.map(function (x) {
-        return '<a class="task" href="#/mistakes' + (x.open ? "/" + x.skill : "") + '"><span class="tk-ico">' + x.info.icon + "</span><span><b>" + esc(x.info.en) + " · " + Math.round(x.acc * 100) + '%</b><small class="sub fp-why">' + x.n + " answers" + (x.open ? " · " + x.open + " open mistakes" : "") + " · " + esc(x.info.tip) + "</small></span></a>";
-      }).join("") : '<p class="sub">No single skill stands out yet. Practise this section to find the weak spot.</p>') +
-      '<div class="actions"><a class="btn primary small" href="' + SEC_GO[r.weakest.k] + '">Practise ' + r.weakest.name + ' ▶</a><a class="btn small" href="#/mock">📝 Take a mock</a></div></section>';
+        return '<a class="task" href="#/mistakes' + (x.open ? "/" + x.skill : "") + '"><span class="tk-ico">' + x.info.icon + "</span><span><b>" + esc(x.info.en) + " · " + Math.round(x.acc * 100) + '%</b><small class="sub fp-why">' + tx("{n} answers", { n: x.n }) + (x.open ? " · " + tx("{n} open mistakes", { n: x.open }) : "") + " · " + esc(x.info.tip) + "</small></span></a>";
+      }).join("") : '<p class="sub">' + tx("No single skill stands out yet. Practise this section to find the weak spot.") + '</p>') +
+      '<div class="actions"><a class="btn primary small" href="' + SEC_GO[r.weakest.k] + '">' + tx("Practise {sec} ▶", { sec: tx(r.weakest.name) }) + '</a><a class="btn small" href="#/mock">📝 ' + tx("Take a mock") + '</a></div></section>';
     if (p.inBuffer) html += todayCard();
-    html += '<p class="sub center"><a href="#/mistakes">All your skills, weakest first (mistake notebook) ›</a><br><a href="#/progress">Full progress and score history ›</a></p>';
+    html += '<p class="sub center"><a href="#/mistakes">' + tx("All your skills, weakest first (mistake notebook) ›") + '</a><br><a href="#/progress">' + tx("Full progress and score history ›") + '</a></p>';
     render(html, "home");
   }
 
@@ -372,22 +372,22 @@
   }
   function pickTip(fin) {
     var s = Store.state, t = Store.today(), due = SRS.dueIds(WORDMAP).length;
-    if (due >= 20) return { id: "due", skill: "review", icon: "🔁", text: due + " words are due. Clear them first.", btn: "Review", href: "#/review" };
+    if (due >= 20) return { id: "due", skill: "review", icon: "🔁", text: tx("{n} words are due. Clear them first.", { n: due }), btn: tx("Review"), href: "#/review" };
     var p = Learn.patterns(1)[0];
     if (p && p.type === "repeat") {
       var ws = p.keys.map(wordLabel).filter(Boolean);
-      return { id: "repeat", skill: "vocab", icon: "🔎", text: "You keep missing the same " + (ws.length || p.keys.length) + (ws.length ? " words" : " items") + ". Practise them.", btn: "Practise", href: "#/mistakes", words: ws };
+      return { id: "repeat", skill: "vocab", icon: "🔎", text: ws.length ? tx("You keep missing the same {n} words. Practise them.", { n: ws.length }) : tx("You keep missing the same {n} items. Practise them.", { n: p.keys.length }), btn: tx("Practise"), href: "#/mistakes", words: ws };
     }
-    if (p) return { id: "pattern", skill: p.skill, icon: "🔎", text: tipSkillName(p.skill) + " keeps going wrong: " + p.n + " misses this week.", btn: "Practise", href: tipRoute(p.skill) };
+    if (p) return { id: "pattern", skill: p.skill, icon: "🔎", text: tx("{skill} keeps going wrong: {n} misses this week.", { skill: tipSkillName(p.skill), n: p.n }), btn: tx("Practise"), href: tipRoute(p.skill) };
     var w = tipWeakest();
-    if (w) return { id: "weak", skill: w.skill, icon: "🎯", text: tipSkillName(w.skill) + " is your weakest skill: " + w.acc + "% in the last 14 days.", btn: "Practise", href: tipRoute(w.skill) };
+    if (w) return { id: "weak", skill: w.skill, icon: "🎯", text: tx("{skill} is your weakest skill: {n}% in the last 14 days.", { skill: tipSkillName(w.skill), n: w.acc }), btn: tx("Practise"), href: tipRoute(w.skill) };
     var exam = Store.daysBetween(t, s.settings.examDate || "2026-11-14"), from = Store.addDays(t, -13);
     var mocked = (s.mockHistory || []).concat(s.official || []).some(function (m) { return m.date >= from; });
-    if (!mocked && exam >= 0 && exam <= 45) return { id: "mock", skill: "mock", icon: "📝", text: "No mock exam in 14 days. The exam is in " + exam + " day" + (exam === 1 ? "" : "s") + ".", btn: "Mock exam", href: "#/mock" };
+    if (!mocked && exam >= 0 && exam <= 45) return { id: "mock", skill: "mock", icon: "📝", text: exam === 1 ? tx("No mock exam in 14 days. The exam is in 1 day.") : tx("No mock exam in 14 days. The exam is in {n} days.", { n: exam }), btn: tx("Mock exam"), href: "#/mock" };
     var nd = nextDay(), lessonDone = Object.keys(s.days).some(function (k) { return s.days[k].completedOn === t; });
-    if (!fin && !lessonDone && !(s.days[nd.day] || {}).completed) return { id: "lesson", skill: "", icon: "📚", text: "Today's lesson is not done yet: Day " + nd.day + ".", btn: "Open lesson", href: "#/day/" + nd.day };
-    if (Audio2.available() && new Date(t + "T00:00:00").getDate() % 2 === 0) return { id: "listen", skill: "", icon: "🎧", text: "All caught up. Listen hands-free for a few minutes.", btn: "Listen", href: "#/listen-mode" };
-    return { id: "read", skill: "", icon: "📖", text: "All caught up. Read a real text from work.", btn: "Reader", href: "#/read" };
+    if (!fin && !lessonDone && !(s.days[nd.day] || {}).completed) return { id: "lesson", skill: "", icon: "📚", text: tx("Today's lesson is not done yet: Day {n}.", { n: nd.day }), btn: tx("Open lesson"), href: "#/day/" + nd.day };
+    if (Audio2.available() && new Date(t + "T00:00:00").getDate() % 2 === 0) return { id: "listen", skill: "", icon: "🎧", text: tx("All caught up. Listen hands-free for a few minutes."), btn: tx("Listen"), href: "#/listen-mode" };
+    return { id: "read", skill: "", icon: "📖", text: tx("All caught up. Read a real text from work."), btn: tx("Reader"), href: "#/read" };
   }
   var tipNow = null;
   function tipCard(planActions, fin) {
@@ -397,7 +397,7 @@
     var tp = pickTip(fin), R = AI.SKILL_ROUTE, own = Object.prototype.hasOwnProperty;
     if (tp.skill && planActions.some(function (a) { return !a.done && (a.skill === tp.skill || (own.call(R, a.skill) && own.call(R, tp.skill) && R[a.skill] === R[tp.skill])); })) return "";
     tipNow = tp;
-    return '<section class="card tip" id="tip" data-rule="' + tp.id + '"><span class="tip-i" aria-hidden="true">' + tp.icon + '</span><p class="tip-t"><small>Tip for today</small>' + esc(tp.text) + "</p>" +
+    return '<section class="card tip" id="tip" data-rule="' + tp.id + '"><span class="tip-i" aria-hidden="true">' + tp.icon + '</span><p class="tip-t"><small>' + tx("Tip for today") + '</small>' + esc(tp.text) + "</p>" +
       '<a class="btn small primary" id="tip-go" href="' + tp.href + '">' + esc(tp.btn) + " ›</a></section>";
   }
   function wireTip() {
@@ -407,7 +407,7 @@
       if (tp.words && tp.words.length) { // the same deck as the "Pattern spotted" card
         e.preventDefault();
         SRS.addMany(tp.words.map(function (x) { return x.id; }));
-        runDeck({ title: "Words you keep missing", words: tp.words, mode: "review", back: "#/" });
+        runDeck({ title: tx("Words you keep missing"), words: tp.words, mode: "review", back: "#/" });
       }
     };
   }
@@ -417,7 +417,7 @@
   /* On exam day the forecast is frozen, so the real result can be compared with what the app predicted. */
   function examLine() {
     var dl = examLeft(), n = (Store.state.examHist || []).length;
-    return "HSK " + exLv() + " · " + (dl == null ? "no date" : dl > 0 ? dl + " day" + (dl === 1 ? "" : "s") + " left" : dl === 0 ? "today" : "done") + (n ? " · " + n + " past" : "");
+    return "HSK " + exLv() + " · " + (dl == null ? tx("no date") : dl > 0 ? (dl === 1 ? tx("1 day left") : tx("{n} days left", { n: dl })) : dl === 0 ? tx("today") : tx("done")) + (n ? " · " + tx("{n} past", { n: n }) : "");
   }
   function exLv() { return Store.state.settings.examLevel === 5 ? 5 : 4; }
   function examLeft() { var ex = Store.state.settings.examDate; return ex ? Store.daysBetween(Store.today(), ex) : null; }
@@ -432,13 +432,13 @@
   function realAskCard() {
     var s = Store.state, ex = s.settings.examDate;
     if (!ex || Store.today() <= ex || realResult() || s.afterFor === ex) return "";
-    return '<a class="card line-card real-ask" href="#/official/real"><span class="lc-i" aria-hidden="true">🎓</span><span class="lc-t"><small>After the exam</small><b>How did HSK ' + exLv() + ' go? Log your real scores</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+    return '<a class="card line-card real-ask" href="#/official/real"><span class="lc-i" aria-hidden="true">🎓</span><span class="lc-t"><small>' + tx("After the exam") + '</small><b>' + tx("How did HSK {lv} go? Log your real scores", { lv: exLv() }) + '</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
   }
   /* once the real result is in: one card until the learner picks what comes next */
   function afterCard() {
     var s = Store.state, ex = s.settings.examDate;
     if (!ex || Store.today() <= ex || !realResult() || s.afterFor === ex) return "";
-    return '<a class="card line-card after-next" href="#/exams"><span class="lc-i" aria-hidden="true">🧭</span><span class="lc-t"><small>After HSK ' + exLv() + '</small><b>What\'s next? Another exam, HSK 5, or keep reviewing</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+    return '<a class="card line-card after-next" href="#/exams"><span class="lc-i" aria-hidden="true">🧭</span><span class="lc-t"><small>' + tx("After HSK {lv}", { lv: exLv() }) + '</small><b>' + tx("What's next? Another exam, HSK 5, or keep reviewing") + '</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
   }
   /* Move the current exam into the history (with its frozen forecast and real result), once per date. */
   function archiveExam() {
@@ -452,95 +452,95 @@
   var EXAM_NEXT = { exam: ["📅", "Plan another exam", "Pick the level and date; the plan and countdown follow it"], h5: ["📗", "Start HSK 5", "Word packs, grammar and practice for the next level"], keep: ["🔁", "Keep reviewing", "Daily review so your Chinese stays fresh, no exam date"] };
   function histRow(e) {
     var t = e.real ? e.real.l + e.real.r + e.real.w : null, dlt = t != null && e.fc ? t - e.fc.t : null;
-    return '<div class="of-item ex-hist"><div><b>HSK ' + e.lv + " · " + esc(lrnDate(e.d)) + "</b><small>" + (e.fc ? "Forecast ~" + e.fc.t : "No forecast") + (t != null ? " · real " + t + "/300" + (dlt != null ? " (" + (dlt >= 0 ? "+" : "") + dlt + ")" : "") : " · no result logged") + "</small></div>" +
-      (t != null ? '<span class="tag ' + (t >= 180 ? "t-hsk" : "t-warn") + '">' + (t >= 180 ? "Pass" : "Not yet") + "</span>" : "") + "</div>";
+    return '<div class="of-item ex-hist"><div><b>HSK ' + e.lv + " · " + esc(lrnDate(e.d)) + "</b><small>" + (e.fc ? tx("Forecast ~{n}", { n: e.fc.t }) : tx("No forecast")) + (t != null ? " · " + tx("real {n}/300", { n: t }) + (dlt != null ? " (" + (dlt >= 0 ? "+" : "") + dlt + ")" : "") : " · " + tx("no result logged")) + "</small></div>" +
+      (t != null ? '<span class="tag ' + (t >= 180 ? "t-hsk" : "t-warn") + '">' + (t >= 180 ? tx("Pass") : tx("Not yet")) + "</span>" : "") + "</div>";
   }
   /* #/exams: the current exam, what to do after it, and every exam so far */
   function viewExams() {
     var s = Store.state, set = s.settings, ex = set.examDate, lv = exLv(), dl = examLeft(), past = dl != null && dl < 0, rr = realResult(), chosen = s.afterFor === ex;
     freezeForecast();
-    var html = '<section class="card g-sun"><h2>🎓 My exams</h2>' + (past ? '<p class="sub">Your HSK ' + lv + " exam was on " + esc(lrnDate(ex)) + ".</p>" :
-      '<p class="score-big">' + (dl === 0 ? "Today" : dl + ' <small>day' + (dl === 1 ? "" : "s") + "</small>") + '</p><p class="sub">HSK ' + lv + " · " + esc(lrnDate(ex)) + (set.examTime ? " at " + esc(set.examTime) : "") + "</p>") + "</section>";
-    if (past && !rr && !chosen) html += '<a class="card line-card real-ask" href="#/official/real"><span class="lc-i" aria-hidden="true">🎓</span><span class="lc-t"><small>Step 1</small><b>Log your real scores</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+    var html = '<section class="card g-sun"><h2>🎓 ' + tx("My exams") + '</h2>' + (past ? '<p class="sub">' + tx("Your HSK {lv} exam was on {date}.", { lv: lv, date: esc(lrnDate(ex)) }) + "</p>" :
+      '<p class="score-big">' + (dl === 0 ? tx("Today") : dl + ' <small>' + (dl === 1 ? tx("day") : tx("days")) + "</small>") + '</p><p class="sub">HSK ' + lv + " · " + esc(lrnDate(ex)) + (set.examTime ? " " + tx("at {time}", { time: esc(set.examTime) }) : "") + "</p>") + "</section>";
+    if (past && !rr && !chosen) html += '<a class="card line-card real-ask" href="#/official/real"><span class="lc-i" aria-hidden="true">🎓</span><span class="lc-t"><small>' + tx("Step 1") + '</small><b>' + tx("Log your real scores") + '</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
     if (rr && !chosen) html += realCompareHTML();
-    if (past && !chosen) html += '<section class="card"><h2>' + (rr ? "Step 2 · " : "") + "What's next?</h2><div class=\"glist\">" + Object.keys(EXAM_NEXT).map(function (k) {
-      return '<button type="button" class="grow" data-next="' + k + '"><span class="g-ico">' + EXAM_NEXT[k][0] + '</span><span class="g-txt"><b>' + EXAM_NEXT[k][1] + "</b><small>" + EXAM_NEXT[k][2] + '</small></span><span class="g-go">›</span></button>';
-    }).join("") + "</div>" + (rr ? "" : '<p class="sub">You can still log your score later in Me › Am I ready › Official papers.</p>') + "</section>";
-    html += '<section class="card" id="ex-set"' + (past && !chosen ? " hidden" : "") + '><h2>' + (past ? "Next exam" : "Exam details") + "</h2>" +
-      '<div class="mw-form"><label for="ex-lv">Level</label><select id="ex-lv"><option value="4"' + (lv === 4 ? " selected" : "") + '>HSK 4</option><option value="5"' + (lv === 5 ? " selected" : "") + ">HSK 5</option></select>" +
-      '<label for="ex-d">Date</label><input type="date" id="ex-d" value="' + esc(past ? "" : ex) + '"><label for="ex-t">Start time <small>(optional · your final full mocks are planned at this hour)</small></label><input type="time" id="ex-t" value="' + esc(past ? "" : set.examTime || "") + '">' +
-      '<p class="mw-err" id="ex-err" hidden></p><button type="button" class="btn primary wide" id="ex-save">Save</button></div><p class="sub">The study plan, the 3-week exam plan and the countdown all follow this date. Change it any time.</p>' +
+    if (past && !chosen) html += '<section class="card"><h2>' + (rr ? tx("Step 2") + " · " : "") + tx("What's next?") + "</h2><div class=\"glist\">" + Object.keys(EXAM_NEXT).map(function (k) {
+      return '<button type="button" class="grow" data-next="' + k + '"><span class="g-ico">' + EXAM_NEXT[k][0] + '</span><span class="g-txt"><b>' + tx(EXAM_NEXT[k][1]) + "</b><small>" + tx(EXAM_NEXT[k][2]) + '</small></span><span class="g-go">›</span></button>';
+    }).join("") + "</div>" + (rr ? "" : '<p class="sub">' + tx("You can still log your score later in Me › Am I ready › Official papers.") + '</p>') + "</section>";
+    html += '<section class="card" id="ex-set"' + (past && !chosen ? " hidden" : "") + '><h2>' + (past ? tx("Next exam") : tx("Exam details")) + "</h2>" +
+      '<div class="mw-form"><label for="ex-lv">' + tx("Level") + '</label><select id="ex-lv"><option value="4"' + (lv === 4 ? " selected" : "") + '>HSK 4</option><option value="5"' + (lv === 5 ? " selected" : "") + ">HSK 5</option></select>" +
+      '<label for="ex-d">' + tx("Date") + '</label><input type="date" id="ex-d" value="' + esc(past ? "" : ex) + '"><label for="ex-t">' + tx("Start time") + ' <small>' + tx("(optional · your final full mocks are planned at this hour)") + '</small></label><input type="time" id="ex-t" value="' + esc(past ? "" : set.examTime || "") + '">' +
+      '<p class="mw-err" id="ex-err" hidden></p><button type="button" class="btn primary wide" id="ex-save">' + tx("Save") + '</button></div><p class="sub">' + tx("The study plan, the 3-week exam plan and the countdown all follow this date. Change it any time.") + '</p>' +
       (!past && examWarn(ex) ? '<p class="sub bad-t">' + examWarn(ex) + "</p>" : "") + "</section>";
     var hist = (s.examHist || []).slice().reverse();
-    if (hist.length) html += '<section class="card"><h2>Past exams</h2>' + hist.map(histRow).join("") + "</section>";
+    if (hist.length) html += '<section class="card"><h2>' + tx("Past exams") + '</h2>' + hist.map(histRow).join("") + "</section>";
     render(html, "me");
     app.querySelectorAll("[data-next]").forEach(function (b) {
       b.onclick = function () {
         var k = b.getAttribute("data-next");
         if (k === "exam") { document.getElementById("ex-set").hidden = false; document.getElementById("ex-d").focus(); return; }
         archiveExam(); if (k === "h5") set.level = 5; Store.save();
-        UI.toast(k === "h5" ? "HSK 5 is on · your exam is saved in My exams" : "Daily review keeps going · your exam is saved in My exams", "🎓");
+        UI.toast(k === "h5" ? tx("HSK 5 is on · your exam is saved in My exams") : tx("Daily review keeps going · your exam is saved in My exams"), "🎓");
         if (k === "h5") location.hash = "#/learn/h5"; else viewExams();
       };
     });
     document.getElementById("ex-save").onclick = function () {
       var d = document.getElementById("ex-d").value, t = document.getElementById("ex-t").value, nl = +document.getElementById("ex-lv").value === 5 ? 5 : 4, err = document.getElementById("ex-err");
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { err.textContent = "Pick the exam date."; err.hidden = false; return; }
-      if (past && d <= Store.today()) { err.textContent = "Pick a date after today for the next exam."; err.hidden = false; return; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { err.textContent = tx("Pick the exam date."); err.hidden = false; return; }
+      if (past && d <= Store.today()) { err.textContent = tx("Pick a date after today for the next exam."); err.hidden = false; return; }
       if (past || (d !== ex && Store.today() > ex)) archiveExam();
       set.examDate = d; set.examTime = /^\d{2}:\d{2}$/.test(t) ? t : ""; set.examLevel = nl; if (nl === 5) set.level = 5;
-      Store.save(); buildIndex(); UI.toast("Exam saved · HSK " + nl + " on " + lrnDate(d), "📅"); viewExams();
+      Store.save(); buildIndex(); UI.toast(tx("Exam saved · HSK {lv} on {date}", { lv: nl, date: lrnDate(d) }), "📅"); viewExams();
     };
   }
   function realCompareHTML() {
     var rr = realResult(), fc = Store.state.fcAtExam; if (!rr) return "";
     if (fc && fc.d !== Store.state.settings.examDate) fc = null;
     var t = rr.l + rr.r + rr.w, d = fc ? t - fc.t : null;
-    return '<section class="card real-card ' + (t >= 180 ? "ok" : "low") + '"><h2>🎓 Your real HSK ' + exLv() + '</h2><p class="score-big">' + t + "/300</p>" +
-      "<p>" + secBar("Listening", rr.l) + secBar("Reading", rr.r) + secBar("Writing", rr.w) + "</p>" +
-      (fc ? '<p class="sub">The app forecast ~' + fc.t + " on exam day · " + (d === 0 ? "exactly right" : (d > 0 ? d + " points better" : -d + " points lower") + " than forecast") + ".</p>" : "") + "</section>";
+    return '<section class="card real-card ' + (t >= 180 ? "ok" : "low") + '"><h2>🎓 ' + tx("Your real HSK {lv}", { lv: exLv() }) + '</h2><p class="score-big">' + t + "/300</p>" +
+      "<p>" + secBar(tx("Listening"), rr.l) + secBar(tx("Reading"), rr.r) + secBar(tx("Writing"), rr.w) + "</p>" +
+      (fc ? '<p class="sub">' + tx("The app forecast ~{n} on exam day", { n: fc.t }) + " · " + (d === 0 ? tx("exactly right") : d > 0 ? tx("{n} points better than forecast", { n: d }) : tx("{n} points lower than forecast", { n: -d })) + ".</p>" : "") + "</section>";
   }
   function todaySteps() {
     var s = Store.state, t = Store.today(), nd = nextDay(), p = planInfo(), fin = p.inBuffer, steps = [];
     var away = !!comebackCard(), sess = sessionPlan(away ? "comeback" : null);
     var last = lastStudyDay(), gap = last ? Store.daysBetween(last, t) : 0;
-    steps.push(away ? { id: "comeback", ico: "⏱", name: "5-minute restart", sub: "Welcome back · " + gap + " days away · your oldest reviews first", href: "#/session/comeback", done: (s.log[t] || 0) > 0 }
-      : { id: "session", ico: "▶", name: "Today's session", sub: plural(sess.length, "step") + " · " + sessionCfg().label, href: "#/session", done: !!(s.sessions || {})[t] });
+    steps.push(away ? { id: "comeback", ico: "⏱", name: tx("5-minute restart"), sub: tx("Welcome back · {n} days away · your oldest reviews first", { n: gap }), href: "#/session/comeback", done: (s.log[t] || 0) > 0 }
+      : { id: "session", ico: "▶", name: tx("Today's session"), sub: (sess.length === 1 ? tx("1 step") : tx("{n} steps", { n: sess.length })) + " · " + tx(sessionCfg().label), href: "#/session", done: !!(s.sessions || {})[t] });
     var cu = fin ? [] : cuLessons();
-    if (cu.length) steps.push({ id: "catchup", ico: "⏳", name: "Catch up: " + plural(cu.length, "short lesson") + " today", sub: "Behind plan · Day " + cu.map(function (d) { return d.day; }).join(" + Day "), href: "#/catchup", done: false });
+    if (cu.length) steps.push({ id: "catchup", ico: "⏳", name: tx("Catch up: {lessons} today", { lessons: cu.length === 1 ? tx("1 short lesson") : tx("{n} short lessons", { n: cu.length }) }), sub: tx("Behind plan") + " · " + cu.map(function (d) { return tx("Day {n}", { n: d.day }); }).join(" + "), href: "#/catchup", done: false });
     else if (!fin && nd && !p.afterExam) {
       var lessonDone = Object.keys(s.days).some(function (k) { return s.days[k].completedOn === t; });
-      steps.push({ id: "lesson", ico: "📚", name: "Lesson · Day " + nd.day, zh: nd.title.zh, sub: M(nd.title), href: "#/day/" + nd.day, done: lessonDone });
+      steps.push({ id: "lesson", ico: "📚", name: tx("Lesson") + " · " + tx("Day {n}", { n: nd.day }), zh: nd.title.zh, sub: M(nd.title), href: "#/day/" + nd.day, done: lessonDone });
     }
     var el = examLeft();
-    if (el === 0) return [{ id: "warmup", ico: "🌅", name: "Exam-morning warm-up", sub: "Easy words you know + one tip per part · 10 min", href: "#/warmup", done: !!(s.warm || {})[t] }];
-    if (el === 1) { steps = steps.filter(function (x) { return x.id !== "lesson" && x.id !== "catchup"; }); steps.push({ id: "eve", ico: "🎒", name: "Checklist for tomorrow", sub: eveDone() + "/" + EVE.length + " ready · then light review and sleep early", href: "#/eve", done: eveDone() === EVE.length }); return steps; }
+    if (el === 0) return [{ id: "warmup", ico: "🌅", name: tx("Exam-morning warm-up"), sub: tx("Easy words you know + one tip per part · 10 min"), href: "#/warmup", done: !!(s.warm || {})[t] }];
+    if (el === 1) { steps = steps.filter(function (x) { return x.id !== "lesson" && x.id !== "catchup"; }); steps.push({ id: "eve", ico: "🎒", name: tx("Checklist for tomorrow"), sub: tx("{n}/{m} ready · then light review and sleep early", { n: eveDone(), m: EVE.length }), href: "#/eve", done: eveDone() === EVE.length }); return steps; }
     var sc = examSchedule();
     if (sc.length && sc[0].kind !== "exam") steps.push({ id: "exam", ico: sc[0].ico, name: sc[0].txt, href: sc[0].href, done: sc[0].done,
-      sub: "Exam plan · " + plural(sc.length - 1, "day") + " left" + (sc[0].kind === "mock" && !s.settings.examTime && sc[0].left <= 8 ? " · set your exam start time in Me → My exams to rehearse at that hour" : "") });
-    if (wqOffer()) steps.push({ id: "weekly", ico: "🧠", name: "Weekly review quiz", sub: "Words and grammar from the last 7 days", href: "#/weekly", done: false });
+      sub: tx("Exam plan") + " · " + (sc.length - 1 === 1 ? tx("1 day left") : tx("{n} days left", { n: sc.length - 1 })) + (sc[0].kind === "mock" && !s.settings.examTime && sc[0].left <= 8 ? " · " + tx("set your exam start time in Me → My exams to rehearse at that hour") : "") });
+    if (wqOffer()) steps.push({ id: "weekly", ico: "🧠", name: tx("Weekly review quiz"), sub: tx("Words and grammar from the last 7 days"), href: "#/weekly", done: false });
     return steps;
   }
   function todayMain() {
     var steps = todaySteps(), done = steps.filter(function (x) { return x.done; }).length, next = -1;
     steps.forEach(function (x, i) { if (next < 0 && !x.done) next = i; });
     var away = steps[0].id === "comeback", rescue = !away && rescueCard();
-    var short = away ? "" : rescue ? '<a class="tm-short" href="#/session/rescue">🔥 Streak at risk · do the 2-minute rescue</a>'
-      : shortLink() ? '<a class="tm-short has-dog" href="#/session/rescue">' + UI.anim("dog-peek", 34, "⏱") + "<span>Only 2 minutes today?</span></a>" : "";
-    var btn = next < 0 ? '<a class="tm-go" href="#/review">✓ All done today · review due words</a>'
-      : '<a class="tm-go" id="today-go" href="' + steps[next].href + '">▶ ' + (done ? "Continue · step " + (next + 1) + " of " + steps.length : "Start · " + esc(steps[next].name)) + "</a>";
-    return '<section class="card today-main g-violet" id="today-main"><div class="tm-h"><h2>Today</h2><span>' + done + "/" + steps.length + ' done</span></div><ol class="tm-steps">' +
+    var short = away ? "" : rescue ? '<a class="tm-short" href="#/session/rescue">🔥 ' + tx("Streak at risk · do the 2-minute rescue") + '</a>'
+      : shortLink() ? '<a class="tm-short has-dog" href="#/session/rescue">' + UI.anim("dog-peek", 34, "⏱") + "<span>" + tx("Only 2 minutes today?") + "</span></a>" : "";
+    var btn = next < 0 ? '<a class="tm-go" href="#/review">✓ ' + tx("All done today · review due words") + '</a>'
+      : '<a class="tm-go" id="today-go" href="' + steps[next].href + '">▶ ' + (done ? tx("Continue · step {n} of {m}", { n: next + 1, m: steps.length }) : tx("Start · {name}", { name: esc(steps[next].name) })) + "</a>";
+    return '<section class="card today-main g-violet" id="today-main"><div class="tm-h"><h2>' + tx("Today") + '</h2><span>' + tx("{n}/{m} done", { n: done, m: steps.length }) + '</span></div><ol class="tm-steps">' +
       steps.map(function (x, i) {
         return '<li class="' + (x.done ? "done" : i === next ? "now" : "") + '"><a href="' + x.href + '" data-step="' + x.id + '"><span class="tm-box" aria-hidden="true">' + (x.done ? "✓" : x.ico) + '</span><span class="tm-t"><b>' +
-          (x.done ? '<span class="sr">Done: </span>' : "") + esc(x.name) + (x.zh ? ' <span class="zh">' + esc(x.zh) + "</span>" : "") + "</b><small>" + x.sub + "</small></span></a></li>";
+          (x.done ? '<span class="sr">' + tx("Done:") + ' </span>' : "") + esc(x.name) + (x.zh ? ' <span class="zh">' + esc(x.zh) + "</span>" : "") + "</b><small>" + x.sub + "</small></span></a></li>";
       }).join("") + "</ol>" + btn + short + "</section>";
   }
   /* one line about the exam plan: tomorrow's task in the last 3 weeks, else the study plan */
   function planLine() {
     var sc = examSchedule();
-    if (sc.length > 1) return '<a class="card line-card" href="#/exam"><span class="lc-i" aria-hidden="true">🗓️</span><span class="lc-t"><small>Exam plan · tomorrow</small><b>' + esc(sc[1].txt) + '</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+    if (sc.length > 1) return '<a class="card line-card" href="#/exam"><span class="lc-i" aria-hidden="true">🗓️</span><span class="lc-t"><small>' + tx("Exam plan") + " · " + tx("tomorrow") + '</small><b>' + esc(sc[1].txt) + '</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
     var p = planInfo();
-    return '<a class="card line-card" href="#/plan"><span class="lc-i" aria-hidden="true">🗓️</span><span class="lc-t"><small>Study plan</small><b>' + plural(p.done, "lesson") + " done · " + esc(STATUS[p.status][1]) + '</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
+    return '<a class="card line-card" href="#/plan"><span class="lc-i" aria-hidden="true">🗓️</span><span class="lc-t"><small>' + tx("Study plan") + '</small><b>' + tx("{lessons} done", { lessons: p.done === 1 ? tx("1 lesson") : tx("{n} lessons", { n: p.done }) }) + " · " + esc(tx(STATUS[p.status][1])) + '</b></span><span class="lc-go" aria-hidden="true">›</span></a>';
   }
   function viewHome() {
     var s = Store.state, lv = Game.level(s.xp), goal = s.settings.dailyGoal || 30, todayXP = s.log[Store.today()] || 0;
@@ -548,13 +548,13 @@
     var earned = Game.BADGES.filter(function (b) { return s.badges[b.id]; });
     var html = "";
     if (isIOS && !standalone && location.protocol.indexOf("http") === 0 && !s.settings.installHintDismissed) {
-      html += '<div class="install card"><div><b>Add to Home Screen</b><p>Tap <b>Share ⬆︎</b> in Chrome → <b>Add to Home Screen</b>. It opens full-screen, works offline and keeps your progress safe.</p></div><button class="x" id="hint-x" aria-label="Dismiss">✕</button></div>';
+      html += '<div class="install card"><div><b>' + tx("Add to Home Screen") + '</b><p>' + tx("Tap <b>Share ⬆︎</b> in Chrome → <b>Add to Home Screen</b>. It opens full-screen, works offline and keeps your progress safe.") + '</p></div><button class="x" id="hint-x" aria-label="' + tx("Dismiss") + '">✕</button></div>';
     }
     /* One "Today" card is the only call to action; readiness and the exam plan are one line each.
        Everything else lives in one place elsewhere: lessons in Learn, games and mock tests in Practice, progress in Me. */
     html += '<section class="hero home-head"><div class="hh-m bob">' + UI.mascot(todayXP >= goal ? "proud" : todayXP === 0 ? "wave" : "happy", 52) + "</div>" +
-      '<div class="hh-t"><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + "</p><h2>" + (exam > 0 ? exam + " days to HSK " + exLv() : exam === 0 ? "HSK " + exLv() + " is today · 加油!" : "Keep your Chinese going") + "</h2>" +
-      '<p class="lv">Level ' + lv.n + ' · <span class="zh">' + lv.zh + "</span> · " + s.xp + " XP</p></div></section>";
+      '<div class="hh-t"><p class="hi">' + (todayXP >= goal ? "Đạt mục tiêu hôm nay! 🎉" : "Chào bạn! 加油！") + "</p><h2>" + (exam > 0 ? tx("{n} days to HSK {lv}", { n: exam, lv: exLv() }) : exam === 0 ? tx("HSK {lv} is today · 加油!", { lv: exLv() }) : tx("Keep your Chinese going")) + "</h2>" +
+      '<p class="lv">' + tx("Level {n}", { n: lv.n }) + ' · <span class="zh">' + lv.zh + "</span> · " + s.xp + " XP</p></div></section>";
     var fin = planInfo().inBuffer;
     homeAt = Date.now(); homeDay = Store.today();
     freezeForecast();
@@ -564,13 +564,13 @@
     if (!fin) html += readyCard();
     html += planLine();
     var plan = planCard();
-    html += '<details class="more home-more"><summary><span>More: quests, coach plan, activity, badges</span></summary>' +
+    html += '<details class="more home-more"><summary><span>' + tx("More: quests, coach plan, activity, badges") + '</span></summary>' +
       questsCard() + plan + patternCard() + focusCard() + todayCard() + weeklyTeaser() +
-      '<section class="card"><div class="sec-h"><h2>Study activity</h2><span class="muted">12 weeks</span></div>' + heatmap() + '<div class="heat-key"><span>Less</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>More</span></div></section>' +
-      '<section class="card"><div class="sec-h"><h2>Badges</h2><a href="#/me">' + earned.length + "/" + Game.BADGES.length + " ›</a></div>" +
-      (earned.length ? '<div class="badge-row">' + earned.slice(-6).reverse().map(function (b) { return '<span class="bdg" title="' + esc(b.en) + '">' + b.icon + "</span>"; }).join("") + "</div>" : '<p class="muted">Grade your first flashcard to earn 🌱</p>') + "</section></details>";
-    if (LOAD_ERRORS.length) html += '<p class="warn">Could not load: ' + esc(LOAD_ERRORS.join(", ")) + "</p>";
-    if (!Store.available) html += '<p class="warn">Storage is blocked, so progress won\'t be saved.</p>';
+      '<section class="card"><div class="sec-h"><h2>' + tx("Study activity") + '</h2><span class="muted">' + tx("12 weeks") + '</span></div>' + heatmap() + '<div class="heat-key"><span>' + tx("Less") + '</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><i class="h4"></i><span>' + tx("More") + '</span></div></section>' +
+      '<section class="card"><div class="sec-h"><h2>' + tx("Badges") + '</h2><a href="#/me">' + earned.length + "/" + Game.BADGES.length + " ›</a></div>" +
+      (earned.length ? '<div class="badge-row">' + earned.slice(-6).reverse().map(function (b) { return '<span class="bdg" title="' + esc(b.en) + '">' + b.icon + "</span>"; }).join("") + "</div>" : '<p class="muted">' + tx("Grade your first flashcard to earn 🌱") + '</p>') + "</section></details>";
+    if (LOAD_ERRORS.length) html += '<p class="warn">' + tx("Could not load: {list}", { list: esc(LOAD_ERRORS.join(", ")) }) + "</p>";
+    if (!Store.available) html += '<p class="warn">' + tx("Storage is blocked, so progress won't be saved.") + '</p>';
     render(html, "home");
     /* offline users: tell them when new audio is not on the phone yet */
     var optedIn = false; try { optedIn = localStorage.getItem("cbChinese.audioDl") === "1"; } catch (e) { /* ignore */ }
@@ -578,12 +578,12 @@
       var miss = st.total - st.have, host = document.querySelector(".hero");
       if (miss < 1 || !host || !document.getElementById("app").contains(host)) return;
       var d = document.createElement("a"); d.className = "card cta g-violet"; d.href = "#/me";
-      d.innerHTML = '<span class="cta-l"><small>New audio</small><b>🔊 ' + miss + ' recordings are not saved on this phone</b><em>Me → Download missing, so lessons work offline</em></span><span class="cta-go">▶</span>';
+      d.innerHTML = '<span class="cta-l"><small>' + tx("New audio") + '</small><b>🔊 ' + tx("{n} recordings are not saved on this phone", { n: miss }) + '</b><em>' + tx("Me → Download missing, so lessons work offline") + '</em></span><span class="cta-go">▶</span>';
       host.parentNode.insertBefore(d, host.nextSibling);
     });
     wireQuests(); wirePattern();
     whenIdle(4000).then(autoCoach);
-    var wr = weekReward(); if (wr) setTimeout(function () { UI.toast(wr === "freeze" ? "Weekly goal met! +1 streak freeze" : "Weekly goal met!", wr === "freeze" ? "🧊" : "🎉"); UI.confetti(60); UI.burst("noto-muscle", weekInfo().n + " days", "Weekly goal met", wr === "freeze" ? "+1 streak freeze" : ""); }, 600);
+    var wr = weekReward(); if (wr) setTimeout(function () { UI.toast(wr === "freeze" ? tx("Weekly goal met! +1 streak freeze") : tx("Weekly goal met!"), wr === "freeze" ? "🧊" : "🎉"); UI.confetti(60); UI.burst("noto-muscle", tx("{n} days", { n: weekInfo().n }), tx("Weekly goal met"), wr === "freeze" ? tx("+1 streak freeze") : ""); }, 600);
     var x = document.getElementById("hint-x");
     if (x) x.onclick = function () { s.settings.installHintDismissed = true; Store.save(); x.closest(".install").remove(); };
   }

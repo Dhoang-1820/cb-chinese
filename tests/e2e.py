@@ -38,8 +38,10 @@ def settings(**extra):
     return s
 
 
-async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, **ctx_opts):
+async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, ui="en", **ctx_opts):
     """A fresh phone with the given saved state (None = first run). Returns (context, page).
+    ui: this device's interface language (the app defaults to Vietnamese; most checks read English text, so "en";
+    None leaves the device default alone).
     seed=False adds nothing to storage on later page loads, for tests that check what is left after a reload.
     watch: a list that collects the URL of every request the phone makes, from the very first one."""
     dev = dict(PW.devices["iPhone 14"]); dev.pop("default_browser_type", None)
@@ -58,6 +60,8 @@ async def open_app(browser, state=None, path="", ai=False, expect_errors=False, 
         init += "localStorage.setItem('cbChinese.ai',%s);" % json.dumps(json.dumps({"url": AI_URL, "code": ""}))
     else:  # never call the real AI service from a test
         init += "localStorage.setItem('cbChinese.ai',%s);" % json.dumps(json.dumps({"url": "http://localhost:1/off", "code": ""}))
+    if seed and ui:
+        init += "localStorage.setItem('cbChinese.uiLang','%s');" % ui
     if init:
         await ctx.add_init_script(init)
     pg = await ctx.new_page()
@@ -1529,12 +1533,12 @@ async def t_mocks2(b):
     shape = await pg.evaluate("""(()=>{const c=m=>[m.listening.p1.length,m.listening.p2.length,m.listening.p3.length,m.reading.p1.length,m.reading.p2.length,
       m.reading.p3.reduce((a,p)=>a+p.questions.length,0),m.writing.p1.length,m.writing.p2.length].join(',');
       const by={};(window.CB_MOCK||[]).forEach(m=>by[m.id]=c(m));return by})()""")
-    check("mocks2: sets 7 and 8 load, with the same parts and counts as set 1", shape.get("7") == shape.get("1") and shape.get("8") == shape.get("1") and len(shape) == 8, shape)
+    check("mocks2: sets 7 and 8 load, with the same parts and counts as set 1", shape.get("7") == shape.get("1") and shape.get("8") == shape.get("1") and len([k for k in shape if int(k) < 100]) == 8, shape)
     await ctx.close()
     import subprocess
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
     out = subprocess.run(["node", "tools/validate.js"], cwd=root, capture_output=True, text=True)
-    check("mocks2: the content validator passes with 8 mock exams", out.returncode == 0 and "Mock exams        : 8" in out.stdout and "PASS  Mock exams well-formed" in out.stdout, out.stdout[-400:] + out.stderr[-400:])
+    check("mocks2: the content validator passes with 8 HSK 4 + 2 HSK 5 mock exams", out.returncode == 0 and "Mock exams        : 10" in out.stdout and "PASS  Mock exams well-formed" in out.stdout, out.stdout[-400:] + out.stderr[-400:])
 
 # ----------------------------------------------------------------------------------------------------------------------
 HOOK_Q = "(()=>{if(window.__qh)return;window.__qh=1;const o=Games._q.makeQ;Games._q.makeQ=function(w,t){const q=o(w,t);window.__q=q;return q}})()"
@@ -2285,9 +2289,171 @@ async def t_quickui(b):
     await ctx.close()
 
 
-GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
-          ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow), ("quickui", t_quickui)]
+
+SWEEP_ROUTES = ["#/", "#/learn", "#/learn/all", "#/learn/core", "#/learn/extra", "#/learn/found", "#/learn/h5", "#/learn/h5p", "#/learn/mine",
+                "#/day/1/words", "#/day/31/reading", "#/day/61/grammar", "#/day/75/practice", "#/day/90/quiz", "#/cards/1", "#/core/1", "#/check/1",
+                "#/pack/h5/1", "#/pack/x4/1", "#/families", "#/review", "#/listen-mode", "#/games",
+                "#/game/builder", "#/game/listen", "#/game/speed", "#/game/race", "#/game/boss", "#/game/quick", "#/game/drill", "#/game/write",
+                "#/game/type", "#/game/confuse", "#/game/order", "#/game/picture", "#/game/coach", "#/game/measure", "#/game/bank",
+                "#/game/wordorder", "#/game/reading", "#/game/confuse/h5", "#/game/order/h5", "#/game/picture/h5", "#/game/measure/h5",
+                "#/search", "#/me", "#/me/backup", "#/settings", "#/reports", "#/chat", "#/track", "#/track/1/1", "#/track/7/2", "#/track/13/1",
+                "#/track/19/2", "#/talk", "#/mistakes", "#/mistakes/all", "#/mistakes/repeat", "#/parts", "#/sprint", "#/exams", "#/eve", "#/warmup",
+                "#/plan", "#/exam", "#/ready", "#/read", "#/progress", "#/mock", "#/mock/1", "#/mock/5", "#/mock/1/sim", "#/official",
+                "#/official/real", "#/session", "#/weekly", "#/catchup", "#/grammar", "#/grammar/h5", "#/grammar/g01", "#/grammar/h5g01"]
+SWEEP_JS = """() => {
+  const app = document.getElementById('app'), t = app.innerText, W = innerWidth;
+  const junk = (t.match(/\\b(undefined|NaN|Infinity)\\b|\\[object \\w+\\]/g) || []).slice(0, 3);
+  const wide = document.documentElement.scrollWidth > W + 1;
+  const over = [...app.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(), s = getComputedStyle(e);
+    if (!r.width || s.visibility === 'hidden' || r.right <= W + 2) return false;
+    for (let p = e.parentElement; p && p !== app.parentElement; p = p.parentElement) { const ps = getComputedStyle(p); if (/(auto|scroll|hidden)/.test(ps.overflowX)) return false; }
+    return true; }).slice(0, 3).map(e => e.tagName + '.' + e.className + ' ' + (e.innerText || '').slice(0, 30));
+  const vis = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden'; };
+  const small = [...document.querySelectorAll('#app a[href], #app button, #app input, #app select, #app [role=button], .tabbar a, .topbar button')].filter(vis)
+    .filter(e => { const r = e.getBoundingClientRect(); return (r.width < 24 || r.height < 24) && !e.closest('.zh-tap, .tapword, p, li') && e.tagName !== 'INPUT'; })
+    .slice(0, 4).map(e => { const r = e.getBoundingClientRect(); return e.tagName + '.' + e.className + ' "' + (e.innerText || e.getAttribute('aria-label') || '').trim().slice(0, 16) + '" ' + Math.round(r.width) + 'x' + Math.round(r.height); });
+  const clip = [...app.querySelectorAll('*')].filter(e => e.children.length === 0 && vis(e) && !e.closest('.sr') && (e.innerText || '').trim()).filter(e => { const s = getComputedStyle(e);
+    return /hidden|clip/.test(s.overflowX + s.overflow) && s.textOverflow !== 'ellipsis' && e.scrollWidth > e.clientWidth + 2; }).slice(0, 3).map(e => e.tagName + '.' + e.className + ' "' + e.innerText.slice(0, 24) + '"');
+  return { crash: /Something broke/.test(t), short: t.trim().length < 15, junk, wide, over, small, clip, len: t.length };
+}"""
+
+
+async def t_sweep(b):
+    """Every screen, on an iPhone 14, in light and dark, for a new learner and a heavy one: renders, no 'undefined' or 'NaN'
+    on screen, nothing wider than the phone. Then a tap on every safe button of the main screens must not raise a script error."""
+    for label, state in (("new", {"settings": settings(), "srs": {}}), ("heavy", heavy_state())):
+        for theme in ("light", "dark"):
+            st = json.loads(json.dumps(state)); st["settings"]["theme"] = theme
+            ctx, pg = await open_app(b, st)
+            await pg.wait_for_timeout(1200)
+            bad = {"crash": [], "junk": [], "wide": [], "short": [], "small": [], "clip": []}
+            for r in SWEEP_ROUTES:
+                await go(pg, r, 350); await no_dialogs(pg)
+                res = await pg.evaluate(SWEEP_JS)
+                if res["short"] or res["crash"]:
+                    await pg.wait_for_timeout(900); res = await pg.evaluate(SWEEP_JS)  # lazy data
+                if res["crash"]: bad["crash"].append(r)
+                if res["short"]: bad["short"].append(r)
+                if res["junk"]: bad["junk"].append((r, res["junk"]))
+                if res["wide"] or res["over"]: bad["wide"].append((r, res["over"]))
+                if res["small"]: bad["small"].append((r, res["small"]))
+                if res["clip"]: bad["clip"].append((r, res["clip"]))
+            tag = "sweep (%s learner, %s): " % (label, theme)
+            check(tag + "every screen renders without the crash screen", not bad["crash"] and not bad["short"], bad["crash"] + bad["short"])
+            check(tag + "no 'undefined', 'NaN' or '[object …]' on any screen", not bad["junk"], bad["junk"][:5])
+            check(tag + "nothing wider than the phone screen", not bad["wide"], bad["wide"][:5])
+            check(tag + "no button or link smaller than 24 px", not bad["small"], bad["small"][:8])
+            check(tag + "no text cut off without an ellipsis", not bad["clip"], bad["clip"][:6])
+            await ctx.close()
+    # tap every safe button once on the main screens (a fresh load per tap) and watch for script errors
+    errs, tapped = [], 0
+    ctx, pg = await open_app(b, heavy_state(), expect_errors=True)
+    mine = []; pg.on("pageerror", lambda e: mine.append(str(e)))
+    await pg.wait_for_timeout(1200)
+    for r in ["#/", "#/learn", "#/review", "#/games", "#/me", "#/progress", "#/mistakes", "#/plan", "#/ready", "#/read", "#/track", "#/grammar", "#/day/61/words", "#/mock/5", "#/official", "#/exams", "#/parts"]:
+        await go(pg, r, 400); await no_dialogs(pg)
+        n = await pg.evaluate("""() => [...document.querySelectorAll('#app button, #app [role=button]')].filter(e => e.offsetParent && !/reset|delete|remove|erase|clear|import|restore|sign|log ?out|xóa|disconnect|export|share|copy|calendar|google|download/i.test(e.innerText + ' ' + (e.getAttribute('aria-label') || ''))).length""")
+        for i in range(min(n, 30)):
+            await go(pg, "#/sweep-reset", 50); await go(pg, r, 300); await no_dialogs(pg)
+            before = len(mine)
+            ok = await pg.evaluate("""i => { const bs = [...document.querySelectorAll('#app button, #app [role=button]')].filter(e => e.offsetParent && !/reset|delete|remove|erase|clear|import|restore|sign|log ?out|xóa|disconnect|export|share|copy|calendar|google|download/i.test(e.innerText + ' ' + (e.getAttribute('aria-label') || ''))); const e = bs[i]; if (!e) return null; const l = (e.innerText || e.getAttribute('aria-label') || '').trim().slice(0, 30); e.click(); return l; }""", i)
+            if ok is None: continue
+            tapped += 1
+            await pg.wait_for_timeout(250)
+            crash = await pg.evaluate("/Something broke/.test(document.getElementById('app').innerText)")
+            if len(mine) > before or crash: errs.append((r, ok, (mine[before:] or ["crash screen"])[0][:120]))
+            await no_dialogs(pg)
+    check("sweep: %d taps on the main screens raise no script error" % tapped, not errs, errs[:6])
+async def t_vi(b):
+    """Vietnamese interface: the default on a new device, switchable in Me → Settings, kept after a reload,
+    and every main screen still renders in Vietnamese."""
+    tabs = "() => [...document.querySelectorAll('.tabbar a > span:not(.ti)')].map(e => e.textContent).join('|')"
+    ctx, pg = await open_app(b, None, ui=None)
+    await pg.wait_for_timeout(900)
+    t = await pg.evaluate(tabs)
+    check("vi: a new device shows the Vietnamese tab bar", "Trang chủ" in t and "Home" not in t, t)
+    await ctx.close()
+    st = {"settings": settings(), "srs": {}}
+    ctx, pg = await open_app(b, st, ui=None)
+    await go(pg, "#/me", 500)
+    has = await pg.evaluate("() => !!document.getElementById('s-ui') && document.getElementById('s-ui').value")
+    check("vi: Me → Settings has the interface language switch, set to Vietnamese", has == "vi", has)
+    await pg.select_option("#s-ui", "en"); await pg.wait_for_timeout(400)
+    t = await pg.evaluate(tabs)
+    saved = await pg.evaluate("() => JSON.parse(localStorage.getItem('cbChinese.progress.v1') || '{}').settings.uiLang")
+    check("vi: choosing English switches the tab bar and saves the choice", "Home" in t and saved == "en", (t, saved))
+    await pg.reload(); await pg.wait_for_timeout(900)
+    t = await pg.evaluate(tabs)
+    check("vi: the choice survives a reload", "Home" in t, t)
+    await go(pg, "#/me", 500); await pg.select_option("#s-ui", "vi"); await pg.wait_for_timeout(400)
+    h2 = await pg.evaluate("() => [...document.querySelectorAll('#app h2')].map(e => e.textContent).join('|')")
+    check("vi: back to Vietnamese, the Settings heading is Vietnamese", "Cài đặt" in h2, h2[:200])
+    bad = []
+    for r in ["#/", "#/learn", "#/games", "#/review", "#/me", "#/progress", "#/mistakes", "#/mock", "#/mock/5", "#/track", "#/plan", "#/grammar", "#/day/61/words", "#/exams", "#/ready", "#/game/builder", "#/game/bank"]:
+        await go(pg, r, 400); await no_dialogs(pg)
+        res = await pg.evaluate("() => { const t = document.getElementById('app').innerText; return { crash: /Something broke|Đã xảy ra lỗi/.test(t) || t.trim().length < 15, junk: /\\b(undefined|NaN)\\b|\\{\\w+\\}/.test(t) }; }")
+        if res["crash"] or res["junk"]: bad.append((r, res))
+    check("vi: main screens render in Vietnamese with no crash, 'undefined' or unfilled {placeholder}", not bad, bad)
+    await ctx.close()
+
+
+
+async def t_split(b):
+    """Screen chunks (tools/split_app.js): the start-up bundle loads no chunk, a chunked screen loads its chunk once,
+    and a chunk that cannot load shows a message instead of a blank screen."""
+    st = {"settings": settings(), "srs": {}}
+    ctx, pg = await open_app(b, st)
+    got = []; pg.on("request", lambda r: got.append(r.url) if "/app-" in r.url else None)
+    await go(pg, "#/", 700)
+    check("split: Home loads no screen chunk", not got, got)
+    await go(pg, "#/progress", 900)
+    t = await pg.evaluate("() => document.getElementById('app').innerText")
+    check("split: Progress loads its chunk and renders", any("app-plan." in u for u in got) and len(t.strip()) > 40, (got, t[:80]))
+    n = len(got); await go(pg, "#/plan", 600); await go(pg, "#/progress", 600)
+    check("split: the chunk is fetched only once", len(got) == n, got)
+    await ctx.close()
+    if not BUNDLED_SITE: return
+    ctx, pg = await open_app(b, st, expect_errors=True)
+    await pg.route("**/app-track.*.js", lambda r: r.abort())
+    await go(pg, "#/track", 900)
+    t = await pg.evaluate("() => document.getElementById('app').innerText")
+    check("split: a chunk that fails to load shows a message", "Couldn't load this part of the app" in t, t[:160])
+    await ctx.close()
+
+
+BUNDLED_SITE = True  # the test site is a build (tests/run.sh); chunks exist only there
+
+
+async def t_mocks5(b):
+    """HSK 5 mock exams: listed in their own section, open like the HSK 4 sets, and an HSK 5 result does not move
+    the HSK 4 score forecast."""
+    y = (TODAY - datetime.timedelta(days=1)).isoformat()
+    h4 = {"id": 4, "date": y, "mode": "exam", "strict": True, "total": 150, "sections": {"listening": 50, "reading": 50, "writing": 50}, "full": True, "ws": False}
+    h5 = {"id": 101, "date": y, "mode": "exam", "strict": True, "total": 290, "sections": {"listening": 97, "reading": 97, "writing": 96}, "full": False, "ws": False}
+    texts = []
+    for hist in ([h4], [h4, h5]):
+        ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "mockHistory": hist, "mocks": {str(h["id"]): {"best": h["total"], "plays": 1} for h in hist}})
+        await go(pg, "#/mock", 900)
+        if len(hist) == 1:
+            info = await pg.evaluate("() => ({ head: !!document.getElementById('mock5-head'), h5: [...document.querySelectorAll('#app a[href^=\"#/mock/10\"]')].map(a => a.getAttribute('href')), h4: document.querySelectorAll('#app a[href=\"#/mock/1\"]').length })")
+            check("mocks5: the mock list has an HSK 5 section with sets 101 and 102", info["head"] and "#/mock/101" in info["h5"] and "#/mock/102" in info["h5"] and info["h4"] == 1, info)
+            await go(pg, "#/mock/101", 700)
+            t = await pg.evaluate("() => document.getElementById('app').innerText")
+            check("mocks5: an HSK 5 set opens its intro screen", "HSK 5" in t and "not found" not in t, t[:160])
+        await go(pg, "#/progress", 900)
+        texts.append(await pg.evaluate("() => { const h = [...document.querySelectorAll('#app h2')].find(e => /forecast/i.test(e.textContent)); return h ? h.closest('section').innerText : ''; }"))
+        await ctx.close()
+    check("mocks5: an HSK 5 result leaves the HSK 4 forecast unchanged", texts[0] and texts[0] == texts[1] and "150" in texts[0], texts)
+
+
+GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5),
+          ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync),
+          ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip),
+          ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn),
+          ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
+          ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5)]
 PW = None
 
 

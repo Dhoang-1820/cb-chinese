@@ -1,4 +1,4 @@
-强调|v.|to emphasise; to stress|nhấn mạnh|经理 在 会 上 强调 了 安全 的 重要 。|The manager stressed the importance of safety at the meeting.|Giám đốc đã nhấn mạnh tầm quan trọng của an toàn trong cuộc họp.
+强调|v.|to emphasise; to stress|nhấn mạnh|经理 在 会 上 强调 了 安全 的 重要性 。|The manager stressed the importance of safety at the meeting.|Giám đốc đã nhấn mạnh tầm quan trọng của an toàn trong cuộc họp.
 强烈|adj.|strong; intense|mạnh mẽ, mãnh liệt|员工 们 强烈 要求 改善 工作 环境 。|The staff strongly demand better working conditions.|Nhân viên mạnh mẽ yêu cầu cải thiện môi trường làm việc.
 墙|n.|wall|bức tường|会议 室 的 墙 上 挂 着 一 张 世界 地图 。|A map of the world hangs on the meeting-room wall.|Trên tường phòng họp có treo một tấm bản đồ thế giới.
 抢|v.|to rob; to snatch; to rush to do|cướp, giật; tranh, giành|打折 的 东西 很 快 就 被 抢 光 了 。|The discounted goods were quickly snapped up.|Đồ giảm giá rất nhanh đã bị tranh mua hết.
@@ -48,13 +48,13 @@
 日常|adj.|daily; everyday|thường ngày, hằng ngày|这些 都 是 办公室 的 日常 工作 。|These are all part of the everyday work of the office.|Đây đều là công việc hằng ngày của văn phòng.
 日程|n.|schedule; agenda|lịch trình, chương trình|这 是 明天 会议 的 日程 安排 。|This is the schedule for tomorrow's meeting.|Đây là lịch trình của cuộc họp ngày mai.
 日历|n.|calendar|lịch|我 在 日历 上 写 了 你 的 生日 。|I've written your birthday on the calendar.|Tôi đã ghi sinh nhật của bạn lên lịch.
-日期|n.|date|ngày tháng, thời hạn|请 在 申请 表 上 写 清楚 入职 日期 。|Please write your start date clearly on the application form.|Vui lòng ghi rõ ngày nhận việc trên đơn đăng ký.
+日期|n.|date|ngày tháng, ngày|请 在 申请 表 上 写 清楚 入职 日期 。|Please write your start date clearly on the application form.|Vui lòng ghi rõ ngày nhận việc trên đơn đăng ký.
 日用品|n.|daily necessities|đồ dùng hằng ngày|楼 下 的 商店 卖 各 种 日用品 。|The shop downstairs sells all kinds of daily necessities.|Cửa hàng dưới tầng bán đủ loại đồ dùng hằng ngày.
 日子|n.|day; date; life|ngày; cuộc sống|这 几 年 大家 的 日子 越 过 越 好 。|In recent years everyone's life has been getting better and better.|Mấy năm nay cuộc sống của mọi người ngày càng tốt hơn.
 如何|pron.|how; what|như thế nào, làm sao|我们 讨论 一下 如何 降低 成本 。|Let's discuss how to reduce costs.|Chúng ta thảo luận xem làm thế nào để giảm chi phí.
 如今|n.|nowadays; now|ngày nay, hiện nay|如今 很多 人 都 在 网 上 买 东西 。|Nowadays many people shop online.|Ngày nay rất nhiều người mua hàng trên mạng.
 软|adj.|soft|mềm|这 张 床 太 软 了 ， 我 睡 得 不 舒服 。|This bed is too soft; I don't sleep comfortably.|Chiếc giường này mềm quá, tôi ngủ không thoải mái.
-软件|n.|software|phần mềm|公司 买 了 一 套 新 的 工资 管理 软件 。|The company has bought a new payroll management system.|Công ty đã mua một bộ phần mềm quản lý tiền lương mới.
+软件|n.|software|phần mềm|公司 买 了 一 套 新 的 工资 管理 软件 。|The company has bought a new payroll management software package.|Công ty đã mua một bộ phần mềm quản lý tiền lương mới.
 弱|adj.|weak|yếu|她 从 小 身体 比较 弱 ， 经常 感冒 。|She has been rather frail since childhood and often catches cold.|Cô ấy từ nhỏ sức khỏe khá yếu, thường bị cảm.
 洒|v.|to sprinkle; to spill|vẩy, rắc; làm đổ|对不起 ， 我 把 咖啡 洒 在 你 的 文件 上 了 。|Sorry, I've spilt coffee on your papers.|Xin lỗi, tôi làm đổ cà phê lên tài liệu của bạn rồi.
 嗓子|n.|throat; voice|cổ họng, giọng|我 嗓子 疼 ， 今天 不 能 说 太 多 话 。|I have a sore throat and can't talk much today.|Tôi đau họng, hôm nay không nói nhiều được.

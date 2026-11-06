@@ -100,9 +100,19 @@ const bank = sb.window.CB_BANK && Array.isArray(sb.window.CB_BANK.rows) ? sb.win
 sizes["data/mocks.js"] = write("data/mocks.js", minifyJS("window.CB_MOCK=" + J(sb.window.CB_MOCK) + ";window.CB_BANK=" + J(bank) + ";"));
 
 // ---- 3. app bundle (same order as index.html; data/audio manifests stay separate) ----
-const APP_FILES = ["js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/content.js", "js/talk.js", "js/games.js", "js/app.js"];
+const APP_FILES = ["js/storage.js", "js/srs.js", "js/audio.js", "js/gamify.js", "js/learn.js", "js/ai.js", "js/content.js", "js/i18n-vi.js", "js/i18n.js", "js/talk.js", "js/games.js", "js/app.js"];
 const joinApp = require("./join_app.js").join; // js/app/*.js: feature files of one scope, joined in order
-let app = APP_FILES.map((f) => (f === "js/app.js" ? joinApp() : read(f))).join("\n;\n").replace('var BUILD = "dev";', 'var BUILD = "' + VERSION + '";');
+// screens that are not needed at start-up go into chunks loaded on first visit (tools/split_app.js)
+const splitApp = require("./split_app.js");
+const appParts = splitApp.appFiles(), splitOut = splitApp.split(appParts.map((f) => f.text).join(""), splitApp.CHUNKS, appParts);
+const lazyFiles = {};
+Object.keys(splitOut.chunks).forEach((c) => {
+  const code = minifyJS(splitOut.chunks[c]), name = "app-" + c + "." + hash(code) + ".js";
+  sizes[name] = write(name, code); lazyFiles[c] = name;
+});
+if (!splitOut.core.includes("/*LAZY_FILES*/{}")) throw new Error("split_app: LAZY_FILES marker missing");
+const coreApp = splitOut.core.replace("/*LAZY_FILES*/{}", JSON.stringify(lazyFiles));
+let app = APP_FILES.map((f) => (f === "js/app.js" ? coreApp : read(f))).join("\n;\n").replace('var BUILD = "dev";', 'var BUILD = "' + VERSION + '";');
 if (!app.includes('var BUILD = "' + VERSION + '"')) throw new Error("BUILD marker not found in js/app.js");
 const PACK_MARK = 'var H5_FILE = "hsk5.js", X4_FILE = "hsk4x.js";';
 if (!app.includes(PACK_MARK)) throw new Error("pack file marker not found in js/app.js");
@@ -134,6 +144,7 @@ const p0 = sw.indexOf("/* PRECACHE:START"), p1 = sw.indexOf("/* PRECACHE:END */"
 if (p0 < 0 || p1 < 0) throw new Error("PRECACHE markers missing in sw.js");
 const precache = ["./", "index.html", cssName, appName, "manifest.webmanifest", "audio/manifest.js",
   "data/index.js", "data/full.js", "data/mocks.js", "data/track.js", "vendor/hanzi-writer.min.js",
+  ...Object.values(lazyFiles),
   "icons/icon-64.png", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
   "fonts/nunito-latin-wght-normal.woff2", "fonts/nunito-latin-ext-wght-normal.woff2", "fonts/nunito-vietnamese-wght-normal.woff2"];
 // iOS launch screens (tools/gen_splash.py): precached like the icons

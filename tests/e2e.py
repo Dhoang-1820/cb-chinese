@@ -2285,9 +2285,87 @@ async def t_quickui(b):
     await ctx.close()
 
 
+
+SWEEP_ROUTES = ["#/", "#/learn", "#/learn/all", "#/learn/core", "#/learn/extra", "#/learn/found", "#/learn/h5", "#/learn/h5p", "#/learn/mine",
+                "#/day/1/words", "#/day/31/reading", "#/day/61/grammar", "#/day/75/practice", "#/day/90/quiz", "#/cards/1", "#/core/1", "#/check/1",
+                "#/pack/h5/1", "#/pack/x4/1", "#/families", "#/review", "#/listen-mode", "#/games",
+                "#/game/builder", "#/game/listen", "#/game/speed", "#/game/race", "#/game/boss", "#/game/quick", "#/game/drill", "#/game/write",
+                "#/game/type", "#/game/confuse", "#/game/order", "#/game/picture", "#/game/coach", "#/game/measure", "#/game/bank",
+                "#/game/wordorder", "#/game/reading", "#/game/confuse/h5", "#/game/order/h5", "#/game/picture/h5", "#/game/measure/h5",
+                "#/search", "#/me", "#/me/backup", "#/settings", "#/reports", "#/chat", "#/track", "#/track/1/1", "#/track/7/2", "#/track/13/1",
+                "#/track/19/2", "#/talk", "#/mistakes", "#/mistakes/all", "#/mistakes/repeat", "#/parts", "#/sprint", "#/exams", "#/eve", "#/warmup",
+                "#/plan", "#/exam", "#/ready", "#/read", "#/progress", "#/mock", "#/mock/1", "#/mock/5", "#/mock/1/sim", "#/official",
+                "#/official/real", "#/session", "#/weekly", "#/catchup", "#/grammar", "#/grammar/h5", "#/grammar/g01", "#/grammar/h5g01"]
+SWEEP_JS = """() => {
+  const app = document.getElementById('app'), t = app.innerText, W = innerWidth;
+  const junk = (t.match(/\\b(undefined|NaN|Infinity)\\b|\\[object \\w+\\]/g) || []).slice(0, 3);
+  const wide = document.documentElement.scrollWidth > W + 1;
+  const over = [...app.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(), s = getComputedStyle(e);
+    if (!r.width || s.visibility === 'hidden' || r.right <= W + 2) return false;
+    for (let p = e.parentElement; p && p !== app.parentElement; p = p.parentElement) { const ps = getComputedStyle(p); if (/(auto|scroll|hidden)/.test(ps.overflowX)) return false; }
+    return true; }).slice(0, 3).map(e => e.tagName + '.' + e.className + ' ' + (e.innerText || '').slice(0, 30));
+  const vis = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden'; };
+  const small = [...document.querySelectorAll('#app a[href], #app button, #app input, #app select, #app [role=button], .tabbar a, .topbar button')].filter(vis)
+    .filter(e => { const r = e.getBoundingClientRect(); return (r.width < 24 || r.height < 24) && !e.closest('.zh-tap, .tapword, p, li') && e.tagName !== 'INPUT'; })
+    .slice(0, 4).map(e => { const r = e.getBoundingClientRect(); return e.tagName + '.' + e.className + ' "' + (e.innerText || e.getAttribute('aria-label') || '').trim().slice(0, 16) + '" ' + Math.round(r.width) + 'x' + Math.round(r.height); });
+  const clip = [...app.querySelectorAll('*')].filter(e => e.children.length === 0 && vis(e) && !e.closest('.sr') && (e.innerText || '').trim()).filter(e => { const s = getComputedStyle(e);
+    return /hidden|clip/.test(s.overflowX + s.overflow) && s.textOverflow !== 'ellipsis' && e.scrollWidth > e.clientWidth + 2; }).slice(0, 3).map(e => e.tagName + '.' + e.className + ' "' + e.innerText.slice(0, 24) + '"');
+  return { crash: /Something broke/.test(t), short: t.trim().length < 15, junk, wide, over, small, clip, len: t.length };
+}"""
+
+
+async def t_sweep(b):
+    """Every screen, on an iPhone 14, in light and dark, for a new learner and a heavy one: renders, no 'undefined' or 'NaN'
+    on screen, nothing wider than the phone. Then a tap on every safe button of the main screens must not raise a script error."""
+    for label, state in (("new", {"settings": settings(), "srs": {}}), ("heavy", heavy_state())):
+        for theme in ("light", "dark"):
+            st = json.loads(json.dumps(state)); st["settings"]["theme"] = theme
+            ctx, pg = await open_app(b, st)
+            await pg.wait_for_timeout(1200)
+            bad = {"crash": [], "junk": [], "wide": [], "short": [], "small": [], "clip": []}
+            for r in SWEEP_ROUTES:
+                await go(pg, r, 350); await no_dialogs(pg)
+                res = await pg.evaluate(SWEEP_JS)
+                if res["short"] or res["crash"]:
+                    await pg.wait_for_timeout(900); res = await pg.evaluate(SWEEP_JS)  # lazy data
+                if res["crash"]: bad["crash"].append(r)
+                if res["short"]: bad["short"].append(r)
+                if res["junk"]: bad["junk"].append((r, res["junk"]))
+                if res["wide"] or res["over"]: bad["wide"].append((r, res["over"]))
+                if res["small"]: bad["small"].append((r, res["small"]))
+                if res["clip"]: bad["clip"].append((r, res["clip"]))
+            tag = "sweep (%s learner, %s): " % (label, theme)
+            check(tag + "every screen renders without the crash screen", not bad["crash"] and not bad["short"], bad["crash"] + bad["short"])
+            check(tag + "no 'undefined', 'NaN' or '[object …]' on any screen", not bad["junk"], bad["junk"][:5])
+            check(tag + "nothing wider than the phone screen", not bad["wide"], bad["wide"][:5])
+            check(tag + "no button or link smaller than 24 px", not bad["small"], bad["small"][:8])
+            check(tag + "no text cut off without an ellipsis", not bad["clip"], bad["clip"][:6])
+            await ctx.close()
+    # tap every safe button once on the main screens (a fresh load per tap) and watch for script errors
+    errs, tapped = [], 0
+    ctx, pg = await open_app(b, heavy_state(), expect_errors=True)
+    mine = []; pg.on("pageerror", lambda e: mine.append(str(e)))
+    await pg.wait_for_timeout(1200)
+    for r in ["#/", "#/learn", "#/review", "#/games", "#/me", "#/progress", "#/mistakes", "#/plan", "#/ready", "#/read", "#/track", "#/grammar", "#/day/61/words", "#/mock/5", "#/official", "#/exams", "#/parts"]:
+        await go(pg, r, 400); await no_dialogs(pg)
+        n = await pg.evaluate("""() => [...document.querySelectorAll('#app button, #app [role=button]')].filter(e => e.offsetParent && !/reset|delete|remove|erase|clear|import|restore|sign|log ?out|xóa|disconnect|export|share|copy|calendar|google|download/i.test(e.innerText + ' ' + (e.getAttribute('aria-label') || ''))).length""")
+        for i in range(min(n, 30)):
+            await go(pg, "#/sweep-reset", 50); await go(pg, r, 300); await no_dialogs(pg)
+            before = len(mine)
+            ok = await pg.evaluate("""i => { const bs = [...document.querySelectorAll('#app button, #app [role=button]')].filter(e => e.offsetParent && !/reset|delete|remove|erase|clear|import|restore|sign|log ?out|xóa|disconnect|export|share|copy|calendar|google|download/i.test(e.innerText + ' ' + (e.getAttribute('aria-label') || ''))); const e = bs[i]; if (!e) return null; const l = (e.innerText || e.getAttribute('aria-label') || '').trim().slice(0, 30); e.click(); return l; }""", i)
+            if ok is None: continue
+            tapped += 1
+            await pg.wait_for_timeout(250)
+            crash = await pg.evaluate("/Something broke/.test(document.getElementById('app').innerText)")
+            if len(mine) > before or crash: errs.append((r, ok, (mine[before:] or ["crash screen"])[0][:120]))
+            await no_dialogs(pg)
+    check("sweep: %d taps on the main screens raise no script error" % tapped, not errs, errs[:6])
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5), ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync), ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip), ("theme", t_theme), ("home", t_home), ("habit", t_habit), ("flame", t_flame), ("anims", t_anims), ("ready", t_ready), ("learn", t_learn), ("hearts", t_hearts),
           ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
-          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow), ("quickui", t_quickui)]
+          ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2), ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow), ("quickui", t_quickui), ("sweep", t_sweep)]
 PW = None
 
 

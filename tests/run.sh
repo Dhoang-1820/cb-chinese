@@ -2,7 +2,7 @@
 # Runs every automated check: content, the AI service (with a fake Gemini) and the browser tests on a built site.
 #   tests/run.sh             everything
 #   tests/run.sh reader a11y only these browser-test groups
-# Needs: Node 22.18+, esbuild where Node can find it (npm install --no-save esbuild), Python with Playwright + Chromium.
+# Needs: Node 22.18+, esbuild, acorn and eslint-scope where Node can find them (npm install --no-save esbuild acorn eslint-scope), Python with Playwright + Chromium.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 trap 'echo "::error title=Tests::tests/run.sh stopped at line $LINENO (see the step log)"' ERR

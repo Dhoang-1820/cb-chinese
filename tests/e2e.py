@@ -2404,7 +2404,7 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
-          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi)]
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split)]
 PW = None
 
 

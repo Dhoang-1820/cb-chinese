@@ -262,6 +262,13 @@
     });
     return g + "</svg>";
   }
+  /* Every Progress chart ends with a button to the practice that moves it. */
+  function chartGo(id, href, label) { return '<div class="actions chart-go"><a class="btn small primary" id="' + id + '" href="' + href + '">' + label + "</a></div>"; }
+  /* The exam part to practise for one section (L / R / W): the weakest part of that section with answers, else its first part. */
+  function partFor(sec) {
+    var w = weakParts().filter(function (p) { return p.k.charAt(0) === sec; })[0];
+    return "#/parts/" + (w ? w.k : sec + "1");
+  }
   function viewProgress() {
     var s = Store.state, t = Store.today();
     var mh = s.mockHistory.slice(-12).map(function (h, i) { return { x: "#" + (s.mockHistory.length - Math.min(12, s.mockHistory.length) + i + 1), y: num(h.total) }; });
@@ -274,19 +281,23 @@
     for (var i = 0; i < 30; i++) { var d = Store.addDays(from, i); cum += added[d] || 0; words.push({ x: d.slice(5), y: cum }); }
     var xp = []; for (var j = 13; j >= 0; j--) { var dd = Store.addDays(t, -j); xp.push({ x: dd.slice(8), y: s.log[dd] || 0 }); }
     var sec = function (k) { return s.mockHistory.slice(-12).map(function (h, i) { return { x: String(i + 1), y: num((h.sections || {})[k]) }; }); };
-    var html = weeklyCard() + coachBox() + forecastCard(false) + '<section class="card"><div class="sec-h"><h2>📝 ' + tx("Mock exam scores") + '</h2><span class="muted">' + (best ? tx("best {n}/300", { n: best }) : "") + "</span></div>" +
-      lineChart(mh, { max: 300, ref: 180, refLabel: tx("pass 180"), empty: tx("Take a mock exam to start your score chart.") }) + "</section>";
+    var nDue = SRS.dueIds().length, fc = forecast(), fcSec = fc ? { Listening: "L", Reading: "R", Writing: "W" }[fc.weakest] : "";
+    var html = weeklyCard() + coachBox() + forecastCard(false) + (fcSec ? chartGo("go-fc", partFor(fcSec), tx("▶ Practise {sec}", { sec: tx(fc.weakest) })) : "") +
+      '<section class="card"><div class="sec-h"><h2>📝 ' + tx("Mock exam scores") + '</h2><span class="muted">' + (best ? tx("best {n}/300", { n: best }) : "") + "</span></div>" +
+      lineChart(mh, { max: 300, ref: 180, refLabel: tx("pass 180"), empty: tx("Take a mock exam to start your score chart.") }) + chartGo("go-mock", "#/mock", tx("▶ Take a mock exam")) + "</section>";
     if (s.mockHistory.length) {
       html += '<section class="card"><h2>' + tx("By section") + '</h2><div class="spark3">' + ["listening", "reading", "writing"].map(function (k) {
         var pts = sec(k), last = pts[pts.length - 1].y;
-        return '<div><b>' + { listening: "🎧 " + tx("Listening"), reading: "📖 " + tx("Reading"), writing: "✍️ " + tx("Writing") }[k] + "</b><span class=\"big-n\">" + last + "</span>" + lineChart(pts, { max: 100, h: 70 }) + "</div>";
+        return '<div><b>' + { listening: "🎧 " + tx("Listening"), reading: "📖 " + tx("Reading"), writing: "✍️ " + tx("Writing") }[k] + "</b><span class=\"big-n\">" + last + "</span>" + lineChart(pts, { max: 100, h: 70 }) +
+          '<a class="btn small" id="go-' + k + '" href="' + partFor(k.charAt(0).toUpperCase()) + '">' + tx("Practise") + "</a></div>";
       }).join("") + "</div></section>";
     }
-    html += '<section class="card"><div class="sec-h"><h2>📘 ' + tx("Words in review") + '</h2><span class="muted">' + Object.keys(s.srs).length + " / " + WORDS.length + "</span></div>" + lineChart(words, { max: Math.max(10, cum), empty: "" }) + "</section>";
-    html += '<section class="card"><div class="sec-h"><h2>⭐ ' + tx("XP · last 14 days") + '</h2><span class="muted">' + tx("goal {n}", { n: s.settings.dailyGoal || 30 }) + "</span></div>" + barChart(xp, { ref: s.settings.dailyGoal || 30 }) + "</section>";
+    html += '<section class="card"><div class="sec-h"><h2>📘 ' + tx("Words in review") + '</h2><span class="muted">' + Object.keys(s.srs).length + " / " + WORDS.length + "</span></div>" + lineChart(words, { max: Math.max(10, cum), empty: "" }) +
+      (nDue ? chartGo("go-words", "#/review", tx("▶ Review {n} due words", { n: nDue })) : chartGo("go-words", "#/learn", tx("▶ Learn new words"))) + "</section>";
+    html += '<section class="card"><div class="sec-h"><h2>⭐ ' + tx("XP · last 14 days") + '</h2><span class="muted">' + tx("goal {n}", { n: s.settings.dailyGoal || 30 }) + "</span></div>" + barChart(xp, { ref: s.settings.dailyGoal || 30 }) + chartGo("go-xp", "#/session", tx("▶ Today's session")) + "</section>";
     var rep = Learn.report(3, true);
     if (rep.length) html += '<section class="card"><div class="sec-h"><h2>🎯 ' + tx("Skills") + '</h2><a href="#/mistakes">' + tx("Details ›") + '</a></div>' + rep.map(function (x) {
-      return '<div class="sk-row"><span class="sk-n">' + skillName(x.skill) + "</span>" + accBar(x.acc) + "</div>"; }).join("") + "</section>";
+      return '<div class="sk-row sk-go"><span class="sk-n">' + skillName(x.skill) + "</span>" + accBar(x.acc) + practiceLink(x.skill) + "</div>"; }).join("") + "</section>";
     render(html, "me");
     wireCoachBox();
   }

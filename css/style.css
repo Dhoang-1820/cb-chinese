@@ -1563,3 +1563,8 @@ body.on-tab #chip-heart, body.on-tab #btn-py, body.on-tab #btn-flag { display: n
 .wu-h { margin: 14px 0 4px; font-size: .95rem; }
 button.grow { width: 100%; text-align: left; font: inherit; background: none; border: 0; border-top: 1px solid var(--border); cursor: pointer; }
 button.grow:first-child { border-top: 0; }
+
+/* Progress: a practice button under every chart */
+.chart-go { margin-top: 10px; }
+.spark3 .btn.small { grid-column: 1 / -1; justify-self: start; margin-top: 6px; min-height: 36px; padding: 4px 10px; }
+.sk-go .btn.small { flex: none; min-height: 36px; padding: 4px 10px; }

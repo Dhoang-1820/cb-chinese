@@ -91,8 +91,10 @@
       Store.save(); box.outerHTML = fbAsk(); syncSoon();
     };
   }
+  /* arg: "rescue" (2 minutes), "comeback" (5 minutes after a break), "go" (first run: no plan page, the first card at once) */
   function viewSession(arg) {
-    var rescue = arg === "rescue", back = arg === "comeback", light = rescue || back, myHash = light ? "#/session/" + arg : "#/session";
+    var go = arg === "go"; if (go) arg = null;
+    var rescue = arg === "rescue", back = arg === "comeback", light = rescue || back, myHash = light ? "#/session/" + arg : go ? "#/session/go" : "#/session";
     var steps = sessionPlan(light ? arg : null), k = 0, s = Store.state, start = { xp: s.xp, hearts: s.stats.hearts || 0, srs: Object.keys(s.srs).length, mis: Learn.count() };
     var log = [];
     function next(result) {
@@ -129,6 +131,7 @@
     render('<div class="card result"><h2>' + (rescue ? tx("2-minute rescue") : back ? tx("5-minute restart") : tx("Today's session")) + '</h2>' + (back ? '<p class="sub">' + tx("Overdue words first. Five minutes today is enough to get going again.") + '</p>' : "") + '<div class="tasks">' + steps.map(function (x) { return '<div class="task" data-step="' + esc(x.id) + '"><span class="tk-ico">' + x.icon + "</span><span>" + esc(x.name) + "</span></div>"; }).join("") +
       '</div><button class="btn primary big" id="ss-go">▶ ' + tx("Start") + '</button></div>', "home");
     document.getElementById("ss-go").onclick = function () { next(); };
+    if (go) next();
   }
 
   /* ---------- grammar checklists: HSK 4 (g01..) and HSK 5 (h5g01.., loaded with the HSK 5 pack) ---------- */

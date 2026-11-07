@@ -2454,6 +2454,39 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
           ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5)]
+
+async def t_progress_go(b):
+    """Every Progress chart has a button to the matching practice; a new learner reaches the first card in 2 taps."""
+    st = {"settings": settings(), "srs": {"d01-01": {"box": 1, "due": day(-1), "right": 0, "wrong": 0, "added": day(-5)}},
+          "log": {day(-1): 40}, "mockHistory": [{"id": 1, "date": day(-3), "mode": "exam", "total": 150, "sections": {"listening": 60, "reading": 40, "writing": 50}}]}
+    ctx, pg = await open_app(b, st)
+    await go(pg, "#/progress", 900)
+    hrefs = await pg.evaluate("Object.fromEntries([...document.querySelectorAll('#app [id^=go-]')].map(a=>[a.id,a.getAttribute('href')]))")
+    check("progress: mock chart → take a mock exam", hrefs.get("go-mock") == "#/mock", hrefs)
+    check("progress: each section chart → a timed part of that section", hrefs.get("go-listening", "").startswith("#/parts/L") and hrefs.get("go-reading", "").startswith("#/parts/R") and hrefs.get("go-writing", "").startswith("#/parts/W"), hrefs)
+    check("progress: words chart → review the due words", hrefs.get("go-words") == "#/review" and "1 due" in await pg.locator("#go-words").inner_text(), hrefs)
+    check("progress: XP chart → today's session", hrefs.get("go-xp") == "#/session", hrefs)
+    check("progress: forecast → practise the weakest section", (hrefs.get("go-fc") or "").startswith("#/parts/"), hrefs)
+    secs = await pg.locator(".card:has(.chart)").count(); btns = await pg.locator(".card:has(.chart) .btn").count()
+    check("progress: no chart without a button", btns >= secs, [secs, btns])
+    await pg.click("#go-mock"); await pg.wait_for_timeout(600)
+    check("progress: the mock button opens the mock list", pg.url.endswith("#/mock"))
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "log": {}})
+    await go(pg, "#/progress", 900)
+    check("progress: with no words yet the words chart offers new words", await pg.locator("#go-words").get_attribute("href") == "#/learn")
+    await ctx.close()
+    # first run: setup Continue (tap 1), Start on Home (tap 2) → a flashcard
+    ctx, pg = await open_app(b, None)
+    await pg.wait_for_selector("#su-go"); await pg.click("#su-go"); await pg.wait_for_timeout(600)
+    await pg.click("#today-go"); await pg.wait_for_timeout(1500)
+    check("first run: 2 taps reach the first card", "#/session/go" in pg.url and "Tap to flip" in await pg.inner_text("#app") and await pg.locator("#ss-go").count() == 0,
+          [pg.url, (await pg.inner_text("#app"))[:80]])
+    await ctx.close()
+
+
+GROUPS.append(("progress_go", t_progress_go))
+
 PW = None
 
 

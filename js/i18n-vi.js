@@ -1677,5 +1677,10 @@ window.CB_I18N_VI = {
   "about 15 minutes": "khoảng 15 phút",
   "about 30 minutes": "khoảng 30 phút",
   "HSK 5 mock exams": "Đề thi thử HSK 5",
-  "For after HSK 4. Shortened sets (39 questions, ~40 min) in the same format; they do not count towards your HSK 4 score forecast.": "Dành cho sau HSK 4. Đề rút gọn (39 câu, ~40 phút) cùng dạng đề; không tính vào dự đoán điểm HSK 4 của bạn."
+  "For after HSK 4. Shortened sets (39 questions, ~40 min) in the same format; they do not count towards your HSK 4 score forecast.": "Dành cho sau HSK 4. Đề rút gọn (39 câu, ~40 phút) cùng dạng đề; không tính vào dự đoán điểm HSK 4 của bạn.",
+  "▶ Practise {sec}": "▶ Luyện {sec}",
+  "▶ Take a mock exam": "▶ Làm đề thi thử",
+  "▶ Review {n} due words": "▶ Ôn {n} từ đến hạn",
+  "▶ Learn new words": "▶ Học từ mới",
+  "▶ Today's session": "▶ Buổi học hôm nay"
 };

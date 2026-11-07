@@ -95,6 +95,8 @@ opt("HSK 5 headwords", true, h5.map(w => w.hanzi));
 opt("HSK 5 grammar examples", true, (sb.window.CB_HSK5_GRAMMAR || []).flatMap(g => g.examples.map(e => e.zh)));
 opt("HSK 5 picture model sentences", true, ((sb.window.CB_HSK5_DRILLS || {}).picture || []).flatMap(it => it.samples.map(x => x.zh)));
 opt("extra HSK 4 words (word, phrase, example)", true, kind("missing").flatMap(p => p.words).flatMap(w => [w.hanzi].concat((w.collocations || []).map(c => c.zh), w.example ? [w.example.zh] : [])));
+load("phrasebook.js");
+opt("HR phrasebook messages", true, (sb.window.CB_PHRASES || []).map(x => String(x.zh || "").replace(/[\[\]]/g, ""))); // spoken without the [placeholder] brackets, as js/app/11-extras.js plays them
 opt("HSK 5 example sentences", ALL, h5.map(w => w.example && w.example.zh));
 opt("extra HSK 4 common phrases", ALL, kind("collocations").flatMap(p => p.items).flatMap(i => i.phrases.map(x => x.zh)));
 opt("opposites examples", ALL, kind("opposites").flatMap(p => p.items).flatMap(i => [i.a.example.zh, i.b.example.zh]));

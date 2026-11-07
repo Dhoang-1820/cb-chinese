@@ -1,0 +1,27 @@
+/* HR phrasebook data (data/phrasebook.js): shape, ids, categories, scenes, placeholders. Run: node tests/phrasebook_test.mjs */
+import fs from "node:fs"; import vm from "node:vm"; import path from "node:path";
+const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+const sb = { window: {} }; vm.createContext(sb);
+vm.runInContext(fs.readFileSync(path.join(ROOT, "data/phrasebook.js"), "utf8"), sb);
+vm.runInContext(fs.readFileSync(path.join(ROOT, "js/talk.js"), "utf8"), sb);
+const P = sb.window.CB_PHRASES || [], scenes = new Set((sb.window.CB_TALK || []).map((s) => s.id));
+const CATS = ["payroll", "leave", "offer", "policy", "meeting", "escalation", "daily"];
+let pass = 0, fail = 0;
+const t = (name, ok, info) => { if (ok) { pass++; console.log("PASS " + name); } else { fail++; console.log("FAIL " + name + "  " + (info || "")); } };
+t("60 to 100 messages", P.length >= 60 && P.length <= 100, P.length);
+t("ids pb-NNN, unique", P.every((x) => /^pb-\d{3}$/.test(x.id)) && new Set(P.map((x) => x.id)).size === P.length);
+t("every message has title vi/en, zh, py, vi, en", P.every((x) => x.title && x.title.vi && x.title.en && x.zh && x.py && x.vi && x.en), P.filter((x) => !(x.title && x.zh && x.py && x.vi && x.en)).map((x) => x.id).join(","));
+t("every message is checked:false (no teacher check yet)", P.every((x) => x.checked === false));
+t("categories are known", P.every((x) => CATS.includes(x.cat)), P.filter((x) => !CATS.includes(x.cat)).map((x) => x.id + ":" + x.cat).join(","));
+t("every category has messages", CATS.every((c) => P.some((x) => x.cat === c)));
+const badScene = P.filter((x) => x.scene != null && !scenes.has(x.scene));
+t("scene links point to real role-play scenes", badScene.length === 0, badScene.map((x) => x.id + ":" + x.scene).join(","));
+t("at least half the messages link to a role-play scene", P.filter((x) => x.scene).length * 2 >= P.length);
+t("zh is Chinese, py has no Chinese characters", P.every((x) => /[㐀-鿿]/.test(x.zh) && !/[㐀-鿿]/.test(x.py)));
+const br = (s) => (s.match(/\[/g) || []).length === (s.match(/\]/g) || []).length;
+t("placeholders: brackets balanced in every field", P.every((x) => [x.zh, x.py, x.vi, x.en].every(br)), P.filter((x) => ![x.zh, x.py, x.vi, x.en].every(br)).map((x) => x.id).join(","));
+t("placeholders: as many in zh as in py", P.every((x) => (x.zh.match(/\[/g) || []).length === (x.py.match(/\[/g) || []).length), P.filter((x) => (x.zh.match(/\[/g) || []).length !== (x.py.match(/\[/g) || []).length).map((x) => x.id).join(","));
+t("doubtful ones are listed in docs/phrasebook-review.md", (() => { const md = fs.readFileSync(path.join(ROOT, "docs/phrasebook-review.md"), "utf8"); return P.filter((x) => x.doubt).every((x) => md.includes(x.id)); })());
+t("messages are short enough for a chat (≤ 80 characters of Chinese)", P.every((x) => x.zh.length <= 80), P.filter((x) => x.zh.length > 80).map((x) => x.id).join(","));
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

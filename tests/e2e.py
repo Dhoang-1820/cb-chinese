@@ -10,7 +10,7 @@ Nothing here depends on today's date: exam dates and study logs are set relative
 The script exits with 1 when any check fails.
 """
 import asyncio, datetime, itertools, json, os, sys, urllib.request
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 
 BASE = os.environ.get("BASE", "http://localhost:8766/")
 AI_URL = os.environ.get("AI_URL", "http://localhost:9201/ai")
@@ -36,6 +36,23 @@ def settings(**extra):
     s = {"onboarded": True, "setupDone": True, "installHintDismissed": True, "theme": "light", "examDate": day(30)}
     s.update(extra)
     return s
+
+
+def csp_safe_wait(pg):
+    """page.wait_for_function runs its predicate through eval() inside the page, which the app's Content Security Policy
+    (script-src 'self', no 'unsafe-eval') blocks. Poll with page.evaluate instead: Playwright runs that outside the CSP."""
+    async def wait_for_function(expr, arg=None, timeout=30000, polling=100, **_):
+        end = asyncio.get_event_loop().time() + timeout / 1000
+        while True:
+            try:
+                v = await (pg.evaluate(expr, arg) if arg is not None else pg.evaluate(expr))
+            except Exception as e:  # e.g. the page is navigating
+                if "Execution context was destroyed" not in str(e) and "navigat" not in str(e): raise
+                v = None
+            if v: return v
+            if asyncio.get_event_loop().time() > end: raise PWTimeout("wait_for_function: timeout %d ms exceeded: %s" % (timeout, str(expr)[:120]))
+            await asyncio.sleep((polling if isinstance(polling, (int, float)) else 100) / 1000)
+    pg.wait_for_function = wait_for_function
 
 
 async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, ui="en", **ctx_opts):
@@ -65,6 +82,7 @@ async def open_app(browser, state=None, path="", ai=False, expect_errors=False, 
     if init:
         await ctx.add_init_script(init)
     pg = await ctx.new_page()
+    csp_safe_wait(pg)
     if SLOW > 1:  # SLOW=4 imitates a slow machine, to find checks that only pass on a fast one
         cdp = await ctx.new_cdp_session(pg); await cdp.send("Emulation.setCPUThrottlingRate", {"rate": SLOW})
     if not expect_errors:

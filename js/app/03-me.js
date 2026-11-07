@@ -110,7 +110,7 @@
     document.getElementById("s-imp").onchange = function () {
       var f = this.files[0]; if (!f) return;
       var r = new FileReader();
-      r.onload = function () { try { var res = Store.importJSON(r.result); buildIndex(); applySettings(); UI.toast(res && res.ignored.length ? tx("Progress imported ({n} unknown fields ignored)", { n: res.ignored.length }) : tx("Progress imported"), "✅"); route(); } catch (e) { UI.toast(tx("Import failed: {msg}", { msg: e.message }), "⚠️"); } };
+      r.onload = function () { try { var res = Store.importJSON(r.result); buildIndex(); applySettings(); UI.toast(res && (res.fixed.length || res.ignored.length) ? tx("Progress imported ({n} values repaired, {m} unknown fields ignored)", { n: res.fixed.length, m: res.ignored.length }) : tx("Progress imported"), "✅"); route(); } catch (e) { UI.toast(tx("Import failed: {msg}", { msg: e.message }), "⚠️"); } };
       r.readAsText(f);
     };
     document.getElementById("s-good").onclick = function () {

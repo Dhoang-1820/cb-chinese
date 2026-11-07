@@ -62,13 +62,21 @@
 
   /* Automatic local backup. GOOD holds a "last good" copy of the progress: written when the app opens with readable
      progress (at most every 6 hours) and right before an import or a reset replaces it. If the main key is ever
-     unreadable, or missing while a copy exists, load() takes the copy instead and keeps the damaged text under BAD
+     unreadable (cut-off or invalid JSON, or not an object with any known field), or missing while a copy exists,
+     load() takes the copy instead and keeps the damaged text under BAD
      (for a problem report); Store.restored tells the app so it can say what happened. */
   var GOOD = "cbChinese.progress.lastgood.v1", BAD = "cbChinese.progress.corrupt.v1", GOOD_EVERY = 6 * 3600 * 1000;
   var restored = null;
-  function usable(o) { return !!o && typeof o === "object" && !Array.isArray(o) && !!o.srs && typeof o.srs === "object" && !!o.settings && typeof o.settings === "object" && !Array.isArray(o.settings); }
+  /* saved progress is usable when it is an object with at least one field this app knows (missing fields take their
+     defaults, as they always did); the automatic copy must have the review deck and settings */
+  function usable(o) {
+    if (!o || typeof o !== "object" || Array.isArray(o)) return false;
+    var d = defaults(); for (var k in o) if (Object.prototype.hasOwnProperty.call(d, k)) return true;
+    return false;
+  }
+  function fullCopy(o) { return usable(o) && !!o.srs && typeof o.srs === "object" && !!o.settings && typeof o.settings === "object" && !Array.isArray(o.settings); }
   function readGood() {
-    try { var g = JSON.parse(localStorage.getItem(GOOD) || "null"); return g && usable(g.progress) ? g : null; } catch (e) { return null; }
+    try { var g = JSON.parse(localStorage.getItem(GOOD) || "null"); return g && fullCopy(g.progress) ? g : null; } catch (e) { return null; }
   }
   function keepGood(force) {
     if (!available) return false;
@@ -152,6 +160,14 @@
       c.box = Math.max(1, Math.min(5, Math.round(n(c.box)) || 1)); c.right = n(c.right); c.wrong = n(c.wrong);
       if (!DATE.test(c.due)) c.due = today();
     });
+    var lim = function (x, lo, hi) { return Math.max(lo, Math.min(hi, n(x))); };
+    d.xp = lim(d.xp, 0, 1e8); d.freezes = Math.round(lim(d.freezes, 0, 10));
+    if (!d.log || typeof d.log !== "object" || Array.isArray(d.log)) d.log = {};
+    Object.keys(d.log).forEach(function (k) { if (!DATE.test(k) || typeof d.log[k] !== "number" || !(d.log[k] >= 0)) delete d.log[k]; else d.log[k] = Math.min(100000, d.log[k]); });
+    if (!d.streak || typeof d.streak !== "object" || Array.isArray(d.streak)) d.streak = defaults().streak;
+    d.streak.count = Math.round(lim(d.streak.count, 0, 100000)); d.streak.best = Math.round(lim(d.streak.best, 0, 100000));
+    if (d.streak.last != null && !DATE.test(d.streak.last)) d.streak.last = null;
+    Object.keys(dflt).forEach(function (k) { var v = dflt[k]; if (v == null || st[k] == null) return; if (typeof st[k] !== typeof v || Array.isArray(st[k]) !== Array.isArray(v)) st[k] = v; });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(st.examDate)) st.examDate = dflt.examDate;
     if (!/^\d{2}:\d{2}$/.test(st.remindTime)) st.remindTime = dflt.remindTime;
     if (st.examTime && !/^\d{2}:\d{2}$/.test(st.examTime)) st.examTime = "";
@@ -428,30 +444,38 @@
     save();
     return state;
   }
-  /* Field-by-field check of an imported progress object. Returns { errors, ignored }: errors are wrong types, values out
-     of range, malformed dates or a newer format (the import is refused); ignored are top-level fields this version
-     does not know (dropped). Unknown settings are kept, since newer versions add settings. */
+  /* Field-by-field check of an imported progress object. Returns { errors, fixed, ignored }.
+     errors (the import is refused): no progress object, srs or settings missing, a known field of the wrong kind
+     (e.g. srs as a list), a newer format, or more than half of the review cards malformed (probably not our file).
+     fixed (imported, then repaired by clean(), and reported): single values out of range, malformed dates, settings
+     of the wrong type, some malformed cards or XP-log entries. ignored: top-level fields this version does not know
+     (dropped). Unknown settings are kept, since newer versions add settings. */
   function checkImport(p) {
-    var errors = [], ignored = [], dflt = defaults();
+    var errors = [], fixed = [], ignored = [], dflt = defaults();
     var kind = function (v) { return v === null ? "null" : Array.isArray(v) ? "array" : typeof v; };
-    var num = function (path, v, lo, hi) { if (typeof v !== "number" || !isFinite(v) || v < lo || v > hi) errors.push(path + ": should be a number from " + lo + " to " + hi); };
-    var date = function (path, v, nullable) { if (!(nullable && (v === null || v === "")) && !DATE.test(v || "")) errors.push(path + ": should be a date (YYYY-MM-DD)"); };
-    if (kind(p) !== "object") return { errors: ["the file has no progress object"], ignored: ignored };
+    var num = function (path, v, lo, hi) { if (typeof v !== "number" || !isFinite(v) || v < lo || v > hi) fixed.push(path + ": should be a number from " + lo + " to " + hi); };
+    var date = function (path, v, nullable) { if (!(nullable && (v === null || v === "")) && !DATE.test(v || "")) fixed.push(path + ": should be a date (YYYY-MM-DD)"); };
+    if (kind(p) !== "object") return { errors: ["the file has no progress object"], fixed: fixed, ignored: ignored };
     if (!("srs" in p) || !("settings" in p)) errors.push("srs and settings are missing");
     Object.keys(p).forEach(function (k) {
       if (!(k in dflt)) { ignored.push(k); return; }
       var v = p[k], want = kind(dflt[k]);
       if (v == null || want === "null") return;
-      if (kind(v) !== want) errors.push(k + ": should be " + (want === "object" ? "an object" : want === "array" ? "a list" : "a " + want) + ", not " + (kind(v) === "array" ? "a list" : "a " + kind(v)));
+      var got = kind(v);
+      if (got === want) return;
+      var desc = function (x) { return x === "object" ? "an object" : x === "array" ? "a list" : "a " + x; };
+      // a container of the wrong kind means the file is not progress; a scalar of the wrong kind is repaired
+      if (want === "object" || want === "array" || got === "object" || got === "array") errors.push(k + ": should be " + desc(want) + ", not " + desc(got));
+      else fixed.push(k + ": should be " + desc(want));
     });
-    if (errors.length) return { errors: errors, ignored: ignored };
-    if (p.version != null) { num("version", p.version, 1, 99); if (p.version > 2) errors.push("version: made by a newer version of the app; update the app first"); }
-    if (p.xp != null) num("xp", p.xp, 0, 1e8);
-    if (p.freezes != null) num("freezes", p.freezes, 0, 10);
+    if (p.version != null && typeof p.version === "number" && p.version > 2) errors.push("version: made by a newer version of the app; update the app first");
+    if (errors.length) return { errors: errors, fixed: fixed, ignored: ignored };
+    if (typeof p.xp === "number") num("xp", p.xp, 0, 1e8);
+    if (typeof p.freezes === "number") num("freezes", p.freezes, 0, 10);
     var st = p.settings || {};
     Object.keys(st).forEach(function (k) {
       if (!(k in dflt.settings) || dflt.settings[k] == null || st[k] == null) return;
-      if (kind(st[k]) !== kind(dflt.settings[k])) errors.push("settings." + k + ": should be a " + kind(dflt.settings[k]));
+      if (kind(st[k]) !== kind(dflt.settings[k])) fixed.push("settings." + k + ": should be a " + kind(dflt.settings[k]));
     });
     if (typeof st.examDate === "string") date("settings.examDate", st.examDate);
     if (typeof st.dailyGoal === "number") num("settings.dailyGoal", st.dailyGoal, 1, 1000);
@@ -468,10 +492,10 @@
       if (kind(c) !== "object" || typeof c.box !== "number" || !isFinite(c.box) || c.box < 0 || c.box > 10 || (c.due != null && !DATE.test(c.due)) ||
           (c.right != null && !(c.right >= 0)) || (c.wrong != null && !(c.wrong >= 0))) bad.push(id);
     });
-    if (bad.length) errors.push("srs: " + bad.length + " of " + ids.length + " review cards are malformed (first: " + bad.slice(0, 3).join(", ") + ")");
+    if (bad.length) (bad.length * 2 > ids.length && ids.length >= 4 ? errors : fixed).push("srs: " + bad.length + " of " + ids.length + " review cards are malformed (first: " + bad.slice(0, 3).join(", ") + ")");
     var badLog = Object.keys(p.log || {}).filter(function (d) { var v = p.log[d]; return !DATE.test(d) || typeof v !== "number" || !(v >= 0) || v > 100000; });
-    if (badLog.length) errors.push("log: " + badLog.length + " entries are not a date with a number of XP (first: " + badLog.slice(0, 2).join(", ") + ")");
-    return { errors: errors, ignored: ignored };
+    if (badLog.length) fixed.push("log: " + badLog.length + " entries are not a date with a number of XP (first: " + badLog.slice(0, 2).join(", ") + ")");
+    return { errors: errors, fixed: fixed, ignored: ignored };
   }
   function importJSON(text) {
     var obj;
@@ -482,7 +506,7 @@
     keepGood(true); // the progress being replaced stays restorable from Me → Settings
     state = merge(p);
     save();
-    return { ignored: chk.ignored };
+    return { ignored: chk.ignored, fixed: chk.fixed };
   }
   function reset() { keepGood(true); var keep = state.settings; state = defaults(); state.settings = keep; save(); }
 

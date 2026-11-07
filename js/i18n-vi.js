@@ -1681,7 +1681,7 @@ window.CB_I18N_VI = {
   "Saved progress was damaged, so the automatic copy from {date} was restored.": "Tiến độ đã lưu bị lỗi nên đã khôi phục bản sao tự động lúc {date}.",
   "Saved progress was damaged and there was no automatic copy; starting fresh. Import a backup in Me → Settings if you have one.": "Tiến độ đã lưu bị lỗi và chưa có bản sao tự động; ứng dụng bắt đầu lại từ đầu. Nếu có bản sao lưu, hãy nhập ở Tôi → Cài đặt.",
   "Copy on this phone": "Bản sao trên điện thoại",
-  "Progress imported ({n} unknown fields ignored)": "Đã nhập tiến độ (bỏ qua {n} trường không nhận ra)",
+  "Progress imported ({n} values repaired, {m} unknown fields ignored)": "Đã nhập tiến độ (sửa {n} giá trị lỗi, bỏ qua {m} trường không nhận ra)",
   "Replace your progress with the automatic copy from {date} ({n} words in review)?": "Thay tiến độ hiện tại bằng bản sao tự động lúc {date} ({n} từ đang ôn)?",
   "Automatic copy restored": "Đã khôi phục bản sao tự động",
   "Saved {date} · {n} words": "Lưu lúc {date} · {n} từ",

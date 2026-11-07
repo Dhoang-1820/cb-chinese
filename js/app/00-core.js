@@ -478,6 +478,7 @@
     else if (v === "progress") viewProgress();
     else if (v === "mock") {
       if (!parts[1]) viewMockList();
+      else if (parts[1] === "mini") viewMiniMock();
       else if (parts[2] === "result") viewMockResult(parts[1]);
       else if (parts[2] === "review") viewMockReview(parts[1]);
       else if (parts[2] === "sim") { var sm0 = MOCKMAP[parseInt(parts[1], 10)]; if (sm0) { clearExamTimer(); EXAM = null; viewSimPreflight(sm0.id, sm0); } else viewMockIntro(parts[1]); }

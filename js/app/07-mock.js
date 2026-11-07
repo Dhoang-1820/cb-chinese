@@ -304,7 +304,8 @@
       var a = EXAM.answers[x.it.id];
       if (a === undefined) return; // unanswered: not counted as a skill mistake
       var ok = mockCorrect(x, a);
-      Learn.record("m:" + EXAM.id + ":" + x.it.id, { kind: "mock", skill: x.skill, mock: EXAM.id, item: x.it.id }, ok);
+      var src = x.it.src || { m: EXAM.id, id: x.it.id }; // a mini-mock copy counts as its original question
+      Learn.record("m:" + src.m + ":" + src.id, { kind: "mock", skill: x.skill, mock: src.m, item: src.id }, ok);
       var p = per[x.skill] || (per[x.skill] = { r: 0, n: 0 }); p.n++; if (ok) p.r++;
     });
     return per;
@@ -320,7 +321,7 @@
     // rep: this set was seen before (in any mode), so the forecast counts the score less
     var rep = rec.plays > 0 || s.mockHistory.some(function (h) { return h.id === EXAM.id; });
     var ws = EXAM.test.writing.p2.some(function (it) { return EXAM.answers[it.id] !== undefined && EXAM.w2s[it.id] == null; }); // a sentence marked by the learner, not the AI
-    s.mockHistory.push({ id: EXAM.id, date: Store.today(), mode: EXAM.mode, strict: !!EXAM.strict, total: result.total,
+    if (!EXAM.test.mini) s.mockHistory.push({ id: EXAM.id, date: Store.today(), mode: EXAM.mode, strict: !!EXAM.strict, total: result.total,
       sections: { listening: result.listening.score, reading: result.reading.score, writing: result.writing.score }, rep: rep, full: !!EXAM.test.full, ws: ws,
       blank: mockBlanks().n, pace: EXAM.mode === "exam" ? EXAM.pace || null : null });
     EXAM.rep = rep;

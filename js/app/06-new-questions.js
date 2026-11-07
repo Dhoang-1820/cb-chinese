@@ -164,6 +164,12 @@
     var s = Store.state;
     var html = '<section class="card"><h2>' + tx("Mock HSK 4 Exams") + '</h2><p class="sub">' + tx("Original questions in the real exam format. The shorter tests are about 40% of the real length (~30 minutes); a <b>full-length</b> test has all 100 questions and the real timing (~100 minutes) to train your stamina. Scored /300 like the real test — 180+ is a pass.") + "</p></section>" +
       '<a class="cta card g-violet" href="#/parts"><span class="cta-l"><small>' + tx("10 questions at the real exam's pace") + "</small><b>" + tx("⏱ Practise one exam part") + "</b><em>" + (weakParts()[0] ? tx("Weakest: {name} · {acc}%", { name: esc(weakParts()[0].name), acc: weakParts()[0].acc }) : tx("Listening, reading or writing, one part at a time")) + '</em></span><span class="cta-go">▶</span></a>';
+    if (MOCK.length) {
+      var mw = miniWeak().slice(0, 2), mrec = s.mocks[MINI_ID];
+      html += '<a class="cta card g-coral" id="mini-go" href="#/mock/mini"><span class="cta-l"><small>' + tx("15 minutes · built from your weakest skills") + "</small><b>" + tx("⚡ Mini mock") + "</b><em>" +
+        (mw.some(function (w) { return w.known; }) ? tx("Focus: {list}", { list: mw.map(function (w) { return skillName(w.p[3]); }).join(" · ") }) : tx("All three sections, a few questions each")) +
+        (mrec && mrec.plays ? " · " + tx("last {n}/300", { n: num(mrec.lastScore) }) : "") + '</em></span><span class="cta-go">›</span></a>';
+    }
     if (!MOCK.length) html += '<p class="warn">' + tx("No mock exams loaded.") + "</p>";
     function mockCard(m) {
       var rec = s.mocks[m.id];

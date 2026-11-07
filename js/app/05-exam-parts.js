@@ -15,6 +15,75 @@
       // sentence-ordering items (full-length reading part 2): answer "BAC" → index into the 6 possible orders
       m.reading.p2.forEach(function (it) { if (it.parts && typeof it.answer === "string") { it.orderKey = it.answer; it.options = ORDERS.slice(); it.answer = ORDERS.indexOf(it.orderKey); } });
     });
+    restoreMini();
+  }
+  /* ---------- 15-minute mini mock (#/mock/mini → #/mock/90) ----------
+     Built from the learner's weakest skills, in the normal mock format, so the usual intro, timer, practice/exam modes,
+     result and review screens all work. Questions are copies of HSK 4 mock items (ids "L1-3@2" = item L1-3 of mock 2):
+     answers go to the notebook under the original mock and item, so a mistake is the same mistake wherever it was made.
+     The choice (mock, part, index) is kept on this phone (cbChinese.mini) so result and review still work after a reload.
+     A mini mock is not added to the score history: it is built from weak parts on purpose, so it would pull the forecast down. */
+  var MINI_ID = 90, MINI_KEY = "cbChinese.mini", MINI_SECS = 900;
+  var MINI_PARTS = [["L", "listening", "p1", "listen-tf", 40], ["L", "listening", "p2", "listen-short", 40], ["L", "listening", "p3", "listen-long", 40],
+    ["R", "reading", "p1", "fill-word", 60], ["R", "reading", "p2", "connectors", 60], ["R", "reading", "p3", "passage", 60],
+    ["W", "writing", "p1", "word-order", 80], ["W", "writing", "p2", "writing", 180]];
+  function miniAcc() { var a = {}; Learn.report(3, true).forEach(function (r) { a[r.skill] = r.acc; }); return a; }
+  /* The weakest parts, weakest first, with the accuracy used (parts never answered count as 60%). */
+  function miniWeak() {
+    var acc = miniAcc();
+    return MINI_PARTS.map(function (p) { var k = p[3]; return { p: p, acc: acc[k] != null ? acc[k] : 0.6, known: acc[k] != null }; })
+      .sort(function (a, b) { return a.acc - b.acc; });
+  }
+  /* refs: { listening: { p1: [[mockId, index], …], … }, … } → a mock object with copied items */
+  function miniFromRefs(refs) {
+    var m = { id: MINI_ID, mini: true, full: false, title: tx("⚡ Mini mock · 15 minutes"), listening: { time: 0, p1: [], p2: [], p3: [] }, reading: { time: 0, p1: [], p2: [], p3: [] }, writing: { time: 0, p1: [], p2: [] } };
+    var copy = function (it, mid) { var c = JSON.parse(JSON.stringify(it)); c.src = { m: mid, id: it.id }; c.id = it.id + "@" + mid; return c; };
+    MINI_PARTS.forEach(function (P) {
+      ((refs[P[1]] || {})[P[2]] || []).forEach(function (r) {
+        var src = MOCKMAP[r[0]], it = src && src[P[1]][P[2]][r[1]];
+        if (!it || src.level === 5) return;
+        if (P[2] === "p3" && P[1] === "reading") {
+          m.reading.p3.push({ passage: it.passage, questions: it.questions.map(function (q) { return copy(q, src.id); }) });
+          m.reading.time += P[4] * it.questions.length;
+        } else { m[P[1]][P[2]].push(copy(it, src.id)); m[P[1]].time += P[4]; }
+      });
+    });
+    return m;
+  }
+  /* Picks about 15 minutes of questions: the weakest part of each section, with the overall weakest part getting most. */
+  function buildMini() {
+    var weak = miniWeak(), refs = { listening: {}, reading: {}, writing: {} }, used = 0, first = weak[0].p[0];
+    var pool = function (P) {
+      var out = []; MOCK.forEach(function (m) { (m[P[1]][P[2]] || []).forEach(function (it, i) { out.push([m.id, i]); }); });
+      return shuffle(out);
+    };
+    var cost = function (P, r) { var it = MOCKMAP[r[0]][P[1]][P[2]][r[1]]; return P[4] * (it.questions ? it.questions.length : 1); };
+    /* per section: its weakest part; the section of the overall weakest part gets twice the time */
+    ["L", "R", "W"].forEach(function (sec) {
+      var parts = weak.filter(function (w) { return w.p[0] === sec; }).map(function (w) { return w.p; });
+      var budget = MINI_SECS * (sec === first ? 0.5 : 0.25), spent = 0;
+      for (var j = 0; j < parts.length && spent < budget * 0.8; j++) {
+        var P = parts[j], list = pool(P), got = refs[P[1]][P[2]] = refs[P[1]][P[2]] || [];
+        for (var i = 0; i < list.length && spent + cost(P, list[i]) <= budget + 30; i++) { got.push(list[i]); spent += cost(P, list[i]); }
+        if (!got.length) delete refs[P[1]][P[2]];
+      }
+      used += spent;
+    });
+    var save = { at: Date.now(), refs: refs, weak: weak.slice(0, 3).map(function (w) { return w.p[3]; }) };
+    try { localStorage.setItem(MINI_KEY, JSON.stringify(save)); } catch (e) { /* the mini mock still runs; only a reload loses it */ }
+    var rec = Store.state.mocks[MINI_ID]; if (rec) { rec.wrong = []; Store.save(); } // the last review belonged to the previous mini mock
+    MOCKMAP[MINI_ID] = miniFromRefs(refs);
+    return MOCKMAP[MINI_ID];
+  }
+  function restoreMini() {
+    try { var o = JSON.parse(localStorage.getItem(MINI_KEY) || "null"); if (o && o.refs) MOCKMAP[MINI_ID] = miniFromRefs(o.refs); } catch (e) { /* ignore */ }
+  }
+  /* #/mock/mini: a new mini mock each time, then the usual intro screen */
+  function viewMiniMock() {
+    ensureMocks().then(function () {
+      if (!MOCK.length) { render('<p class="warn">' + tx("Mock test not found.") + "</p>"); return; }
+      buildMini(); location.replace("#/mock/" + MINI_ID);
+    });
   }
   var ORDERS = ["ABC", "ACB", "BAC", "BCA", "CAB", "CBA"];
   function partsHTML(it) {

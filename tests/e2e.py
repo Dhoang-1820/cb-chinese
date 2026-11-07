@@ -2454,6 +2454,50 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
           ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5)]
+
+async def t_minimock(b):
+    """15-minute mini mock from the weakest skills: normal mock format, notebook under the original questions, not in the forecast."""
+    skills = {"listen-long": {"r": 2, "w": 8}, "passage": {"r": 3, "w": 7}, "listen-tf": {"r": 9, "w": 1}, "fill-word": {"r": 9, "w": 1}, "word-order": {"r": 8, "w": 2}}
+    st = {"settings": settings(), "srs": {}, "skills": skills}
+    ctx, pg = await open_app(b, st)
+    await go(pg, "#/mock", 900)
+    card = await pg.locator("#mini-go").inner_text()
+    check("mini mock: offered on the mock list with the weakest skills", "Mini mock" in card and "15 minutes" in card.lower() and "Longer passages" in card, card)
+    await pg.click("#mini-go"); await pg.wait_for_timeout(1200)
+    check("mini mock: opens the usual mock intro (practice, exam, simulator)", pg.url.endswith("#/mock/90") and await pg.locator("#m-practice").count() == 1 and await pg.locator("#m-exam").count() == 1, pg.url)
+    m = await pg.evaluate("""(()=>{const m=App._mini().mock;const n=(a)=>a.length;return {t:m.listening.time+m.reading.time+m.writing.time,
+      L1:n(m.listening.p1),L2:n(m.listening.p2),L3:n(m.listening.p3),R1:n(m.reading.p1),R2:n(m.reading.p2),R3:m.reading.p3.reduce((s,p)=>s+p.questions.length,0),W1:n(m.writing.p1),W2:n(m.writing.p2),
+      ids:[...m.listening.p3,...m.writing.p1].map(i=>i.id), src:m.listening.p3.concat(m.writing.p1).every(i=>i.src&&i.id===i.src.id+'@'+i.src.m)}})()""")
+    check("mini mock: about 15 minutes in total", 12 * 60 <= m["t"] <= 17 * 60, m["t"])
+    check("mini mock: the weakest skill (long listening) gets the most listening questions", m["L3"] >= 5 and m["L3"] > m["L1"] + m["L2"], m)
+    check("mini mock: reading is the weakest part's passages; every section has questions", m["R3"] >= 3 and m["W1"] + m["W2"] >= 1 and m["L1"] + m["L2"] + m["L3"] >= 1, m)
+    check("mini mock: questions are copies that point to their original mock item", m["src"] and all("@" in i for i in m["ids"]), m["ids"][:3])
+    await pg.click("#m-practice"); await pg.wait_for_timeout(800)
+    check("mini mock: the listening section opens like any mock", "#/mock/90/listening" in pg.url and await pg.locator(".exam-head").count() == 1)
+    # answer everything wrong in all three sections, then finish
+    wrong = """(()=>{const m=App._mini().mock,E=App._mini().exam,A=E.answers;
+      m.listening.p1.forEach(i=>A[i.id]=!i.answer); m.listening.p2.concat(m.listening.p3,m.reading.p1,m.reading.p2).forEach(i=>A[i.id]=(i.answer+1)%(i.options?i.options.length:4));
+      m.reading.p3.forEach(p=>p.questions.forEach(q=>A[q.id]=(q.answer+1)%q.options.length)); m.writing.p1.forEach(i=>A[i.id]='x'); m.writing.p2.forEach(i=>A[i.id]=0);})()"""
+    await pg.evaluate(wrong)
+    for _ in range(3):
+        if await pg.locator("#m-next").count(): await pg.click("#m-next")
+        await pg.wait_for_timeout(1200)
+    await pg.wait_for_timeout(800)
+    check("mini mock: finishing shows the result screen", "#/mock/90/result" in pg.url, pg.url)
+    hist = await pg.evaluate("Store.state.mockHistory.length")
+    check("mini mock: not added to the score history (the forecast stays as it was)", hist == 0, hist)
+    items = await pg.evaluate("Object.keys(Store.state.mistakes).filter(k=>k.startsWith('m:'))")
+    check("mini mock: mistakes are saved under the original mock question", len(items) >= 5 and all(not k.startswith("m:90:") and "@" not in k for k in items), items[:3])
+    await pg.reload(); await pg.wait_for_selector("#app > *:not(.skel)")
+    await go(pg, "#/mock/90/review", 1200)
+    check("mini mock: the review still works after a reload", await pg.locator("#app").inner_text() != "" and "not found" not in (await pg.inner_text("#app")).lower(), (await pg.inner_text("#app"))[:120])
+    await go(pg, "#/mock", 900)
+    check("mini mock: the list shows the last mini score", "last 0/300" in await pg.locator("#mini-go").inner_text() or "/300" in await pg.locator("#mini-go").inner_text())
+    await ctx.close()
+
+
+GROUPS.append(("minimock", t_minimock))
+
 PW = None
 
 

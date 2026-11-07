@@ -22,6 +22,12 @@
                          on that server instance)
      GEMINI_TIMEOUT_MS   optional, default 12000 — how long to wait for the main model, 3000..18000 (the fallback gets 15000)
      AI_DAILY_CAP        optional, default 150 calls a day in total
+     AI_LEARNER_CAP      optional, default 40 calls a day per learner (the phone sends x-learner: its restore code if it
+                         has one, else a random device id; only a hash of it is stored). Phones that send no id count
+                         only against AI_DAILY_CAP. Needs the migration supabase/migrations/20261107_ai_learner_limit.sql;
+                         until it is applied, a per-instance memory count is used.
+     GROQ_API_KEY        optional — a second AI provider, tried only after both Gemini models fail. Unset = skipped.
+     GROQ_MODEL          optional, default llama-3.3-70b-versatile
      ALLOWED_ORIGINS     optional, comma-separated, default https://dhoang-1820.github.io
      ADMIN_CODE          optional — turns on the content review screen (accept / reject / hide). 12+ random characters.
                          Admin-only tasks: review_list, review_decide, learners_list, learner_label and admin_stats
@@ -39,7 +45,8 @@ import type { Deps } from "./util.ts";
 import { MAX_BODY, MAX_SYNC, adminOk, clientIp, cors, noteFail, parseOrigins, reply, sameSecret, tooFast, tooManyFails } from "./util.ts";
 import { cleanInput } from "./validate.ts";
 import { MAX_TIMEOUT_MS, runTask } from "./gemini.ts";
-import { syncTask } from "./sync.ts";
+import { CODE_OK, syncId, syncTask } from "./sync.ts";
+import { sha } from "./util.ts";
 import { contentTask } from "./content.ts";
 import { bankSave, bankTask } from "./bank.ts";
 import { authTask } from "./auth.ts";
@@ -54,6 +61,18 @@ export * from "./sync.ts";
 export * from "./content.ts";
 export * from "./bank.ts";
 export * from "./auth.ts";
+
+/* Who is asking, for the per-learner AI limit. A restore code maps to the same id as that learner's backup row (both
+   phones of one learner share the limit); a device id is hashed with its own prefix. "" = no id (old app versions). */
+export const DEVICE_OK = /^[A-Za-z0-9]{16,40}$/;
+export async function learnerKey(req: Request): Promise<string> {
+  const raw = (req.headers.get("x-learner") || "").trim();
+  const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (CODE_OK.test(code)) return "l:" + (await syncId(code));
+  if (DEVICE_OK.test(raw)) return "d:" + (await sha("cb-device:" + raw)).slice(0, 40);
+  return "";
+}
+export const LEARNER_CAP = 40;
 
 export async function handle(req: Request, env: Record<string, string | undefined>, deps: Deps): Promise<Response> {
   const allowed = parseOrigins(env), origin = req.headers.get("origin"), h = cors(origin, allowed);
@@ -91,13 +110,23 @@ export async function handle(req: Request, env: Record<string, string | undefine
   const c = cleanInput(body);
   if (typeof c === "string") return reply(400, { ok: false, error: c }, h);
   const cap = Math.max(1, parseInt(env.AI_DAILY_CAP || "150", 10) || 150);
-  let used = 0;
-  try { used = await deps.bump(cap); } catch (_e) { used = 0; }
-  if (used === -1) return reply(429, { ok: false, error: "daily_cap", cap }, h);
+  const lcap = Math.max(1, parseInt(env.AI_LEARNER_CAP || String(LEARNER_CAP), 10) || LEARNER_CAP);
+  const learner = await learnerKey(req);
+  let used = 0, mine: number | null = null;
+  if (learner && deps.bumpLearner) {
+    let r = { mine: 0, total: 0 };
+    try { r = await deps.bumpLearner(learner, lcap, cap); } catch (_e) { r = { mine: 0, total: 0 }; }
+    if (r.mine === -2) return reply(429, { ok: false, error: "daily_cap", cap }, h);
+    if (r.mine === -1) return reply(429, { ok: false, error: "learner_cap", cap: lcap }, h);
+    used = r.total; mine = r.mine;
+  } else {
+    try { used = await deps.bump(cap); } catch (_e) { used = 0; }
+    if (used === -1) return reply(429, { ok: false, error: "daily_cap", cap }, h);
+  }
   const out = await runTask(c, env, deps);
   if (!out.ok) return reply(out.status, { ok: false, error: out.error }, h);
   await bankSave(c, out.result, deps);
-  return reply(200, { ok: true, task: c.task, result: out.result, model: out.model, used, cap }, h);
+  return reply(200, { ok: true, task: c.task, result: out.result, model: out.model, used, cap, ...(mine === null ? {} : { mine, learnerCap: lcap }) }, h);
 }
 
 /* ---------------- Deno / Supabase glue (skipped under Node) ---------------- */
@@ -105,6 +134,7 @@ export async function handle(req: Request, env: Record<string, string | undefine
 const D: any = (globalThis as any).Deno;
 if (D && typeof D.serve === "function") {
   const mem = { day: "", n: 0 }; // fallback counter if the database is unreachable (per instance)
+  const memL = { day: "", by: {} as Record<string, number> }; // per-learner fallback until the migration is applied
   const env = new Proxy({}, { get: (_t, k) => (typeof k === "string" ? D.env.get(k) : undefined) }) as Record<string, string | undefined>;
   const serviceKey = (): string => {
     const legacy = D.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -145,6 +175,24 @@ if (D && typeof D.serve === "function") {
       if (mem.n >= cap) return -1;
       return ++mem.n;
     }
+  };
+  deps.bumpLearner = async (learner, cap, totalCap) => {
+    const base = D.env.get("SUPABASE_URL"), key = serviceKey();
+    if (base && key) {
+      try {
+        const headers: Record<string, string> = { "content-type": "application/json", apikey: key };
+        if (key.startsWith("eyJ")) headers.authorization = "Bearer " + key;
+        const r = await fetch(base + "/rest/v1/rpc/bump_ai_usage_learner", { method: "POST", headers, body: JSON.stringify({ learner, cap, total_cap: totalCap }), signal: AbortSignal.timeout(6000) });
+        if (r.ok) { const o = await r.json(); if (o && typeof o.mine === "number") return { mine: o.mine, total: typeof o.total === "number" ? o.total : 0 }; }
+      } catch (_e) { /* not migrated yet or unreachable: count in memory below */ }
+    }
+    const day = new Date().toISOString().slice(0, 10);
+    if (memL.day !== day) { memL.day = day; memL.by = {}; }
+    if ((memL.by[learner] || 0) >= cap) return { mine: -1, total: 0 };
+    const total = await deps.bump(totalCap);
+    if (total === -1) return { mine: -2, total: 0 };
+    memL.by[learner] = (memL.by[learner] || 0) + 1;
+    return { mine: memL.by[learner], total };
   };
   D.serve((req: Request) => handle(req, env, deps));
 }

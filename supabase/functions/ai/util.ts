@@ -16,6 +16,10 @@ export type Deps = {
   fetch: (url: string, init: any, timeoutMs?: number) => Promise<any>;
   /** adds one call to today's total and returns the new count, or -1 when over the cap */
   bump: (cap: number) => Promise<number>;
+  /** per-learner counting: adds one call for this learner (and to today's total) and returns { mine, total };
+      mine = -1 when the learner's daily limit is reached, -2 when the overall cap is reached (nothing is counted then).
+      Optional: without it, only the overall cap applies. */
+  bumpLearner?: (learner: string, cap: number, totalCap: number) => Promise<{ mine: number; total: number }>;
   /** talks to the content_reports and learners tables (PostgREST path after /rest/v1/); absent in tests that don't need it */
   db?: (method: string, path: string, body?: unknown) => Promise<any>;
   /** tells phones listening on a live channel that something changed (no content is sent); absent in tests */
@@ -26,7 +30,7 @@ export function parseOrigins(env: Record<string, string | undefined>): string[] 
   return (env.ALLOWED_ORIGINS || DEFAULT_ORIGINS).split(",").map((s) => s.trim()).filter(Boolean);
 }
 export function cors(origin: string | null, allowed: string[]): Record<string, string> {
-  const h: Record<string, string> = { "Vary": "Origin", "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "content-type, x-app-code, x-admin-code, authorization, apikey, x-client-info", "Access-Control-Max-Age": "86400" };
+  const h: Record<string, string> = { "Vary": "Origin", "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "content-type, x-app-code, x-admin-code, x-learner, authorization, apikey, x-client-info", "Access-Control-Max-Age": "86400" };
   if (origin && allowed.indexOf(origin) >= 0) h["Access-Control-Allow-Origin"] = origin;
   return h;
 }

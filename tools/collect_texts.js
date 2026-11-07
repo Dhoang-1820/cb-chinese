@@ -5,10 +5,10 @@
    tools/gen_audio.py does not count them when it decides whether too much audio is missing.
 
    Optional packs (decided by cost, counts in README.md "Audio"):
-     recorded      HSK 5 headwords, HSK 5 grammar examples, HSK 5 picture-writing model sentences,
-                   the 91 extra HSK 4 words with their phrase and example
-     not recorded  HSK 5 example sentences (1,231 more clips), the extra HSK 4 "common phrases" and the
-                   opposites' examples. The app hides the play button where there is no clip.
+     recorded      HSK 5 headwords, HSK 5 example sentences, HSK 5 grammar examples, HSK 5 picture-writing
+                   model sentences, the 91 extra HSK 4 words with their phrase and example
+     not recorded  the extra HSK 4 "common phrases" and the opposites' examples. The app hides the play button
+                   where there is no clip (or uses the phone's voice).
    Pass --all to include those as well (prints the same counts).
    Keep MALE_SPEAKERS in sync with js/audio.js. */
 "use strict";
@@ -95,7 +95,7 @@ opt("HSK 5 headwords", true, h5.map(w => w.hanzi));
 opt("HSK 5 grammar examples", true, (sb.window.CB_HSK5_GRAMMAR || []).flatMap(g => g.examples.map(e => e.zh)));
 opt("HSK 5 picture model sentences", true, ((sb.window.CB_HSK5_DRILLS || {}).picture || []).flatMap(it => it.samples.map(x => x.zh)));
 opt("extra HSK 4 words (word, phrase, example)", true, kind("missing").flatMap(p => p.words).flatMap(w => [w.hanzi].concat((w.collocations || []).map(c => c.zh), w.example ? [w.example.zh] : [])));
-opt("HSK 5 example sentences", ALL, h5.map(w => w.example && w.example.zh));
+opt("HSK 5 example sentences", true, h5.map(w => w.example && w.example.zh));
 opt("extra HSK 4 common phrases", ALL, kind("collocations").flatMap(p => p.items).flatMap(i => i.phrases.map(x => x.zh)));
 opt("opposites examples", ALL, kind("opposites").flatMap(p => p.items).flatMap(i => [i.a.example.zh, i.b.example.zh]));
 

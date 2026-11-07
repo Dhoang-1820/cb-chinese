@@ -55,6 +55,12 @@
       }).catch(function (e) { console.warn("SW registration failed", e); });
       autoUpdate();
     }
+    /* the saved progress was damaged or missing and the automatic copy was used (js/storage.js) */
+    var rs = Store.restored;
+    if (rs) setTimeout(function () {
+      UI.toast(rs.at ? tx("Saved progress was damaged, so the automatic copy from {date} was restored.", { date: new Date(rs.at).toLocaleString() })
+        : tx("Saved progress was damaged and there was no automatic copy; starting fresh. Import a backup in Me → Settings if you have one."), "🛟");
+    }, 700);
     try { if (sessionStorage.getItem("cbUpdated")) { sessionStorage.removeItem("cbUpdated"); setTimeout(function () { UI.toast(tx("App updated"), "✨"); }, 600); } } catch (e) {}
   }
 

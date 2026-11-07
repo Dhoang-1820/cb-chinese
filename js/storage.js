@@ -60,14 +60,41 @@
   var available = true;
   var state = defaults();
 
-  function load() {
+  /* Automatic local backup. GOOD holds a "last good" copy of the progress: written when the app opens with readable
+     progress (at most every 6 hours) and right before an import or a reset replaces it. If the main key is ever
+     unreadable, or missing while a copy exists, load() takes the copy instead and keeps the damaged text under BAD
+     (for a problem report); Store.restored tells the app so it can say what happened. */
+  var GOOD = "cbChinese.progress.lastgood.v1", BAD = "cbChinese.progress.corrupt.v1", GOOD_EVERY = 6 * 3600 * 1000;
+  var restored = null;
+  function usable(o) { return !!o && typeof o === "object" && !Array.isArray(o) && !!o.srs && typeof o.srs === "object" && !!o.settings && typeof o.settings === "object" && !Array.isArray(o.settings); }
+  function readGood() {
+    try { var g = JSON.parse(localStorage.getItem(GOOD) || "null"); return g && usable(g.progress) ? g : null; } catch (e) { return null; }
+  }
+  function keepGood(force) {
+    if (!available) return false;
     try {
-      var raw = localStorage.getItem(KEY);
-      if (raw) state = merge(JSON.parse(raw));
-    } catch (e) {
-      available = false;
-      console.warn("localStorage unavailable; progress will not be saved.", e);
-    }
+      var g = force ? null : readGood();
+      if (g && Date.now() - (+g.at || 0) < GOOD_EVERY && Date.now() >= (+g.at || 0)) return false;
+      localStorage.setItem(GOOD, JSON.stringify({ at: Date.now(), progress: state }));
+      return true;
+    } catch (e) { return false; } // storage full: the main copy matters more
+  }
+  function lastGood() { var g = readGood(); return g ? { at: +g.at || 0, words: Object.keys(g.progress.srs || {}).length, xp: n(g.progress.xp) } : null; }
+  function restoreLastGood() {
+    var g = readGood(); if (!g) return false;
+    state = merge(g.progress); save(); return true;
+  }
+  function load() {
+    var raw;
+    try { raw = localStorage.getItem(KEY); }
+    catch (e) { available = false; console.warn("localStorage unavailable; progress will not be saved.", e); return; }
+    var obj = null;
+    if (raw) { try { obj = JSON.parse(raw); } catch (e) { obj = null; } }
+    if (usable(obj)) { state = merge(obj); keepGood(false); return; }
+    var g = readGood();
+    if (raw) { try { localStorage.setItem(BAD, String(raw).slice(0, 500000)); } catch (e) { /* full */ } }
+    if (g) { state = merge(g.progress); restored = { at: +g.at || 0, why: raw ? "damaged" : "missing" }; save(); }
+    else if (raw) { state = defaults(); restored = { at: 0, why: "damaged" }; }
   }
   function merge(obj) {
     var d = defaults();
@@ -401,20 +428,70 @@
     save();
     return state;
   }
+  /* Field-by-field check of an imported progress object. Returns { errors, ignored }: errors are wrong types, values out
+     of range, malformed dates or a newer format (the import is refused); ignored are top-level fields this version
+     does not know (dropped). Unknown settings are kept, since newer versions add settings. */
+  function checkImport(p) {
+    var errors = [], ignored = [], dflt = defaults();
+    var kind = function (v) { return v === null ? "null" : Array.isArray(v) ? "array" : typeof v; };
+    var num = function (path, v, lo, hi) { if (typeof v !== "number" || !isFinite(v) || v < lo || v > hi) errors.push(path + ": should be a number from " + lo + " to " + hi); };
+    var date = function (path, v, nullable) { if (!(nullable && (v === null || v === "")) && !DATE.test(v || "")) errors.push(path + ": should be a date (YYYY-MM-DD)"); };
+    if (kind(p) !== "object") return { errors: ["the file has no progress object"], ignored: ignored };
+    if (!("srs" in p) || !("settings" in p)) errors.push("srs and settings are missing");
+    Object.keys(p).forEach(function (k) {
+      if (!(k in dflt)) { ignored.push(k); return; }
+      var v = p[k], want = kind(dflt[k]);
+      if (v == null || want === "null") return;
+      if (kind(v) !== want) errors.push(k + ": should be " + (want === "object" ? "an object" : want === "array" ? "a list" : "a " + want) + ", not " + (kind(v) === "array" ? "a list" : "a " + kind(v)));
+    });
+    if (errors.length) return { errors: errors, ignored: ignored };
+    if (p.version != null) { num("version", p.version, 1, 99); if (p.version > 2) errors.push("version: made by a newer version of the app; update the app first"); }
+    if (p.xp != null) num("xp", p.xp, 0, 1e8);
+    if (p.freezes != null) num("freezes", p.freezes, 0, 10);
+    var st = p.settings || {};
+    Object.keys(st).forEach(function (k) {
+      if (!(k in dflt.settings) || dflt.settings[k] == null || st[k] == null) return;
+      if (kind(st[k]) !== kind(dflt.settings[k])) errors.push("settings." + k + ": should be a " + kind(dflt.settings[k]));
+    });
+    if (typeof st.examDate === "string") date("settings.examDate", st.examDate);
+    if (typeof st.dailyGoal === "number") num("settings.dailyGoal", st.dailyGoal, 1, 1000);
+    if (typeof st.audioRate === "number") num("settings.audioRate", st.audioRate, 0.25, 4);
+    if (p.streak) {
+      if (p.streak.count != null) num("streak.count", p.streak.count, 0, 100000);
+      if (p.streak.best != null) num("streak.best", p.streak.best, 0, 100000);
+      if (p.streak.last != null) date("streak.last", p.streak.last, true);
+    }
+    var bad = [], ids = Object.keys(p.srs || {});
+    ids.forEach(function (id) {
+      var c = p.srs[id];
+      if (Array.isArray(c)) { if (!c.every(function (x) { return typeof x === "number" || typeof x === "boolean" || x == null; })) bad.push(id); return; }
+      if (kind(c) !== "object" || typeof c.box !== "number" || !isFinite(c.box) || c.box < 0 || c.box > 10 || (c.due != null && !DATE.test(c.due)) ||
+          (c.right != null && !(c.right >= 0)) || (c.wrong != null && !(c.wrong >= 0))) bad.push(id);
+    });
+    if (bad.length) errors.push("srs: " + bad.length + " of " + ids.length + " review cards are malformed (first: " + bad.slice(0, 3).join(", ") + ")");
+    var badLog = Object.keys(p.log || {}).filter(function (d) { var v = p.log[d]; return !DATE.test(d) || typeof v !== "number" || !(v >= 0) || v > 100000; });
+    if (badLog.length) errors.push("log: " + badLog.length + " entries are not a date with a number of XP (first: " + badLog.slice(0, 2).join(", ") + ")");
+    return { errors: errors, ignored: ignored };
+  }
   function importJSON(text) {
-    var obj = JSON.parse(text);
+    var obj;
+    try { obj = JSON.parse(text); } catch (e) { throw new Error("This file is not a C&B Chinese progress export (it is not valid JSON)."); }
     var p = obj && obj.progress ? obj.progress : obj;
-    if (!p || typeof p !== "object" || !("srs" in p) || !("settings" in p)) throw new Error("This file is not a C&B Chinese progress export.");
+    var chk = checkImport(p);
+    if (chk.errors.length) throw new Error("This file is not a valid C&B Chinese progress export: " + chk.errors.slice(0, 3).join("; ") + (chk.errors.length > 3 ? " (+" + (chk.errors.length - 3) + " more)" : "") + ".");
+    keepGood(true); // the progress being replaced stays restorable from Me → Settings
     state = merge(p);
     save();
+    return { ignored: chk.ignored };
   }
-  function reset() { var keep = state.settings; state = defaults(); state.settings = keep; save(); }
+  function reset() { keepGood(true); var keep = state.settings; state = defaults(); state.settings = keep; save(); }
 
   window.Store = {
     get state() { return state; },
     load: load, save: save, touch: touch, streak: streak, day: day, game: game, mergeIn: mergeIn, _combine: combine,
     today: today, addDays: addDays, daysBetween: daysBetween,
-    exportJSON: exportJSON, shareJSON: shareJSON, importJSON: importJSON, serialize: serialize, compact: compact, backup: backup, reset: reset,
+    exportJSON: exportJSON, shareJSON: shareJSON, importJSON: importJSON, checkImport: checkImport, serialize: serialize, compact: compact, backup: backup, reset: reset,
+    lastGood: lastGood, restoreLastGood: restoreLastGood, get restored() { return restored; },
     get available() { return available; }
   };
   load();

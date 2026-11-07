@@ -1677,5 +1677,13 @@ window.CB_I18N_VI = {
   "about 15 minutes": "khoảng 15 phút",
   "about 30 minutes": "khoảng 30 phút",
   "HSK 5 mock exams": "Đề thi thử HSK 5",
-  "For after HSK 4. Shortened sets (39 questions, ~40 min) in the same format; they do not count towards your HSK 4 score forecast.": "Dành cho sau HSK 4. Đề rút gọn (39 câu, ~40 phút) cùng dạng đề; không tính vào dự đoán điểm HSK 4 của bạn."
+  "For after HSK 4. Shortened sets (39 questions, ~40 min) in the same format; they do not count towards your HSK 4 score forecast.": "Dành cho sau HSK 4. Đề rút gọn (39 câu, ~40 phút) cùng dạng đề; không tính vào dự đoán điểm HSK 4 của bạn.",
+  "Saved progress was damaged, so the automatic copy from {date} was restored.": "Tiến độ đã lưu bị lỗi nên đã khôi phục bản sao tự động lúc {date}.",
+  "Saved progress was damaged and there was no automatic copy; starting fresh. Import a backup in Me → Settings if you have one.": "Tiến độ đã lưu bị lỗi và chưa có bản sao tự động; ứng dụng bắt đầu lại từ đầu. Nếu có bản sao lưu, hãy nhập ở Tôi → Cài đặt.",
+  "Copy on this phone": "Bản sao trên điện thoại",
+  "Progress imported ({n} unknown fields ignored)": "Đã nhập tiến độ (bỏ qua {n} trường không nhận ra)",
+  "Replace your progress with the automatic copy from {date} ({n} words in review)?": "Thay tiến độ hiện tại bằng bản sao tự động lúc {date} ({n} từ đang ôn)?",
+  "Automatic copy restored": "Đã khôi phục bản sao tự động",
+  "Saved {date} · {n} words": "Lưu lúc {date} · {n} từ",
+  "Not made yet": "Chưa có"
 };

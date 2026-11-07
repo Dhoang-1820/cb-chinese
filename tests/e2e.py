@@ -2446,6 +2446,44 @@ async def t_mocks5(b):
     check("mocks5: an HSK 5 result leaves the HSK 4 forecast unchanged", texts[0] and texts[0] == texts[1] and "150" in texts[0], texts)
 
 
+
+async def t_lastgood(b):
+    """Automatic local backup: damaged saved progress is replaced by the last good copy on the next start, with a
+    message; Me → Settings shows the copy and restores it; a bad import is refused with the field named."""
+    st = heavy_state()
+    st["srs"] = {"d01-%04d" % i: {"box": 1 + i % 5, "due": day(i % 9), "right": i % 4, "wrong": i % 2, "added": day(-30), "last": day(-1)} for i in range(25)}
+    ctx, pg = await open_app(b, st)
+    await pg.wait_for_timeout(800)
+    has = await pg.evaluate("() => !!localStorage.getItem('cbChinese.progress.lastgood.v1')")
+    check("lastgood: opening the app makes the automatic copy", has)
+    words = len(st["srs"])
+    await pg.evaluate("() => { localStorage.setItem('cbChinese.progress.v1', '{\"srs\": {\"d01'); }")
+    await pg.reload()
+    try:
+        await pg.wait_for_function("() => document.body.innerText.includes('automatic copy')", timeout=4000); seen = True
+    except Exception:
+        seen = False
+    info = await pg.evaluate("() => ({ restored: !!Store.restored, n: Object.keys(Store.state.srs).length, bad: !!localStorage.getItem('cbChinese.progress.corrupt.v1') })")
+    info["toast"] = seen
+    check("lastgood: cut-off progress is restored from the copy, with a message", info["toast"] and info["restored"] and info["n"] == words == 25 and info["bad"], info)
+    await go(pg, "#/settings", 700)
+    row = await pg.evaluate("() => { const e = document.getElementById('s-good-at'), btn = document.getElementById('s-good'); return { t: e ? e.textContent : '', on: btn && !btn.disabled }; }")
+    check("lastgood: Settings shows the automatic copy with a working Restore button", row["on"] and "word" in row["t"], row)
+    await pg.evaluate("() => { Store.state.xp = 1; Store.state.srs = {}; Store.save(); }")
+    pg.once("dialog", lambda d: asyncio.ensure_future(d.accept()))
+    await pg.evaluate("() => document.getElementById('s-good').click()"); await pg.wait_for_timeout(600)
+    n = await pg.evaluate("() => Object.keys(Store.state.srs).length")
+    check("lastgood: Restore brings the copy back", n == words, n)
+    await pg.set_input_files("#s-imp", files=[{"name": "bad.json", "mimeType": "application/json", "buffer": json.dumps({"progress": {"srs": [], "settings": {}}}).encode()}])
+    try:
+        await pg.wait_for_function("() => document.body.innerText.includes('srs: should be an object')", timeout=4000); seen = True
+    except Exception:
+        seen = False
+    n2 = await pg.evaluate("() => Object.keys(Store.state.srs).length")
+    check("lastgood: an import with srs as a list is refused, naming the field, progress unchanged", seen and n2 == words, (seen, n2))
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5),
           ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync),
           ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip),
@@ -2453,7 +2491,7 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
-          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5)]
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood)]
 PW = None
 
 

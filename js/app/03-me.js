@@ -3,6 +3,11 @@
   var ADMIN_FLAG = "cbChinese.adminMode";
   function isAdmin() { var f = false; try { f = localStorage.getItem(ADMIN_FLAG) === "1"; } catch (e) { /* storage blocked */ } return f || !!(window.Content && Content.adminCode && Content.adminCode()); }
   function backupLine() { var c = syncCfg(); return c.off ? tx("Off") : c.conflict ? tx("Paused · choose which copy to keep") : c.err ? tx("Last try failed") : c.last ? tx("On · saved {ago}", { ago: agoText(new Date(c.last).toISOString()) }) : c.code ? tx("On") : tx("On · saves after you study"); }
+  /* "Copy on this phone": the automatic last-good copy (js/storage.js) */
+  function goodLine() {
+    var g = Store.lastGood();
+    return g ? esc(tx("Saved {date} · {n} words", { date: new Date(g.at).toLocaleString(), n: g.words })) : esc(tx("Not made yet"));
+  }
   function viewMe(sub) {
     var s = Store.state, set = s.settings, lv = Game.level(s.xp), bc = SRS.boxCounts();
     var inSrs = Object.keys(s.srs).length, done = Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length;
@@ -59,6 +64,7 @@
       ("caches" in window && location.protocol.indexOf("http") === 0 ? row((nAudio ? tx("Download audio + stroke data for offline") : tx("Download stroke data for offline")), '<button class="btn small" id="s-dl">⬇ ' + tx("Download") + '</button>') : "") +
       row(tx("Export progress"), '<button class="btn small" id="s-exp">' + tx("Export") + '</button>') +
       row(tx("Import progress"), '<label class="btn small">' + tx("Import") + '<input type="file" id="s-imp" accept=".json,application/json" hidden></label>') +
+      row(tx("Copy on this phone"), '<small id="s-good-at" class="muted">' + goodLine() + '</small> <button class="btn small" id="s-good"' + (Store.lastGood() ? "" : " disabled") + '>' + tx("Restore") + '</button>') +
       row(tx("Reset progress"), '<button class="btn small bad" id="s-reset">' + tx("Reset") + '</button>') + "</section></details>" +
       (isIOS && !standalone ? '<section class="card"><h2>' + tx("Install on iPhone") + '</h2><p class="sub">' + tx("In Chrome, tap <b>Share ⬆︎</b> (address bar) → <b>Add to Home Screen</b>. The home-screen app opens full-screen, works offline, and iOS won't clear its progress. Export a backup now and then anyway.") + '</p></section>' : "") +
       '<p class="sub center">' + tx("{d} days · {w} words", { d: DAYS.length, w: WORDS.length }) + ' · <a href="#/search">' + tx("Search") + '</a></p>' +
@@ -104,8 +110,14 @@
     document.getElementById("s-imp").onchange = function () {
       var f = this.files[0]; if (!f) return;
       var r = new FileReader();
-      r.onload = function () { try { Store.importJSON(r.result); buildIndex(); applySettings(); UI.toast(tx("Progress imported"), "✅"); route(); } catch (e) { UI.toast(tx("Import failed: {msg}", { msg: e.message }), "⚠️"); } };
+      r.onload = function () { try { var res = Store.importJSON(r.result); buildIndex(); applySettings(); UI.toast(res && res.ignored.length ? tx("Progress imported ({n} unknown fields ignored)", { n: res.ignored.length }) : tx("Progress imported"), "✅"); route(); } catch (e) { UI.toast(tx("Import failed: {msg}", { msg: e.message }), "⚠️"); } };
       r.readAsText(f);
+    };
+    document.getElementById("s-good").onclick = function () {
+      var g = Store.lastGood(); if (!g) return;
+      if (confirm(tx("Replace your progress with the automatic copy from {date} ({n} words in review)?", { date: new Date(g.at).toLocaleString(), n: g.words }))) {
+        Store.restoreLastGood(); buildIndex(); applySettings(); UI.toast(tx("Automatic copy restored"), "🛟"); route();
+      }
     };
     document.getElementById("s-reset").onclick = function () {
       if (confirm(tx("Delete all progress, XP, badges and streak? Export first if you want a backup."))) { Store.reset(); buildIndex(); applySettings(); UI.toast(tx("Progress reset")); route(); }

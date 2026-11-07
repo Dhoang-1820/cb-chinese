@@ -96,6 +96,56 @@
   function saveTalkPrefs(o) { try { localStorage.setItem(TALK_KEY, JSON.stringify(o)); } catch (e) { /* ignore */ } }
   function talkScene(id) { return (window.CB_TALK || []).filter(function (x) { return x.id === id; })[0] || null; }
   function L(o) { return o ? M({ en: o.en, vi: o.vi }) : ""; }
+  /* ---------- HR phrasebook (#/phrases, #/phrases/<category>, #/phrases/scene/<role-play scene id>) ----------
+     Ready-made work messages (data/phrasebook.js, loaded the first time): Chinese with pinyin, Vietnamese and English,
+     a copy button and audio (recorded clip, else the phone's voice). Not teacher-checked yet: the screen says so, and
+     every message links to its role-play scene. [Brackets] are placeholders the learner fills in. */
+  var PB_CATS = [["payroll", "💰", "Payroll"], ["leave", "🌴", "Leave"], ["offer", "🤝", "Offers & hiring"], ["policy", "📋", "Policy & benefits"],
+    ["meeting", "📅", "Meetings"], ["escalation", "⚠️", "Problems & follow-up"], ["daily", "💬", "Everyday"]];
+  var pbP = null;
+  function ensurePhrases() {
+    if ((window.CB_PHRASES || []).length) return Promise.resolve(true);
+    return pbP || (pbP = loadAll(["phrasebook.js"], true).then(function () { pbP = null; return (window.CB_PHRASES || []).length > 0; }));
+  }
+  function pbSpoken(zh) { return String(zh || "").replace(/[\[\]]/g, ""); } // the audio reads the placeholder words without brackets
+  function pbForScene(id) { return (window.CB_PHRASES || []).filter(function (x) { return x.scene === id; }); }
+  function pbCopy(text) {
+    function fallback() {
+      var ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", ""); ta.className = "sr";
+      document.body.appendChild(ta); ta.select(); var ok = false; try { ok = document.execCommand("copy"); } catch (e) { ok = false; } ta.remove();
+      UI.toast(ok ? tx("Copied: paste it into your chat or email") : tx("Press and hold the Chinese text to copy it"), ok ? "📋" : "ℹ️");
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { UI.toast(tx("Copied: paste it into your chat or email"), "📋"); }, fallback);
+    else fallback();
+  }
+  function viewPhrases(key, sceneId) {
+    render('<section class="card"><h2>' + tx("💬 HR phrasebook") + '</h2><p class="sub">' + tx("Loading…") + "</p></section>", "games");
+    ensurePhrases().then(function (ok) {
+      if (location.hash.indexOf("#/phrases") !== 0) return;
+      if (!ok) { render('<section class="card"><h2>' + tx("💬 HR phrasebook") + '</h2><p class="warn">' + tx("The phrasebook could not be loaded. Check the connection and try again.") + '</p><div class="actions"><a class="btn" href="#/phrases">' + tx("Try again") + "</a></div></section>", "games"); return; }
+      var all = window.CB_PHRASES, sc = key === "scene" ? talkScene(sceneId) : null, cat = key === "scene" ? "" : key || "";
+      var list = sc ? pbForScene(sc.id) : cat ? all.filter(function (x) { return x.cat === cat; }) : all;
+      var chips = '<div class="pb-cats" role="group" aria-label="' + tx("Topic") + '"><a class="chip' + (!key ? " on" : "") + '" href="#/phrases"' + (!key ? ' aria-current="true"' : "") + ">" + tx("All") + "</a>" +
+        PB_CATS.map(function (c) { var on = cat === c[0]; return '<a class="chip' + (on ? " on" : "") + '" href="#/phrases/' + c[0] + '"' + (on ? ' aria-current="true"' : "") + ">" + c[1] + " " + tx(c[2]) + "</a>"; }).join("") + "</div>";
+      var item = function (x) {
+        var s2 = x.scene ? talkScene(x.scene) : null;
+        return '<article class="pb-item" id="' + esc(x.id) + '"><h3>' + L(x.title) + (x.doubt ? ' <span class="tag" title="' + tx("Wording under review") + '">' + tx("under review") + "</span>" : "") + "</h3>" +
+          '<div class="pb-zh"><span class="zh">' + esc(x.zh).replace(/\[([^\]]+)\]/g, '<mark class="pb-ph">$1</mark>') + "</span>" + SAYX(pbSpoken(x.zh)) + "</div>" + PY(x.py) +
+          '<div class="tr">' + M({ vi: x.vi, en: x.en }) + "</div>" +
+          '<div class="actions pb-act"><button type="button" class="btn small" data-copy="' + esc(x.id) + '">📋 ' + tx("Copy Chinese") + "</button>" +
+          (s2 && !sc ? '<a class="btn small" href="#/talk/' + s2.id + '">' + s2.icon + " " + tx("Practise: {t}", { t: L(s2.t) }) + "</a>" : "") + "</div></article>";
+      };
+      render('<section class="card"><h2>' + tx("💬 HR phrasebook") + '</h2><p class="sub">' + tx("{n} ready-made messages for chat and email. Copy one, fill in the [highlighted] parts, and send.", { n: all.length }) + "</p>" +
+        '<p class="warn pb-note">' + tx("Written with AI help and not yet checked by a teacher. Report anything that sounds wrong.") + "</p>" +
+        (sc ? '<p>' + tx("Messages for the role-play {t}.", { t: "<b>" + sc.icon + " " + L(sc.t) + "</b>" }) + ' <a href="#/talk/' + sc.id + '">' + tx("Start the role-play") + " ›</a></p>" : chips) +
+        "</section>" + (list.length ? list.map(item).join("") : '<section class="card"><p class="sub">' + tx("No messages here yet.") + '</p><a class="btn" href="#/phrases">' + tx("All messages") + "</a></section>") +
+        '<div class="actions center"><a class="btn" href="#/talk">' + tx("🗣️ Role-play") + "</a></div>", "games");
+      [].forEach.call(document.querySelectorAll("[data-copy]"), function (bt) {
+        bt.onclick = function () { var x = all.filter(function (p) { return p.id === bt.getAttribute("data-copy"); })[0]; if (x) pbCopy(x.zh); };
+      });
+    });
+  }
+
   /* o (Today's session): { mini: replies before the score, onDone(score|null), exit } — a short talk that hands back to the session */
   function viewTalk(id, o) {
     o = o || {};
@@ -109,6 +159,7 @@
       };
       render('<section class="card"><h2>' + tx("🗣️ Role-play") + '</h2><p class="sub">' + tx("You are the HR person. The AI plays an employee, candidate or manager with a real problem, a mood and a detail you don't know yet. Use the company rules to solve the case; after that the talk moves on to related topics, so you can keep practising as long as you like. Tap Finish for your score. Each reply shows corrections, a level-up version of your sentence and new words.") + '</p>' +
         '<div class="seg talk-lvl" role="group" aria-label="' + tx("Language level") + '"><button type="button" class="chip' + (pr.level === "hsk4" ? " on" : "") + '" data-lvl="hsk4" aria-pressed="' + (pr.level === "hsk4") + '">HSK 4</button><button type="button" class="chip' + (pr.level === "hsk5" ? " on" : "") + '" data-lvl="hsk5" aria-pressed="' + (pr.level === "hsk5") + '">HSK 5</button></div></section>' +
+        '<a class="grow pb-link" href="#/phrases"><span class="g-ico">💬</span><span class="g-txt"><b>' + tx("HR phrasebook") + "</b><small>" + tx("Ready-made messages to copy, with audio") + '</small></span><span class="g-go">›</span></a>' +
         grp("chat", tx("Just chat")) + grp("daily", tx("Everyday HR")) + grp("law", tx("Law & policy")) +
         (window.AI && AI.configured() ? "" : '<p class="warn">' + tx("Set up AI first: Me → AI assistant.") + '</p>'), "games");
       [].forEach.call(document.querySelectorAll("[data-lvl]"), function (bt) { bt.onclick = function () { pr.level = bt.getAttribute("data-lvl"); saveTalkPrefs(pr); viewTalk(); }; });
@@ -127,6 +178,7 @@
     function readAloud(zh) { if (pr.read && zh) Audio2.play(zh); }
     render('<div class="ghead"><a class="pill" href="' + (o.exit || "#/talk") + '">✕</a><b>' + sc.icon + " " + L(sc.t) + '</b><span class="ghr" id="t-n">0/' + MAX + '</span></div>' +
       '<section class="card talk-brief"><p><b>' + tx("Your goal:") + '</b> ' + L(sc.goal) + ' <span class="tag">' + (pr.level === "hsk5" ? "HSK 5" : "HSK 4") + "</span></p>" +
+      '<p class="sub"><a href="#/phrases/scene/' + sc.id + '" id="t-pb">💬 ' + tx("Useful messages for this scene") + " ›</a></p>" +
       (o.mini ? '<p class="sub" id="t-mini">' + tx("Mini talk: {n} replies, then your score. Then the session goes on.", { n: o.mini }) + "</p>" : "") +
       '<details class="talk-rules"' + (pr.best[sc.id] == null ? " open" : "") + '><summary>' + tx("📋 Company rules for this case") + '</summary><ul>' + sc.rules.map(function (r) { return "<li>" + L(r) + "</li>"; }).join("") + "</ul></details>" +
       '<label class="talk-read"><input type="checkbox" id="t-read"' + (pr.read ? " checked" : "") + "> " + tx("🔊 Read replies aloud") + "</label></section>" +

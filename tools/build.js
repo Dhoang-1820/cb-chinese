@@ -94,6 +94,8 @@ const x4Code = minifyJS("window.CB_HSK4X=" + J(sb.window.CB_HSK4X) + ";");
 const h5Name = "hsk5." + hash(h5Code) + ".js", x4Name = "hsk4x." + hash(x4Code) + ".js";
 sizes["data/" + h5Name] = write("data/" + h5Name, h5Code);
 sizes["data/" + x4Name] = write("data/" + x4Name, x4Code);
+load("phrasebook.js"); // HR phrasebook (#/phrases), fetched the first time that screen opens
+sizes["data/phrasebook.js"] = write("data/phrasebook.js", minifyJS("window.CB_PHRASES=" + J(sb.window.CB_PHRASES || []) + ";"));
 sizes["data/track.js"] = write("data/track.js", minifyJS("window.CB_TRACK=" + J((sb.window.CB_TRACK || []).slice().sort((a, b) => a.week - b.week)) + ";"));
 if (fs.existsSync(path.join(ROOT, "data", "bank.js"))) load("bank.js"); // approved questions from the shared bank (tools/fetch_bank.mjs)
 const bank = sb.window.CB_BANK && Array.isArray(sb.window.CB_BANK.rows) ? sb.window.CB_BANK : { at: "", rows: [] };
@@ -143,7 +145,7 @@ let sw = read("sw.js").replace('var VERSION = "dev";', 'var VERSION = "' + VERSI
 const p0 = sw.indexOf("/* PRECACHE:START"), p1 = sw.indexOf("/* PRECACHE:END */");
 if (p0 < 0 || p1 < 0) throw new Error("PRECACHE markers missing in sw.js");
 const precache = ["./", "index.html", cssName, appName, "manifest.webmanifest", "audio/manifest.js",
-  "data/index.js", "data/full.js", "data/mocks.js", "data/track.js", "vendor/hanzi-writer.min.js",
+  "data/index.js", "data/full.js", "data/mocks.js", "data/track.js", "data/phrasebook.js", "vendor/hanzi-writer.min.js",
   ...Object.values(lazyFiles),
   "icons/icon-64.png", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
   "fonts/nunito-latin-wght-normal.woff2", "fonts/nunito-latin-ext-wght-normal.woff2", "fonts/nunito-vietnamese-wght-normal.woff2"];

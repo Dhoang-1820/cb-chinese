@@ -1715,5 +1715,11 @@ window.CB_I18N_VI = {
   "▶ Take a mock exam": "▶ Làm đề thi thử",
   "▶ Review {n} due words": "▶ Ôn {n} từ đến hạn",
   "▶ Learn new words": "▶ Học từ mới",
-  "▶ Today's session": "▶ Buổi học hôm nay"
+  "▶ Today's session": "▶ Buổi học hôm nay",
+  "⚡ Mini mock · 15 minutes": "⚡ Thi thử mini · 15 phút",
+  "15 minutes · built from your weakest skills": "15 phút · từ các kỹ năng yếu nhất của bạn",
+  "⚡ Mini mock": "⚡ Thi thử mini",
+  "Focus: {list}": "Tập trung: {list}",
+  "All three sections, a few questions each": "Cả ba phần, mỗi phần vài câu",
+  "last {n}/300": "lần trước {n}/300"
 };

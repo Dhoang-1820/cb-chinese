@@ -82,6 +82,7 @@
   }
 
   window.App = {
+    _mini: function () { return { mock: MOCKMAP[MINI_ID], exam: EXAM }; }, // tests: the current mini mock and exam state
     practiceTop: practiceTop, _sessionPlan: sessionPlan, _fbAsk: function () { return fbAsk(); }, _wireFb: function () { wireFb(); },
     esc: esc, M: M, PY: PY, SAY: SAY, shuffle: shuffle, render: render, setKeys: setKeys, typing: typing, rect: rect, norm: norm,
     dayWords: dayWords, studiedWords: studiedWords, levelBadge: levelBadge, SAYX: SAYX, refreshChrome: refreshChrome,

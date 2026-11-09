@@ -41,6 +41,32 @@ export async function callGemini(deps: Deps, key: string, model: string, body: u
   return { status, text: text || null };
 }
 
+/* Backup provider: Groq (OpenAI-compatible chat API), used only after every Gemini model has failed, and only when
+   the secret GROQ_API_KEY is set. The Gemini request built by buildRequest() is turned into chat messages; JSON mode is
+   requested (the system prompts already ask for JSON). GROQ_MODEL picks the model. */
+export const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions", DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile", GROQ_TIMEOUT_MS = 15000;
+export function groqBody(gem: any, model: string) {
+  const sys = gem && gem.systemInstruction && Array.isArray(gem.systemInstruction.parts) ? gem.systemInstruction.parts.map((p: any) => p.text || "").join("\n") : "";
+  const user = gem && Array.isArray(gem.contents) ? gem.contents.map((c: any) => (Array.isArray(c.parts) ? c.parts.map((p: any) => p.text || "").join("") : "")).join("\n") : "";
+  const g = (gem && gem.generationConfig) || {};
+  return {
+    model,
+    messages: [{ role: "system", content: sys + "\nAnswer with one JSON object only." }, { role: "user", content: user }],
+    temperature: typeof g.temperature === "number" ? g.temperature : 0.2,
+    max_tokens: typeof g.maxOutputTokens === "number" ? g.maxOutputTokens : 2048,
+    response_format: { type: "json_object" }
+  };
+}
+export async function callGroq(deps: Deps, key: string, model: string, gem: unknown, timeoutMs: number) {
+  const res = await deps.fetch(GROQ_URL, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + key }, body: JSON.stringify(groqBody(gem, model)) }, timeoutMs);
+  const status = res.status as number;
+  if (status < 200 || status >= 300) return { status, text: null as string | null };
+  const data = await res.json();
+  const msg = data && Array.isArray(data.choices) && data.choices[0] && data.choices[0].message;
+  const text = msg && typeof msg.content === "string" ? msg.content : "";
+  return { status, text: text || null };
+}
+
 /* One line per Gemini call in the function log (Supabase → Edge Functions → Logs): task, model, HTTP status (0 = the call
    threw, e.g. a timeout), how long it took and the error name. Never the key, the question or the answer. */
 export function note(task: string, model: string, status: number, t0: number, err: unknown) {
@@ -54,7 +80,8 @@ export function noteSkip(task: string, model: string) {
   console.log(JSON.stringify({ gemini: task, model, skipped: true, ms: breakerRemaining(model) }));
 }
 
-/* Runs one task end to end: main model (unless it failed recently), optional fallback model, one retry on unusable JSON.
+/* Runs one task end to end: main model (unless it failed recently), optional fallback model, then Groq if GROQ_API_KEY is
+   set; one retry on unusable JSON per model.
    A model is never called twice after a timeout, a 429 or a 5xx. */
 export async function runTask(c: Clean, env: Record<string, string | undefined>, deps: Deps): Promise<{ ok: true; result: Record<string, unknown>; model: string } | { ok: false; error: string; status: number }> {
   const key = env.GEMINI_API_KEY || "";
@@ -66,8 +93,8 @@ export async function runTask(c: Clean, env: Record<string, string | undefined>,
   if (guarded && breakerRemaining(main) > 0) { noteSkip(c.task, main); models = models.slice(1); }
   const mainMs = mainTimeoutMs(env);
   const req = buildRequest(c);
-  let lastStatus = 502, all404 = true;
-  for (const model of models) {
+  let lastStatus = 502, all404 = true, hard = "";
+  gem: for (const model of models) {
     const isMain = model === main;
     for (let attempt = 0; attempt < 2; attempt++) {
       let r; const t0 = Date.now();
@@ -75,7 +102,7 @@ export async function runTask(c: Clean, env: Record<string, string | undefined>,
       note(c.task, model, r.status, t0, r.text === null ? "no text" : "");
       lastStatus = r.status; if (r.status !== 404) all404 = false;
       if (isMain && guarded) { if (r.status === 429 || r.status >= 500) trip(main); else if (r.status >= 200 && r.status < 300) resetBreaker(); }
-      if (r.text === null) { if (r.status === 404 || r.status === 429 || r.status >= 500 || r.status === 200) break; return { ok: false, error: "upstream_" + r.status, status: 502 }; }
+      if (r.text === null) { if (r.status === 404 || r.status === 429 || r.status >= 500 || r.status === 200) break; hard = "upstream_" + r.status; break gem; }
       let parsed: any = null;
       try { parsed = JSON.parse(r.text); } catch (_e) { parsed = null; }
       const clean = validateResult(c.task, parsed, c.data);
@@ -83,6 +110,22 @@ export async function runTask(c: Clean, env: Record<string, string | undefined>,
       // unusable JSON: try the same model once more, then move on
     }
   }
+  const groqKey = env.GROQ_API_KEY || "";
+  if (groqKey) {
+    const gm = env.GROQ_MODEL || DEFAULT_GROQ_MODEL, tag = "groq:" + gm;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let r; const t0 = Date.now();
+      try { r = await callGroq(deps, groqKey, gm, req, GROQ_TIMEOUT_MS); } catch (e) { note(c.task, tag, 0, t0, e); lastStatus = 0; all404 = false; break; }
+      note(c.task, tag, r.status, t0, r.text === null ? "no text" : "");
+      lastStatus = r.status; if (r.status !== 404) all404 = false;
+      if (r.text === null) break;
+      let parsed: any = null;
+      try { parsed = JSON.parse(r.text); } catch (_e) { parsed = null; }
+      const clean = validateResult(c.task, parsed, c.data);
+      if (clean) return { ok: true, result: clean, model: tag };
+    }
+  }
+  if (hard) return { ok: false, error: hard, status: 502 }; // e.g. a rejected Gemini key (403) and no working backup
   if (all404) return { ok: false, error: "bad_model", status: 502 };
   return { ok: false, error: lastStatus === 429 ? "busy" : lastStatus === 0 ? "upstream_unreachable" : "bad_output", status: lastStatus === 429 ? 429 : 502 };
 }

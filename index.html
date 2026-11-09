@@ -2,6 +2,11 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8">
+  <!-- Content Security Policy: only what the app loads. Scripts, styles, fonts, audio and images come from this site;
+       network calls go to the Supabase function (built-in or a learner's own *.supabase.co project), the GitHub API
+       (gist backup) and localhost (a self-hosted AI function). style 'unsafe-inline' is for the style="width:…" progress
+       bars built in JS (style-src-attr is not in Safari 14). frame-ancestors cannot be set in a meta tag. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co https://api.github.com http://localhost:* http://127.0.0.1:*; worker-src 'self'; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>C&amp;B 中文 · HSK 4</title>
   <meta name="description" content="Learn Chinese Compensation & Benefits vocabulary at HSK 4 level — 30 days, games, spaced review.">

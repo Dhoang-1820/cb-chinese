@@ -28,6 +28,7 @@
     offline: "You're offline. AI needs internet; everything else still works.",
     bad_code: "The access code was not accepted. Check it in Me → AI assistant.",
     daily_cap: "Today's AI limit is used up. Try again tomorrow.",
+    learner_cap: "You have used your AI questions for today. They come back tomorrow.",
     busy: "The AI is busy right now. Try again in a minute.",
     timeout: "The AI took too long. Try again.",
     network: "Couldn't reach the AI service.",
@@ -72,6 +73,22 @@
   function errMsg(code) { return MSG[code] || (/^upstream_/.test(code || "") ? "Google's AI returned an error (" + code.slice(9) + "). Try again later." : "AI error" + (code ? " (" + code + ")" : "") + "."); }
 
   /* One request. Always resolves: { ok: true, result, model, used, cap } or { ok: false, error }. */
+  /* Who is asking, for the per-learner daily AI limit: this phone's restore code when it has a cloud backup (so a
+     learner's two phones share one limit), otherwise a random id made once for this phone. The server stores only a
+     hash of either. */
+  function learnerId() {
+    try {
+      var sc = JSON.parse(localStorage.getItem("cbChinese.sync") || "null");
+      if (sc && typeof sc.code === "string" && /^[A-HJ-NP-Z2-9]{16}$/.test(sc.code)) return sc.code;
+      var d = localStorage.getItem("cbChinese.device");
+      if (!d || !/^[A-Za-z0-9]{20}$/.test(d)) {
+        var abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", a = new Uint8Array(20); crypto.getRandomValues(a);
+        d = ""; for (var i = 0; i < 20; i++) d += abc.charAt(a[i] % abc.length);
+        localStorage.setItem("cbChinese.device", d);
+      }
+      return d;
+    } catch (e) { return ""; }
+  }
   function call(task, payload, extra) {
     var c = cfg();
     if (!configured()) return Promise.resolve({ ok: false, error: "not_set" });
@@ -79,7 +96,7 @@
     var ctl = window.AbortController ? new AbortController() : null, timer = setTimeout(function () { if (ctl) ctl.abort(); }, 60000);
     var lang = window.Store && Store.state.settings.lang || "both";
     return fetch(c.url, { method: "POST", cache: "no-store", signal: ctl ? ctl.signal : undefined,
-      headers: Object.assign({ "content-type": "application/json" }, c.code ? { "x-app-code": c.code } : {}, extra || {}), body: JSON.stringify({ task: task, lang: lang, payload: payload }) })
+      headers: Object.assign({ "content-type": "application/json" }, c.code ? { "x-app-code": c.code } : {}, learnerId() ? { "x-learner": learnerId() } : {}, extra || {}), body: JSON.stringify({ task: task, lang: lang, payload: payload }) })
       .then(function (r) {
         return r.json().catch(function () { return null; }).then(function (j) {
           clearTimeout(timer);

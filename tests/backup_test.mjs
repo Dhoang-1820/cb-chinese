@@ -92,4 +92,92 @@ const cardsOf = (srs) => JSON.stringify(Object.keys(srs).sort().map((id) => { co
   const big = phone(NOW, here); big.S.mergeIn(phone(NOW, state(4600, 1231)).S.backup());
   t("merge: a compact cloud copy (very large deck) is unpacked before merging", Object.keys(big.S.state.srs).length === 4603 && !Array.isArray(big.S.state.srs["h5-0001"]));
 }
+
+/* ---- automatic local backup ("last good" copy) and field-by-field import checks ---- */
+{
+  const GOOD = "cbChinese.progress.lastgood.v1", BAD = "cbChinese.progress.corrupt.v1";
+  /* a phone whose localStorage starts with the given raw strings */
+  function phoneRaw(entries, quota) {
+    const ls = Object.assign({}, entries);
+    const sb = { window: {}, console: { warn() {}, log() {} }, navigator: {}, document: {}, Date,
+      localStorage: { getItem: (k) => (k in ls ? ls[k] : null), setItem: (k, v) => { if (quota && k === GOOD) throw new Error("QuotaExceeded"); ls[k] = String(v); } } };
+    vm.createContext(sb);
+    vm.runInContext(fs.readFileSync(path.join(ROOT, NOW), "utf8"), sb, { filename: NOW });
+    return { S: sb.window.Store, ls };
+  }
+  const good = state(40, 5), goodCopy = JSON.stringify({ at: Date.now() - 3600e3, progress: good });
+
+  let p = phoneRaw({ [KEY]: JSON.stringify(good) });
+  t("last good: opening with readable progress writes the automatic copy", !!p.ls[GOOD] && Object.keys(JSON.parse(p.ls[GOOD]).progress.srs).length === 40 && !p.S.restored);
+  const at1 = JSON.parse(p.ls[GOOD]).at;
+  p = phoneRaw({ [KEY]: JSON.stringify(good), [GOOD]: p.ls[GOOD] });
+  t("last good: not rewritten again within 6 hours", JSON.parse(p.ls[GOOD]).at === at1);
+  p = phoneRaw({ [KEY]: JSON.stringify(good), [GOOD]: JSON.stringify({ at: Date.now() - 7 * 3600e3, progress: state(3, 0) }) });
+  t("last good: refreshed when older than 6 hours", Object.keys(JSON.parse(p.ls[GOOD]).progress.srs).length === 40);
+
+  p = phoneRaw({ [KEY]: '{"srs": {"d01-0001": {"box": 2', [GOOD]: goodCopy });
+  t("corrupt: cut-off JSON in the main key restores the automatic copy", Object.keys(p.S.state.srs).length === 40 && p.S.state.xp === 4200 && p.S.restored && p.S.restored.why === "damaged");
+  t("corrupt: the restored progress is saved back to the main key", Object.keys(JSON.parse(p.ls[KEY]).srs).length === 40);
+  t("corrupt: the damaged text is kept for a problem report", p.ls[BAD] === '{"srs": {"d01-0001": {"box": 2');
+  p = phoneRaw({ [KEY]: JSON.stringify({ xp: 999, streak: { count: 3, last: null, best: 3 } }), [GOOD]: goodCopy });
+  t("partial: saved progress with only some fields is kept, the rest defaults (not treated as damaged)", p.S.state.xp === 999 && !p.S.restored && typeof p.S.state.srs === "object");
+  p = phoneRaw({ [KEY]: JSON.stringify({ foo: 1, bar: [2] }), [GOOD]: goodCopy });
+  t("partial: an object with no known field counts as damaged and restores the copy", p.S.state.xp === 4200 && !!p.S.restored);
+  p = phoneRaw({ [KEY]: "null", [GOOD]: goodCopy });
+  t("partial: a main key holding null restores the copy", p.S.state.xp === 4200);
+  p = phoneRaw({ [KEY]: "[1,2,3]", [GOOD]: goodCopy });
+  t("partial: a main key holding a list restores the copy", p.S.state.xp === 4200 && !!p.S.restored);
+  p = phoneRaw({ [KEY]: "not json", [GOOD]: JSON.stringify({ at: 1, progress: { xp: 5 } }) });
+  t("copy without review deck and settings is not used", p.S.state.xp === 0 && p.S.restored && p.S.restored.at === 0);
+  p = phoneRaw({ [GOOD]: goodCopy });
+  t("missing: main key gone but a copy exists → copy restored", p.S.state.xp === 4200 && p.S.restored.why === "missing");
+  p = phoneRaw({ [KEY]: "not json at all" });
+  t("corrupt without a copy: starts fresh, keeps the damaged text, says so", p.S.state.xp === 0 && p.ls[BAD] === "not json at all" && p.S.restored && p.S.restored.at === 0);
+  p = phoneRaw({ [KEY]: "{oops", [GOOD]: "{also broken" });
+  t("corrupt copy too: starts fresh instead of crashing", p.S.state.xp === 0 && !!p.S.restored);
+  p = phoneRaw({});
+  t("new phone: nothing to restore, no message", !p.S.restored && p.S.state.xp === 0);
+  p = phoneRaw({ [KEY]: JSON.stringify(good) }, true);
+  t("storage full: a failed copy does not stop the app", p.S.state.xp === 4200 && !p.ls[GOOD]);
+
+  /* imports */
+  const imp = (obj) => { const q = phoneRaw({ [KEY]: JSON.stringify(state(10, 0)) }); try { const r = q.S.importJSON(JSON.stringify(obj)); return { ok: true, r, q }; } catch (e) { return { ok: false, msg: e.message, q }; } };
+  let r = imp({ app: "cb-chinese", progress: good });
+  t("import: a real export is accepted", r.ok && Object.keys(r.q.S.state.srs).length === 40);
+  t("import: the progress it replaced stays restorable", Object.keys(JSON.parse(r.q.ls[GOOD]).progress.srs).length === 10 && r.q.S.restoreLastGood() && Object.keys(r.q.S.state.srs).length === 10);
+  r = imp({ srs: { "d01-0001": { box: 2, due: "2026-10-10", right: 1, wrong: 0 } }, settings: { examDate: "2026-11-14" } });
+  t("import: a partial export (only srs and settings) is accepted, the rest defaults", r.ok && r.q.S.state.xp === 0 && r.q.S.state.srs["d01-0001"].box === 2);
+  r = imp(Object.assign({}, good, { futureThing: 1, notes: "x" }));
+  t("import: unknown fields are ignored and reported", r.ok && r.r.ignored.join() === "futureThing,notes" && !("futureThing" in r.q.S.state));
+  r = imp(Object.assign({}, good, { srs: [] }));
+  t("import: srs as a list is refused, naming the field", !r.ok && /srs: should be an object/.test(r.msg) && Object.keys(r.q.S.state.srs).length === 10, r.msg);
+  r = imp(Object.assign({}, good, { xp: -50 }));
+  t("import: negative XP is repaired and reported", r.ok && r.r.fixed.some((f) => /^xp: should be a number from 0/.test(f)) && r.q.S.state.xp >= 0, JSON.stringify(r.r || r.msg));
+  r = imp(Object.assign({}, good, { xp: "lots" }));
+  t("import: XP as text is repaired and reported", r.ok && r.r.fixed.some((f) => /^xp: should be a number/.test(f)), JSON.stringify(r.r || r.msg));
+  r = imp(Object.assign({}, good, { settings: { examDate: "next Friday" } }));
+  t("import: a malformed exam date is reported and replaced by the default", r.ok && r.r.fixed.some((f) => /settings.examDate/.test(f)) && /^\d{4}-\d{2}-\d{2}$/.test(r.q.S.state.settings.examDate), JSON.stringify(r.r || r.msg));
+  r = imp(Object.assign({}, good, { settings: { showPinyin: "yes" } }));
+  t("import: a setting of the wrong type is reported", r.ok && r.r.fixed.some((f) => /settings.showPinyin: should be a boolean/.test(f)), JSON.stringify(r.r || r.msg));
+  r = imp(Object.assign({}, good, { srs: Object.assign({}, good.srs, { a: { box: 3, due: "soon" }, b: "card" }) }));
+  t("import: a few malformed review cards are dropped or repaired, with a count", r.ok && r.r.fixed.some((f) => /srs: 2 of 42 review cards are malformed/.test(f)) && !("b" in r.q.S.state.srs), JSON.stringify(r.r || r.msg));
+  r = imp(Object.assign({}, good, { srs: { a: { box: 3, due: "soon" }, b: "card", c: { box: 99 }, d: { box: 1, due: "2026-10-01" } } }));
+  t("import: mostly malformed review cards → refused (not our file)", !r.ok && /srs: 3 of 4 review cards are malformed/.test(r.msg), r.msg);
+  r = imp(Object.assign({}, good, { log: { "2026-10-01": 30, "yesterday": 10 } }));
+  t("import: a log entry without a date is reported and dropped", r.ok && r.r.fixed.some((f) => /log: 1 entries/.test(f)), JSON.stringify(r.r || r.msg));
+  r = imp(Object.assign({}, good, { streak: "long" }));
+  t("import: a known field of the wrong kind (streak as text) is refused", !r.ok && /streak: should be an object, not a string/.test(r.msg), r.msg);
+  r = imp(Object.assign({}, good, { version: 7 }));
+  t("import: a file from a newer version is refused", !r.ok && /newer version/.test(r.msg), r.msg);
+  r = imp(Object.assign({}, good, { streak: { count: -3, last: "2026-10-07", best: 1 } }));
+  t("import: a negative streak is reported", r.ok && r.r.fixed.some((f) => /streak.count/.test(f)), JSON.stringify(r.r || r.msg));
+  r = imp(good);
+  t("import: a clean file reports nothing repaired", r.ok && r.r.fixed.length === 0 && r.r.ignored.length === 0, JSON.stringify(r.r));
+  r = (() => { const q = phoneRaw({ [KEY]: JSON.stringify(state(10, 0)) }); try { q.S.importJSON("{nope"); return { ok: true }; } catch (e) { return { ok: false, msg: e.message, q }; } })();
+  t("import: text that is not JSON is refused and progress is untouched", !r.ok && /not valid JSON/.test(r.msg) && Object.keys(r.q.S.state.srs).length === 10, r.msg);
+  r = imp(phone(NOW, good).S.backup());
+  t("import: a compact cloud backup (cards as lists) passes the checks", r.ok && Object.keys(r.q.S.state.srs).length === 40, r.msg);
+  const rs = phoneRaw({ [KEY]: JSON.stringify(good) }); rs.S.reset();
+  t("reset: the progress before a reset stays restorable", rs.S.state.xp === 0 && rs.S.restoreLastGood() && rs.S.state.xp === 4200);
+}
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

@@ -44,8 +44,8 @@
         if (!it || src.level === 5) return;
         if (P[2] === "p3" && P[1] === "reading") {
           m.reading.p3.push({ passage: it.passage, questions: it.questions.map(function (q) { return copy(q, src.id); }) });
-          m.reading.time += P[4] * it.questions.length;
-        } else { m[P[1]][P[2]].push(copy(it, src.id)); m[P[1]].time += P[4]; }
+          m.reading.time += +P[4] * it.questions.length;
+        } else { m[P[1]][P[2]].push(copy(it, src.id)); m[P[1]].time += +P[4]; }
       });
     });
     return m;
@@ -57,7 +57,7 @@
       var out = []; MOCK.forEach(function (m) { (m[P[1]][P[2]] || []).forEach(function (it, i) { out.push([m.id, i]); }); });
       return shuffle(out);
     };
-    var cost = function (P, r) { var it = MOCKMAP[r[0]][P[1]][P[2]][r[1]]; return P[4] * (it.questions ? it.questions.length : 1); };
+    var cost = function (P, r) { var it = MOCKMAP[r[0]][P[1]][P[2]][r[1]]; return +P[4] * (it.questions ? it.questions.length : 1); };
     /* per section: its weakest part; the section of the overall weakest part gets twice the time */
     ["L", "R", "W"].forEach(function (sec) {
       var parts = weak.filter(function (w) { return w.p[0] === sec; }).map(function (w) { return w.p; });

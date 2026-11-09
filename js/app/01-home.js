@@ -505,7 +505,8 @@
     var away = !!comebackCard(), sess = sessionPlan(away ? "comeback" : null);
     var last = lastStudyDay(), gap = last ? Store.daysBetween(last, t) : 0;
     steps.push(away ? { id: "comeback", ico: "⏱", name: tx("5-minute restart"), sub: tx("Welcome back · {n} days away · your oldest reviews first", { n: gap }), href: "#/session/comeback", done: (s.log[t] || 0) > 0 }
-      : { id: "session", ico: "▶", name: tx("Today's session"), sub: (sess.length === 1 ? tx("1 step") : tx("{n} steps", { n: sess.length })) + " · " + tx(sessionCfg().label), href: "#/session", done: !!(s.sessions || {})[t] });
+      : { id: "session", ico: "▶", name: tx("Today's session"), sub: (sess.length === 1 ? tx("1 step") : tx("{n} steps", { n: sess.length })) + " · " + tx(sessionCfg().label),
+          href: !Object.keys(s.srs).length && !Object.keys(s.sessions || {}).length ? "#/session/go" : "#/session", done: !!(s.sessions || {})[t] });
     var cu = fin ? [] : cuLessons();
     if (cu.length) steps.push({ id: "catchup", ico: "⏳", name: tx("Catch up: {lessons} today", { lessons: cu.length === 1 ? tx("1 short lesson") : tx("{n} short lessons", { n: cu.length }) }), sub: tx("Behind plan") + " · " + cu.map(function (d) { return tx("Day {n}", { n: d.day }); }).join(" + "), href: "#/catchup", done: false });
     else if (!fin && nd && !p.afterExam) {

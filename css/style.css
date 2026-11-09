@@ -1575,3 +1575,8 @@ button.grow:first-child { border-top: 0; }
 .pb-ph { background: var(--surface-2); color: inherit; border-radius: 4px; padding: 0 3px; border-bottom: 2px dashed var(--muted); }
 .pb-item .tr { margin-top: 4px; color: var(--muted); }
 .pb-act { margin-top: 10px; flex-wrap: wrap; gap: 8px; }
+
+/* Progress: a practice button under every chart */
+.chart-go { margin-top: 10px; }
+.spark3 .btn.small { grid-column: 1 / -1; justify-self: start; margin-top: 6px; min-height: 36px; padding: 4px 10px; }
+.sk-go .btn.small { flex: none; min-height: 36px; padding: 4px 10px; }

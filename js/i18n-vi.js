@@ -1710,5 +1710,10 @@ window.CB_I18N_VI = {
   "Policy & benefits": "Chính sách & phúc lợi",
   "Meetings": "Cuộc họp",
   "Problems & follow-up": "Vấn đề & nhắc việc",
-  "Everyday": "Hằng ngày"
+  "Everyday": "Hằng ngày",
+  "▶ Practise {sec}": "▶ Luyện {sec}",
+  "▶ Take a mock exam": "▶ Làm đề thi thử",
+  "▶ Review {n} due words": "▶ Ôn {n} từ đến hạn",
+  "▶ Learn new words": "▶ Học từ mới",
+  "▶ Today's session": "▶ Buổi học hôm nay"
 };

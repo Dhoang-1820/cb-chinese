@@ -15,7 +15,7 @@
 敏感|adj.|sensitive|nhạy cảm|工资 是 一 个 比较 敏感 的 话题 。|Pay is a rather sensitive topic.|Tiền lương là một chủ đề khá nhạy cảm.
 名牌|n.|famous brand|hàng hiệu, thương hiệu nổi tiếng|他 不 太 在乎 衣服 是 不 是 名牌 。|He doesn't much care whether his clothes are a famous brand.|Anh ấy không quan tâm lắm quần áo có phải hàng hiệu hay không.
 名片|n.|business card|danh thiếp|这 是 我 的 名片 ， 请 多 联系 。|This is my business card; do keep in touch.|Đây là danh thiếp của tôi, mong được liên lạc nhiều hơn.
-名胜古迹|n.|places of historic interest and scenic beauty|danh lam thắng cảnh|北京 有 很多 有名 的 名胜古迹 。|Beijing has many famous scenic spots and historic sites.|Bắc Kinh có rất nhiều danh lam thắng cảnh nổi tiếng.
+名胜古迹|n.|places of historic interest and scenic beauty|danh lam thắng cảnh và di tích lịch sử|北京 有 很多 有名 的 名胜古迹 。|Beijing has many famous scenic spots and historic sites.|Bắc Kinh có rất nhiều danh lam thắng cảnh và di tích lịch sử nổi tiếng.
 明确|adj./v.|clear; definite; to make clear|rõ ràng; làm rõ|经理 对 这 件 事 的 态度 很 明确 。|The manager's attitude on this matter is very clear.|Thái độ của giám đốc đối với việc này rất rõ ràng.
 明显|adj.|obvious; evident|rõ rệt, hiển nhiên|运动 了 一 个 月 ， 效果 非常 明显 。|After a month of exercise, the effect is very obvious.|Tập luyện một tháng, hiệu quả rất rõ rệt.
 明星|n.|star; celebrity|ngôi sao, minh tinh|这 位 电影 明星 在 中国 很 有名 。|This film star is very famous in China.|Ngôi sao điện ảnh này rất nổi tiếng ở Trung Quốc.
@@ -93,7 +93,7 @@
 气氛|n.|atmosphere; mood|bầu không khí|今天 晚会 的 气氛 非常 热闹 。|The atmosphere at tonight's party was very lively.|Không khí buổi tiệc tối nay rất náo nhiệt.
 汽油|n.|petrol; gasoline|xăng|最近 汽油 的 价格 又 涨 了 。|The price of petrol has gone up again recently.|Gần đây giá xăng lại tăng.
 谦虚|adj.|modest; humble|khiêm tốn|他 虽然 很 成功 ， 但是 非常 谦虚 。|Although he is very successful, he is extremely modest.|Tuy rất thành công nhưng anh ấy vô cùng khiêm tốn.
-签|v.|to sign|ký|请 在 这 张 表格 的 下面 签 名字 。|Please sign your name at the bottom of this form.|Vui lòng ký tên ở phía dưới biểu mẫu này.
+签|v.|to sign|ký|请 在 这 张 表格 的 下面 签 上 您 的 名字 。|Please sign your name at the bottom of this form.|Vui lòng ký tên ở phía dưới biểu mẫu này.
 前途|n.|future; prospects|tiền đồ, tương lai|这个 年轻 人 很 努力 ， 很 有 前途 。|This young man works hard and has good prospects.|Chàng trai trẻ này rất nỗ lực, rất có tương lai.
 浅|adj.|shallow; light (colour); simple|nông, cạn; nhạt (màu)|这 条 河 很 浅 ， 可以 走 过去 。|This river is shallow enough to walk across.|Con sông này rất nông, có thể lội qua.
 欠|v.|to owe|nợ, thiếu|我 还 欠 你 一 百 块 钱 ， 明天 还{huán} 你 。|I still owe you a hundred yuan; I'll pay you back tomorrow.|Tôi còn nợ bạn một trăm tệ, ngày mai trả bạn.

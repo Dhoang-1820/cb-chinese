@@ -184,7 +184,7 @@ window.CB_DAYS.push({
     },
     examples: [
       { zh: "万一项目延期，留任奖金的发放时间也要调整。", py: "Wànyī xiàngmù yánqī, liúrèn jiǎngjīn de fāfàng shíjiān yě yào tiáozhěng.", vi: "Lỡ dự án bị chậm tiến độ thì thời gian phát thưởng giữ chân cũng phải điều chỉnh.", en: "If the project is delayed, the payment date of the retention bonus must be adjusted too." },
-      { zh: "万一新员工不来报到，签约奖金就不用发了。", py: "Wànyī xīn yuángōng bù lái bàodào, qiānyuē jiǎngjīn jiù bú yòng fā le.", vi: "Lỡ nhân viên mới không đến báo danh thì không cần phát thưởng ký hợp đồng nữa.", en: "If the new hire doesn't show up to start, there is no need to pay the sign-on bonus." },
+      { zh: "万一新员工不来报到，签约奖金就不用发了。", py: "Wànyī xīn yuángōng bù lái bàodào, qiānyuē jiǎngjīn jiù bú yòng fā le.", vi: "Lỡ nhân viên mới không đến nhận việc thì không cần phát thưởng ký hợp đồng nữa.", en: "If the new hire doesn't show up to start, there is no need to pay the sign-on bonus." },
       { zh: "签合同以前要想清楚，万一以后有争议，就麻烦了。", py: "Qiān hétong yǐqián yào xiǎng qīngchu, wànyī yǐhòu yǒu zhēngyì, jiù máfan le.", vi: "Trước khi ký hợp đồng phải nghĩ cho kỹ, lỡ sau này có tranh chấp thì rắc rối.", en: "Think it through before signing; if a dispute arises later, it will be troublesome." }
     ]
   },

@@ -1,12 +1,16 @@
   /* ---------- mock exam ---------- */
-  var MOCK = [], MOCKMAP = {}, EXAM = null;
+  /* MOCK: the HSK 4 sets (score forecast, exam plan, suggestions); MOCK5: the HSK 5 sets (level: 5), listed on their own.
+     MOCKMAP holds both, so #/mock/<id> opens either. */
+  var MOCK = [], MOCK5 = [], MOCKMAP = {}, EXAM = null;
+  function isH5Mock(id) { var m = MOCKMAP[id]; return m ? m.level === 5 : +id >= 100; }
   var RESOURCES = [
     { name: "Study4 HSK 4 practice tests", url: "https://study4.com/tests/hsk-4/" },
     { name: "Official HSK sample papers (Hanban/CTI)", url: "http://www.chinesetest.cn/gosign.do?id=1&lid=0#" }
   ];
   function buildMockIndex() {
-    MOCK = (window.CB_MOCK || []).slice().sort(function (a, b) { return a.id - b.id; });
-    MOCKMAP = {}; MOCK.forEach(function (m) {
+    var all = (window.CB_MOCK || []).slice().sort(function (a, b) { return a.id - b.id; });
+    MOCK = all.filter(function (m) { return m.level !== 5; }); MOCK5 = all.filter(function (m) { return m.level === 5; });
+    MOCKMAP = {}; all.forEach(function (m) {
       MOCKMAP[m.id] = m;
       // sentence-ordering items (full-length reading part 2): answer "BAC" → index into the 6 possible orders
       m.reading.p2.forEach(function (it) { if (it.parts && typeof it.answer === "string") { it.orderKey = it.answer; it.options = ORDERS.slice(); it.answer = ORDERS.indexOf(it.orderKey); } });
@@ -16,16 +20,16 @@
   function partsHTML(it) {
     return '<div class="abc">' + ["A", "B", "C"].map(function (k) { return '<p><b>' + k + '</b> <span class="zh">' + esc(it.parts[k]) + "</span></p>"; }).join("") + "</div>";
   }
-  function sentHTML(it) { return it.parts ? '<p class="sub">Put A, B, C in the right order</p>' + partsHTML(it) : '<p class="statement">' + esc(it.sentence) + "</p>"; }
+  function sentHTML(it) { return it.parts ? '<p class="sub">' + tx("Put A, B, C in the right order") + '</p>' + partsHTML(it) : '<p class="statement">' + esc(it.sentence) + "</p>"; }
   function isDlg(it) { return Array.isArray(it.dialogue); }
-  function listenHTML(it) { return isDlg(it) ? '<button type="button" class="btn small dlg-play" data-dlg="' + esc(it.id) + '">▶ Play dialogue</button>' : SAY(it.audio.text, it.audio.voice, true); }
+  function listenHTML(it) { return isDlg(it) ? '<button type="button" class="btn small dlg-play" data-dlg="' + esc(it.id) + '">' + tx("▶ Play dialogue") + '</button>' : SAY(it.audio.text, it.audio.voice, true); }
   /* Listening conditions: speed and background noise for mock listening (Me → Listening practice); the simulator also plays each recording once. */
   function inMockListening() { return /^#\/mock\/\d+\/listening/.test(location.hash); }
   function mockRate() { return inMockListening() ? (Store.state.settings.mockRate || undefined) : undefined; }
   function playOnceOk(key) {
     if (!EXAM || !EXAM.strict) return true;
     if (!EXAM.played) EXAM.played = {};
-    if (EXAM.played[key]) { UI.toast("Simulator: each recording plays once", "🎯"); return false; }
+    if (EXAM.played[key]) { UI.toast(tx("Simulator: each recording plays once"), "🎯"); return false; }
     EXAM.played[key] = 1; return true;
   }
   function clearExamTimer() { if (EXAM && EXAM.timer) { clearInterval(EXAM.timer); EXAM.timer = null; } }
@@ -59,7 +63,7 @@
   }
   function weakParts() {
     var acc = {}; Learn.report(5, true).forEach(function (r) { acc[r.skill] = Math.round(r.acc * 100); });
-    return PARTS.filter(function (p) { return acc[p.skill] != null && acc[p.skill] < 80; }).map(function (p) { return { k: p.k, name: p.name, acc: acc[p.skill] }; })
+    return PARTS.filter(function (p) { return acc[p.skill] != null && acc[p.skill] < 80; }).map(function (p) { return { k: p.k, name: tx(p.name), acc: acc[p.skill] }; })
       .sort(function (a, b) { return a.acc - b.acc; });
   }
   var EW_KEY = "cbChinese.examWords2";
@@ -85,9 +89,9 @@
   function examCoverage() { var ids = examWords(); return ids ? { have: ids.filter(function (id) { return SRS.has(id); }).length, all: ids.length } : null; }
   function viewSprint() {
     var w = examFresh(10);
-    if (!w.length) { render('<section class="card"><h2>🔤 Exam words</h2><p class="sub">Every word the tests use most is already in your review deck. Keep reviewing them daily.</p><a class="btn primary" href="#/review">Review</a></section>', "games"); return; }
+    if (!w.length) { render('<section class="card"><h2>' + tx("🔤 Exam words") + '</h2><p class="sub">' + tx("Every word the tests use most is already in your review deck. Keep reviewing them daily.") + '</p><a class="btn primary" href="#/review">' + tx("Review") + '</a></section>', "games"); return; }
     SRS.addMany(w.map(function (x) { return x.id; }));
-    runDeck({ title: "Exam words", words: w, mode: "learn", back: "#/games" });
+    runDeck({ title: tx("Exam words"), words: w, mode: "learn", back: "#/games" });
   }
   function runPart(k, o) {
     var P = PARTS.filter(function (p) { return p.k === k; })[0]; if (!P) return false;
@@ -95,7 +99,7 @@
     var missed = shuffle(all.filter(function (e) { return open[e.key]; })), rest = shuffle(all.filter(function (e) { return !open[e.key]; }));
     var items = missed.concat(rest).slice(0, P.n); // your open mistakes from this part first
     if (!items.length) return false;
-    runMistakeDrill("all", Object.assign({ items: items, title: P.name, icon: "⏱", timer: items.length * P.sec, exit: "#/parts", again: "#/parts/" + P.k, againFn: function () { viewParts(P.k); } }, o || {}));
+    runMistakeDrill("all", Object.assign({ items: items, title: tx(P.name), icon: "⏱", timer: items.length * P.sec, exit: "#/parts", again: "#/parts/" + P.k, againFn: function () { viewParts(P.k); } }, o || {}));
     return true;
   }
   /* the part where the last timed mock (10 days) ran out of time with 3+ blanks, for Today's session */
@@ -113,30 +117,30 @@
     var weak = weakParts(), acc = {}; Learn.report(5, true).forEach(function (r) { acc[r.skill] = Math.round(r.acc * 100); });
     bankRefresh(); setTimeout(aiqFill, 2500); // keep a few new questions on the phone for offline use
     var anyNew = ["L1", "L2", "L3", "R3"].some(newQAvail);
-    var html = '<section class="card g-violet"><h2>⏱ Exam parts</h2><p class="sub">Ten questions from one part of the exam, on one clock at the real pace. Your open mistakes from that part come first.</p>' +
-      (weak.length ? '<a class="btn primary big" href="#/parts/' + weak[0].k + '">▶ Your weakest: ' + esc(weak[0].name) + " (" + weak[0].acc + "%)</a>" : "") + "</section>";
+    var html = '<section class="card g-violet"><h2>' + tx("⏱ Exam parts") + '</h2><p class="sub">' + tx("Ten questions from one part of the exam, on one clock at the real pace. Your open mistakes from that part come first.") + '</p>' +
+      (weak.length ? '<a class="btn primary big" href="#/parts/' + weak[0].k + '">' + tx("▶ Your weakest: {name} ({acc}%)", { name: esc(weak[0].name), acc: weak[0].acc }) + "</a>" : "") + "</section>";
     /* one row per part: the timed 10, and (listening, reading passages) 3 never-seen questions */
     var sec = "";
     PARTS.forEach(function (p) {
       var s0 = SEC_ICON[p.k.charAt(0)];
-      if (s0 !== sec) { if (sec) html += "</div></section>"; sec = s0; html += '<section class="card"><h3>' + s0 + '</h3><div class="glist">'; }
+      if (s0 !== sec) { if (sec) html += "</div></section>"; sec = s0; html += '<section class="card"><h3>' + tx(s0) + '</h3><div class="glist">'; }
       var n = Math.min(p.n, partItems(p.k).length), nq = NEW_PARTS[p.k] && newQAvail(p.k);
-      html += '<div class="grow part-row"><span class="g-txt"><b>' + esc(p.name) + " · " + esc(p.what) + "</b><small>" + n + " questions · " + fmtTime(n * p.sec) + " min" + (acc[p.skill] != null ? " · you: " + acc[p.skill] + "%" : "") + "</small></span>" +
-        '<span class="pr-acts"><a class="btn small primary" href="#/parts/' + p.k + '" aria-label="' + esc(p.name) + ', timed, ' + n + ' questions">Timed · ' + n + "</a>" +
-        (nq ? '<a class="btn small" href="#/newq/' + p.k + '" aria-label="' + esc(p.name) + ', new questions">New · ' + (p.k === "R3" ? "1 text" : "3") + "</a>" : "") + "</span></div>";
+      html += '<div class="grow part-row"><span class="g-txt"><b>' + esc(tx(p.name)) + " · " + esc(tx(p.what)) + "</b><small>" + tx("{n} questions · {t} min", { n: n, t: fmtTime(n * p.sec) }) + (acc[p.skill] != null ? " · " + tx("you: {acc}%", { acc: acc[p.skill] }) : "") + "</small></span>" +
+        '<span class="pr-acts"><a class="btn small primary" href="#/parts/' + p.k + '" aria-label="' + tx("{name}, timed, {n} questions", { name: esc(tx(p.name)), n: n }) + '">' + tx("Timed · {n}", { n: n }) + "</a>" +
+        (nq ? '<a class="btn small" href="#/newq/' + p.k + '" aria-label="' + tx("{name}, new questions", { name: esc(tx(p.name)) }) + '">' + tx("New · {n}", { n: p.k === "R3" ? tx("1 text") : "3" }) + "</a>" : "") + "</span></div>";
     });
-    html += "</div></section>" + (anyNew ? '<p class="sub center">“New” = questions you have never seen, built around your weak words: checked by the C&amp;B team when available, otherwise written by AI. Untimed games are in Practice → All games.</p>' : "");
+    html += "</div></section>" + (anyNew ? '<p class="sub center">' + tx("“New” = questions you have never seen, built around your weak words: checked by the C&amp;B team when available, otherwise written by AI. Untimed games are in Practice → All games.") + '</p>' : "");
     render(html, "games");
   }
   /* Practice tab, "For the exam": the mock test to take next, timed exam parts and the mistake notebook */
   function practiceTop() {
     var fin = planInfo().inBuffer, n = MOCK.length ? nextMock(fin) : null, m = n && n.m, w = weakParts()[0], mis = Learn.count(), rep = repeatItems().length;
-    var mock = m ? '<section class="card pr-mock g-violet"><small>Recommended mock test</small><b>' + esc(m.title) + "</b><em>" + (m.full ? "Full length · 100 questions · ~100 min" : "Shorter test · about 40 questions · ~30 min") + (n.rep ? " · repeat" : " · new") + "</em>" +
-        '<a class="tm-go" id="pr-mock-go" href="#/mock/' + m.id + (fin && m.full ? "/sim" : "") + '">▶ Start mock test</a><a class="tm-short" href="#/mock">All ' + MOCK.length + " mock tests and your scores</a></section>"
-      : '<a class="cta card g-violet" href="#/mock"><span class="cta-l"><small>Timed, real exam format</small><b>📝 Mock tests</b></span><span class="cta-go">▶</span></a>';
+    var mock = m ? '<section class="card pr-mock g-violet"><small>' + tx("Recommended mock test") + '</small><b>' + esc(m.title) + "</b><em>" + (m.full ? tx("Full length · 100 questions · ~100 min") : tx("Shorter test · about 40 questions · ~30 min")) + " · " + (n.rep ? tx("repeat") : tx("new")) + "</em>" +
+        '<a class="tm-go" id="pr-mock-go" href="#/mock/' + m.id + (fin && m.full ? "/sim" : "") + '">' + tx("▶ Start mock test") + '</a><a class="tm-short" href="#/mock">' + tx("All {n} mock tests and your scores", { n: MOCK.length }) + "</a></section>"
+      : '<a class="cta card g-violet" href="#/mock"><span class="cta-l"><small>' + tx("Timed, real exam format") + '</small><b>' + tx("📝 Mock tests") + '</b></span><span class="cta-go">▶</span></a>';
     return mock + '<div class="glist">' +
-      '<a class="grow" href="#/parts"><span class="g-ico">⏱</span><span class="g-txt"><b>Exam parts, timed</b><small>10 questions at the real pace' + (w ? " · weakest: " + esc(w.name) + " (" + w.acc + "%)" : "") + (function () { bankRefresh(); setTimeout(aiqFill, 3000); return newQAvail(weakListenPart()) ? " · plus new questions" : ""; })() + '</small></span><span class="g-go">▶</span></a>' +
-      (function () { var c = examCoverage(); return c && c.all ? '<a class="grow" href="#/sprint"><span class="g-ico">🔤</span><span class="g-txt"><b>Exam words</b><small>' + c.have + " of the " + c.all + ' words the tests use most are in your review · 10 more</small></span><span class="g-go">▶</span></a>' : ""; })() +
-      '<a class="grow" href="#/mistakes"><span class="g-ico">📒</span><span class="g-txt"><b>Mistake notebook</b><small>' + (mis ? mis + " to fix" + (rep ? " · " + rep + " keep coming back" : "") : "Nothing to fix right now") + '</small></span><span class="g-go">▶</span></a></div>';
+      '<a class="grow" href="#/parts"><span class="g-ico">⏱</span><span class="g-txt"><b>' + tx("Exam parts, timed") + '</b><small>' + tx("10 questions at the real pace") + (w ? " · " + tx("weakest: {name} ({acc}%)", { name: esc(w.name), acc: w.acc }) : "") + (function () { bankRefresh(); setTimeout(aiqFill, 3000); return newQAvail(weakListenPart()) ? " · " + tx("plus new questions") : ""; })() + '</small></span><span class="g-go">▶</span></a>' +
+      (function () { var c = examCoverage(); return c && c.all ? '<a class="grow" href="#/sprint"><span class="g-ico">🔤</span><span class="g-txt"><b>' + tx("Exam words") + '</b><small>' + tx("{have} of the {all} words the tests use most are in your review · 10 more", { have: c.have, all: c.all }) + '</small></span><span class="g-go">▶</span></a>' : ""; })() +
+      '<a class="grow" href="#/mistakes"><span class="g-ico">📒</span><span class="g-txt"><b>' + tx("Mistake notebook") + '</b><small>' + (mis ? tx("{n} to fix", { n: mis }) + (rep ? " · " + tx("{n} keep coming back", { n: rep }) : "") : tx("Nothing to fix right now")) + '</small></span><span class="g-go">▶</span></a></div>';
   }
 

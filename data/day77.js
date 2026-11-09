@@ -13,10 +13,10 @@ window.CB_DAYS.push({
         { zh: "诊断证明", py: "zhěnduàn zhèngmíng", vi: "giấy chẩn đoán", en: "medical certificate" }
       ],
       example: {
-        zh: "医生诊断他需要休息两个星期。",
-        py: "Yīshēng zhěnduàn tā xūyào xiūxi liǎng gè xīngqī.",
-        vi: "Bác sĩ chẩn đoán anh ấy cần nghỉ ngơi hai tuần.",
-        en: "The doctor's diagnosis is that he needs two weeks of rest."
+        zh: "医生诊断他得了肺炎，需要休息两个星期。",
+        py: "Yīshēng zhěnduàn tā déle fèiyán, xūyào xiūxi liǎng gè xīngqī.",
+        vi: "Bác sĩ chẩn đoán anh ấy bị viêm phổi, cần nghỉ ngơi hai tuần.",
+        en: "The doctor diagnosed him with pneumonia and said he needs two weeks of rest."
       }
     },
     {
@@ -166,7 +166,7 @@ window.CB_DAYS.push({
       { speaker: "黄玲", zh: "以后如果留下后遗症，需要做鉴定吗？", py: "Yǐhòu rúguǒ liúxià hòuyízhèng, xūyào zuò jiàndìng ma?", vi: "Sau này nếu để lại di chứng thì có cần giám định không ạ?", en: "If he is left with lasting effects later, will an assessment be needed?" },
       { speaker: "阮经理", zh: "治疗结束后，如果还有伤残，可能要做劳动能力方面的鉴定。伤残程度不同，后面的处理也可能不同，到时候我们按规定办。", py: "Zhìliáo jiéshù hòu, rúguǒ hái yǒu shāngcán, kěnéng yào zuò láodòng nénglì fāngmiàn de jiàndìng. Shāngcán chéngdù bùtóng, hòumiàn de chǔlǐ yě kěnéng bùtóng, dào shíhou wǒmen àn guīdìng bàn.", vi: "Sau khi điều trị xong, nếu vẫn còn thương tật thì có thể phải giám định khả năng lao động. Mức độ thương tật khác nhau thì cách xử lý sau đó cũng có thể khác, lúc đó chúng ta làm theo quy định.", en: "After treatment, if some disability remains, a work-capacity assessment may be needed. Different degrees of disability may be handled differently, and we will follow the rules then." },
       { speaker: "黄玲", zh: "他住院期间难免会担心工作和收入，我们要多关心他。", py: "Tā zhùyuàn qījiān nánmiǎn huì dānxīn gōngzuò hé shōurù, wǒmen yào duō guānxīn tā.", vi: "Trong lúc nằm viện, khó tránh anh ấy sẽ lo về công việc và thu nhập, chúng ta nên quan tâm anh ấy nhiều hơn.", en: "During his hospital stay he will inevitably worry about work and income, so we should look after him." },
-      { speaker: "阮经理", zh: "对。等他康复以后，再和他、医生一起商量复工的安排，比如先做轻松一点的工作。", py: "Duì. Děng tā kāngfù yǐhòu, zài hé tā, yīshēng yìqǐ shāngliang fùgōng de ānpái, bǐrú xiān zuò qīngsōng yìdiǎn de gōngzuò.", vi: "Đúng vậy. Đợi anh ấy bình phục xong, sẽ cùng anh ấy và bác sĩ bàn kế hoạch đi làm lại, ví dụ làm công việc nhẹ nhàng hơn trước.", en: "Right. Once he has recovered, we'll discuss the return-to-work arrangement with him and his doctor, for example starting with lighter duties." }
+      { speaker: "阮经理", zh: "对。等他康复以后，再和他、医生一起商量复工的安排，比如先做轻松一点的工作。", py: "Duì. Děng tā kāngfù yǐhòu, zài hé tā, yīshēng yìqǐ shāngliang fùgōng de ānpái, bǐrú xiān zuò qīngsōng yìdiǎn de gōngzuò.", vi: "Đúng vậy. Đợi anh ấy bình phục xong, sẽ cùng anh ấy và bác sĩ bàn kế hoạch đi làm lại, ví dụ trước tiên làm công việc nhẹ nhàng hơn.", en: "Right. Once he has recovered, we'll discuss the return-to-work arrangement with him and his doctor, for example starting with lighter duties." }
     ],
     notes: [
       { zh: "如实", py: "rúshí", vi: "trung thực; đúng sự thật", en: "truthfully; honestly" },
@@ -192,7 +192,7 @@ window.CB_DAYS.push({
 
   exercises: {
     fill: [
-      { zh: "医生___他需要住院两个星期。", answer: "诊断", vi: "Bác sĩ chẩn đoán anh ấy cần nằm viện hai tuần.", en: "The doctor's diagnosis is that he needs two weeks in hospital." },
+      { zh: "医生___他得了肺炎，需要住院两个星期。", answer: "诊断", vi: "Bác sĩ chẩn đoán anh ấy bị viêm phổi, cần nằm viện hai tuần.", en: "The doctor diagnosed him with pneumonia; he needs two weeks in hospital." },
       { zh: "申请病假时，请附上医院的___和诊断证明。", answer: "病历", vi: "Khi xin nghỉ ốm, hãy đính kèm bệnh án và giấy chẩn đoán của bệnh viện.", en: "When requesting sick leave, please attach the hospital's medical record and diagnosis certificate." },
       { zh: "他___以后，医生同意他下周一复工。", answer: "康复", vi: "Sau khi anh ấy bình phục, bác sĩ đồng ý cho đi làm lại thứ Hai tuần sau.", en: "After he recovers, the doctor agrees he can return to work next Monday." },
       { zh: "是不是工伤，要由有关部门按规定___。", answer: "认定", vi: "Có phải tai nạn lao động hay không do cơ quan có thẩm quyền xác định theo quy định.", en: "Whether it is a work injury is determined by the relevant authority under the rules." },

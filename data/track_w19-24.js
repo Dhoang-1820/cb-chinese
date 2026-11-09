@@ -77,8 +77,8 @@ window.CB_TRACK.push(
           "ex": {
             "zh": "去年公司的员工人数增长了一成。",
             "py": "Qùnián gōngsī de yuángōng rénshù zēngzhǎngle yì chéng.",
-            "vi": "Năm ngoái số nhân viên của công ty tăng khoảng một phần mười.",
-            "en": "Last year the company's headcount grew by about ten percent."
+            "vi": "Năm ngoái số nhân viên của công ty tăng một phần mười (10%).",
+            "en": "Last year the company's headcount grew by ten percent."
           }
         },
         {
@@ -207,7 +207,7 @@ window.CB_TRACK.push(
           "ex": {
             "zh": "这个行业的人员流动比较频繁。",
             "py": "Zhège hángyè de rényuán liúdòng bǐjiào pínfán.",
-            "vi": "Nhân sự ở ngành này luân chuyển khá thường xuyên.",
+            "vi": "Nhân sự ở ngành này biến động khá thường xuyên.",
             "en": "Staff turnover in this industry is fairly frequent."
           }
         },
@@ -302,7 +302,7 @@ window.CB_TRACK.push(
           "zh": "受市场需求影响，一些传统行业的用工规模下降，不少员工面临失业。",
           "py": "Shòu shìchǎng xūqiú yǐngxiǎng, yìxiē chuántǒng hángyè de yònggōng guīmó xiàjiàng, bù shǎo yuángōng miànlín shīyè.",
           "vi": "Chịu ảnh hưởng của nhu cầu thị trường, quy mô sử dụng lao động ở một số ngành truyền thống giảm, không ít nhân viên đối mặt với thất nghiệp.",
-          "en": "Hit by market demand, some traditional industries have reduced their workforce and many employees face unemployment."
+          "en": "Affected by market demand, some traditional industries have reduced their workforce and many employees face unemployment."
         },
         {
           "zh": "与此同时，新能源和信息技术行业快速增长，相关人才十分紧缺。",
@@ -489,9 +489,9 @@ window.CB_TRACK.push(
           "en": "Meanwhile, staff will keep moving between industries, so firms need to build a talent reserve in advance."
         },
         {
-          "zh": "至于薪资，报告预计整体涨幅不会太大，但热门岗位之间的差距会继续拉大。",
-          "py": "Zhìyú xīnzī, bàogào yùjì zhěngtǐ zhǎngfú búhuì tài dà, dàn rèmén gǎngwèi zhījiān de chājù huì jìxù lādà.",
-          "vi": "Về lương, báo cáo dự đoán mức tăng chung sẽ không lớn, nhưng khoảng cách giữa các vị trí hot sẽ tiếp tục nới rộng.",
+          "zh": "至于薪资，报告预计整体涨幅不会太大，但热门岗位与其他岗位之间的差距会继续拉大。",
+          "py": "Zhìyú xīnzī, bàogào yùjì zhěngtǐ zhǎngfú búhuì tài dà, dàn rèmén gǎngwèi yǔ qítā gǎngwèi zhījiān de chājù huì jìxù lādà.",
+          "vi": "Về lương, báo cáo dự đoán mức tăng chung sẽ không lớn, nhưng khoảng cách giữa các vị trí hot và các vị trí khác sẽ tiếp tục nới rộng.",
           "en": "As for pay, the report expects the overall rise to be modest, but the gap between hot posts and the rest to keep widening."
         },
         {
@@ -919,7 +919,7 @@ window.CB_TRACK.push(
         {
           "zh": "我们希望新的方案公平公正，也能给大家带来更多的动力。",
           "py": "Wǒmen xīwàng xīn de fāng'àn gōngpíng gōngzhèng, yě néng gěi dàjiā dàilái gèng duō de dònglì.",
-          "vi": "Chúng tôi hy vọng phương án mới công bằng, liêm chính và mang lại thêm động lực cho mọi người.",
+          "vi": "Chúng tôi hy vọng phương án mới công bằng, khách quan và mang lại thêm động lực cho mọi người.",
           "en": "We hope the new plan is fair and impartial and gives everyone more motivation."
         }
       ],
@@ -1007,13 +1007,13 @@ window.CB_TRACK.push(
         {
           "zh": "同工同酬是很多员工最关心的问题之一，但在现实中要做到并不容易。",
           "py": "Tónggōng tóngchóu shì hěn duō yuángōng zuì guānxīn de wèntí zhī yī, dàn zài xiànshí zhōng yào zuòdào bìng bù róngyì.",
-          "vi": "Đồng công đồng thù là một trong những vấn đề nhiều nhân viên quan tâm nhất, nhưng trong thực tế làm được không dễ.",
+          "vi": "Trả lương ngang nhau cho công việc như nhau là một trong những vấn đề nhiều nhân viên quan tâm nhất, nhưng trong thực tế làm được không dễ.",
           "en": "Equal pay for equal work is one of the issues employees care about most, but it is not easy to achieve in reality."
         },
         {
           "zh": "首先，到底什么算同工，本身就很难界定：两个人的岗位名称相同，工作难度和责任却可能不一样。",
           "py": "Shǒuxiān, dàodǐ shénme suàn tónggōng, běnshēn jiù hěn nán jièdìng: liǎng gè rén de gǎngwèi míngchēng xiāngtóng, gōngzuò nándù hé zérèn què kěnéng bù yíyàng.",
-          "vi": "Trước hết, thế nào là đồng công vốn đã khó xác định: hai người cùng tên vị trí nhưng độ khó và trách nhiệm công việc có thể khác nhau.",
+          "vi": "Trước hết, thế nào là công việc như nhau vốn đã khó xác định: hai người cùng tên vị trí nhưng độ khó và trách nhiệm công việc có thể khác nhau.",
           "en": "First, what counts as the same work is hard to define: two people may share a job title yet differ in difficulty and responsibility."
         },
         {
@@ -1050,7 +1050,7 @@ window.CB_TRACK.push(
           "zh": "这样做的好处是，员工可以比较自己和同事的情况，减少不必要的争议。",
           "py": "Zhèyàng zuò de hǎochù shì, yuángōng kěyǐ bǐjiào zìjǐ hé tóngshì de qíngkuàng, jiǎnshǎo bú bìyào de zhēngyì.",
           "vi": "Lợi ích của cách làm này là nhân viên có thể so sánh tình hình mình với đồng nghiệp, giảm bớt tranh chấp không cần thiết.",
-          "en": "The benefit is that staff can compare their situation with colleagues and avoid unnecessary disputes."
+          "en": "The benefit is that staff can compare their situation with colleagues, which reduces unnecessary disputes."
         },
         {
           "zh": "当然，公开并不意味着所有人的薪资都一样。",
@@ -1626,7 +1626,7 @@ window.CB_TRACK.push(
           "zh": "比如，工作时间、工资发放和休假安排，是否与最新的规定保持一致。",
           "py": "Bǐrú, gōngzuò shíjiān, gōngzī fāfàng hé xiūjià ānpái, shìfǒu yǔ zuìxīn de guīdìng bǎochí yízhì.",
           "vi": "Ví dụ, thời gian làm việc, việc trả lương và sắp xếp nghỉ phép có thống nhất với quy định mới nhất hay không.",
-          "en": "For example, whether working hours, pay dates and leave arrangements are consistent with the latest rules."
+          "en": "For example, whether working hours, wage payment and leave arrangements are consistent with the latest rules."
         },
         {
           "zh": "如果合同条款不够明确，发生争议时，企业往往处于不利的位置。",
@@ -1754,7 +1754,7 @@ window.CB_TRACK.push(
           "hanzi": "规章",
           "pinyin": "guīzhāng",
           "pos": "n.",
-          "vi": "quy chương, quy định (nội bộ)",
+          "vi": "quy chế, quy định (nội bộ)",
           "en": "rules and regulations",
           "ex": {
             "zh": "员工应当遵守公司的各项规章。",
@@ -2196,7 +2196,7 @@ window.CB_TRACK.push(
           "zh": "四、特殊情况：因工作需要必须例外处理的，应当提交书面说明，经总经理签署同意后方可执行。",
           "py": "Sì, tèshū qíngkuàng: yīn gōngzuò xūyào bìxū lìwài chǔlǐ de, yīngdāng tíjiāo shūmiàn shuōmíng, jīng zǒngjīnglǐ qiānshǔ tóngyì hòu fāng kě zhíxíng.",
           "vi": "Bốn, trường hợp đặc biệt: nếu vì công việc phải xử lý ngoại lệ thì phải nộp giải trình bằng văn bản, được tổng giám đốc ký đồng ý mới được thực hiện.",
-          "en": "4. Special cases: where work requires an exception, a written explanation must be submitted and carried out only once the general manager has signed approval."
+          "en": "4. Special cases: where work requires an exception, a written explanation must be submitted, and the exception may be carried out only after the general manager has signed approval."
         },
         {
           "zh": "五、报销期限：出差结束后十个工作日内，须提交报销单和相关发票，逾期的由财务部门复核后处理。",
@@ -2560,10 +2560,10 @@ window.CB_TRACK.push(
           "vi": "giá trị đỉnh",
           "en": "peak value",
           "ex": {
-            "zh": "十二月是加班时间的峰值。",
-            "py": "Shí'èr yuè shì jiābān shíjiān de fēngzhí.",
-            "vi": "Tháng Mười hai là đỉnh của thời gian làm thêm.",
-            "en": "December is the peak for overtime hours."
+            "zh": "加班时间在十二月达到峰值。",
+            "py": "Jiābān shíjiān zài shí'èr yuè dádào fēngzhí.",
+            "vi": "Thời gian làm thêm đạt đỉnh vào tháng Mười hai.",
+            "en": "Overtime hours peak in December."
           }
         },
         {

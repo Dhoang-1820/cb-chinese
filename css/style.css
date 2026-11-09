@@ -1226,6 +1226,8 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .fam .fam-t small { color: var(--muted); font-size: .82rem; }
 .fam .wl-row .tag { flex: 0 0 auto; }
 .wl-row .linklike.zh { font-weight: 800; text-decoration: none; }
+/* a one-character word is narrower than a finger: keep its tap area at least 32 px wide and 28 px tall */
+button.wlink { min-width: 32px; min-height: 28px; text-align: center; }
 
 /* role-play: brief, rules card, level-up line and new words */
 .talk-grp { margin: 18px 4px 8px; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }

@@ -7,8 +7,8 @@
     opts = opts || {}; opts.headers = { "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json" };
     if (opts.body) opts.headers["Content-Type"] = "application/json";
     return fetch("https://api.github.com" + path, opts).then(function (r) {
-      if (r.status === 401) throw new Error("GitHub didn't accept the token. Check it has the gist permission.");
-      if (!r.ok) throw new Error("GitHub error " + r.status + ". Try again later.");
+      if (r.status === 401) throw new Error(tx("GitHub didn't accept the token. Check it has the gist permission."));
+      if (!r.ok) throw new Error(tx("GitHub error {n}. Try again later.", { n: r.status }));
       return r.json();
     });
   }
@@ -19,16 +19,16 @@
     });
   }
   function gistBackup(silent) {
-    var c = gistCfg(); if (!c.token) return Promise.reject(new Error("Connect a GitHub token first."));
+    var c = gistCfg(); if (!c.token) return Promise.reject(new Error(tx("Connect a GitHub token first.")));
     var body = { description: GIST_DESC, files: {} }; body.files[GIST_FILE] = { content: Store.serialize(false) };
     var p = c.id ? gh("/gists/" + c.id, { method: "PATCH", body: JSON.stringify(body) }, c.token)
       : gh("/gists", { method: "POST", body: JSON.stringify(Object.assign({ public: false }, body)) }, c.token);
-    return p.then(function (g) { c.id = g.id; c.last = Date.now(); c.needsRestore = false; gistSave(c); if (!silent) UI.toast("Backed up to GitHub", "☁️"); return g; });
+    return p.then(function (g) { c.id = g.id; c.last = Date.now(); c.needsRestore = false; gistSave(c); if (!silent) UI.toast(tx("Backed up to GitHub"), "☁️"); return g; });
   }
   function gistRestore() {
-    var c = gistCfg(); if (!c.token || !c.id) return Promise.reject(new Error("No backup found yet."));
+    var c = gistCfg(); if (!c.token || !c.id) return Promise.reject(new Error(tx("No backup found yet.")));
     return gh("/gists/" + c.id, {}, c.token).then(function (g) {
-      var f = g.files && g.files[GIST_FILE]; if (!f) throw new Error("The backup file is missing from the gist.");
+      var f = g.files && g.files[GIST_FILE]; if (!f) throw new Error(tx("The backup file is missing from the gist."));
       if (f.truncated && f.raw_url) return fetch(f.raw_url).then(function (r) { return r.text(); });
       return f.content;
     });
@@ -45,34 +45,34 @@
     function draw() {
       c = gistCfg();
       box.innerHTML = c.token
-        ? (c.needsRestore ? '<p class="warn">A backup already exists in your GitHub. Tap <b>Restore</b> to load it on this phone (or <b>Back up now</b> to replace it with this phone\'s progress). Automatic backup is paused until you choose.</p>' :
-          '<p class="sub">Connected. ' + (c.last ? "Last backup: " + esc(new Date(c.last).toLocaleString()) + "." : "No backup yet.") + ' The app backs up by itself when you leave it (at most every 6 hours).</p>') +
-          '<div class="actions"><button class="btn primary small" id="g-up">☁️ Back up now</button><button class="btn small" id="g-down">⬇ Restore</button><button class="btn small" id="g-off">Disconnect</button></div>'
-        : '<p class="sub">Free, private backup of your progress in your GitHub account. Create a token at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>, with <b>Gists: read and write</b> only, then paste it here. The token stays on this phone.</p>' +
-          '<label for="g-token" class="sr">GitHub token</label><input id="g-token" type="password" autocomplete="off" placeholder="github_pat_…"><div class="actions"><button class="btn primary small" id="g-connect">Connect</button></div>';
+        ? (c.needsRestore ? '<p class="warn">' + tx("A backup already exists in your GitHub. Tap <b>Restore</b> to load it on this phone (or <b>Back up now</b> to replace it with this phone's progress). Automatic backup is paused until you choose.") + '</p>' :
+          '<p class="sub">' + tx("Connected.") + " " + (c.last ? tx("Last backup: {date}.", { date: esc(new Date(c.last).toLocaleString()) }) : tx("No backup yet.")) + " " + tx("The app backs up by itself when you leave it (at most every 6 hours).") + '</p>') +
+          '<div class="actions"><button class="btn primary small" id="g-up">☁️ ' + tx("Back up now") + '</button><button class="btn small" id="g-down">⬇ ' + tx("Restore") + '</button><button class="btn small" id="g-off">' + tx("Disconnect") + '</button></div>'
+        : '<p class="sub">' + tx("Free, private backup of your progress in your GitHub account. Create a token at <b>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</b>, with <b>Gists: read and write</b> only, then paste it here. The token stays on this phone.") + '</p>' +
+          '<label for="g-token" class="sr">' + tx("GitHub token") + '</label><input id="g-token" type="password" autocomplete="off" placeholder="github_pat_…"><div class="actions"><button class="btn primary small" id="g-connect">' + tx("Connect") + '</button></div>';
       var bConnect = document.getElementById("g-connect"), bUp = document.getElementById("g-up"), bDown = document.getElementById("g-down"), bOff = document.getElementById("g-off");
       if (bConnect) bConnect.onclick = function () {
         var tok = document.getElementById("g-token").value.trim(); if (!tok) return;
-        bConnect.disabled = true; bConnect.textContent = "Connecting…";
+        bConnect.disabled = true; bConnect.textContent = tx("Connecting…");
         gistFind(tok).then(function (id) {
           gistSave({ token: tok, id: id || null, last: null, needsRestore: !!id });
-          UI.toast(id ? "Connected · found your backup" : "Connected", "☁️"); draw();
+          UI.toast(id ? tx("Connected · found your backup") : tx("Connected"), "☁️"); draw();
           if (!id) gistBackup(false).then(draw).catch(function (e) { UI.toast(e.message, "⚠️"); });
-        }).catch(function (e) { bConnect.disabled = false; bConnect.textContent = "Connect"; UI.toast(e.message, "⚠️"); });
+        }).catch(function (e) { bConnect.disabled = false; bConnect.textContent = tx("Connect"); UI.toast(e.message, "⚠️"); });
       };
       if (bUp) bUp.onclick = function () {
-        if (gistCfg().needsRestore && !window.confirm("Replace the backup in GitHub with this phone's progress?")) return;
+        if (gistCfg().needsRestore && !window.confirm(tx("Replace the backup in GitHub with this phone's progress?"))) return;
         bUp.disabled = true; gistBackup(false).then(draw).catch(function (e) { bUp.disabled = false; UI.toast(e.message, "⚠️"); }); };
       if (bDown) bDown.onclick = function () {
         gistRestore().then(function (text) {
-          var obj = JSON.parse(text), when = obj.exported ? new Date(obj.exported).toLocaleString() : "unknown time";
-          if (!window.confirm("Replace the progress on this phone with the backup from " + when + "?")) return;
+          var obj = JSON.parse(text), when = obj.exported ? new Date(obj.exported).toLocaleString() : tx("unknown time");
+          if (!window.confirm(tx("Replace the progress on this phone with the backup from {when}?", { when: when }))) return;
           Store.importJSON(text); var cc = gistCfg(); cc.needsRestore = false; cc.last = Date.now(); gistSave(cc);
-          buildIndex(); applySettings(); UI.toast("Progress restored", "✅"); route();
+          buildIndex(); applySettings(); UI.toast(tx("Progress restored"), "✅"); route();
         }).catch(function (e) { UI.toast(e.message, "⚠️"); });
       };
       if (bOff) bOff.onclick = function () {
-        if (!window.confirm("Disconnect cloud backup on this phone? Your backup stays in GitHub.")) return;
+        if (!window.confirm(tx("Disconnect cloud backup on this phone? Your backup stays in GitHub."))) return;
         try { localStorage.removeItem(GIST_KEY); } catch (e) {} draw();
       };
     }
@@ -119,7 +119,7 @@
         return syncMerge(depth); // another phone really studied too: combine both copies instead of asking
       }
       n.rev = r.result.rev; n.last = Date.now(); n.mark = mark; delete n.conflict; syncSave(n);
-      if (first) UI.toast("Your progress is now backed up online (Me → Cloud backup)", "☁️");
+      if (first) UI.toast(tx("Your progress is now backed up online (Me → Cloud backup)"), "☁️");
       return "saved";
     });
     return syncBusy;
@@ -136,7 +136,7 @@
       try { Store.mergeIn(r.result.data); } catch (e) { return "conflict"; }
       var n = syncCfg(); n.rev = r.result.rev; delete n.conflict; delete n.mark; syncSave(n);
       try { buildIndex(); } catch (e) { /* the screens rebuild it when they need it */ }
-      UI.toast("Combined with your progress from another phone", "☁️");
+      UI.toast(tx("Combined with your progress from another phone"), "☁️");
       if ((location.hash || "#/") === "#/" || /^#\/(me|progress)/.test(location.hash)) route();
       return syncNow(false, depth + 1);
     });
@@ -151,8 +151,8 @@
     var c = syncCfg(); if (!c.code || c.off) return "";
     var stale = c.last && Date.now() - c.last > 2 * 864e5;
     if (!c.conflict && !(c.err && stale)) return "";
-    return '<a class="card warn-card sync-paused" href="#/me"><b>☁️ Backup ' + (c.conflict ? "paused" : "failing") + "</b><small>" +
-      (c.conflict ? "Another copy of your progress was saved. The app combines both the next time it is online, or open Me → Cloud backup to do it now." : "Your progress hasn't been saved online for " + Math.floor((Date.now() - c.last) / 864e5) + " days. Tap to check.") + "</small></a>";
+    return '<a class="card warn-card sync-paused" href="#/me"><b>☁️ ' + (c.conflict ? tx("Backup paused") : tx("Backup failing")) + "</b><small>" +
+      (c.conflict ? tx("Another copy of your progress was saved. The app combines both the next time it is online, or open Me → Cloud backup to do it now.") : tx("Your progress hasn't been saved online for {n} days. Tap to check.", { n: Math.floor((Date.now() - c.last) / 864e5) })) + "</small></a>";
   }
   /* ---------- Teacher chat (learner side) ----------
      Messages live on the server (see chat_get / chat_send in supabase/functions/ai/index.ts) and are reached with this
@@ -201,7 +201,7 @@
   function chatDay(iso) { var d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }); }
   /* one conversation; mine = "learner" on the learner's phone, "admin" in the teacher's view */
   function chatLogHTML(msgs, mine, other) {
-    if (!msgs.length) return '<p class="sub chat-empty">No messages yet.</p>';
+    if (!msgs.length) return '<p class="sub chat-empty">' + tx("No messages yet.") + '</p>';
     msgs = msgs.slice().sort(chatOrder);
     var html = "", day = "", lastMine = -1, now = new Date().toISOString();
     msgs.forEach(function (m, i) { if (m.sender === mine) lastMine = i; });
@@ -211,30 +211,30 @@
       var later = m.created_at > now; // scheduled, not delivered yet (only the admin's own view has these)
       html += '<div class="chat-b ' + (me ? "me" : "them") + (later ? " sched" : "") + '"><span class="sr">' + (me ? "You" : other) + ": </span>" + (m.body ? '<p>' + esc(m.body).replace(/\n/g, "<br>") + "</p>" : "") +
         (a ? '<a class="btn small ' + (me ? "" : "primary ") + 'chat-act" href="' + esc(a.href) + '">' + esc(a.label) + " ›</a>" : "") +
-        (later ? '<small>⏰ Scheduled · ' + esc(chatDay(m.created_at)) + " " + chatTime(m.created_at) + ' · <button type="button" class="linklike" data-unsched="' + m.id + '">Cancel</button></small>'
-          : '<small>' + chatTime(m.created_at) + (me && i === lastMine && m.seen_at ? " · Seen" : "") + "</small>") + "</div>";
+        (later ? '<small>⏰ ' + tx("Scheduled") + ' · ' + esc(chatDay(m.created_at)) + " " + chatTime(m.created_at) + ' · <button type="button" class="linklike" data-unsched="' + m.id + '">' + tx("Cancel") + '</button></small>'
+          : '<small>' + chatTime(m.created_at) + (me && i === lastMine && m.seen_at ? " · " + tx("Seen") : "") + "</small>") + "</div>";
     });
     return html;
   }
   function chatCard() {
     if (!CHAT.unread) return "";
     var last = CHAT.msgs.filter(function (m) { return m.sender === "admin"; }).pop();
-    return '<a class="card chat-new" href="#/chat" id="chat-card"><b>💬 ' + (CHAT.unread > 1 ? CHAT.unread + " new messages" : "New message") + " from the C&amp;B team</b>" +
+    return '<a class="card chat-new" href="#/chat" id="chat-card"><b>💬 ' + (CHAT.unread > 1 ? tx("{n} new messages from the C&amp;B team", { n: CHAT.unread }) : tx("New message from the C&amp;B team")) + "</b>" +
       (last ? "<small>" + esc((last.body || (last.action && last.action.label) || "").slice(0, 90)) + "</small>" : "") + "</a>";
   }
   function chatDraw() {
     var log = document.getElementById("chat-log"); if (!log) return;
     var atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
-    log.innerHTML = chatLogHTML(CHAT.msgs, "learner", "C&B team");
+    log.innerHTML = chatLogHTML(CHAT.msgs, "learner", tx("C&B team"));
     if (atEnd || !log.dataset.drawn) { log.scrollTop = log.scrollHeight; log.dataset.drawn = "1"; }
   }
   function viewChat() {
-    var head = '<section class="card chat-head"><h2>💬 C&amp;B team</h2><p class="sub">Messages, news and practice tips from the C&amp;B team. Only the team sees what you write here.</p></section>';
-    if (!chatCode()) { render(head + '<section class="card"><p>Chat uses your cloud backup to know it is you. Turn on <b>Cloud backup</b> in Me first.</p><a class="btn primary" href="#/me">Open Me</a></section>', "me"); return; }
+    var head = '<section class="card chat-head"><h2>💬 ' + tx("C&amp;B team") + '</h2><p class="sub">' + tx("Messages, news and practice tips from the C&amp;B team. Only the team sees what you write here.") + '</p></section>';
+    if (!chatCode()) { render(head + '<section class="card"><p>' + tx("Chat uses your cloud backup to know it is you. Turn on <b>Cloud backup</b> in Me first.") + '</p><a class="btn primary" href="#/me">' + tx("Open Me") + '</a></section>', "me"); return; }
     var draft = (document.getElementById("chat-in") || {}).value || "";
     render(head + '<section class="card chat-box"><div id="chat-log" class="chat-log" role="log" aria-live="polite"></div>' +
-      '<div class="chat-form"><label class="sr" for="chat-in">Message</label><textarea id="chat-in" rows="2" maxlength="1000" placeholder="Write to the C&amp;B team…">' + esc(draft) + '</textarea><button type="button" class="btn primary" id="chat-send">Send</button></div>' +
-      (window.AI && AI.available() ? "" : '<p class="sub">You are offline. Messages load when you are back online.</p>') + "</section>", "me");
+      '<div class="chat-form"><label class="sr" for="chat-in">' + tx("Message") + '</label><textarea id="chat-in" rows="2" maxlength="1000" placeholder="' + tx("Write to the C&amp;B team…") + '">' + esc(draft) + '</textarea><button type="button" class="btn primary" id="chat-send">' + tx("Send") + '</button></div>' +
+      (window.AI && AI.available() ? "" : '<p class="sub">' + tx("You are offline. Messages load when you are back online.") + '</p>') + "</section>", "me");
     chatDraw();
     chatPoll(true).then(chatDraw);
     clearInterval(CHAT.timer);
@@ -245,7 +245,7 @@
       btn.disabled = true;
       AI.call("chat_send", { code: chatCode(), body: v, since: 0 }).then(function (r) {
         btn.disabled = false;
-        if (!r.ok) { UI.toast(r.error === "chat_full" ? "That's a lot for today. Try again tomorrow." : AI.errMsg(r.error), "⚠️"); return; }
+        if (!r.ok) { UI.toast(r.error === "chat_full" ? tx("That's a lot for today. Try again tomorrow.") : AI.errMsg(r.error), "⚠️"); return; }
         inp.value = ""; chatMerge(r.result.msgs, true); var log = document.getElementById("chat-log"); if (log) log.dataset.drawn = ""; chatDraw();
       });
     };
@@ -260,8 +260,8 @@
     code = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     return AI.call("sync_get", { code: code }).then(function (r) {
       if (!r.ok) throw new Error(AI.errMsg(r.error));
-      var m = r.result.meta || {}, when = r.result.updated_at ? new Date(r.result.updated_at).toLocaleString() : "unknown time";
-      if (!window.confirm("Replace the progress on this phone with the backup from " + when + " (" + (m.xp || 0) + " XP, " + (m.words || 0) + " words)?")) return false;
+      var m = r.result.meta || {}, when = r.result.updated_at ? new Date(r.result.updated_at).toLocaleString() : tx("unknown time");
+      if (!window.confirm(tx("Replace the progress on this phone with the backup from {when} ({xp} XP, {words} words)?", { when: when, xp: m.xp || 0, words: m.words || 0 }))) return false;
       Store.importJSON(JSON.stringify(r.result.data));
       syncSave({ code: code, rev: r.result.rev, last: Date.now(), mark: syncMark() });
       buildIndex(); applySettings(); return true;
@@ -291,7 +291,7 @@
   function gStart(intent) {
     var go = function () {
       return gCfg().then(function (cf) {
-        if (!cf.google) throw new Error("Google sign-in is not switched on yet.");
+        if (!cf.google) throw new Error(tx("Google sign-in is not switched on yet."));
         return AI.call("auth_start", { intent: intent, code: intent === "link" ? syncCfg().code : undefined }).then(function (r) {
           if (!r.ok) throw new Error(AI.errMsg(r.error));
           try { localStorage.setItem(GOOGLE_KEY, JSON.stringify({ ticket: r.result.ticket, intent: intent, at: Date.now() })); } catch (e) { /* the landing page still finishes it */ }
@@ -308,13 +308,13 @@
   function gHandle(res, g) {
     gClear();
     if (!res || res.status === "waiting") return;
-    if (res.status === "linked") { gMark(true); UI.toast("Backup linked to your Google account", "🔗"); if (/^#\/me/.test(location.hash)) route(); return; }
-    if (res.status === "none") { UI.toast("No backup is linked to this Google account yet.", "⚠️"); return; }
-    if (res.status === "code") { syncRestore(res.code).then(function (ok) { if (ok) { gMark(true); UI.toast("Progress restored", "✅"); location.hash = "#/"; route(); } }, function (e) { UI.toast(e.message, "⚠️"); }); return; }
+    if (res.status === "linked") { gMark(true); UI.toast(tx("Backup linked to your Google account"), "🔗"); if (/^#\/me/.test(location.hash)) route(); return; }
+    if (res.status === "none") { UI.toast(tx("No backup is linked to this Google account yet."), "⚠️"); return; }
+    if (res.status === "code") { syncRestore(res.code).then(function (ok) { if (ok) { gMark(true); UI.toast(tx("Progress restored"), "✅"); location.hash = "#/"; route(); } }, function (e) { UI.toast(e.message, "⚠️"); }); return; }
     if (res.status === "other") {
-      if (window.confirm("This Google account is already linked to another backup (another phone).\n\nOK = load that backup on this phone.\nCancel = link THIS phone's backup to Google instead.")) {
-        syncRestore(res.code).then(function (ok) { if (ok) { gMark(true); UI.toast("Progress restored", "✅"); route(); } }, function (e) { UI.toast(e.message, "⚠️"); });
-      } else AI.call("auth_replace", { ticket: g.ticket }).then(function (r) { if (r.ok) { gMark(true); UI.toast("This phone's backup is now linked to Google", "🔗"); } else UI.toast(AI.errMsg(r.error), "⚠️"); });
+      if (window.confirm(tx("This Google account is already linked to another backup (another phone).\n\nOK = load that backup on this phone.\nCancel = link THIS phone's backup to Google instead."))) {
+        syncRestore(res.code).then(function (ok) { if (ok) { gMark(true); UI.toast(tx("Progress restored"), "✅"); route(); } }, function (e) { UI.toast(e.message, "⚠️"); });
+      } else AI.call("auth_replace", { ticket: g.ticket }).then(function (r) { if (r.ok) { gMark(true); UI.toast(tx("This phone's backup is now linked to Google"), "🔗"); } else UI.toast(AI.errMsg(r.error), "⚠️"); });
     }
   }
   /* on start: are we the page Google came back to? Takes the token out of the address bar right away. */
@@ -328,12 +328,12 @@
   function gFinish() {
     var L = GLAND; GLAND = null; if (!L) return;
     var mine = gPending(), here = mine && mine.ticket === L.ticket;
-    if (L.error || !L.token) { if (here) gClear(); UI.toast("Google sign-in was cancelled" + (L.error ? ": " + L.error : ""), "⚠️"); return; }
+    if (L.error || !L.token) { if (here) gClear(); UI.toast(L.error ? tx("Google sign-in was cancelled: {error}", { error: L.error }) : tx("Google sign-in was cancelled"), "⚠️"); return; }
     AI.call("auth_finish", { ticket: L.ticket, token: L.token }).then(function (r) {
       if (!r.ok) { UI.toast(AI.errMsg(r.error), "⚠️"); return; }
       if (here) { gHandle(r.result, mine); return; }
       // Google came back in Safari, not in the home-screen app: the app finishes when it is opened again
-      render('<section class="card result">' + UI.mascot("cheer", 80) + '<h2>Signed in with Google ✓</h2><p class="sub">Now go back to the <b>C&amp;B Chinese</b> app on your home screen. It finishes by itself when you open it.</p></section>', "me");
+      render('<section class="card result">' + UI.mascot("cheer", 80) + '<h2>' + tx("Signed in with Google ✓") + '</h2><p class="sub">' + tx("Now go back to the <b>C&amp;B Chinese</b> app on your home screen. It finishes by itself when you open it.") + '</p></section>', "me");
     });
   }
   function gPoll() {
@@ -345,18 +345,18 @@
     if (!box) return;
     gCfg().then(function (cf) {
       if (!document.body.contains(box)) return;
-      if (!cf.google) { box.innerHTML = isAdmin() ? '<p class="sub muted">Admin: Google sign-in appears here once it is switched on in Supabase (see supabase/SETUP.md).</p>' : ""; return; }
+      if (!cf.google) { box.innerHTML = isAdmin() ? '<p class="sub muted">' + tx("Admin: Google sign-in appears here once it is switched on in Supabase (see supabase/SETUP.md).") + '</p>' : ""; return; }
       var c = syncCfg();
       var drawG = function (linked) {
-        box.innerHTML = c.code ? (linked ? '<p class="sub">🔗 <b>Linked to Google.</b> On a new phone, tap “Restore with Google” and your progress comes back, no code needed.</p><div class="actions"><button class="btn small" id="g-unlink">Unlink Google</button></div>'
-          : '<p class="sub">Link this backup to your Google account, so a new phone gets it back without the restore code.</p><div class="actions"><button class="btn small primary" id="g-link">Sign in with Google</button></div>')
-          : '<div class="actions"><button class="btn small primary" id="g-get">Restore with Google</button></div>';
+        box.innerHTML = c.code ? (linked ? '<p class="sub">🔗 ' + tx("<b>Linked to Google.</b> On a new phone, tap “Restore with Google” and your progress comes back, no code needed.") + '</p><div class="actions"><button class="btn small" id="g-unlink">' + tx("Unlink Google") + '</button></div>'
+          : '<p class="sub">' + tx("Link this backup to your Google account, so a new phone gets it back without the restore code.") + '</p><div class="actions"><button class="btn small primary" id="g-link">' + tx("Sign in with Google") + '</button></div>')
+          : '<div class="actions"><button class="btn small primary" id="g-get">' + tx("Restore with Google") + '</button></div>';
         var on = function (id, fn) { var b = document.getElementById(id); if (b) b.onclick = function () { b.disabled = true; fn().catch(function (e) { b.disabled = false; UI.toast(e.message, "⚠️"); }); }; };
         on("g-link", function () { return gStart("link"); });
         on("g-get", function () { return gStart("get"); });
         on("g-unlink", function () {
-          if (!window.confirm("Unlink Google? Your backup stays; you would need the restore code on a new phone.")) return Promise.resolve();
-          return AI.call("auth_unlink", { code: c.code }).then(function (r) { if (!r.ok) throw new Error(AI.errMsg(r.error)); gMark(false); drawG(false); UI.toast("Google unlinked", "🔗"); });
+          if (!window.confirm(tx("Unlink Google? Your backup stays; you would need the restore code on a new phone."))) return Promise.resolve();
+          return AI.call("auth_unlink", { code: c.code }).then(function (r) { if (!r.ok) throw new Error(AI.errMsg(r.error)); gMark(false); drawG(false); UI.toast(tx("Google unlinked"), "🔗"); });
         });
       };
       if (!c.code) { drawG(false); return; }
@@ -368,30 +368,30 @@
     var box = document.getElementById("sync-box"); if (!box) return;
     function draw() {
       var c = syncCfg(), h = "";
-      if (c.off) h = '<p class="sub">Off. Your progress is only on this phone.</p><div class="actions"><button class="btn primary small" id="y-on">Turn on</button><button class="btn small" id="y-code">Restore with a code</button></div>';
-      else if (c.conflict) h = '<p class="warn">Another phone saved this backup on ' + esc(c.conflict.at ? new Date(c.conflict.at).toLocaleString() : "an unknown date") + " (" + (c.conflict.meta.xp || 0) + " XP). This phone has " + Store.state.xp + ' XP. The app combines both by itself when it is online; you can also do it now, or keep just one.</p><div class="actions"><button class="btn primary small" id="y-merge">Combine both</button><button class="btn small" id="y-take">Use the cloud copy</button><button class="btn small" id="y-keep">Keep this phone</button></div>';
-      else h = '<p class="sub">' + (c.code ? "On. " + (c.last ? "Last saved: " + esc(new Date(c.last).toLocaleString()) + "." : "Not saved yet.") : "On. The first backup is made after your first study session.") +
-        " A copy of your progress is saved on the app's server after you study. No account is needed. The C&amp;B team can see progress numbers such as XP, streak, scores and study days, but never your answers or notes.</p>" +
-        (c.err ? '<p class="warn">Last try failed: ' + esc(AI.errMsg(c.err)) + "</p>" : "") +
-        (c.code ? '<p class="sub">Restore code: <b class="sync-code" id="y-show">' + esc(syncShow(c.code)) + "</b><br>Type it on a new phone to load your progress there. Keep it private: anyone with the code can open your backup.</p>" : "") +
-        '<div class="actions">' + (c.code ? '<button class="btn primary small" id="y-up">☁️ Back up now</button>' : "") + '<button class="btn small" id="y-code">Restore with a code</button><button class="btn small" id="y-off">Turn off</button></div>';
-      box.innerHTML = h + '<div id="y-google" class="y-google"></div><div id="y-form" hidden><label for="y-in">Restore code</label><input id="y-in" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX"><div class="actions"><button class="btn primary small" id="y-go">Restore</button></div></div>';
+      if (c.off) h = '<p class="sub">' + tx("Off. Your progress is only on this phone.") + '</p><div class="actions"><button class="btn primary small" id="y-on">' + tx("Turn on") + '</button><button class="btn small" id="y-code">' + tx("Restore with a code") + '</button></div>';
+      else if (c.conflict) h = '<p class="warn">' + tx("Another phone saved this backup on {date} ({xp} XP). This phone has {mine} XP. The app combines both by itself when it is online; you can also do it now, or keep just one.", { date: esc(c.conflict.at ? new Date(c.conflict.at).toLocaleString() : tx("an unknown date")), xp: c.conflict.meta.xp || 0, mine: Store.state.xp }) + '</p><div class="actions"><button class="btn primary small" id="y-merge">' + tx("Combine both") + '</button><button class="btn small" id="y-take">' + tx("Use the cloud copy") + '</button><button class="btn small" id="y-keep">' + tx("Keep this phone") + '</button></div>';
+      else h = '<p class="sub">' + (c.code ? tx("On.") + " " + (c.last ? tx("Last saved: {date}.", { date: esc(new Date(c.last).toLocaleString()) }) : tx("Not saved yet.")) : tx("On. The first backup is made after your first study session.")) +
+        " " + tx("A copy of your progress is saved on the app's server after you study. No account is needed. The C&amp;B team can see progress numbers such as XP, streak, scores and study days, but never your answers or notes.") + "</p>" +
+        (c.err ? '<p class="warn">' + tx("Last try failed: {error}", { error: esc(AI.errMsg(c.err)) }) + "</p>" : "") +
+        (c.code ? '<p class="sub">' + tx("Restore code:") + ' <b class="sync-code" id="y-show">' + esc(syncShow(c.code)) + "</b><br>" + tx("Type it on a new phone to load your progress there. Keep it private: anyone with the code can open your backup.") + "</p>" : "") +
+        '<div class="actions">' + (c.code ? '<button class="btn primary small" id="y-up">☁️ ' + tx("Back up now") + '</button>' : "") + '<button class="btn small" id="y-code">' + tx("Restore with a code") + '</button><button class="btn small" id="y-off">' + tx("Turn off") + '</button></div>';
+      box.innerHTML = h + '<div id="y-google" class="y-google"></div><div id="y-form" hidden><label for="y-in">' + tx("Restore code") + '</label><input id="y-in" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX"><div class="actions"><button class="btn primary small" id="y-go">' + tx("Restore") + '</button></div></div>';
       function on(id, fn) { var b = document.getElementById(id); if (b) b.onclick = function () { fn(b); }; }
       function done(msg, icon) { UI.toast(msg, icon); draw(); }
       function load(code, b) {
         b.disabled = true;
-        syncRestore(code).then(function (ok) { if (ok) { UI.toast("Progress restored", "✅"); route(); } else b.disabled = false; }, function (e) { b.disabled = false; UI.toast(e.message, "⚠️"); });
+        syncRestore(code).then(function (ok) { if (ok) { UI.toast(tx("Progress restored"), "✅"); route(); } else b.disabled = false; }, function (e) { b.disabled = false; UI.toast(e.message, "⚠️"); });
       }
-      on("y-up", function (b) { b.disabled = true; syncNow(true).then(function (r) { done(r === "saved" ? "Backed up" : AI.errMsg(r), r === "saved" ? "☁️" : "⚠️"); }); });
+      on("y-up", function (b) { b.disabled = true; syncNow(true).then(function (r) { done(r === "saved" ? tx("Backed up") : AI.errMsg(r), r === "saved" ? "☁️" : "⚠️"); }); });
       on("y-code", function () { document.getElementById("y-form").hidden = false; document.getElementById("y-in").focus(); });
       wireGoogle(document.getElementById("y-google"));
       on("y-go", function (b) { load(document.getElementById("y-in").value, b); });
       on("y-take", function (b) { load(c.code, b); });
-      on("y-merge", function (b) { b.disabled = true; syncMerge(0).then(function (r) { done(r === "saved" || r === "same" ? "Both copies combined" : AI.errMsg(r === "conflict" ? "network" : r), r === "saved" || r === "same" ? "☁️" : "⚠️"); }); });
-      on("y-keep", function (b) { b.disabled = true; syncNow(true).then(function (r) { done(r === "saved" ? "This phone's progress is now the backup" : AI.errMsg(r), r === "saved" ? "☁️" : "⚠️"); }); });
+      on("y-merge", function (b) { b.disabled = true; syncMerge(0).then(function (r) { done(r === "saved" || r === "same" ? tx("Both copies combined") : AI.errMsg(r === "conflict" ? "network" : r), r === "saved" || r === "same" ? "☁️" : "⚠️"); }); });
+      on("y-keep", function (b) { b.disabled = true; syncNow(true).then(function (r) { done(r === "saved" ? tx("This phone's progress is now the backup") : AI.errMsg(r), r === "saved" ? "☁️" : "⚠️"); }); });
       on("y-on", function () { var n = syncCfg(); delete n.off; syncSave(n); syncNow(true).then(draw); draw(); });
       on("y-off", function () {
-        var n = syncCfg(), wipe = n.code && window.confirm("Also delete the copy on the server?\n\nOK = delete it. Cancel = keep it there.");
+        var n = syncCfg(), wipe = n.code && window.confirm(tx("Also delete the copy on the server?\n\nOK = delete it. Cancel = keep it there."));
         if (wipe) AI.call("sync_delete", { code: n.code });
         syncSave(wipe ? { off: true } : { off: true, code: n.code, rev: n.rev }); draw();
       });

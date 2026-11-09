@@ -53,7 +53,7 @@ window.CB_DAYS.push({
     { q: "在中国，工伤保险一般由___缴费。", options: ["员工个人", "单位", "税务局", "劳动仲裁"], answer: 1, explain: { vi: "Bảo hiểm tai nạn lao động thường do đơn vị đóng, cá nhân không phải đóng.", en: "Work-injury insurance is generally paid by the employer; the individual does not pay." } },
     { q: "“单独计税”的意思是：", options: [{ vi: "Tính thuế riêng", en: "To be taxed separately" }, { vi: "Khấu trừ trước thuế", en: "To deduct before tax" }, { vi: "Miễn thuế hoàn toàn", en: "To be fully exempt" }, { vi: "Kê khai chậm", en: "To file late" }], answer: 0 },
     { q: "“竞业限制”的拼音是：", options: ["jīngyè xiànzhì", "jìngyè xiànzhì", "jìngyè xiànzhī", "jìngyé xiànzhì"], answer: 1 },
-    { q: "___合同到期，公司就要尽早通知员工是否续签。", options: ["一旦", "凭", "以免", "至于"], answer: 0, explain: { vi: "一旦……就……: một khi… thì…", en: "一旦……就…… = once … then …" } },
+    { q: "___合同到期，公司就要及时办理续签或者离职手续。", options: ["一旦", "凭", "以免", "至于"], answer: 0, explain: { vi: "一旦……就……: một khi… thì…", en: "一旦……就…… = once … then …" } },
     { q: "根据短文，公司漏缴社保以后应该怎么办？", options: ["补缴", "辞退员工", "单独计税", "盖章"], answer: 0 },
     { q: "根据短文，递交到窗口、被受理以后，要做什么？", options: ["拿到回执并保存好", "马上辞退员工", "去税务局申报", "重新签合同"], answer: 0, explain: { vi: "Đoạn văn: 要拿到回执并保存好.", en: "The passage: 要拿到回执并保存好." } },
     { q: "办理时请___身份证原件领取回执。", options: ["凭", "对", "把", "让"], answer: 0 },

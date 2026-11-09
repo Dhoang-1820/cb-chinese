@@ -1,0 +1,725 @@
+{
+  "about": "Agreed translations of core C&B terms. tools/audit/lint.js checks that every word entry for a term uses one of the vi / en wordings, and flags translated lines that use none of them (viOk / enOk are looser variants accepted in running text). Edit here first, then fix the lessons. Not used by the app at runtime.",
+  "terms": [
+    {
+      "zh": "薪酬",
+      "vi": [
+        "lương thưởng",
+        "thù lao",
+        "đãi ngộ",
+        "lương"
+      ],
+      "en": [
+        "compensation",
+        "pay",
+        "remuneration"
+      ],
+      "viOk": [
+        "C&B",
+        "tiền lương"
+      ],
+      "enOk": [
+        "C&B",
+        "salary",
+        "salaries",
+        "wage"
+      ]
+    },
+    {
+      "zh": "工资条",
+      "vi": [
+        "phiếu lương"
+      ],
+      "en": [
+        "payslip",
+        "pay slip"
+      ]
+    },
+    {
+      "zh": "工资",
+      "vi": [
+        "lương",
+        "tiền lương"
+      ],
+      "en": [
+        "wage",
+        "salary",
+        "salaries",
+        "pay"
+      ],
+      "notIn": [
+        "工资条"
+      ],
+      "enOk": [
+        "payroll",
+        "earn",
+        "raise"
+      ]
+    },
+    {
+      "zh": "奖金",
+      "vi": [
+        "tiền thưởng",
+        "thưởng"
+      ],
+      "en": [
+        "bonus"
+      ],
+      "notIn": [
+        "年终奖"
+      ]
+    },
+    {
+      "zh": "年终奖",
+      "vi": [
+        "thưởng cuối năm",
+        "thưởng Tết"
+      ],
+      "en": [
+        "year-end bonus"
+      ]
+    },
+    {
+      "zh": "加班费",
+      "vi": [
+        "tiền làm thêm giờ",
+        "tiền làm thêm",
+        "tiền tăng ca",
+        "lương làm thêm giờ"
+      ],
+      "en": [
+        "overtime pay"
+      ],
+      "enOk": [
+        "overtime"
+      ]
+    },
+    {
+      "zh": "加班",
+      "vi": [
+        "làm thêm giờ",
+        "làm thêm",
+        "tăng ca"
+      ],
+      "en": [
+        "overtime"
+      ],
+      "notIn": [
+        "加班费"
+      ]
+    },
+    {
+      "zh": "社保",
+      "vi": [
+        "bảo hiểm xã hội",
+        "BHXH"
+      ],
+      "en": [
+        "social insurance"
+      ],
+      "viOk": [
+        "bảo hiểm"
+      ],
+      "enOk": [
+        "insurance",
+        "contribution base"
+      ]
+    },
+    {
+      "zh": "社会保险",
+      "vi": [
+        "bảo hiểm xã hội",
+        "BHXH"
+      ],
+      "en": [
+        "social insurance"
+      ]
+    },
+    {
+      "zh": "公积金",
+      "vi": [
+        "quỹ nhà ở",
+        "quỹ công tích",
+        "quỹ tích lũy"
+      ],
+      "en": [
+        "housing fund",
+        "housing provident fund"
+      ]
+    },
+    {
+      "zh": "个税",
+      "vi": [
+        "thuế thu nhập cá nhân",
+        "thuế TNCN",
+        "TNCN"
+      ],
+      "en": [
+        "personal income tax",
+        "PIT",
+        "income tax"
+      ],
+      "viOk": [
+        "thuế"
+      ],
+      "enOk": [
+        "tax"
+      ]
+    },
+    {
+      "zh": "个人所得税",
+      "vi": [
+        "thuế thu nhập cá nhân",
+        "thuế TNCN",
+        "TNCN"
+      ],
+      "en": [
+        "personal income tax",
+        "PIT",
+        "income tax"
+      ]
+    },
+    {
+      "zh": "劳动合同",
+      "vi": [
+        "hợp đồng lao động",
+        "HĐLĐ"
+      ],
+      "en": [
+        "labour contract",
+        "employment contract",
+        "labor contract"
+      ],
+      "viOk": [
+        "hợp đồng"
+      ],
+      "enOk": [
+        "contract"
+      ]
+    },
+    {
+      "zh": "试用期",
+      "vi": [
+        "thử việc"
+      ],
+      "en": [
+        "probation"
+      ]
+    },
+    {
+      "zh": "年假",
+      "vi": [
+        "nghỉ phép năm",
+        "phép năm",
+        "ngày phép"
+      ],
+      "en": [
+        "annual leave"
+      ],
+      "enOk": [
+        "leave",
+        "days off"
+      ]
+    },
+    {
+      "zh": "病假",
+      "vi": [
+        "nghỉ ốm",
+        "nghỉ bệnh"
+      ],
+      "en": [
+        "sick leave"
+      ],
+      "enOk": [
+        "sick-leave"
+      ]
+    },
+    {
+      "zh": "产假",
+      "vi": [
+        "nghỉ thai sản",
+        "thai sản"
+      ],
+      "en": [
+        "maternity leave"
+      ]
+    },
+    {
+      "zh": "考勤",
+      "vi": [
+        "chấm công"
+      ],
+      "en": [
+        "attendance"
+      ]
+    },
+    {
+      "zh": "绩效",
+      "vi": [
+        "hiệu suất",
+        "hiệu quả công việc",
+        "thành tích",
+        "KPI",
+        "đánh giá",
+        "kết quả"
+      ],
+      "en": [
+        "performance"
+      ],
+      "enOk": [
+        "performer"
+      ]
+    },
+    {
+      "zh": "提成",
+      "vi": [
+        "hoa hồng"
+      ],
+      "en": [
+        "commission"
+      ]
+    },
+    {
+      "zh": "补贴",
+      "vi": [
+        "trợ cấp",
+        "phụ cấp",
+        "hỗ trợ"
+      ],
+      "en": [
+        "subsidy",
+        "allowance",
+        "subsidies",
+        "allowances"
+      ]
+    },
+    {
+      "zh": "津贴",
+      "vi": [
+        "phụ cấp",
+        "trợ cấp"
+      ],
+      "en": [
+        "allowance"
+      ]
+    },
+    {
+      "zh": "福利",
+      "vi": [
+        "phúc lợi"
+      ],
+      "en": [
+        "benefit",
+        "welfare"
+      ],
+      "enOk": [
+        "perk"
+      ]
+    },
+    {
+      "zh": "报销",
+      "vi": [
+        "thanh toán",
+        "hoàn",
+        "quyết toán"
+      ],
+      "en": [
+        "reimburse",
+        "expense claim",
+        "claim"
+      ]
+    },
+    {
+      "zh": "扣除",
+      "vi": [
+        "khấu trừ",
+        "trừ"
+      ],
+      "en": [
+        "deduct",
+        "deduction"
+      ],
+      "enOk": [
+        "take off",
+        "taken off",
+        "minus"
+      ]
+    },
+    {
+      "zh": "发放",
+      "vi": [
+        "chi trả",
+        "trả",
+        "phát",
+        "cấp phát",
+        "chi"
+      ],
+      "en": [
+        "pay",
+        "paid",
+        "distribute",
+        "issue",
+        "hand out",
+        "payout"
+      ],
+      "enOk": [
+        "salary"
+      ]
+    },
+    {
+      "zh": "调薪",
+      "vi": [
+        "điều chỉnh lương",
+        "tăng lương"
+      ],
+      "en": [
+        "salary adjustment",
+        "pay review",
+        "pay rise",
+        "raise",
+        "pay adjustment",
+        "salary review",
+        "pay increase"
+      ],
+      "enOk": [
+        "pay freeze",
+        "pay-rise"
+      ]
+    },
+    {
+      "zh": "涨工资",
+      "vi": [
+        "tăng lương"
+      ],
+      "en": [
+        "raise",
+        "pay rise",
+        "salary increase",
+        "pay increase"
+      ]
+    },
+    {
+      "zh": "入职",
+      "vi": [
+        "vào làm",
+        "nhận việc",
+        "nhập",
+        "bắt đầu làm"
+      ],
+      "en": [
+        "join",
+        "onboard",
+        "start",
+        "first day",
+        "new hire"
+      ],
+      "viOk": [
+        "nhân sự vào",
+        "nhân viên mới"
+      ]
+    },
+    {
+      "zh": "离职",
+      "vi": [
+        "nghỉ việc",
+        "thôi việc",
+        "rời công ty"
+      ],
+      "en": [
+        "leave",
+        "resign",
+        "departure",
+        "exit",
+        "quit"
+      ],
+      "enOk": [
+        "leaving",
+        "employment-end",
+        "separation",
+        "turnover",
+        "reasons",
+        "handover"
+      ],
+      "viOk": [
+        "nghỉ",
+        "lý do thật sự"
+      ]
+    },
+    {
+      "zh": "辞职",
+      "vi": [
+        "nghỉ việc",
+        "thôi việc",
+        "xin nghỉ",
+        "từ chức"
+      ],
+      "en": [
+        "resign",
+        "quit"
+      ]
+    },
+    {
+      "zh": "招聘",
+      "vi": [
+        "tuyển dụng",
+        "tuyển"
+      ],
+      "en": [
+        "recruit",
+        "hiring",
+        "hire",
+        "job post",
+        "vacanc",
+        "opening"
+      ],
+      "enOk": [
+        "posting",
+        "job platform"
+      ]
+    },
+    {
+      "zh": "面试",
+      "vi": [
+        "phỏng vấn"
+      ],
+      "en": [
+        "interview"
+      ]
+    },
+    {
+      "zh": "简历",
+      "vi": [
+        "CV",
+        "sơ yếu lý lịch",
+        "hồ sơ"
+      ],
+      "en": [
+        "CV",
+        "résumé",
+        "resume"
+      ]
+    },
+    {
+      "zh": "培训",
+      "vi": [
+        "đào tạo",
+        "tập huấn"
+      ],
+      "en": [
+        "train"
+      ]
+    },
+    {
+      "zh": "晋升",
+      "vi": [
+        "thăng chức",
+        "thăng tiến"
+      ],
+      "en": [
+        "promot"
+      ]
+    },
+    {
+      "zh": "工会",
+      "vi": [
+        "công đoàn"
+      ],
+      "en": [
+        "union"
+      ],
+      "notIn": [
+        "员工会"
+      ]
+    },
+    {
+      "zh": "工伤",
+      "vi": [
+        "tai nạn lao động",
+        "TNLĐ"
+      ],
+      "en": [
+        "work injury",
+        "work-related injury",
+        "workplace injury",
+        "injured at work",
+        "work accident",
+        "injury at work",
+        "work-injury"
+      ]
+    },
+    {
+      "zh": "劳动争议",
+      "vi": [
+        "tranh chấp lao động"
+      ],
+      "en": [
+        "labour dispute",
+        "labor dispute",
+        "employment dispute"
+      ]
+    },
+    {
+      "zh": "仲裁",
+      "vi": [
+        "trọng tài"
+      ],
+      "en": [
+        "arbitrat"
+      ],
+      "enOk": [
+        "tribunal"
+      ]
+    },
+    {
+      "zh": "经济补偿",
+      "vi": [
+        "trợ cấp thôi việc",
+        "bồi thường",
+        "trợ cấp",
+        "khoản bù"
+      ],
+      "en": [
+        "severance",
+        "compensation"
+      ]
+    },
+    {
+      "zh": "裁员",
+      "vi": [
+        "cắt giảm nhân sự",
+        "giảm biên chế",
+        "cắt giảm",
+        "sa thải",
+        "cắt giảm lao động"
+      ],
+      "en": [
+        "layoff",
+        "lay off",
+        "laid off",
+        "redundanc",
+        "downsiz",
+        "job cut",
+        "headcount cut",
+        "cut staff",
+        "cut jobs"
+      ]
+    },
+    {
+      "zh": "编制",
+      "vi": [
+        "định biên",
+        "biên chế"
+      ],
+      "en": [
+        "headcount",
+        "staffing"
+      ],
+      "enOk": [
+        "position"
+      ]
+    },
+    {
+      "zh": "人工成本",
+      "vi": [
+        "chi phí nhân công",
+        "chi phí nhân sự",
+        "chi phí lao động"
+      ],
+      "en": [
+        "labour cost",
+        "labor cost",
+        "people cost",
+        "staff cost",
+        "personnel cost"
+      ]
+    },
+    {
+      "zh": "总部",
+      "vi": [
+        "trụ sở chính",
+        "tổng bộ",
+        "công ty mẹ",
+        "HQ"
+      ],
+      "en": [
+        "headquarters",
+        "head office",
+        "HQ"
+      ],
+      "viOk": [
+        "trụ sở",
+        "Tổng công ty"
+      ]
+    },
+    {
+      "zh": "预算",
+      "vi": [
+        "ngân sách"
+      ],
+      "en": [
+        "budget"
+      ]
+    },
+    {
+      "zh": "人事部",
+      "vi": [
+        "phòng nhân sự",
+        "bộ phận nhân sự",
+        "nhân sự"
+      ],
+      "en": [
+        "HR department",
+        "HR",
+        "personnel department"
+      ]
+    },
+    {
+      "zh": "人力资源",
+      "vi": [
+        "nhân sự",
+        "nguồn nhân lực",
+        "nhân lực"
+      ],
+      "en": [
+        "human resources",
+        "HR"
+      ]
+    },
+    {
+      "zh": "续签",
+      "vi": [
+        "ký tiếp",
+        "gia hạn",
+        "tái ký",
+        "ký lại"
+      ],
+      "en": [
+        "renew"
+      ]
+    },
+    {
+      "zh": "交接",
+      "vi": [
+        "bàn giao"
+      ],
+      "en": [
+        "hand over",
+        "handover",
+        "hand-over"
+      ],
+      "enOk": [
+        "handing over"
+      ]
+    },
+    {
+      "zh": "审批",
+      "vi": [
+        "phê duyệt",
+        "duyệt"
+      ],
+      "en": [
+        "approv"
+      ]
+    }
+  ]
+}

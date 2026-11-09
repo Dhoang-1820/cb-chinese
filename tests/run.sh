@@ -8,6 +8,7 @@ cd "$(dirname "$0")/.."
 trap 'echo "::error title=Tests::tests/run.sh stopped at line $LINENO (see the step log)"' ERR
 OUT="${OUT:-_site_test}"; WEB_PORT="${WEB_PORT:-8766}"; AI_PORT="${AI_PORT:-9201}"
 
+echo "== type check"; node tools/typecheck.js | tail -n 1   # same check as the deploy workflow (needs typescript@5.9.3)
 echo "== interface text"; node tools/i18n_check.js | tail -n 1
 echo "== content"; node tools/validate.js | tail -n 2   # also runs validate_grammar / _drills / _hsk5 / _hsk5_drills / _hsk4x
 echo "== HSK page watch"; node tools/hsk_watch_test.mjs | tail -n 1

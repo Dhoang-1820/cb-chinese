@@ -10,7 +10,7 @@ Nothing here depends on today's date: exam dates and study logs are set relative
 The script exits with 1 when any check fails.
 """
 import asyncio, datetime, itertools, json, os, sys, urllib.request
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 
 BASE = os.environ.get("BASE", "http://localhost:8766/")
 AI_URL = os.environ.get("AI_URL", "http://localhost:9201/ai")
@@ -36,6 +36,23 @@ def settings(**extra):
     s = {"onboarded": True, "setupDone": True, "installHintDismissed": True, "theme": "light", "examDate": day(30)}
     s.update(extra)
     return s
+
+
+def csp_safe_wait(pg):
+    """page.wait_for_function runs its predicate through eval() inside the page, which the app's Content Security Policy
+    (script-src 'self', no 'unsafe-eval') blocks. Poll with page.evaluate instead: Playwright runs that outside the CSP."""
+    async def wait_for_function(expr, arg=None, timeout=30000, polling=100, **_):
+        end = asyncio.get_event_loop().time() + timeout / 1000
+        while True:
+            try:
+                v = await (pg.evaluate(expr, arg) if arg is not None else pg.evaluate(expr))
+            except Exception as e:  # e.g. the page is navigating
+                if "Execution context was destroyed" not in str(e) and "navigat" not in str(e): raise
+                v = None
+            if v: return v
+            if asyncio.get_event_loop().time() > end: raise PWTimeout("wait_for_function: timeout %d ms exceeded: %s" % (timeout, str(expr)[:120]))
+            await asyncio.sleep((polling if isinstance(polling, (int, float)) else 100) / 1000)
+    pg.wait_for_function = wait_for_function
 
 
 async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, ui="en", **ctx_opts):
@@ -65,11 +82,13 @@ async def open_app(browser, state=None, path="", ai=False, expect_errors=False, 
     if init:
         await ctx.add_init_script(init)
     pg = await ctx.new_page()
+    csp_safe_wait(pg)
     if SLOW > 1:  # SLOW=4 imitates a slow machine, to find checks that only pass on a fast one
         cdp = await ctx.new_cdp_session(pg); await cdp.send("Emulation.setCPUThrottlingRate", {"rate": SLOW})
     if not expect_errors:
         pg.on("pageerror", lambda e: page_errors.append(str(e)))
     pg.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
+    pg.on("console", lambda m: csp_blocked.append(m.text[:200]) if "Content Security Policy" in m.text else None)
     await pg.goto(BASE + path)
     await pg.wait_for_selector("#app > *:not(.skel)")
     return ctx, pg
@@ -2493,6 +2512,29 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
           ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood)]
 PW = None
+csp_blocked = []  # console messages about requests or code the Content Security Policy refused, from every page
+
+
+async def t_csp(b):
+    """index.html carries a strict CSP; it must be in force and must not block anything the app itself uses."""
+    ctx, pg = await open_app(b, None)
+    meta = await pg.evaluate("(document.querySelector('meta[http-equiv=\"Content-Security-Policy\"]')||{}).content||''")
+    check("CSP: index.html has a Content-Security-Policy", "default-src 'self'" in meta and "script-src 'self';" in meta, meta[:80])
+    check("CSP: no inline or eval script allowed", "'unsafe-eval'" not in meta and "script-src 'self';" in meta, meta)
+    ran = await pg.evaluate("""() => { window.__x = 0; const s = document.createElement('script'); s.textContent = 'window.__x = 1'; document.body.appendChild(s);
+      return window.__x; }""")
+    check("CSP: an injected inline script does not run", ran == 0, ran)  # eval() cannot be tested here: test code itself runs outside the CSP
+    out = await pg.evaluate("""() => fetch('https://example.com/x').then(() => 'reached', () => 'blocked')""")
+    check("CSP: a request to another site is blocked", out == "blocked", out)
+    await pg.wait_for_timeout(400)
+    n = len(csp_blocked); del csp_blocked[:]  # the three refusals above were on purpose
+    check("CSP: the deliberate tests above were reported as violations", n >= 2, n)
+    for h in ["#/", "#/learn", "#/review", "#/track", "#/me", "#/mock", "#/games", "#/grammar"]:
+        await go(pg, h, 700)
+    await ctx.close()
+
+
+GROUPS.append(("csp", t_csp))
 
 
 async def main():
@@ -2510,6 +2552,7 @@ async def main():
                 check(name + ": ran to the end", False, repr(e))
         await browser.close()
     check("no script errors on any screen", not page_errors, page_errors[:4])
+    check("CSP: nothing the app loads is blocked by the Content Security Policy", not csp_blocked, csp_blocked[:4])
     failed = [r for r in results if not r[1]]
     print("\n%d passed, %d failed" % (len(results) - len(failed), len(failed)))
     sys.exit(1 if failed else 0)

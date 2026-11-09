@@ -86,6 +86,10 @@ test('maskVolatile hides counters, clocks and tokens but keeps exam facts', () =
   assert.equal(maskVolatile('浏览次数：1,234'), '浏览次数：<n>');
   assert.equal(maskVolatile('Views: 99 | 10:15:59'), 'Views: <n> | <time>');
   assert.equal(maskVolatile('Copyright © 2019-2026 CTI'), 'Copyright © <year> CTI');
+  assert.equal(maskVolatile('+86(0)10 59307020（中文）'), '<phone>（中文）');
+  assert.equal(maskVolatile('咨询电话：010-59307020'), '咨询电话：<phone>');
+  assert.equal(maskVolatile('Tel: (010) 5930 7668'), 'Tel: <phone>');
+  assert.equal(maskVolatile('考试日期：2026-11-14，共100题，满分300分'), '考试日期：2026-11-14，共100题，满分300分', 'dates and exam numbers stay');
   assert.equal(maskVolatile('sid=abc123XYZ x'), 'sid=<token> x');
   assert.equal(maskVolatile('style.css?v=20261005'), 'style.css?v=<n>');
   // Things that must NOT be masked.
@@ -169,6 +173,16 @@ test('the same lines changing on several pages (shared menu) are reported once',
   assert.equal((report.body.match(/2027年考试日历/g) || []).length, 2, 'the menu change is printed once (m1) and again inside m3\'s own, different change');
   assert.match(report.body, /shared menu or footer/);
   assert.match(report.body, /90 questions/);
+});
+
+test('a contact phone change does not alert, even against text saved before phones were masked', async () => {
+  const dir = await tmp();
+  pages['/ph'] = page('<p>HSK level 4 has 100 questions.</p><footer>+86(0)10 59307668（中文）</footer>');
+  await check([src('ph')], dir, week(0));
+  // what an older version saved: the raw number
+  await writeFile(path.join(dir, 'text', 'ph.txt'), (await readFile(path.join(dir, 'text', 'ph.txt'), 'utf8')).replace('<phone>', '+86(0)10 59307668'));
+  pages['/ph'] = page('<p>HSK level 4 has 100 questions.</p><footer>+86(0)10 59307020（中文）</footer>');
+  assert.equal(buildReport(await check([src('ph')], dir, week(1))), null);
 });
 
 test('volatile fragments alone do not alert', async () => {

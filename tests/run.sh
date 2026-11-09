@@ -14,6 +14,7 @@ echo "== HSK page watch"; node tools/hsk_watch_test.mjs | tail -n 1
 echo "== AI service"; node tools/ai_function_test.mjs | tail -n 3
 echo "== service worker: optional packs"; node tools/sw_packs_test.mjs | tail -n 1
 echo "== cloud backup format"; node tests/backup_test.mjs | tail -n 1
+echo "== audio list"; node tests/audio_list_test.mjs | tail -n 1
 echo "== phrasebook data"; node tests/phrasebook_test.mjs | tail -n 1
 echo "== build"; node tools/build.js "$OUT" test > /dev/null
 

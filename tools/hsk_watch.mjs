@@ -128,7 +128,10 @@ export function maskVolatile(line) {
     .replace(/\b1[5-9]\d{8}(?:\d{3})?\b/g, '<ts>') // unix time, seconds or milliseconds
     .replace(/(processed in\s*)[\d.]+(\s*second\(?s?\)?)(,?\s*\d+\s*queries)?/gi, '$1<n>$2')
     .replace(/((?:页面)?(?:执行|加载|生成)时间\s*[:：]?\s*)[\d.]+/g, '$1<n>')
-    .replace(/((?:©|\(c\)|copyright|版权所有)\s*(?:©|\(c\))?\s*)(?:\d{4}\s*[-–—~]\s*)?\d{4}/gi, '$1<year>');
+    .replace(/((?:©|\(c\)|copyright|版权所有)\s*(?:©|\(c\))?\s*)(?:\d{4}\s*[-–—~]\s*)?\d{4}/gi, '$1<year>')
+    // Contact phone numbers (the organiser's footer, issue #17): "+86(0)10 59307020", or a number after 电话/热线/Tel.
+    .replace(/\+\d{1,3}\s*(?:\(0\))?\s*\d{1,4}[\s-]?\d{3,4}[\s-]?\d{3,4}/g, '<phone>')
+    .replace(/((?:咨询电话|服务热线|热线|电话|传真|客服|tel|phone|fax)\s*[:：]?\s*)\(?\d[\d()\s-]{6,}\d/gi, '$1<phone>');
 }
 
 const BLOCK_TAGS =
@@ -391,7 +394,9 @@ export async function runWatch({ sources, stateDir, now = new Date(), timeoutMs 
       const cfg = JSON.stringify({ links: src.links !== false, ignore: src.ignore || [] });
       const sameCfg = (prev && prev.cfg !== undefined ? prev.cfg : JSON.stringify({ links: true, ignore: [] })) === cfg;
       entry.cfg = cfg;
-      const old = sameUrl && sameCfg && prev.lastChecked ? await loadText(stateDir, src.id) : null;
+      // masked again, so a new masking rule never reports the text saved before it as a change
+      const saved = sameUrl && sameCfg && prev.lastChecked ? await loadText(stateDir, src.id) : null;
+      const old = saved && saved.map(maskVolatile);
       if (!old) {
         res.status = 'baseline';
       } else {

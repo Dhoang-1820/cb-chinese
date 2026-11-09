@@ -519,4 +519,89 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
   t("an old ticket (15+ min) is refused", x.status === 404);
 }
 
+
+/* ---------------- backup provider (Groq) ---------------- */
+{
+  const groqOk = (obj) => ({ status: 200, json: async () => ({ choices: [{ message: { content: JSON.stringify(obj) } }] }) });
+  const envG = { ...env, AI_DAILY_CAP: "999", GROQ_API_KEY: "gk" };
+  const H = { "x-app-code": "secret-code" };
+  fn.resetBreaker(); calls = []; count = 0;
+  let r = await fn.handle(req(gradeBody, H), envG, mkDeps((url) => (url.includes("groq.com") ? groqOk(goodGrade) : { status: 503, json: async () => ({}) })));
+  let j = await r.json();
+  t("groq: both Gemini models 503 → Groq answers, model tagged groq:", r.status === 200 && j.ok && j.model === "groq:llama-3.3-70b-versatile", JSON.stringify(j));
+  const gcall = calls.find((c) => c.url.includes("groq.com"));
+  const gb = JSON.parse(gcall.init.body);
+  t("groq: key only in the Authorization header", gcall.init.headers.authorization === "Bearer gk" && !gcall.url.includes("gk"));
+  t("groq: chat request with system prompt, the learner's data as the user message, JSON mode", gb.messages[0].role === "system" && gb.messages[0].content.length > 50 && gb.messages[1].content.includes("我每天坐地铁去公司") && gb.response_format.type === "json_object" && gb.max_tokens === 2048);
+  t("groq: called only after both Gemini models", calls.filter((c) => c.url.includes("generativelanguage")).length >= 2 && calls[calls.length - 1].url.includes("groq.com"));
+  fn.resetBreaker(); calls = [];
+  r = await fn.handle(req(gradeBody, H), envG, mkDeps((url) => (url.includes("groq.com") ? groqOk(goodGrade) : gemOk(goodGrade))));
+  j = await r.json();
+  t("groq: not called when Gemini answers", j.ok && j.model === "gemini-3.8-flash" && !calls.some((c) => c.url.includes("groq.com")));
+  fn.resetBreaker(); calls = [];
+  r = await fn.handle(req(gradeBody, H), { ...env, AI_DAILY_CAP: "999" }, mkDeps((url) => ({ status: 503, json: async () => ({}) })));
+  j = await r.json();
+  t("groq: without GROQ_API_KEY it is skipped (old behaviour)", r.status === 502 && !calls.some((c) => c.url.includes("groq.com")), JSON.stringify(j));
+  fn.resetBreaker(); calls = [];
+  r = await fn.handle(req(gradeBody, H), { ...envG, GROQ_MODEL: "mixtral-test" }, mkDeps((url) => (url.includes("groq.com") ? groqOk(goodGrade) : { status: 429, json: async () => ({}) })));
+  j = await r.json();
+  t("groq: GROQ_MODEL picks the model", j.ok && j.model === "groq:mixtral-test" && JSON.parse(calls.find((c) => c.url.includes("groq.com")).init.body).model === "mixtral-test");
+  fn.resetBreaker(); calls = [];
+  r = await fn.handle(req(gradeBody, H), envG, mkDeps((url) => (url.includes("groq.com") ? groqOk(goodGrade) : { status: 403, json: async () => ({}) })));
+  j = await r.json();
+  t("groq: a rejected Gemini key (403) also falls through to Groq", j.ok && j.model.startsWith("groq:"), JSON.stringify(j));
+  fn.resetBreaker(); calls = [];
+  r = await fn.handle(req(gradeBody, H), envG, mkDeps((url) => ({ status: 403, json: async () => ({}) })));
+  j = await r.json();
+  t("groq: if Groq fails too, the Gemini error is reported", r.status === 502 && j.error === "upstream_403", JSON.stringify(j));
+  fn.resetBreaker(); let gn = 0;
+  r = await fn.handle(req(gradeBody, H), envG, mkDeps((url) => (url.includes("groq.com") ? (++gn === 1 ? { status: 200, json: async () => ({ choices: [{ message: { content: "not json" } }] }) } : groqOk(goodGrade)) : { status: 500, json: async () => ({}) })));
+  j = await r.json();
+  t("groq: unusable JSON from Groq is retried once", j.ok && gn === 2);
+  fn.resetBreaker();
+  r = await fn.handle(req(gradeBody, H), envG, mkDeps((url) => (url.includes("groq.com") ? { status: 429, json: async () => ({}) } : { status: 429, json: async () => ({}) })));
+  j = await r.json();
+  t("groq: everything rate-limited → busy (429)", r.status === 429 && j.error === "busy", JSON.stringify(j));
+  fn.resetBreaker();
+  r = await fn.handle(req(gradeBody, H), envG, mkDeps((url) => { if (url.includes("groq.com")) throw new Error("timeout"); return { status: 500, json: async () => ({}) }; }));
+  j = await r.json();
+  t("groq: a Groq timeout ends with upstream_unreachable", r.status === 502 && j.error === "upstream_unreachable", JSON.stringify(j));
+  fn.resetBreaker();
+}
+
+/* ---------------- per-learner daily AI limit ---------------- */
+{
+  const H = { "x-app-code": "secret-code" }, envL = { ...env, AI_DAILY_CAP: "5", AI_LEARNER_CAP: "2" };
+  const counts = {}; let total = 0, seen = [];
+  const deps = () => ({ fetch: async () => gemOk(goodGrade), bump: async () => { throw new Error("old counter must not be used"); },
+    bumpLearner: async (learner, cap, totalCap) => { seen.push({ learner, cap, totalCap }); if (total >= totalCap) return { mine: -2, total };
+      if ((counts[learner] || 0) >= cap) return { mine: -1, total }; counts[learner] = (counts[learner] || 0) + 1; total++; return { mine: counts[learner], total }; } });
+  const A = "ABCDEFGHJKLMNPQR", B = "devicE1234567890abcd";
+  let r = await fn.handle(req(gradeBody, { ...H, "x-learner": A }), envL, deps()); let j = await r.json();
+  t("learner: a call counts for the learner and reports mine / learnerCap", j.ok && j.mine === 1 && j.learnerCap === 2 && j.used === 1 && j.cap === 5, JSON.stringify(j));
+  t("learner: a restore code becomes the same id as the backup row, never the code itself", seen[0].learner === "l:" + (await fn.syncId(A)) && !seen[0].learner.includes(A) && seen[0].cap === 2 && seen[0].totalCap === 5);
+  await fn.handle(req(gradeBody, { ...H, "x-learner": A.toLowerCase() }), envL, deps());
+  r = await fn.handle(req(gradeBody, { ...H, "x-learner": A }), envL, deps()); j = await r.json();
+  t("learner: the third call of the day → 429 learner_cap with the limit", r.status === 429 && j.error === "learner_cap" && j.cap === 2, JSON.stringify(j));
+  r = await fn.handle(req(gradeBody, { ...H, "x-learner": B }), envL, deps()); j = await r.json();
+  t("learner: another learner (device id) still has calls", j.ok && j.mine === 1, JSON.stringify(j));
+  t("learner: a device id is hashed with its own prefix", seen[seen.length - 1].learner.startsWith("d:") && !seen[seen.length - 1].learner.includes(B));
+  r = await fn.handle(req(gradeBody, { ...H, "x-learner": "short" }), envL, { fetch: async () => gemOk(goodGrade), bump: async (cap) => 1, bumpLearner: async () => { throw new Error("no"); } }); j = await r.json();
+  t("learner: no valid id → only the overall cap (old app versions keep working)", j.ok && j.mine === undefined, JSON.stringify(j));
+  total = 5;
+  r = await fn.handle(req(gradeBody, { ...H, "x-learner": "anotherDevice1234567" }), envL, deps()); j = await r.json();
+  t("learner: the overall cap still applies → daily_cap", r.status === 429 && j.error === "daily_cap" && j.cap === 5, JSON.stringify(j));
+  r = await fn.handle(req(gradeBody, { ...H, "x-learner": A }), env, { fetch: async () => gemOk(goodGrade), bump: async () => 1 }); j = await r.json();
+  t("learner: without bumpLearner (tests, old glue) the old counter is used", j.ok && j.used === 1 && j.mine === undefined, JSON.stringify(j));
+  r = await fn.handle(req(gradeBody, { ...H, "x-learner": A }), { ...env, AI_LEARNER_CAP: "nonsense" }, { fetch: async () => gemOk(goodGrade), bump: async () => 1, bumpLearner: async (l, cap) => ({ mine: 1, total: 1, _cap: cap }) }); j = await r.json();
+  t("learner: a bad AI_LEARNER_CAP falls back to 40", j.learnerCap === 40, JSON.stringify(j));
+  r = await fn.handle(req(gradeBody, { ...H, "x-learner": A }), envL, { fetch: async () => gemOk(goodGrade), bump: async () => 1, bumpLearner: async () => { throw new Error("db down"); } }); j = await r.json();
+  t("learner: a failing counter does not block the call", j.ok, JSON.stringify(j));
+  r = await fn.handle(req(null, {}, "OPTIONS"), env, mkDeps(() => gemOk(goodGrade)));
+  t("learner: the x-learner header is allowed by CORS", /x-learner/.test(r.headers.get("access-control-allow-headers")));
+  const sql = (await import("fs")).readFileSync(new URL("../supabase/migrations/20261107_ai_learner_limit.sql", import.meta.url), "utf8");
+  t("learner: the migration creates the table and the function, callable only by the service role",
+    /create table if not exists public\.ai_usage_learner/.test(sql) && /function public\.bump_ai_usage_learner\(learner text, cap integer, total_cap integer\)/.test(sql) && /grant execute on function public\.bump_ai_usage_learner\(text, integer, integer\) to service_role/.test(sql) && /enable row level security/.test(sql));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

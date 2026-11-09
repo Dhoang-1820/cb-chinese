@@ -10,7 +10,7 @@ Nothing here depends on today's date: exam dates and study logs are set relative
 The script exits with 1 when any check fails.
 """
 import asyncio, datetime, itertools, json, os, sys, urllib.request
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 
 BASE = os.environ.get("BASE", "http://localhost:8766/")
 AI_URL = os.environ.get("AI_URL", "http://localhost:9201/ai")
@@ -36,6 +36,23 @@ def settings(**extra):
     s = {"onboarded": True, "setupDone": True, "installHintDismissed": True, "theme": "light", "examDate": day(30)}
     s.update(extra)
     return s
+
+
+def csp_safe_wait(pg):
+    """page.wait_for_function runs its predicate through eval() inside the page, which the app's Content Security Policy
+    (script-src 'self', no 'unsafe-eval') blocks. Poll with page.evaluate instead: Playwright runs that outside the CSP."""
+    async def wait_for_function(expr, arg=None, timeout=30000, polling=100, **_):
+        end = asyncio.get_event_loop().time() + timeout / 1000
+        while True:
+            try:
+                v = await (pg.evaluate(expr, arg) if arg is not None else pg.evaluate(expr))
+            except Exception as e:  # e.g. the page is navigating
+                if "Execution context was destroyed" not in str(e) and "navigat" not in str(e): raise
+                v = None
+            if v: return v
+            if asyncio.get_event_loop().time() > end: raise PWTimeout("wait_for_function: timeout %d ms exceeded: %s" % (timeout, str(expr)[:120]))
+            await asyncio.sleep((polling if isinstance(polling, (int, float)) else 100) / 1000)
+    pg.wait_for_function = wait_for_function
 
 
 async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, ui="en", **ctx_opts):
@@ -65,11 +82,13 @@ async def open_app(browser, state=None, path="", ai=False, expect_errors=False, 
     if init:
         await ctx.add_init_script(init)
     pg = await ctx.new_page()
+    csp_safe_wait(pg)
     if SLOW > 1:  # SLOW=4 imitates a slow machine, to find checks that only pass on a fast one
         cdp = await ctx.new_cdp_session(pg); await cdp.send("Emulation.setCPUThrottlingRate", {"rate": SLOW})
     if not expect_errors:
         pg.on("pageerror", lambda e: page_errors.append(str(e)))
     pg.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
+    pg.on("console", lambda m: csp_blocked.append(m.text[:200]) if "Content Security Policy" in m.text else None)
     await pg.goto(BASE + path)
     await pg.wait_for_selector("#app > *:not(.skel)")
     return ctx, pg
@@ -186,7 +205,8 @@ async def t_tip(b):
     check("tip: no separate tip card; the Today card leads Home", await pg.locator("#tip").count() == 0 and await pg.locator("#today-main").count() == 1)
     first = await pg.evaluate("document.querySelector('#today-main [data-step]').getAttribute('data-step')")
     check("today: the first step is Today's session, then the lesson", first == "session" and await pg.locator("#today-main [data-step='lesson'][href='#/day/1']").count() == 1, first)
-    check("today: one main button that opens the next step", await pg.locator("#today-go[href='#/session']").count() == 1)
+    # a learner with no words and no session yet goes straight into the first step (#/session/go, see progress_go)
+    check("today: one main button that opens the next step", await pg.locator("#today-go[href='#/session/go']").count() == 1)
     await pg.evaluate("()=>{var s=Store.state,t=Store.today();s.sessions=s.sessions||{};s.sessions[t]=true;Store.save()}")
     await go(pg, "#/me", 200); await go(pg, "#/", 700)
     check("today: after the session the button continues with the lesson", await pg.locator("#today-go[href='#/day/1']").count() == 1 and "step 2 of" in await pg.inner_text("#today-go"))
@@ -2446,6 +2466,44 @@ async def t_mocks5(b):
     check("mocks5: an HSK 5 result leaves the HSK 4 forecast unchanged", texts[0] and texts[0] == texts[1] and "150" in texts[0], texts)
 
 
+
+async def t_lastgood(b):
+    """Automatic local backup: damaged saved progress is replaced by the last good copy on the next start, with a
+    message; Me → Settings shows the copy and restores it; a bad import is refused with the field named."""
+    st = heavy_state()
+    st["srs"] = {"d01-%04d" % i: {"box": 1 + i % 5, "due": day(i % 9), "right": i % 4, "wrong": i % 2, "added": day(-30), "last": day(-1)} for i in range(25)}
+    ctx, pg = await open_app(b, st)
+    await pg.wait_for_timeout(800)
+    has = await pg.evaluate("() => !!localStorage.getItem('cbChinese.progress.lastgood.v1')")
+    check("lastgood: opening the app makes the automatic copy", has)
+    words = len(st["srs"])
+    await pg.evaluate("() => { localStorage.setItem('cbChinese.progress.v1', '{\"srs\": {\"d01'); }")
+    await pg.reload()
+    try:
+        await pg.wait_for_function("() => document.body.innerText.includes('automatic copy')", timeout=4000); seen = True
+    except Exception:
+        seen = False
+    info = await pg.evaluate("() => ({ restored: !!Store.restored, n: Object.keys(Store.state.srs).length, bad: !!localStorage.getItem('cbChinese.progress.corrupt.v1') })")
+    info["toast"] = seen
+    check("lastgood: cut-off progress is restored from the copy, with a message", info["toast"] and info["restored"] and info["n"] == words == 25 and info["bad"], info)
+    await go(pg, "#/settings", 700)
+    row = await pg.evaluate("() => { const e = document.getElementById('s-good-at'), btn = document.getElementById('s-good'); return { t: e ? e.textContent : '', on: btn && !btn.disabled }; }")
+    check("lastgood: Settings shows the automatic copy with a working Restore button", row["on"] and "word" in row["t"], row)
+    await pg.evaluate("() => { Store.state.xp = 1; Store.state.srs = {}; Store.save(); }")
+    pg.once("dialog", lambda d: asyncio.ensure_future(d.accept()))
+    await pg.evaluate("() => document.getElementById('s-good').click()"); await pg.wait_for_timeout(600)
+    n = await pg.evaluate("() => Object.keys(Store.state.srs).length")
+    check("lastgood: Restore brings the copy back", n == words, n)
+    await pg.set_input_files("#s-imp", files=[{"name": "bad.json", "mimeType": "application/json", "buffer": json.dumps({"progress": {"srs": [], "settings": {}}}).encode()}])
+    try:
+        await pg.wait_for_function("() => document.body.innerText.includes('srs: should be an object')", timeout=4000); seen = True
+    except Exception:
+        seen = False
+    n2 = await pg.evaluate("() => Object.keys(Store.state.srs).length")
+    check("lastgood: an import with srs as a list is refused, naming the field, progress unchanged", seen and n2 == words, (seen, n2))
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5),
           ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync),
           ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip),
@@ -2453,7 +2511,83 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
-          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5)]
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood)]
+
+
+async def t_phrases(b):
+    """HR phrasebook: loads on first visit, filters by topic and scene, copies the Chinese, plays audio, links to role-play."""
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, permissions=["clipboard-read", "clipboard-write"])
+    await go(pg, "#/talk", 500)
+    check("phrasebook: linked from the role-play list", await pg.locator("a.pb-link[href='#/phrases']").count() == 1)
+    await go(pg, "#/phrases", 300)
+    await pg.wait_for_selector(".pb-item", timeout=8000)
+    n = await pg.locator(".pb-item").count()
+    check("phrasebook: 60-100 messages, loaded the first time the screen opens", 60 <= n <= 100 and await pg.evaluate("window.CB_PHRASES.length") == n, n)
+    check("phrasebook: the 'not checked by a teacher' note is shown", "not yet checked by a teacher" in await pg.locator(".pb-note").inner_text())
+    first = pg.locator(".pb-item").first
+    check("phrasebook: each message has Chinese, pinyin, a translation and a play button",
+          await first.locator(".zh").count() == 1 and await first.locator(".py").count() == 1 and await first.locator(".tr").count() == 1 and await first.locator(".say").count() == 1)
+    check("phrasebook: [placeholders] are highlighted", await pg.locator(".pb-ph").count() >= 5)
+    await first.locator("[data-copy]").click(); await pg.wait_for_timeout(300)
+    clip = await pg.evaluate("navigator.clipboard.readText()")
+    zh = await pg.evaluate("window.CB_PHRASES[0].zh")
+    check("phrasebook: Copy puts the Chinese message on the clipboard", clip == zh, clip)
+    spoken = await pg.evaluate("(()=>{let said=null;Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{speak:u=>{said=u.text;setTimeout(()=>u.onend&&u.onend(),10)},cancel:()=>{},getVoices:()=>[]}});window.SpeechSynthesisUtterance=function(t){this.text=t};document.querySelector('.pb-item .say').click();return new Promise(r=>setTimeout(()=>r(said),300))})()")
+    played = await pg.evaluate("document.querySelector('.pb-item .say').getAttribute('data-say')")
+    check("phrasebook: audio reads the message without the [ ] brackets", "[" not in played and "工资条" in played, played)
+    await go(pg, "#/phrases/leave", 300); await pg.wait_for_selector(".pb-item")
+    cats = await pg.evaluate("[...document.querySelectorAll('.pb-item')].map(e=>CB_PHRASES.find(p=>p.id===e.id).cat)")
+    check("phrasebook: a topic chip shows only that topic", len(cats) >= 5 and set(cats) == {"leave"}, cats)
+    links = await pg.locator(".pb-item a[href^='#/talk/']").count()
+    check("phrasebook: messages link to their role-play scene", links >= 1, links)
+    await go(pg, "#/talk/payslip", 300)
+    check("phrasebook: a role-play scene links to its messages", await pg.locator("#t-pb[href='#/phrases/scene/payslip']").count() == 1)
+    await go(pg, "#/phrases/scene/payslip", 300); await pg.wait_for_selector(".pb-item")
+    sc = await pg.evaluate("[...document.querySelectorAll('.pb-item')].map(e=>CB_PHRASES.find(p=>p.id===e.id).scene)")
+    check("phrasebook: the scene view shows only that scene's messages", len(sc) >= 3 and set(sc) == {"payslip"}, sc)
+    check("phrasebook: doubtful messages are labelled 'under review'", await pg.evaluate("CB_PHRASES.filter(p=>p.doubt).length") == 4)
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ui=None)
+    await go(pg, "#/phrases", 300); await pg.wait_for_selector(".pb-item")
+    check("phrasebook: Vietnamese interface", "Mẫu câu nhân sự" in await pg.locator("h2").first.inner_text())
+    await ctx.close()
+
+
+GROUPS.append(("phrases", t_phrases))
+
+
+async def t_progress_go(b):
+    """Every Progress chart has a button to the matching practice; a new learner reaches the first card in 2 taps."""
+    st = {"settings": settings(), "srs": {"d01-01": {"box": 1, "due": day(-1), "right": 0, "wrong": 0, "added": day(-5)}},
+          "log": {day(-1): 40}, "mockHistory": [{"id": 1, "date": day(-3), "mode": "exam", "total": 150, "sections": {"listening": 60, "reading": 40, "writing": 50}}]}
+    ctx, pg = await open_app(b, st)
+    await go(pg, "#/progress", 900)
+    hrefs = await pg.evaluate("Object.fromEntries([...document.querySelectorAll('#app [id^=go-]')].map(a=>[a.id,a.getAttribute('href')]))")
+    check("progress: mock chart → take a mock exam", hrefs.get("go-mock") == "#/mock", hrefs)
+    check("progress: each section chart → a timed part of that section", hrefs.get("go-listening", "").startswith("#/parts/L") and hrefs.get("go-reading", "").startswith("#/parts/R") and hrefs.get("go-writing", "").startswith("#/parts/W"), hrefs)
+    check("progress: words chart → review the due words", hrefs.get("go-words") == "#/review" and "1 due" in await pg.locator("#go-words").inner_text(), hrefs)
+    check("progress: XP chart → today's session", hrefs.get("go-xp") == "#/session", hrefs)
+    check("progress: forecast → practise the weakest section", (hrefs.get("go-fc") or "").startswith("#/parts/"), hrefs)
+    secs = await pg.locator(".card:has(.chart)").count(); btns = await pg.locator(".card:has(.chart) .btn").count()
+    check("progress: no chart without a button", btns >= secs, [secs, btns])
+    await pg.click("#go-mock"); await pg.wait_for_timeout(600)
+    check("progress: the mock button opens the mock list", pg.url.endswith("#/mock"))
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "log": {}})
+    await go(pg, "#/progress", 900)
+    check("progress: with no words yet the words chart offers new words", await pg.locator("#go-words").get_attribute("href") == "#/learn")
+    await ctx.close()
+    # first run: setup Continue (tap 1), Start on Home (tap 2) → a flashcard
+    ctx, pg = await open_app(b, None)
+    await pg.wait_for_selector("#su-go"); await pg.click("#su-go"); await pg.wait_for_timeout(600)
+    await pg.click("#today-go"); await pg.wait_for_timeout(1500)
+    check("first run: 2 taps reach the first card", "#/session/go" in pg.url and "Tap to flip" in await pg.inner_text("#app") and await pg.locator("#ss-go").count() == 0,
+          [pg.url, (await pg.inner_text("#app"))[:80]])
+    await ctx.close()
+
+
+GROUPS.append(("progress_go", t_progress_go))
+
 
 async def t_minimock(b):
     """15-minute mini mock from the weakest skills: normal mock format, notebook under the original questions, not in the forecast."""
@@ -2499,6 +2633,29 @@ async def t_minimock(b):
 GROUPS.append(("minimock", t_minimock))
 
 PW = None
+csp_blocked = []  # console messages about requests or code the Content Security Policy refused, from every page
+
+
+async def t_csp(b):
+    """index.html carries a strict CSP; it must be in force and must not block anything the app itself uses."""
+    ctx, pg = await open_app(b, None)
+    meta = await pg.evaluate("(document.querySelector('meta[http-equiv=\"Content-Security-Policy\"]')||{}).content||''")
+    check("CSP: index.html has a Content-Security-Policy", "default-src 'self'" in meta and "script-src 'self';" in meta, meta[:80])
+    check("CSP: no inline or eval script allowed", "'unsafe-eval'" not in meta and "script-src 'self';" in meta, meta)
+    ran = await pg.evaluate("""() => { window.__x = 0; const s = document.createElement('script'); s.textContent = 'window.__x = 1'; document.body.appendChild(s);
+      return window.__x; }""")
+    check("CSP: an injected inline script does not run", ran == 0, ran)  # eval() cannot be tested here: test code itself runs outside the CSP
+    out = await pg.evaluate("""() => fetch('https://example.com/x').then(() => 'reached', () => 'blocked')""")
+    check("CSP: a request to another site is blocked", out == "blocked", out)
+    await pg.wait_for_timeout(400)
+    n = len(csp_blocked); del csp_blocked[:]  # the three refusals above were on purpose
+    check("CSP: the deliberate tests above were reported as violations", n >= 2, n)
+    for h in ["#/", "#/learn", "#/review", "#/track", "#/me", "#/mock", "#/games", "#/grammar"]:
+        await go(pg, h, 700)
+    await ctx.close()
+
+
+GROUPS.append(("csp", t_csp))
 
 
 async def main():
@@ -2516,6 +2673,7 @@ async def main():
                 check(name + ": ran to the end", False, repr(e))
         await browser.close()
     check("no script errors on any screen", not page_errors, page_errors[:4])
+    check("CSP: nothing the app loads is blocked by the Content Security Policy", not csp_blocked, csp_blocked[:4])
     failed = [r for r in results if not r[1]]
     print("\n%d passed, %d failed" % (len(results) - len(failed), len(failed)))
     sys.exit(1 if failed else 0)

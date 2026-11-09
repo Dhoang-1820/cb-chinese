@@ -96,8 +96,8 @@ Ids are never renumbered: they are progress keys (`h5-0001`, `h5g01`, `h5c001`, 
 
 ## Audio
 `tools/collect_texts.js` lists what gets a recording (it prints the counts). For the HSK 4 course that is everything with a play button: 8,114 clips, 215 of them new with the larger grammar list and picture-writing set.
-The optional packs are recorded by cost: HSK 5 headwords (1,151 new clips), HSK 5 grammar examples (84), HSK 5 picture-writing models (104) and the 91 extra HSK 4 words with phrase and example (211) — 1,550 clips.
-Left out for now: HSK 5 example sentences (1,223), the extra "common phrases" (413) and the opposites' examples (127); `node tools/collect_texts.js --all` adds them. Where a text has no clip the app leaves the play button out.
+The optional packs are recorded by cost: HSK 5 headwords (1,151 new clips), HSK 5 example sentences (1,223), HSK 5 grammar examples (84), HSK 5 picture-writing models (104) and the 91 extra HSK 4 words with phrase and example (211) — 2,773 clips.
+Left out for now: the extra "common phrases" (413) and the opposites' examples (127); `node tools/collect_texts.js --all` adds them. Where a text has no clip the app leaves the play button out.
 Clips of the optional packs are marked `"opt": true` and never fail the build in `tools/gen_audio.py`.
 Adding words with new characters? Copy their stroke files from the `hanzi-writer-data` npm package into `vendor/hanzi/`.
 

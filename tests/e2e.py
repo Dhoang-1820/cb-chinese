@@ -2511,6 +2511,49 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
           ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood)]
+
+
+async def t_phrases(b):
+    """HR phrasebook: loads on first visit, filters by topic and scene, copies the Chinese, plays audio, links to role-play."""
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, permissions=["clipboard-read", "clipboard-write"])
+    await go(pg, "#/talk", 500)
+    check("phrasebook: linked from the role-play list", await pg.locator("a.pb-link[href='#/phrases']").count() == 1)
+    await go(pg, "#/phrases", 300)
+    await pg.wait_for_selector(".pb-item", timeout=8000)
+    n = await pg.locator(".pb-item").count()
+    check("phrasebook: 60-100 messages, loaded the first time the screen opens", 60 <= n <= 100 and await pg.evaluate("window.CB_PHRASES.length") == n, n)
+    check("phrasebook: the 'not checked by a teacher' note is shown", "not yet checked by a teacher" in await pg.locator(".pb-note").inner_text())
+    first = pg.locator(".pb-item").first
+    check("phrasebook: each message has Chinese, pinyin, a translation and a play button",
+          await first.locator(".zh").count() == 1 and await first.locator(".py").count() == 1 and await first.locator(".tr").count() == 1 and await first.locator(".say").count() == 1)
+    check("phrasebook: [placeholders] are highlighted", await pg.locator(".pb-ph").count() >= 5)
+    await first.locator("[data-copy]").click(); await pg.wait_for_timeout(300)
+    clip = await pg.evaluate("navigator.clipboard.readText()")
+    zh = await pg.evaluate("window.CB_PHRASES[0].zh")
+    check("phrasebook: Copy puts the Chinese message on the clipboard", clip == zh, clip)
+    spoken = await pg.evaluate("(()=>{let said=null;Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{speak:u=>{said=u.text;setTimeout(()=>u.onend&&u.onend(),10)},cancel:()=>{},getVoices:()=>[]}});window.SpeechSynthesisUtterance=function(t){this.text=t};document.querySelector('.pb-item .say').click();return new Promise(r=>setTimeout(()=>r(said),300))})()")
+    played = await pg.evaluate("document.querySelector('.pb-item .say').getAttribute('data-say')")
+    check("phrasebook: audio reads the message without the [ ] brackets", "[" not in played and "工资条" in played, played)
+    await go(pg, "#/phrases/leave", 300); await pg.wait_for_selector(".pb-item")
+    cats = await pg.evaluate("[...document.querySelectorAll('.pb-item')].map(e=>CB_PHRASES.find(p=>p.id===e.id).cat)")
+    check("phrasebook: a topic chip shows only that topic", len(cats) >= 5 and set(cats) == {"leave"}, cats)
+    links = await pg.locator(".pb-item a[href^='#/talk/']").count()
+    check("phrasebook: messages link to their role-play scene", links >= 1, links)
+    await go(pg, "#/talk/payslip", 300)
+    check("phrasebook: a role-play scene links to its messages", await pg.locator("#t-pb[href='#/phrases/scene/payslip']").count() == 1)
+    await go(pg, "#/phrases/scene/payslip", 300); await pg.wait_for_selector(".pb-item")
+    sc = await pg.evaluate("[...document.querySelectorAll('.pb-item')].map(e=>CB_PHRASES.find(p=>p.id===e.id).scene)")
+    check("phrasebook: the scene view shows only that scene's messages", len(sc) >= 3 and set(sc) == {"payslip"}, sc)
+    check("phrasebook: doubtful messages are labelled 'under review'", await pg.evaluate("CB_PHRASES.filter(p=>p.doubt).length") == 4)
+    await ctx.close()
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ui=None)
+    await go(pg, "#/phrases", 300); await pg.wait_for_selector(".pb-item")
+    check("phrasebook: Vietnamese interface", "Mẫu câu nhân sự" in await pg.locator("h2").first.inner_text())
+    await ctx.close()
+
+
+GROUPS.append(("phrases", t_phrases))
+
 PW = None
 csp_blocked = []  # console messages about requests or code the Content Security Policy refused, from every page
 

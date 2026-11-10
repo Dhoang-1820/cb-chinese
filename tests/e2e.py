@@ -2490,7 +2490,7 @@ async def t_lastgood(b):
     row = await pg.evaluate("() => { const e = document.getElementById('s-good-at'), btn = document.getElementById('s-good'); return { t: e ? e.textContent : '', on: btn && !btn.disabled }; }")
     check("lastgood: Settings shows the automatic copy with a working Restore button", row["on"] and "word" in row["t"], row)
     await pg.evaluate("() => { Store.state.xp = 1; Store.state.srs = {}; Store.save(); }")
-    pg.once("dialog", lambda d: asyncio.ensure_future(d.accept()))
+    # the Restore confirmation is accepted by open_app's dialog handler (a second handler here would accept it twice)
     await pg.evaluate("() => document.getElementById('s-good').click()"); await pg.wait_for_timeout(600)
     n = await pg.evaluate("() => Object.keys(Store.state.srs).length")
     check("lastgood: Restore brings the copy back", n == words, n)

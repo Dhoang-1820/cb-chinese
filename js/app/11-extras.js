@@ -46,7 +46,8 @@
     /* First run: one short step with the defaults already chosen, so Continue can be tapped straight away.
        Daily goal and the rest keep their defaults and can be changed under Me; the guide pages are under Me → App guide. */
     function setup() {
-      var st = Store.state.settings, ex = st.examDate || "2026-11-14";
+      // the built-in default (14 Nov 2026) is only a suggestion: once it has passed, suggest the end of a 3-month course
+      var st = Store.state.settings, ex = st.examDate && st.examDate >= Store.today() ? st.examDate : Store.addDays(Store.today(), 90);
       function opts(list, cur) { return list.map(function (g) { return '<button type="button" class="su-o' + (cur === g[0] ? " on" : "") + '" aria-pressed="' + (cur === g[0]) + '" data-v="' + g[0] + '"><b>' + g[1] + "</b><small>" + g[2] + "</small></button>"; }).join(""); }
       wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-mas">' + UI.mascot("wave", 52) + '</div><h2 id="guide-t">' + tx("Welcome! Two quick choices") + '</h2>' +
         '<label class="su-l" for="su-exam">' + tx("When is your HSK 4 exam?") + '</label><input type="date" id="su-exam" value="' + esc(ex) + '">' +

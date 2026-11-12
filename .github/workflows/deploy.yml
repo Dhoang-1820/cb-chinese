@@ -5,10 +5,9 @@ name: Deploy
 on:
   push:
     branches: [main]
+  # Run by hand: Actions → Deploy → Run workflow. (The nightly run was turned off on 12 Nov 2026: questions approved in
+  # the shared bank still reach the app, which fetches them itself; they get recorded audio on the next deploy.)
   workflow_dispatch:
-  # every night (02:17 in Vietnam): questions approved in the shared bank get recorded audio and ship inside the app
-  schedule:
-    - cron: "17 19 * * *"
 
 permissions:
   contents: read

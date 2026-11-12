@@ -110,8 +110,8 @@ It needs the current `index.ts` (admin-only task `admin_stats`, which only reads
 Run the newest `supabase/setup.sql` once (it adds `bank_items`, `auth_links` and `auth_tickets`; running it again is safe).
 AI practice questions (new listening questions, reading passages, "3 new questions like this") are saved as *waiting*.
 In the app: Me → Learner tracking → **Questions**. Approve the good ones: every learner then gets them before the AI is
-asked again, they are marked "checked by the C&B team", and the nightly deploy (02:17 Vietnam time) copies them into the
-app and records their audio. **Hardest** lists the questions learners miss most (from each phone's backup).
+asked again, they are marked "checked by the C&B team", and the next deploy (any push to `main`, or Actions → Deploy →
+Run workflow) copies them into the app and records their audio. **Hardest** lists the questions learners miss most (from each phone's backup).
 
 ## Google sign-in (optional, added October 2026)
 

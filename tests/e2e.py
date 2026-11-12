@@ -9,7 +9,8 @@ Environment: BASE (default http://localhost:8766/) and AI_URL (default http://lo
 Nothing here depends on today's date: exam dates and study logs are set relative to "today".
 The script exits with 1 when any check fails.
 """
-import asyncio, datetime, itertools, json, os, sys, urllib.request
+import asyncio
+import re, datetime, itertools, json, os, sys, urllib.request
 from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 
 BASE = os.environ.get("BASE", "http://localhost:8766/")
@@ -2581,8 +2582,11 @@ async def t_progress_go(b):
     ctx, pg = await open_app(b, None)
     await pg.wait_for_selector("#su-go"); await pg.click("#su-go"); await pg.wait_for_timeout(600)
     await pg.click("#today-go"); await pg.wait_for_timeout(1500)
-    check("first run: 2 taps reach the first card", "#/session/go" in pg.url and "Tap to flip" in await pg.inner_text("#app") and await pg.locator("#ss-go").count() == 0,
-          [pg.url, (await pg.inner_text("#app"))[:80]])
+    # The first step depends on the plan for that day (a flashcard deck, or near the exam e.g. "Type the Sentence"),
+    # so check that some exercise opened: no plan page, no Home, and either a flashcard or a step counter like "1/3".
+    txt = await pg.inner_text("#app")
+    check("first run: 2 taps reach the first card", "#/session/go" in pg.url and await pg.locator("#ss-go").count() == 0 and await pg.locator("#today-go").count() == 0
+          and ("Tap to flip" in txt or re.search(r"(^|\n)1/\d+(\n|$)", txt) is not None), [pg.url, txt[:80]])
     await ctx.close()
 
 

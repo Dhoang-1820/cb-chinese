@@ -1580,3 +1580,6 @@ button.grow:first-child { border-top: 0; }
 .chart-go { margin-top: 10px; }
 .spark3 .btn.small { grid-column: 1 / -1; justify-self: start; margin-top: 6px; min-height: 36px; padding: 4px 10px; }
 .sk-go .btn.small { flex: none; min-height: 36px; padding: 4px 10px; }
+
+/* Problem reports: the "Open screen ›" link is a real tap target (was inline text, ~23 px tall) */
+.report-item .sec-h a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }

@@ -35,6 +35,7 @@
       /* interface language; the label stays bilingual so it can be found in either language */
       row("Ngôn ngữ giao diện · Interface", sel("s-ui", [["vi", "Tiếng Việt"], ["en", "English"]], I18N.lang())) +
       row(tx("Meanings"), sel("s-lang", [["both", "Việt + English"], ["vi", "Tiếng Việt"], ["en", "English"]], set.lang)) +
+      row(tx("What to focus on"), sel("s-focus", [["mix", tx("Exam + a little speaking")], ["both", tx("Exam and speaking")], ["speak", tx("Speaking first")], ["exam", tx("Exam only")]], speakFocus())) +
       row(tx("Today's session length"), sel("s-smode", [["quick", tx("Quick · ~7 min")], ["std", tx("Standard · ~15 min")], ["long", tx("Long · ~30 min")]], set.sessionMode || "std")) +
       row(tx("Theme"), sel("s-theme", [["auto", tx("System")], ["light", tx("Light")], ["dark", tx("Dark")]], set.theme)) +
       '<details class="more-set"><summary>' + tx("More settings") + '</summary>' +
@@ -84,6 +85,7 @@
     document.getElementById("s-noise").onchange = function () { sv("noise", parseInt(this.value, 10)); Audio2.noise(set.noise); if (set.noise) { UI.toast(tx("Noise plays while a recording plays"), "🎧"); Audio2.play("你好，这是薪酬福利中文。", "F"); } else Audio2.stop(); };
     document.getElementById("s-mrate").onchange = function () { sv("mockRate", parseFloat(this.value)); };
     document.getElementById("s-smode").onchange = function () { sv("sessionMode", this.value); };
+    document.getElementById("s-focus").onchange = function () { sv("focus", this.value); };
     document.getElementById("s-ts").onchange = function () { sv("textSize", this.value); };
     document.getElementById("s-wdays").onchange = function () { sv("weeklyDays", parseInt(this.value, 10)); };
     var rt = document.getElementById("s-rtime"), gcal = document.getElementById("s-gcal");

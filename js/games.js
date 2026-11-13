@@ -59,7 +59,9 @@
         (st.plays ? '<span class="g-best">' + tx("Best {n}", { n: st.best }) + "</span>" : '<span class="g-go">▶</span>') + "</a>";
     }
     /* Practice: what matters for the exam first, then the three games for the weakest skills, then everything else folded. */
-    var html = '<h2 class="gh">' + tx("For the exam") + '</h2>' + (App.practiceTop ? App.practiceTop() : "");
+    /* the speaking section comes first when speaking is the learner's focus (Me → What to focus on), after the exam part otherwise */
+    var sp = App.speakSection ? App.speakSection() : "", spFirst = !!(App.speakFirst && App.speakFirst());
+    var html = (spFirst ? sp : "") + '<h2 class="gh">' + tx("For the exam") + '</h2>' + (App.practiceTop ? App.practiceTop() : "") + (spFirst ? "" : sp);
     var rec = recommended();
     html += '<h2 class="gh">' + tx("Recommended for you") + '</h2><div class="glist rec-games">' + rec.map(function (r) {
       var g = BY[r.id], st = s.games[g.id] || {};

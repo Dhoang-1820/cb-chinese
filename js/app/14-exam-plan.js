@@ -110,6 +110,7 @@
       else if (st.id === "weak-order") Games.run("wordorder", "", { count: st.n || 3, onDone: next, exit: "#/" });
       else if (st.id === "reading") Games.run("reading", "", { count: st.n || 3, onDone: next, exit: "#/" });
       else if (st.id === "talk") viewTalk(st.scene, { mini: 3, onDone: next, exit: "#/" });
+      else if (st.id === "speak") viewShadow({ n: st.n, onDone: next, exit: "#/" });
       else if (st.id === "write") Games.run("picture", "", { count: st.n || 2, onDone: next, exit: "#/" });
       else if (st.id === "pace") { if (!runPart(st.part, { onDone: next, exit: "#/" })) next(0); }
       else if (st.id === "listen") Games.run("drill", "", { count: st.n || 3, onDone: next, exit: "#/" });

@@ -122,6 +122,8 @@
     }
     if (due.length) steps.push({ id: "review", icon: "🔁", name: due.length === 1 ? tx("Review 1 due word") : tx("Review {n} due words", { n: due.length }), ids: due });
     if (fresh.length) steps.push({ id: "new", icon: "📘", name: ew.length ? (fresh.length === 1 ? tx("1 exam word (used most in the tests)") : tx("{n} exam words (used most in the tests)", { n: fresh.length })) : isFound(cs) ? tx("{n} new HSK 1–3 Foundation words", { n: fresh.length }) : tx("{n} new HSK 4 Core words", { n: fresh.length }), words: fresh });
+    var spn = speakStepN();
+    if (spn) steps.push({ id: "speak", icon: "🗣️", name: tx("Say {n} sentences aloud (shadowing)", { n: spn }), n: spn });
     var pi = paceIssue();
     if (pi) steps.push({ id: "pace", icon: "⏱", name: tx("Timed: {part} (time ran out in your last mock)", { part: PART_NAME[pi.k] }), part: pi.k });
     if (Learn.count()) steps.push({ id: "mistakes", icon: "📒", name: tx("Fix up to {n} mistakes", { n: cfg.mis }), n: cfg.mis });
@@ -136,7 +138,7 @@
     if (window.AI && AI.available()) steps.push({ id: "write", icon: "✍️", name: tx("Write 2 sentences (AI scores them)"), n: 2 });
     /* optional last step, only with the AI on and online: a 3-reply role-play on the current lesson's topic */
     var tsc = window.AI && AI.available() ? talkForSession() : null;
-    if (tsc) steps.push({ id: "talk", icon: "🗣️", name: tx("Talk 3 minutes (optional): {t}", { t: Store.state.settings.lang === "vi" ? tsc.t.vi : tsc.t.en }), scene: tsc.id, optional: true });
+    if (tsc) steps.push({ id: "talk", icon: "🗣️", name: tx("Talk 3 minutes (optional): {t}", { t: Store.state.settings.lang === "vi" ? tsc.t.vi : tsc.t.en }), scene: tsc.id, optional: speakFocus() !== "speak" });
     return steps;
   }
   function sessionCTA() {

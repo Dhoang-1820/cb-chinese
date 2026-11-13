@@ -13,7 +13,7 @@
   function defaults() {
     return {
       version: 2,
-      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std", level: 4, h5: false }, // level: 4 or 5 = the Learn level switch; h5: HSK 5 was opened once (its data is then kept ready)
+      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std", focus: "mix", level: 4, h5: false }, // level: 4 or 5 = the Learn level switch; h5: HSK 5 was opened once (its data is then kept ready)
       srs: {},        // wordId -> { box, due, right, wrong, added, last }
       days: {},       // dayNo -> { quizBest, practice: {}, completed, completedOn, cu: date it was done as a short catch-up lesson (cleared when its full quiz is passed) }
       streak: { count: 0, last: null, best: 0 },
@@ -35,6 +35,8 @@
       afterFor: "",   // the exam date whose "what's next" choice was made (the Home card stops asking)
       eve: {},        // exam date -> { checklist item: 1 } for the day-before checklist
       warm: {},       // date -> 1 when the exam-morning warm-up was started
+      speak: {},      // date -> sentences said aloud in shadowing (last 60 days)
+      speakSeen: [],  // word ids whose example sentence was shadowed, oldest first (max 300): new ones come first next time
       fb: [],         // how Today's session felt, one per day (max 60): [{ d: date, r: 1 too hard | 2 just right | 3 too easy }]   // ids of shared-bank questions already practised (so the next round brings new ones)
       weekGoal: {},   // week-start date -> true once that week's study-days goal was met
       patternHide: {}, // pattern signature -> date it was dismissed (hidden for the rest of that day)
@@ -184,6 +186,10 @@
         real: e.real && typeof e.real === "object" ? { l: sec(e.real.l), r: sec(e.real.r), w: sec(e.real.w) } : null };
     });
     d.afterFor = D8.test(d.afterFor) ? d.afterFor : "";
+    var spk = d.speak && typeof d.speak === "object" && !Array.isArray(d.speak) ? d.speak : {}, spOut = {};
+    Object.keys(spk).filter(function (x) { return D8.test(x); }).sort().slice(-60).forEach(function (x) { var v = Math.max(0, Math.min(500, Math.round(n(spk[x])))); if (v) spOut[x] = v; });
+    d.speak = spOut;
+    d.speakSeen = (Array.isArray(d.speakSeen) ? d.speakSeen : []).filter(function (x) { return typeof x === "string" && x.length <= 20; }).slice(-300);
     var fbSeen = {};
     d.fb = (Array.isArray(d.fb) ? d.fb : []).filter(function (e) { return e && D8.test(e.d) && [1, 2, 3].indexOf(e.r) >= 0; }).reverse()
       .filter(function (e) { if (fbSeen[e.d]) return false; fbSeen[e.d] = 1; return true; }).reverse().slice(-60).map(function (e) { return { d: e.d, r: e.r }; });
@@ -206,6 +212,7 @@
     st.noise = [0, 1, 2].indexOf(+st.noise) >= 0 ? +st.noise : 0;
     st.mockRate = [0, 1, 1.15, 1.3].indexOf(+st.mockRate) >= 0 ? +st.mockRate : 0; // 0 = same as "Voice speed"
     if (["quick", "std", "long"].indexOf(st.sessionMode) < 0) st.sessionMode = dflt.sessionMode;
+    if (["exam", "mix", "both", "speak"].indexOf(st.focus) < 0) st.focus = dflt.focus;
     st.coreTarget = Math.max(1, Math.min(365, parseInt(st.coreTarget, 10) || dflt.coreTarget));
     st.level = +st.level === 5 ? 5 : 4; st.h5 = st.h5 === true || st.level === 5;
     d.trk = (Array.isArray(d.trk) ? d.trk : []).filter(function (e) { return e && typeof e === "object" && DATE.test(e.w || ""); }).slice(-12).map(function (e) {
@@ -418,6 +425,8 @@
     out.examHist = uni(L.examHist, R.examHist, function (x) { return x.lv + "|" + x.d; }, 20, function (x) { return x.d; });
     out.reports = uni(L.reports, R.reports, function (x) { return x.id; });
     out.custom = uni(L.custom, R.custom, function (x) { return x.id; });
+    each(R.speak, function (d, v) { out.speak[d] = mx(out.speak[d], v); });
+    out.speakSeen = uni(L.speakSeen, R.speakSeen, function (x) { return x; }, 300);
     out.fb = uni(L.fb, R.fb, function (x) { return x.d; }, 60, function (x) { return x.d; });
     out.bankSeen = uni(L.bankSeen, R.bankSeen, function (x) { return x; }, 2000);
     out.fcAtExam = L.fcAtExam || R.fcAtExam; out.afterFor = String(L.afterFor || "") > String(R.afterFor || "") ? L.afterFor : R.afterFor;

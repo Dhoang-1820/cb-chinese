@@ -1998,7 +1998,7 @@ async def t_simple(b):
     check("simple: the 拼 switch is back inside a lesson", shown != "none", shown)
     await go(pg, "#/games", 1200)
     secs = await pg.evaluate("[...document.querySelectorAll('#app > h2.gh')].map(h=>h.innerText)")
-    check("practice: For the exam, then Recommended for you", secs[:2] == ["For the exam", "Recommended for you"], secs)
+    check("practice: For the exam, then Speaking, then Recommended for you", [x for x in secs if x != "🗣️ Speaking"][:2] == ["For the exam", "Recommended for you"] and "🗣️ Speaking" in secs, secs)
     check("practice: a recommended mock test with a start button", await pg.locator("#pr-mock-go").count() == 1 and "Mock Test" in await pg.locator(".pr-mock").inner_text())
     rec = await pg.evaluate("[...document.querySelectorAll('.rec-games .grow')].map(a=>a.getAttribute('href')+' '+(a.querySelector('.g-acc')||{}).innerText)")
     check("practice: 3 recommended games, weakest skills first with their accuracy", len(rec) == 3 and rec[0].startswith("#/game/type 55%") and rec[1].startswith("#/game/bank 60%"), rec)
@@ -2505,6 +2505,72 @@ async def t_lastgood(b):
     await ctx.close()
 
 
+async def t_speak(b):
+    """Speaking: shadowing (listen, record, compare), the Today step, the Practice section, the focus setting."""
+    srs = {"d01-%02d" % i: {"box": 2, "due": day(5), "right": 2, "wrong": 1 if i % 3 == 0 else 0, "lapses": 1 if i == 4 else 0, "added": day(-9), "last": day(-2)} for i in range(1, 13)}
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(40)), "srs": srs})
+    await ctx.grant_permissions(["microphone"])
+    plan = await pg.evaluate("App._sessionPlan().map(x=>x.id+':'+(x.n||''))")
+    check("speak: Today has a short speaking step by default (exam + a little speaking)", "speak:3" in plan, plan)
+    await go(pg, "#/games", 800)
+    heads = await pg.evaluate("[...document.querySelectorAll('h2.gh')].map(h=>h.innerText)")
+    check("speak: Practice has a Speaking section, after the exam part", any("Speaking" in h for h in heads) and heads.index(next(h for h in heads if "Speaking" in h)) > heads.index(next(h for h in heads if "exam" in h.lower())), heads)
+    check("speak: the section has shadowing, role-play and the phrasebook", await pg.locator(".speak-list a[href='#/shadow'], .speak-list a[href='#/talk'], .speak-list a[href='#/phrases']").count() == 3)
+    # shadowing: listen, record, compare, rate
+    await pg.evaluate("window._streams=[];const g=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=c=>g(c).then(s=>{window._streams.push(s);return s});0")
+    await go(pg, "#/shadow", 800)
+    zh1 = await pg.inner_text(".sh-zh")
+    check("shadowing: a sentence from her words, 5 in a round, with the AI-voice note and a report link", "1/5" in await pg.inner_text(".ghr") and len(zh1) >= 5 and "AI voice" in await pg.inner_text(".sh-note") and await pg.locator("#sh-bad").count() == 1, zh1)
+    await pg.click("#sh-rec"); await pg.wait_for_selector("#sh-stop", timeout=10000)
+    check("shadowing: recording shows a live state", "Recording" in await pg.inner_text(".sh-steps"))
+    await pg.wait_for_timeout(700); await pg.click("#sh-stop"); await pg.wait_for_selector("#sh-cmp", timeout=10000)
+    check("shadowing: after recording she can compare, play herself, or record again", await pg.locator("#sh-cmp, #sh-mine, #sh-rec").count() == 3)
+    check("shadowing: the microphone is released after each recording", await pg.evaluate("window._streams.length>0 && window._streams.every(s=>s.getTracks().every(t=>t.readyState==='ended'))"))
+    await pg.click("#sh-cmp"); await pg.wait_for_timeout(300)
+    seen = [zh1]
+    await pg.click("[data-sh='ok']"); await pg.wait_for_timeout(300)
+    seen.append(await pg.inner_text(".sh-zh"))
+    await pg.click("[data-sh='again']"); await pg.wait_for_timeout(300)
+    check("shadowing: 'Try again later' brings the sentence back at the end", "2/6" not in await pg.inner_text(".ghr") and "/6" in await pg.inner_text(".ghr"))
+    for _ in range(4):
+        seen.append(await pg.inner_text(".sh-zh")); await pg.click("[data-sh='ok']"); await pg.wait_for_timeout(250)
+    import re as _re
+    check("shadowing: no sentence has a character with two common readings (多音字)", not any(_re.search("[行长重调传处便差数种觉背假降量相间应难乐空教冲结落角朝省曾薄]", z) for z in seen), seen)
+    t = await pg.inner_text("#app")
+    check("shadowing: the round ends with what she said and the week's count", "6 sentences said aloud" in t, t[:200])
+    check("shadowing: saved per day, and the sentences are marked as shadowed", await pg.evaluate("Store.state.speak[Store.today()]") == 6 and len(await pg.evaluate("Store.state.speakSeen")) == 5)
+    sm = await pg.evaluate("(()=>{const s=Sync.summary();return {sp7:s.sp7,spf:s.spf}})()")
+    check("speak: the admin summary has the week's sentences and the focus", sm["sp7"] == 6 and sm["spf"] == "mix", sm)
+    await go(pg, "#/games", 300); await go(pg, "#/shadow", 800)
+    check("shadowing: the next round starts with sentences not shadowed yet", await pg.inner_text(".sh-zh") not in seen[:5], await pg.inner_text(".sh-zh"))
+    await pg.click("#sh-bad"); await pg.wait_for_selector(".modal-wrap.report", timeout=5000)
+    check("shadowing: 'Sounds wrong?' opens a report for that sentence", "Example sentence of" in await pg.inner_text(".modal-wrap.report") or await pg.locator(".modal-wrap.report textarea").count() == 1)
+    await pg.evaluate("document.querySelector('.modal-wrap.report').remove()")
+    # in Today's session: a skip that never blocks
+    await pg.evaluate("window._sd=null;App._shadow({n:2,onDone:r=>{window._sd=r},exit:'#/'})"); await pg.wait_for_timeout(300)
+    await pg.click("#sh-skip"); await pg.wait_for_timeout(200)
+    check("speak: in Today's session, 'Can't speak right now' skips the step", await pg.evaluate("window._sd") == 0)
+    # no microphone: listen and repeat
+    await pg.evaluate("navigator.mediaDevices.getUserMedia=()=>Promise.reject(new Error('denied'));0")
+    await go(pg, "#/games", 300); await go(pg, "#/shadow", 800)
+    await pg.click("#sh-rec"); await pg.wait_for_timeout(400)
+    check("shadowing: without the microphone it becomes listen and repeat, still rateable", "listen and repeat" in await pg.inner_text(".sh-steps") and await pg.locator("[data-sh='ok']").count() == 1)
+    # focus setting
+    await go(pg, "#/me", 600)
+    await pg.select_option("#s-focus", "speak"); await pg.wait_for_timeout(200)
+    plan = await pg.evaluate("App._sessionPlan().map(x=>x.id+':'+(x.n||''))")
+    check("focus: 'Speaking first' gives 8 sentences in Today", "speak:8" in plan, plan)
+    await go(pg, "#/games", 800)
+    check("focus: 'Speaking first' puts the Speaking section at the top of Practice", "Speaking" in await pg.inner_text("h2.gh >> nth=0"))
+    await go(pg, "#/me", 600); await pg.select_option("#s-focus", "exam"); await pg.wait_for_timeout(200)
+    check("focus: 'Exam only' has no speaking step", not any(x.startswith("speak") for x in await pg.evaluate("App._sessionPlan().map(x=>x.id)")))
+    await pg.select_option("#s-focus", "mix"); await pg.evaluate("Store.state.settings.examDate=Store.addDays(Store.today(),5);Store.save()")
+    check("focus: in the exam week the default leaves speaking out", not any(x.startswith("speak") for x in await pg.evaluate("App._sessionPlan().map(x=>x.id)")))
+    await pg.evaluate("Store.state.settings.uiLang='vi';Store.save()"); await go(pg, "#/games", 300); await go(pg, "#/shadow", 800)
+    check("speak: the Vietnamese interface is translated", "Nói đuổi" in await pg.inner_text(".ghead"))
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5),
           ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync),
           ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip),
@@ -2512,7 +2578,7 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
-          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood)]
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood), ("speak", t_speak)]
 
 
 async def t_phrases(b):
@@ -2670,7 +2736,7 @@ async def main():
     want = sys.argv[1:]
     async with async_playwright() as p:
         PW = p
-        browser = await p.chromium.launch()
+        browser = await p.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"])  # a simulated microphone for shadowing
         for name, fn in GROUPS:
             if want and name not in want: continue
             print(name, flush=True)

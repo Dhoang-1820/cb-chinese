@@ -829,7 +829,7 @@ body.sim .container { padding-bottom: calc(var(--safe-b) + 24px); }
 .tk-word, .tk-card { margin: 10px 0; }
 .tk-vn, .tk-cn { margin-bottom: 8px; }
 .tk-diff { background: var(--surface-2); border-radius: 12px; padding: 8px 10px; }
-.back { display: inline-block; margin: 4px 0 10px; color: var(--primary-text, var(--primary)); font-weight: 800; }
+.back { display: inline-flex; align-items: center; min-height: 32px; margin: 0 0 6px; color: var(--primary-text, var(--primary)); font-weight: 800; }
 #tk-text { width: 100%; box-sizing: border-box; }
 
 /* Learn path */
@@ -1583,3 +1583,10 @@ button.grow:first-child { border-top: 0; }
 
 /* Problem reports: the "Open screen ›" link is a real tap target (was inline text, ~23 px tall) */
 .report-item .sec-h a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
+/* shadowing */
+.sh-card .sh-zh { font-size: 1.6rem; line-height: 1.5; margin: 6px 0 2px; }
+.sh-steps { margin: 14px 0 6px; text-align: center; }
+.sh-steps .btn.big { min-width: 220px; }
+.sh-live { font-weight: 800; color: var(--bad); margin: 0 0 8px; }
+.sh-rate { margin-top: 10px; }
+.sh-note { margin-top: 14px; }

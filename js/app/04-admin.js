@@ -246,6 +246,7 @@
   }
   function lrnHabit(r) {
     var sm = r.summary, html = "", end = lrnDay(r.updated_at), ds = sm.days28 || "", i;
+    if (sm.sp7 != null) html += '<section class="card lt-speak"><div class="lt-row"><b>' + tx("Speaking") + "</b><span>" + tx("last 7 days") + "</span></div><p>" + tx("{n} sentences said aloud (shadowing) · focus: {f}", { n: "<b>" + num(sm.sp7) + "</b>", f: esc({ exam: tx("Exam only"), mix: tx("Exam + a little speaking"), both: tx("Exam and speaking"), speak: tx("Speaking first") }[sm.spf] || sm.spf) }) + "</p></section>";
     if (Array.isArray(sm.fb) && sm.fb.length) {
       var fc = { 1: 0, 2: 0, 3: 0 }; sm.fb.forEach(function (e) { if (fc[e[1]] != null) fc[e[1]]++; });
       var lastF = sm.fb[sm.fb.length - 1];
@@ -313,7 +314,7 @@
   }
   var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"], ["week", "Week"], ["chat", "Chat"]];
   /* one-tap buttons the teacher can attach to a message; each opens that screen on the learner's phone */
-  var CHAT_ACTS = [["#/session", "Start Today's session"], ["#/session/comeback", "5-minute restart"], ["#/exam", "Open my exam plan"], ["#/mock/4/sim", "Full mock 4 in the simulator"], ["#/mock/5/sim", "Full mock 5 in the simulator"],
+  var CHAT_ACTS = [["#/session", "Start Today's session"], ["#/shadow", "Practise speaking (shadowing)"], ["#/session/comeback", "5-minute restart"], ["#/exam", "Open my exam plan"], ["#/mock/4/sim", "Full mock 4 in the simulator"], ["#/mock/5/sim", "Full mock 5 in the simulator"],
     ["#/mock/6/sim", "Full mock 6 in the simulator"], ["#/parts", "Practise one exam part"], ["#/parts/R1", "Reading part 1, timed"], ["#/parts/R3", "Reading part 3, timed"], ["#/parts/W1", "Writing part 1, timed"],
     ["#/parts/W2", "Writing part 2, timed"], ["#/parts/L2", "Listening part 2, timed"], ["#/mistakes/repeat", "Fix my repeat mistakes"], ["#/mistakes", "Open my mistake notebook"], ["#/review", "Review due words"], ["#/exams", "Open My exams"], ["#/me", "Check my cloud backup"]];
   var ACHAT = { timer: null, id: "", msgs: [], prefill: null };

@@ -121,7 +121,7 @@
     if (p.length === 1 && key === "answer" && !answerOk(o, nv)) return false;
     cur[key] = nv; return true;
   }
-  function cache() { var c = rd(PK, {}); return { at: +c.at || 0, patches: Array.isArray(c.patches) ? c.patches : [], hidden: Array.isArray(c.hidden) ? c.hidden : [] }; }
+  function cache() { var c = rd(PK, {}); return { at: +c.at || 0, patches: Array.isArray(c.patches) ? c.patches : [], hidden: Array.isArray(c.hidden) ? c.hidden : [], checked: Array.isArray(c.checked) ? c.checked : [] }; }
   function apply() {
     var c = cache(), n = 0;
     c.patches.forEach(function (p) {
@@ -141,6 +141,14 @@
     return n;
   }
   function isHidden(ref) { return cache().hidden.indexOf(ref) >= 0; }
+  /* shadowing sentences the admin checked or hid, read once: { hidden: {ref: 1}, checked: {ref: the sentence as checked} }.
+     A checked mark only counts while the sentence still reads the same (a later fix makes it "not checked" again). */
+  function sayMarks() {
+    var c = cache(), out = { hidden: {}, checked: {} };
+    c.hidden.forEach(function (r) { if (/^say:/.test(r)) out.hidden[r] = 1; });
+    c.checked.forEach(function (x) { if (x && typeof x.ref === "string" && typeof x.zh === "string") out.checked[x.ref] = x.zh; });
+    return out;
+  }
 
   function sync(force) {
     if (!window.AI || !AI.configured() || navigator.onLine === false) return Promise.resolve(false);
@@ -148,7 +156,7 @@
     if (!force && Date.now() - c.at < 3 * HOUR) return Promise.resolve(false);
     return AI.call("patches", {}).then(function (r) {
       if (!r.ok || !r.result) return false;
-      wr(PK, { at: Date.now(), patches: r.result.patches || [], hidden: r.result.hidden || [] });
+      wr(PK, { at: Date.now(), patches: r.result.patches || [], hidden: r.result.hidden || [], checked: Array.isArray(r.result.checked) ? r.result.checked.slice(0, 2000) : [] });
       applied = {}; apply(); return true;
     });
   }
@@ -163,7 +171,7 @@
   function applyNow(r) {
     if (!r || !Array.isArray(r.set)) return 0;
     var c = cache(); c.patches = c.patches.filter(function (x) { return x && x.id !== r.id; });
-    c.patches.push({ id: r.id, ref: r.ref, set: r.set }); wr(PK, { at: c.at, patches: c.patches, hidden: c.hidden });
+    c.patches.push({ id: r.id, ref: r.ref, set: r.set }); wr(PK, { at: c.at, patches: c.patches, hidden: c.hidden, checked: c.checked });
     delete applied[r.id]; return apply();
   }
   function accept(token) {
@@ -175,6 +183,6 @@
   function admin(task, payload) { return AI.call(task, payload, { "x-admin-code": adminCode() }); }
   function getPath(o, path) { var cur = o; String(path).split(".").forEach(function (k) { cur = cur == null ? undefined : cur[k]; }); return cur; }
 
-  window.Content = { locate: locate, resolve: resolve, snapshot: snapshot, apply: apply, sync: sync, isHidden: isHidden, report: report, accept: accept, discuss: discuss, applyNow: applyNow, adminCode: adminCode, setAdminCode: setAdminCode, admin: admin, getPath: getPath, cache: cache,
+  window.Content = { locate: locate, resolve: resolve, snapshot: snapshot, apply: apply, sync: sync, isHidden: isHidden, sayMarks: sayMarks, report: report, accept: accept, discuss: discuss, applyNow: applyNow, adminCode: adminCode, setAdminCode: setAdminCode, admin: admin, getPath: getPath, cache: cache,
     _setPath: setPath, _build: function () { idx = null; return build(); } };
 })();

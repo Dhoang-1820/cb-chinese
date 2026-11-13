@@ -89,6 +89,7 @@ const rows = []; let nid = 1;
 const lrn = [];
 const msgs = []; let mid = 1;
 const lives = []; // live pings the server sent (topic names), for tests
+const reportsT = { rows, get nid() { return nid; }, set nid(v) { nid = v; } };
 const bank = { rows: [], nid: 1 }, links = { rows: [], nid: 1 }, tickets = { rows: [], nid: 1 };
 /* just enough PostgREST for the bank and the sign-in links: eq / gt / in filters, order, limit, offset, on_conflict=hash */
 function table(t, method, path, body) {
@@ -99,6 +100,7 @@ function table(t, method, path, body) {
     if (op === "eq") return String(r[k]) === val;
     if (op === "gt") return +r[k] > +val;
     if (op === "in") return val.replace(/[()]/g, "").split(",").indexOf(String(r[k])) >= 0;
+    if (op === "like") return new RegExp("^" + val.split("*").map((x) => x.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$").test(String(r[k]));
     return true;
   });
   if (method === "POST") {
@@ -147,6 +149,8 @@ const db = async (method, path, body) => {
     if (method === "DELETE") { if (i >= 0) lrn.splice(i, 1); return null; }
     return JSON.parse(JSON.stringify(m ? (i >= 0 ? [lrn[i]] : []) : lrn)); // copies, like a real database
   }
+  // shadowing sentence marks (say:…) and the admin's sentence list: the generic table, on the same report rows
+  if (/[?&]ref=like\./.test(path) || /[?&]ref=eq\.say/.test(path) || (method === "POST" && body && /^say:/.test(body.ref || ""))) return table(reportsT, method, path, body);
   if (method === "POST") { rows.push({ id: nid++, created_at: new Date().toISOString(), ...body }); return null; }
   if (method === "PATCH") { const id = +/id=eq\.(\d+)/.exec(path)[1]; Object.assign(rows.find((r) => r.id === id), body); return null; }
   const tk = /verdict-%3E%3Etoken=eq\.([a-f0-9-]+)/.exec(path); if (tk) return rows.filter((r) => r.verdict && r.verdict.token === tk[1]);
@@ -159,6 +163,7 @@ const deps = { fetch: fakeFetch, bump: async (cap) => (++count > cap ? -1 : coun
 http.createServer(async (rq, rs) => {
   if (rq.url === "/__mode") { let b = ""; rq.on("data", (d) => (b += d)); rq.on("end", () => { mode = b.trim() || "ok"; count = mode === "reset" ? 0 : count; if (mode === "reset") mode = "ok"; rs.end("mode=" + mode); }); return; }
   if (rq.url === "/__rows") { rs.end(JSON.stringify(rows)); return; }
+  if (rq.url === "/__addreport") { let b = ""; rq.on("data", (d) => (b += d)); rq.on("end", () => { rows.push({ id: nid++, created_at: new Date().toISOString(), quarantine: false, ...JSON.parse(b) }); rs.end("ok"); }); return; } // a learner report, without the AI check
   if (rq.url === "/__stale") { lrn.forEach((r) => { r.updated_at = new Date(Date.now() - 5 * 864e5).toISOString(); }); rs.end("stale=" + lrn.length); return; } // every backup now looks 5 days old
   if (rq.url === "/__calls") { rs.end(String(n)); return; }
   if (rq.url === "/__bank") { rs.end(JSON.stringify(bank.rows)); return; }

@@ -1156,7 +1156,7 @@ async def t_admin(b):
             await route.continue_()
     await ctx.route(AI_URL, old_server)
     await go(pg, "#/", 300); await go(pg, "#/fixes", 600); await pg.wait_for_timeout(500)
-    svc_none = await pg.locator("#svc").count() == 0 and await pg.locator(".fx-tabs button").count() == 5
+    svc_none = await pg.locator("#svc").count() == 0 and await pg.locator(".fx-tabs button").count() == 6
     await pg.click("[data-fxtab='learners']"); await pg.wait_for_selector(".lt-card", timeout=10000)
     check("admin: with an older server there is no Service block and the screens still work", svc_none and await pg.locator(".lt-card").count() >= 1)
     await pg.evaluate("AI.call('sync_delete',{code:Sync.cfg().code})")  # leave no backup behind for the other groups
@@ -2571,6 +2571,63 @@ async def t_speak(b):
     await ctx.close()
 
 
+async def t_saycheck(b):
+    """Admin checks shadowing sentences: mark correct (learners see "checked by a person"), hide (never used), undo, reports."""
+    srs = {"d01-%02d" % i: {"box": 2, "due": day(5), "right": 2, "wrong": 0, "lapses": 0, "added": day(-9), "last": day(-2)} for i in range(1, 13)}
+    ctx, pg = await open_app(b, {"settings": settings(examDate=day(40)), "srs": srs}, ai=True)
+    await go(pg, "#/say-check", 600)
+    check("say-check: without the reviewer code it sends you to Content review", "reviewer code" in await pg.inner_text("#app") and await pg.locator("#app a[href='#/fixes']").count() >= 1)
+    await pg.evaluate("localStorage.setItem('cbChinese.ai.admin','admin-code-12345')")
+    pool = await pg.evaluate("App._shadowPool().map(x=>({id:x.id,zh:x.zh,ok:x.ok}))")
+    A, B = pool[0]["id"], pool[1]["id"]
+    check("say-check: nothing is checked yet, so no sentence says it is", not any(x["ok"] for x in pool), pool[:3])
+    await go(pg, "#/fixes", 600); await pg.click("[data-fxtab=say]"); await pg.wait_for_selector("#say-prog", timeout=10000)
+    prog = await pg.inner_text("#say-prog")
+    check("say-check: Content review has a Sentences tab with the progress line", (await pg.evaluate("location.hash")) == "#/say-check" and prog.startswith("0 of ") and "0 hidden" in prog, prog)
+    check("say-check: the To check list shows sentences with listen, correct and hide", await pg.locator(".say-row").count() >= 2 and await pg.locator(".say-row [data-sc-play]").count() >= 2 and await pg.locator(".say-row [data-sc-mark=checked]").count() >= 2)
+    for wid, mk in ((A, "checked"), (B, "hidden")):
+        while await pg.locator(".say-row[data-sc='%s']" % wid).count() == 0 and await pg.locator("#say-more").count():
+            await pg.click("#say-more")
+        await pg.click(".say-row[data-sc='%s'] [data-sc-mark=%s]" % (wid, mk))
+        await pg.wait_for_function("!document.querySelector(\".say-row[data-sc='%s']\")" % wid, timeout=10000)
+    prog = await pg.inner_text("#say-prog")
+    check("say-check: marking moves the sentence out of To check and counts it", prog.startswith("1 of ") and "1 hidden" in prog, prog)
+    srv = json.loads(urllib.request.urlopen(AI_URL.replace("/ai", "/__rows")).read())
+    mine = {r["ref"]: r for r in srv if r.get("ref") in ("say:" + A, "say:" + B)}
+    check("say-check: the marks are saved on the server (hidden = the hide flag every phone downloads)", mine.get("say:" + A, {}).get("status") == "checked" and mine.get("say:" + B, {}).get("quarantine") is True, mine)
+    await pg.evaluate("Content.sync(true)")
+    pool2 = await pg.evaluate("App._shadowPool().map(x=>({id:x.id,ok:x.ok}))")
+    check("say-check: the learner side skips the hidden sentence and knows the checked one", B not in [x["id"] for x in pool2] and next(x for x in pool2 if x["id"] == A)["ok"] is True, pool2[:4])
+    await go(pg, "#/shadow", 800)
+    note = await pg.inner_text(".sh-note")
+    check("shadowing: a checked sentence comes first and says a person checked it", "checked by a person" in note and "not checked" not in note and pool2[0]["id"] == A, note)
+    await pg.evaluate("Store.state.speakSeen=[%s];0" % json.dumps(A))
+    await go(pg, "#/games", 300); await go(pg, "#/shadow", 800)
+    check("shadowing: an unchecked sentence says so honestly", "not checked by a person yet" in await pg.inner_text(".sh-note"))
+    # undo, then a learner report on a checked sentence
+    await go(pg, "#/say-check", 300); await pg.wait_for_selector("#say-prog", timeout=10000)
+    await pg.click("[data-sctab=checked]"); await pg.click(".say-row[data-sc='%s'] [data-sc-mark=clear]" % A)
+    await pg.wait_for_function("document.getElementById('say-prog').innerText.startsWith('0 of ')", timeout=10000)
+    srv = json.loads(urllib.request.urlopen(AI_URL.replace("/ai", "/__rows")).read())
+    check("say-check: Undo removes the mark on the server", not any(r.get("ref") == "say:" + A for r in srv))
+    await pg.click("[data-sctab=todo]")
+    while await pg.locator(".say-row[data-sc='%s']" % A).count() == 0 and await pg.locator("#say-more").count():
+        await pg.click("#say-more")
+    await pg.click(".say-row[data-sc='%s'] [data-sc-mark=checked]" % A)
+    await pg.wait_for_function("!document.querySelector(\".say-row[data-sc='%s']\")" % A, timeout=10000)
+    await pg.wait_for_timeout(30)  # the report below must be newer than this mark
+    req = urllib.request.Request(AI_URL.replace("/ai", "/__addreport"), data=json.dumps({"ref": "word:" + A, "note": "the voice reads one word wrong", "status": "dismissed"}).encode(), method="POST")
+    urllib.request.urlopen(req).read()
+    await go(pg, "#/games", 300); await go(pg, "#/say-check", 300); await pg.wait_for_selector("#say-prog", timeout=10000)
+    tab = await pg.evaluate("document.querySelector('[data-sctab].primary').getAttribute('data-sctab')")
+    row = await pg.inner_text(".say-row[data-sc='%s']" % A) if await pg.locator(".say-row[data-sc='%s']" % A).count() else ""
+    check("say-check: a report after the check brings the sentence back, under Reported, with the learner's note", tab == "reported" and "reads one word wrong" in row, [tab, row])
+    await pg.click(".say-row[data-sc='%s'] [data-sc-mark=checked]" % A)
+    await pg.wait_for_function("!document.querySelector(\".say-row[data-sc='%s']\")" % A, timeout=10000)
+    check("say-check: checking it again closes the report", "1 of " in await pg.inner_text("#say-prog"))
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5),
           ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync),
           ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip),
@@ -2578,7 +2635,7 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
-          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood), ("speak", t_speak)]
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood), ("speak", t_speak), ("saycheck", t_saycheck)]
 
 
 async def t_phrases(b):

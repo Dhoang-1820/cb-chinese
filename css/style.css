@@ -1590,3 +1590,6 @@ button.grow:first-child { border-top: 0; }
 .sh-live { font-weight: 800; color: var(--bad); margin: 0 0 8px; }
 .sh-rate { margin-top: 10px; }
 .sh-note { margin-top: 14px; }
+.sh-ok { font-weight: 700; }
+.say-row .sh-zh { font-size: 1.35rem; margin: 0 0 2px; }
+.say-row .actions { flex-wrap: wrap; }

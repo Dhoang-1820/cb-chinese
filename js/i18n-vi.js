@@ -1760,5 +1760,22 @@ window.CB_I18N_VI = {
   "Needs the AI assistant (Me → AI assistant)": "Cần trợ lý AI (Tôi → Trợ lý AI)",
   "Ready-made messages with audio, to say aloud": "Mẫu câu có sẵn kèm âm thanh, để đọc to",
   "Say {n} sentences aloud (shadowing)": "Đọc to {n} câu (nói đuổi)",
-  "Shadowing": "Nói đuổi"
+  "Shadowing": "Nói đuổi",
+  "Sentence checked by a person.": "Câu đã được người kiểm tra.",
+  "Sentence not checked by a person yet.": "Câu chưa được người kiểm tra.",
+  "Shadowing sentences": "Câu nói đuổi",
+  "Every sentence shadowing can use. Listen and read it, then mark it correct or hide it. Learners see “checked by a person” on correct ones; hidden ones are never used.": "Mọi câu mà phần nói đuổi có thể dùng. Nghe và đọc, rồi đánh dấu đúng hoặc ẩn. Người học thấy “đã được người kiểm tra” ở câu đúng; câu bị ẩn sẽ không bao giờ được dùng.",
+  "Open Content review and enter the reviewer code first.": "Mở Duyệt nội dung và nhập mã người duyệt trước.",
+  "Reported": "Bị báo lỗi",
+  "To check": "Cần kiểm tra",
+  "Checked": "Đã kiểm tra",
+  "Hidden": "Đã ẩn",
+  "{c} of {n} sentences checked · {h} hidden": "Đã kiểm tra {c}/{n} câu · {h} câu ẩn",
+  "Word: {w}": "Từ: {w}",
+  "Hide": "Ẩn",
+  "Undo": "Hoàn tác",
+  "Show {n} more": "Xem thêm {n}",
+  "Marked correct": "Đã đánh dấu đúng",
+  "Hidden from shadowing": "Đã ẩn khỏi nói đuổi",
+  "Mark removed": "Đã bỏ đánh dấu"
 };

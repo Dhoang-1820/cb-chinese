@@ -1,5 +1,5 @@
 import type { Deps } from "./util.ts";
-import { DEFAULT_FALLBACK, DEFAULT_MODEL, adminOk, clientIp, noteFail, reply, str, tooManyFails } from "./util.ts";
+import { DEFAULT_FALLBACK, DEFAULT_MODEL, HAN, adminOk, clientIp, noteFail, reply, str, tooManyFails } from "./util.ts";
 import type { Lang } from "./prompts.ts";
 import { COMMON, S, langRule } from "./prompts.ts";
 import { CONF } from "./validate.ts";
@@ -12,6 +12,9 @@ export const VERDICTS = ["ok", "key_wrong", "typo", "translation", "ambiguous", 
 export const BAD_PATH = /(^|\.)(id|audio|length|__proto__|constructor|prototype)(\.|$)/;
 export const PATH_OK = /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+){0,3}$/;
 export const REF_OK = /^(drill|mock|gq|word|grammar):[A-Za-z0-9_.-]{1,24}(:\d{1,3})?$/;
+/* a shadowing sentence (the example sentence of one word) that the admin checked or hid: one row per sentence,
+   status "checked" or "hidden" (hidden rows also set quarantine, so every phone's "patches" download already skips them) */
+export const SAY_OK = /^say:[A-Za-z0-9_.-]{1,24}$/;
 
 export function cleanPatch(raw: any): { set: { path: string; value: string; from?: string }[] } {
   const list = Array.isArray(raw && raw.set) ? raw.set : [];
@@ -117,7 +120,7 @@ export async function adminStats(env: Record<string, string | undefined>, db: No
   return { at: new Date(now).toISOString(), ai, backups, reports };
 }
 
-/* Handles report / patches / review_list / review_decide / learners_list / learner_label / admin_stats. Returns null for the tasks handled elsewhere. */
+/* Handles report / patches / review_list / review_decide / learners_list / learner_label / admin_stats / say_list / say_mark. Returns null for the tasks handled elsewhere. */
 export const TOKEN_OK = /^[a-f0-9-]{36}$/;
 export function reportResult(v: any, token: string, turns: number) {
   return v ? { token, status: v.status, verdict: v.verdict, reasoning: v.reasoning, confidence: v.confidence, hasFix: v.patch.set.length > 0, quarantined: false, turns, canDiscuss: v.status !== "accepted" && turns < 5 }
@@ -125,7 +128,7 @@ export function reportResult(v: any, token: string, turns: number) {
 }
 
 export async function contentTask(task: string, body: any, req: Request, env: Record<string, string | undefined>, deps: Deps, h: Record<string, string>): Promise<Response | null> {
-  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide", "learners_list", "learner_label", "admin_stats", "admin_chat_get", "admin_chat_send", "admin_chat_delete", "admin_broadcast"].indexOf(task) < 0) return null;
+  if (["report", "report_accept", "report_discuss", "patches", "review_list", "review_decide", "learners_list", "learner_label", "admin_stats", "admin_chat_get", "admin_chat_send", "admin_chat_delete", "admin_broadcast", "say_list", "say_mark"].indexOf(task) < 0) return null;
   if (!deps.db) return reply(500, { ok: false, error: "not_configured" }, h);
   const lang: Lang = body.lang === "vi" || body.lang === "en" ? body.lang : "both";
   const p = body.payload && typeof body.payload === "object" ? body.payload : {};
@@ -133,7 +136,9 @@ export async function contentTask(task: string, body: any, req: Request, env: Re
     if (task === "patches") {
       const acc = await deps.db("GET", "content_reports?select=id,ref,patch&status=eq.accepted&order=id.asc&limit=500");
       const hid = await deps.db("GET", "content_reports?select=ref&quarantine=is.true&order=id.desc&limit=500");
-      return reply(200, { ok: true, task, result: { patches: (acc || []).map((r: any) => ({ id: r.id, ref: r.ref, set: cleanPatch(r.patch).set })).filter((r: any) => r.set.length), hidden: Array.from(new Set((hid || []).map((r: any) => r.ref))) } }, h);
+      let chk: any[] = []; try { chk = await deps.db("GET", "content_reports?select=ref,snapshot&status=eq.checked&order=id.desc&limit=1000") || []; } catch (_e) { chk = []; }
+      const checked = chk.filter((r: any) => r && SAY_OK.test(r.ref) && r.snapshot && typeof r.snapshot.zh === "string").map((r: any) => ({ ref: r.ref, zh: str(r.snapshot.zh, 200) }));
+      return reply(200, { ok: true, task, result: { patches: (acc || []).map((r: any) => ({ id: r.id, ref: r.ref, set: cleanPatch(r.patch).set })).filter((r: any) => r.set.length), hidden: Array.from(new Set((hid || []).map((r: any) => r.ref))), checked } }, h);
     }
     if (task === "report") {
       const c = cleanReport(p); if (typeof c === "string") return reply(400, { ok: false, error: c }, h);
@@ -186,6 +191,23 @@ export async function contentTask(task: string, body: any, req: Request, env: Re
         last_open: r.last_open || null, client: r.client || null, unread: un[r.id] || 0 })), live: liveCfg(env, await liveTopic("admin:" + (env.ADMIN_CODE || ""))) } }, h);
     }
     if (["admin_chat_get", "admin_chat_send", "admin_chat_delete", "admin_broadcast"].indexOf(task) >= 0) return await chatAdmin(task, p, env, deps, h);
+    // Shadowing sentences: the admin's marks, and open learner reports on words (a sentence report is a word: report)
+    if (task === "say_list") {
+      const marks = await deps.db("GET", "content_reports?select=ref,status,snapshot,decided_at&ref=like.say:*&status=in.(checked,hidden)&order=id.desc&limit=1000");
+      const reps = await deps.db("GET", "content_reports?select=ref,note,status,created_at&ref=like.word:*&status=in.(new,proposed,needs_review,dismissed)&order=id.desc&limit=200");
+      return reply(200, { ok: true, task, result: {
+        marks: (marks || []).filter((r: any) => r && SAY_OK.test(r.ref)).map((r: any) => ({ ref: r.ref, status: r.status, zh: r.snapshot && typeof r.snapshot.zh === "string" ? str(r.snapshot.zh, 200) : "", at: r.decided_at || null })),
+        reports: (reps || []).filter((r: any) => r && REF_OK.test(r.ref)).map((r: any) => ({ ref: r.ref, note: str(r.note, 500), status: r.status, at: r.created_at || null })) } }, h);
+    }
+    if (task === "say_mark") {
+      const ref = str(p.ref, 40), mark = ["checked", "hidden", "clear"].indexOf(p.mark) >= 0 ? p.mark : "", zh = str(p.zh, 200);
+      if (!SAY_OK.test(ref)) return reply(400, { ok: false, error: "bad_ref" }, h);
+      if (!mark) return reply(400, { ok: false, error: "bad_decision" }, h);
+      if (mark !== "clear" && !HAN.test(zh)) return reply(400, { ok: false, error: "bad_snapshot" }, h);
+      await deps.db("DELETE", "content_reports?ref=eq." + encodeURIComponent(ref) + "&status=in.(checked,hidden)");
+      if (mark !== "clear") await deps.db("POST", "content_reports", { ref, route: "#/shadow", note: "sentence check", snapshot: { zh }, status: mark, quarantine: mark === "hidden", decided_at: new Date().toISOString(), decision_note: "sentence " + mark });
+      return reply(200, { ok: true, task, result: { ref, mark } }, h);
+    }
     if (task === "learner_label") {
       const lid = str(p.id, 64); if (!/^[a-f0-9]{64}$/.test(lid)) return reply(400, { ok: false, error: "bad_id" }, h);
       const cur = await deps.db("GET", "learners?id=eq." + lid + "&select=meta&limit=1"); if (!cur || !cur[0]) return reply(404, { ok: false, error: "no_backup" }, h);

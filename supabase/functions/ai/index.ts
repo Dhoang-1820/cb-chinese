@@ -30,7 +30,7 @@
      GROQ_MODEL          optional, default llama-3.3-70b-versatile
      ALLOWED_ORIGINS     optional, comma-separated, default https://dhoang-1820.github.io
      ADMIN_CODE          optional — turns on the content review screen (accept / reject / hide). 12+ random characters.
-                         Admin-only tasks: review_list, review_decide, learners_list, learner_label and admin_stats
+                         Admin-only tasks: review_list, review_decide, learners_list, learner_label, admin_stats, say_list and say_mark
                          (AI calls today against the cap and for the last 14 days, backups against the limit, reports waiting)
      AI_REPORT_CAP       optional, default 10 problem reports per rolling 24 hours (each one costs two AI calls)
      SYNC_MAX_LEARNERS   optional, default 20 — how many phones may keep a progress backup (see sync_put below)

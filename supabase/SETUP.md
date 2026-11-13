@@ -105,6 +105,14 @@ with a backup against `SYNC_MAX_LEARNERS`, how many did not save for 3 or more d
 It needs the current `index.ts` (admin-only task `admin_stats`, which only reads `ai_usage`, `learners.updated_at` and
 `content_reports.status`). No SQL change. With an older function the block is simply not shown.
 
+## Shadowing sentence check (added November 2026)
+
+Me → Content review → 🗣️ Sentences lists every sentence shadowing can use. The admin marks one **Correct** (learners
+then see "checked by a person") or **Hide** (never used again). Each mark is one `content_reports` row with
+`ref = say:<word id>` and `status` `checked` or `hidden` (hidden also sets `quarantine`, so phones skip it through the
+existing `patches` download). Admin-only tasks `say_list` and `say_mark`; `patches` now also returns `checked`.
+No SQL change. With an older function the Sentences tab shows an error and shadowing works as before.
+
 ## Question bank and hardest questions (added October 2026)
 
 Run the newest `supabase/setup.sql` once (it adds `bank_items`, `auth_links` and `auth_tickets`; running it again is safe).

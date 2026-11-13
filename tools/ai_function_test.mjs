@@ -604,4 +604,41 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
     /create table if not exists public\.ai_usage_learner/.test(sql) && /function public\.bump_ai_usage_learner\(learner text, cap integer, total_cap integer\)/.test(sql) && /grant execute on function public\.bump_ai_usage_learner\(text, integer, integer\) to service_role/.test(sql) && /enable row level security/.test(sql));
 }
 
+// shadowing sentences: the admin marks one checked or hidden; every phone gets the marks through "patches"
+{
+  const senv = { GEMINI_API_KEY: "k", ADMIN_CODE: "admin-code-12345" };
+  const rows = []; let nid = 1;
+  const sdb = async (method, path, body) => {
+    const q = new URLSearchParams(path.split("?")[1] || "");
+    const keep = (r) => [...q.entries()].every(([k, v]) => { if (["select", "order", "limit"].includes(k)) return true; const [op, ...rest] = v.split("."), val = rest.join(".");
+      return op === "eq" ? String(r[k]) === val : op === "in" ? val.replace(/[()]/g, "").split(",").includes(String(r[k])) : op === "is" ? (val === "true" ? r[k] === true : r[k] == null)
+        : op === "like" ? String(r[k]).startsWith(val.replace(/\*$/, "")) : true; });
+    if (method === "POST") { rows.push({ id: nid++, ...body }); return null; }
+    if (method === "DELETE") { rows.filter(keep).forEach((r) => rows.splice(rows.indexOf(r), 1)); return null; }
+    return JSON.parse(JSON.stringify(rows.filter(keep)));
+  };
+  const deps = { fetch: async () => ({ ok: false }), bump: async () => 1, db: sdb }, A = { "x-admin-code": "admin-code-12345" };
+  const call = async (body, h = {}) => { const r = await fn.handle(req(body, h), senv, deps); return { status: r.status, j: await r.json() }; };
+  let x = await call({ task: "say_mark", payload: { ref: "say:d01-01", mark: "checked", zh: "我们公司很大。" } });
+  t("say_mark without the admin code → 401", x.status === 401 && rows.length === 0);
+  x = await call({ task: "say_mark", payload: { ref: "word:d01-01", mark: "checked", zh: "我们公司很大。" } }, A);
+  t("say_mark: only say: refs", x.status === 400 && x.j.error === "bad_ref");
+  x = await call({ task: "say_mark", payload: { ref: "say:d01-01", mark: "checked", zh: "<b>x</b>" } }, A);
+  t("say_mark: the sentence must be Chinese", x.status === 400);
+  x = await call({ task: "say_mark", payload: { ref: "say:d01-01", mark: "checked", zh: "我们公司很大。" } }, A);
+  await call({ task: "say_mark", payload: { ref: "say:d01-02", mark: "hidden", zh: "他长得很高。" } }, A);
+  t("say_mark saves one row per sentence (hidden = quarantine)", x.j.ok && rows.length === 2 && rows[0].status === "checked" && !rows[0].quarantine && rows[1].quarantine === true, JSON.stringify(rows));
+  x = await call({ task: "patches", payload: {} });
+  t("patches: checked sentences with their text, hidden ones in hidden", x.j.ok && x.j.result.checked.length === 1 && x.j.result.checked[0].zh === "我们公司很大。" && x.j.result.hidden.includes("say:d01-02"), JSON.stringify(x.j));
+  await call({ task: "say_mark", payload: { ref: "say:d01-01", mark: "hidden", zh: "我们公司很大。" } }, A);
+  t("marking again replaces the old mark", rows.filter((r) => r.ref === "say:d01-01").length === 1 && rows.find((r) => r.ref === "say:d01-01").status === "hidden");
+  await call({ task: "say_mark", payload: { ref: "say:d01-01", mark: "clear" } }, A);
+  t("clear removes the mark", !rows.some((r) => r.ref === "say:d01-01"));
+  rows.push({ id: nid++, ref: "word:d01-02", note: "the voice says zhǎng wrong", status: "needs_review" }, { id: nid++, ref: "word:d01-03", note: "fixed", status: "accepted" });
+  x = await call({ task: "say_list", payload: {} });
+  t("say_list needs the admin code", x.status === 401);
+  x = await call({ task: "say_list", payload: {} }, A);
+  t("say_list: the marks and the open word reports", x.j.ok && x.j.result.marks.length === 1 && x.j.result.marks[0].ref === "say:d01-02" && x.j.result.reports.length === 1 && x.j.result.reports[0].note.includes("zhǎng"), JSON.stringify(x.j));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

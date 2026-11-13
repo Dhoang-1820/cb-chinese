@@ -246,9 +246,9 @@
       document.getElementById("fx-save").onclick = function () { var v = document.getElementById("fx-code").value.trim(); if (v.length < 12) { document.getElementById("fx-msg").textContent = tx("At least 12 characters."); return; } Content.setAdminCode(v); viewFixes(); };
       return;
     }
-    var tabs = [["proposed", tx("Proposed")], ["needs_review", tx("Needs a look")], ["dismissed", tx("AI disagreed")], ["accepted", tx("Accepted")], ["learners", "👥 " + tx("Learners")]];
+    var tabs = [["proposed", tx("Proposed")], ["needs_review", tx("Needs a look")], ["dismissed", tx("AI disagreed")], ["accepted", tx("Accepted")], ["say", "🗣️ " + tx("Sentences")], ["learners", "👥 " + tx("Learners")]];
     render(html0 + '<div id="fx-svc"></div><div class="fx-tabs">' + tabs.map(function (t) { return '<button class="btn small' + (t[0] === FIX_TAB ? " primary" : "") + '" data-fxtab="' + t[0] + '">' + t[1] + "</button>"; }).join("") + '</div><div id="fx-list"><p class="empty">' + tx("Loading…") + '</p></div><div class="actions"><button class="btn small" id="fx-forget">' + tx("Forget reviewer code") + '</button></div></section>', "me");
-    [].forEach.call(document.querySelectorAll("[data-fxtab]"), function (b) { b.onclick = function () { var t = b.getAttribute("data-fxtab"); if (t === "learners") { location.hash = "#/learners"; return; } FIX_TAB = t; viewFixes(); }; });
+    [].forEach.call(document.querySelectorAll("[data-fxtab]"), function (b) { b.onclick = function () { var t = b.getAttribute("data-fxtab"); if (t === "learners") { location.hash = "#/learners"; return; } if (t === "say") { location.hash = "#/say-check"; return; } FIX_TAB = t; viewFixes(); }; });
     document.getElementById("fx-forget").onclick = function () { Content.setAdminCode(""); viewFixes(); };
     var list = document.getElementById("fx-list");
     serviceBlock(document.getElementById("fx-svc"));

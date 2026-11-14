@@ -2705,7 +2705,7 @@ async def t_progress_go(b):
     ctx, pg = await open_app(b, None)
     await pg.wait_for_selector("#su-go")
     ex = await pg.input_value("#su-exam")
-    check("first run: the suggested exam date is never in the past", ex >= day(0), ex)
+    check("first run: the suggested exam date is never in the past, nor less than 2 weeks away", ex >= day(14), ex)
     await pg.click("#su-go"); await pg.wait_for_timeout(600)
     await pg.click("#today-go"); await pg.wait_for_timeout(1500)
     # The first step depends on the plan for that day (a flashcard deck, or near the exam e.g. "Type the Sentence"),

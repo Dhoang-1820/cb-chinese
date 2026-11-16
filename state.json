@@ -5,7 +5,7 @@
       "url": "https://www.chinesetest.cn/",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-11-09T07:39:39.385Z",
+      "lastChecked": "2026-11-16T07:39:29.134Z",
       "lines": 157,
       "cfg": "{\"links\":true,\"ignore\":[]}",
       "lastChanged": "2026-11-09T07:39:39.385Z"
@@ -14,7 +14,7 @@
       "url": "https://www.chinesetest.cn/HSK",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-11-09T07:39:39.385Z",
+      "lastChecked": "2026-11-16T07:39:29.134Z",
       "lines": 136,
       "cfg": "{\"links\":true,\"ignore\":[]}",
       "lastChanged": "2026-11-09T07:39:39.385Z"
@@ -23,7 +23,7 @@
       "url": "https://www.chinesetest.cn/HSK/4",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-11-09T07:39:39.385Z",
+      "lastChecked": "2026-11-16T07:39:29.134Z",
       "lines": 157,
       "cfg": "{\"links\":true,\"ignore\":[]}",
       "lastChanged": "2026-11-09T07:39:39.385Z"
@@ -32,7 +32,7 @@
       "url": "https://www.chinesetest.cn/news",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-11-09T07:39:39.385Z",
+      "lastChecked": "2026-11-16T07:39:29.134Z",
       "lines": 99,
       "cfg": "{\"links\":true,\"ignore\":[]}",
       "lastChanged": "2026-11-09T07:39:39.385Z"
@@ -41,7 +41,7 @@
       "url": "https://www.chinesetest.cn/news/50278989",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-11-09T07:39:39.385Z",
+      "lastChecked": "2026-11-16T07:39:29.134Z",
       "lines": 100,
       "cfg": "{\"links\":true,\"ignore\":[]}",
       "lastChanged": "2026-11-09T07:39:39.385Z"
@@ -57,7 +57,7 @@
       "url": "http://www.moe.gov.cn/jyb_xwfb/gzdt_gzdt/s5987/202103/t20210329_523304.html",
       "failures": 0,
       "failureReported": false,
-      "lastChecked": "2026-11-09T07:39:39.385Z",
+      "lastChecked": "2026-11-16T07:39:29.134Z",
       "lines": 45,
       "lastChanged": "2026-10-26T05:46:44.766Z",
       "cfg": "{\"links\":false,\"ignore\":[\"网站地图\"]}"
@@ -67,9 +67,9 @@
       "failures": 0,
       "failureReported": false,
       "cfg": "{\"links\":true,\"ignore\":[]}",
-      "lastChecked": "2026-11-09T07:39:39.385Z",
+      "lastChecked": "2026-11-16T07:39:29.134Z",
       "lines": 100
     }
   },
-  "lastRun": "2026-11-09T07:39:39.385Z"
+  "lastRun": "2026-11-16T07:39:29.134Z"
 }

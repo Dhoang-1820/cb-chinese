@@ -152,7 +152,8 @@
     var w = WORDMAP[id]; if (!w) return;
     var c = SRS.get(id);
     [].forEach.call(document.querySelectorAll(".modal-wrap"), function (m) { if (m.querySelector(".wsheet")) m.remove(); }); // a word opened from another word's sheet replaces it
-    UI.modal('<div class="wsheet"><div class="ws-top"><span class="hz big zh">' + esc(w.hanzi) + "</span>" + SAY(w.hanzi, null, true) + "</div>" +
+    UI.modal('<div class="wsheet"><div class="ws-top"><span class="hz big zh">' + charLinks(w.hanzi, w.id) + "</span>" + SAY(w.hanzi, null, true) + "</div>" +
+      '<p class="ws-chhint sub">' + tx("Tap a character to see how it is built") + "</p>" +
       '<p class="ws-py">' + esc(w.pinyin) + '</p><div class="ws-mean">' + M(w) + "</div>" + levelBadge(w.level) +
       (w.example ? '<div class="ws-ex"><span class="zh">' + esc(w.example.zh) + "</span>" + SAY(w.example.zh) + '<div class="dim">' + M(w.example) + "</div></div>" : "") +
       '<div class="w-x ws-x" data-wx="' + esc(w.id) + '">' + wordExtras(w) + "</div>" +
@@ -161,6 +162,9 @@
       (window.AI && AI.configured() ? '<div class="ws-ask" id="ws-ask"><button class="btn small ai-btn" id="ws-askbtn">🤖 ' + tx("Ask AI about this word") + '</button></div>' : "") +
       '<div class="ws-ask"><button class="btn small" id="ws-report">⚑ ' + tx("Report a problem with this word") + '</button></div></div>');
     fillExtras();
+    [].forEach.call(document.querySelectorAll(".wsheet .ch-link"), function (a) { // the character card replaces the sheet
+      a.addEventListener("click", function () { var m = a.closest(".modal-wrap"); if (m) m.remove(); });
+    });
     var wrb = document.getElementById("ws-report");
     if (wrb) wrb.onclick = function () { openReport({ ref: "word:" + id, label: w.hanzi + " · " + w.pinyin }); };
     var ab = document.getElementById("ws-askbtn");

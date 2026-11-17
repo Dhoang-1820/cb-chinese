@@ -37,6 +37,7 @@
       warm: {},       // date -> 1 when the exam-morning warm-up was started
       speak: {},      // date -> sentences said aloud in shadowing (last 60 days)
       speakSeen: [],  // word ids whose example sentence was shadowed, oldest first (max 300): new ones come first next time
+      charNotes: {},  // character -> { t: the learner's own memory tip (max 300 chars, "" = removed), at: when saved (ms) }; max 500
       fb: [],         // how Today's session felt, one per day (max 60): [{ d: date, r: 1 too hard | 2 just right | 3 too easy }]   // ids of shared-bank questions already practised (so the next round brings new ones)
       weekGoal: {},   // week-start date -> true once that week's study-days goal was met
       patternHide: {}, // pattern signature -> date it was dismissed (hidden for the rest of that day)
@@ -190,6 +191,11 @@
     Object.keys(spk).filter(function (x) { return D8.test(x); }).sort().slice(-60).forEach(function (x) { var v = Math.max(0, Math.min(500, Math.round(n(spk[x])))); if (v) spOut[x] = v; });
     d.speak = spOut;
     d.speakSeen = (Array.isArray(d.speakSeen) ? d.speakSeen : []).filter(function (x) { return typeof x === "string" && x.length <= 20; }).slice(-300);
+    var cn = d.charNotes && typeof d.charNotes === "object" && !Array.isArray(d.charNotes) ? d.charNotes : {}, cnOut = {};
+    Object.keys(cn).filter(function (k) { return /^[\u3400-\u9fff]$/.test(k) && cn[k] && typeof cn[k] === "object"; })
+      .sort(function (a, b) { return n(cn[b].at) - n(cn[a].at); }).slice(0, 500)
+      .forEach(function (k) { cnOut[k] = { t: String(cn[k].t || "").slice(0, 300), at: Math.max(0, Math.round(n(cn[k].at))) }; });
+    d.charNotes = cnOut;
     var fbSeen = {};
     d.fb = (Array.isArray(d.fb) ? d.fb : []).filter(function (e) { return e && D8.test(e.d) && [1, 2, 3].indexOf(e.r) >= 0; }).reverse()
       .filter(function (e) { if (fbSeen[e.d]) return false; fbSeen[e.d] = 1; return true; }).reverse().slice(-60).map(function (e) { return { d: e.d, r: e.r }; });
@@ -427,6 +433,8 @@
     out.custom = uni(L.custom, R.custom, function (x) { return x.id; });
     each(R.speak, function (d, v) { out.speak[d] = mx(out.speak[d], v); });
     out.speakSeen = uni(L.speakSeen, R.speakSeen, function (x) { return x; }, 300);
+    out.charNotes = {}; // the newer tip wins per character (an empty tip is a removal, so it syncs too)
+    [L.charNotes || {}, R.charNotes || {}].forEach(function (src) { each(src, function (k, v) { if (v && (!out.charNotes[k] || n(v.at) > n(out.charNotes[k].at))) out.charNotes[k] = v; }); });
     out.fb = uni(L.fb, R.fb, function (x) { return x.d; }, 60, function (x) { return x.d; });
     out.bankSeen = uni(L.bankSeen, R.bankSeen, function (x) { return x; }, 2000);
     out.fcAtExam = L.fcAtExam || R.fcAtExam; out.afterFor = String(L.afterFor || "") > String(R.afterFor || "") ? L.afterFor : R.afterFor;

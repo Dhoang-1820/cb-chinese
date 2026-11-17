@@ -10,7 +10,7 @@ Nothing here depends on today's date: exam dates and study logs are set relative
 The script exits with 1 when any check fails.
 """
 import asyncio
-import re, datetime, itertools, json, os, sys, urllib.request
+import re, datetime, itertools, json, os, sys, urllib.request, urllib.parse
 from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 
 BASE = os.environ.get("BASE", "http://localhost:8766/")
@@ -2628,6 +2628,71 @@ async def t_saycheck(b):
     await ctx.close()
 
 
+async def t_char(b):
+    """Character card: strokes coloured by part, Hán Việt, parts, sound hint, origin, memory tip, links from the word sheet."""
+    ctx, pg = await open_app(b, {"settings": settings(lang="vi", uiLang="vi"), "srs": {}}, ui="vi")
+    await go(pg, "#/char/" + urllib.parse.quote("详"), 300)
+    await pg.wait_for_selector(".cc-head", timeout=15000)
+    head = await pg.inner_text(".cc-head")
+    check("char: pinyin, Hán Việt and stroke count", "xiáng" in head and "tường" in head and "8 nét" in head, head)
+    roles = await pg.evaluate("[...document.querySelectorAll('.cc-svg .cc-st')].map(p=>p.classList[1]).join(',')")
+    check("char: the 8 strokes are drawn, meaning part and sound part coloured", roles == ",".join(["r-s"] * 2 + ["r-p"] * 6), roles)
+    check("char: the legend names the sound part 羊 and the meaning part 讠", "Phần âm 羊" in head.replace("\n", " ") and "Phần ý 讠" in head.replace("\n", " "), head)
+    parts = await pg.evaluate("[...document.querySelectorAll('.cc-part')].map(p=>p.innerText.replace(/\\s+/g,' '))")
+    check("char: two part cards: 讠 meaning part (ngôn, lời nói) and 羊 sound part (dương)", len(parts) == 2 and "Phần ý" in parts[0] and "ngôn" in parts[0] and "lời nói" in parts[0] and "Phần âm" in parts[1] and "dương" in parts[1], parts)
+    sec = await pg.inner_text("#cc-body")
+    check("char: structure says hình thanh · trái – phải", "hình thanh · trái – phải" in sec)
+    check("char: sound hint compares yáng → xiáng and dương → tường", "yáng" in sec and "dương" in sec and "Gợi ý âm đọc" in sec)
+    check("char: the verdict sees the shared rhyme -iang", "Cùng vần -iang" in sec, sec[sec.find("Gợi ý"):][:300])
+    check("char: origin from the data, and the made-up tip is labelled", "Chữ hình thanh: 讠 (lời nói) chỉ nghĩa, 羊 (yáng) gợi âm." in sec and "tự sáng tác, không phải lịch sử" in sec)
+    check("char: words with 详 include 详细", "详细" in await pg.inner_text(".cc-words"))
+    check("char: no script errors", not page_errors, page_errors[-3:])
+    # replay draws the strokes in order (one animated path per stroke)
+    await pg.click("#cc-replay"); await pg.wait_for_timeout(200)
+    check("char: replay animates every stroke", await pg.locator(".cc-svg .cc-anim").count() == 8 and await pg.locator(".cc-svg .cc-ghost").count() == 8)
+    # memory tip: use the draft, edit it, save, it stays
+    draft = await pg.inner_text(".cc-draft")
+    check("char: a draft tip from the parts", "讠" in draft and "羊" in draft and "tường" in draft, draft)
+    await pg.click("#cc-use"); await pg.wait_for_selector("#cc-ta")
+    check("char: Use this one opens the draft for editing", (await pg.input_value("#cc-ta")) == draft)
+    await pg.fill("#cc-ta", "Nói kỹ về con cừu: tường tận.")
+    await pg.click("#cc-save"); await pg.wait_for_selector(".cc-mine")
+    note = await pg.evaluate("Store.state.charNotes['详']")
+    check("char: the learner's own tip is saved", note and note["t"] == "Nói kỹ về con cừu: tường tận." and note["at"] > 0, note)
+    await go(pg, "#/", 300); await go(pg, "#/char/" + urllib.parse.quote("详"), 300); await pg.wait_for_selector(".cc-mine", timeout=10000)
+    check("char: the saved tip shows next time", "con cừu" in await pg.inner_text(".cc-mine"))
+    await pg.click("#cc-del"); await pg.wait_for_selector(".cc-draft")
+    check("char: removing the tip keeps a removal mark (so it syncs) and shows the draft again", (await pg.evaluate("Store.state.charNotes['详'].t")) == "")
+    # an ideographic character: parts coloured by position, origin hint
+    await go(pg, "#/char/" + urllib.parse.quote("好"), 300); await pg.wait_for_selector(".cc-head", timeout=10000)
+    sec = await pg.inner_text("#cc-body")
+    r2 = await pg.evaluate("[...new Set([...document.querySelectorAll('.cc-svg .cc-st')].map(p=>p.classList[1]))].join(',')")
+    check("char: 好 = 女 + 子, hội ý, coloured by part, with the origin hint", "hội ý" in sec and await pg.locator(".cc-part").count() == 2 and r2 == "r-0,r-1" and "A woman" in sec and "Gợi ý âm đọc" not in sec, [r2, sec[:200]])
+    # from the word sheet: each character links to its card, tabs switch without stacking history
+    await go(pg, "#/review", 300)
+    await pg.evaluate("App._openWord('d02-07')"); await pg.wait_for_selector(".wsheet .ch-link")
+    check("word sheet: each character of 详细 links to its card", await pg.locator(".wsheet .ch-link").count() == 2)
+    await pg.click(".wsheet .ch-link >> nth=0"); await pg.wait_for_selector(".cc-head", timeout=10000)
+    h = await pg.evaluate("decodeURIComponent(location.hash)")
+    check("word sheet: tapping 详 opens its card with the word's characters as tabs, sheet closed", h == "#/char/详/d02-07" and await pg.locator(".cc-tab").count() == 2 and await pg.locator(".wsheet").count() == 0, h)
+    hl = await pg.evaluate("history.length")
+    await pg.click(".cc-tab >> nth=1"); await pg.wait_for_function("decodeURIComponent(location.hash)==='#/char/细/d02-07'", timeout=10000); await pg.wait_for_selector(".cc-head", timeout=10000)
+    check("char tabs: 细 replaces 详 (no extra back step)", (await pg.evaluate("history.length")) == hl and "xì" in await pg.inner_text(".cc-head"))
+    await pg.click("#cc-back"); await pg.wait_for_timeout(700)
+    check("char: back returns to the page and reopens the word sheet", (await pg.evaluate("location.hash")) == "#/review" and await pg.locator(".wsheet").count() == 1)
+    # English: no Hán Việt
+    await pg.evaluate("Store.state.settings.lang='en';Store.state.settings.uiLang='en';localStorage.setItem('cbChinese.uiLang','en');Store.save();0")
+    await go(pg, "#/", 200); await go(pg, "#/char/" + urllib.parse.quote("详"), 300); await pg.wait_for_selector(".cc-head", timeout=10000)
+    sec = await pg.inner_text("#cc-body")
+    check("char (English): sound part wording, no Hán Việt row", "Sound part" in sec and "Hán Việt" not in sec and "tường" not in sec, sec[:300])
+    # not a character / no data
+    await go(pg, "#/char/abc", 400)
+    check("char: a bad address goes Home", (await pg.evaluate("location.hash")) in ("#/", ""))
+    await go(pg, "#/char/" + urllib.parse.quote("龘"), 600)
+    check("char: a character without data still shows a simple card", await pg.locator(".cc-big").count() == 1 and not page_errors, page_errors[-2:])
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5),
           ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync),
           ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip),
@@ -2635,7 +2700,7 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
-          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood), ("speak", t_speak), ("saycheck", t_saycheck)]
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood), ("speak", t_speak), ("saycheck", t_saycheck), ("char", t_char)]
 
 
 async def t_phrases(b):

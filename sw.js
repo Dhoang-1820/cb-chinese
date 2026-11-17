@@ -94,8 +94,9 @@ self.addEventListener("fetch", function (e) {
     return;
   }
 
-  // Reader dictionary (optional download): cache-first, kept across app versions. A new edition gets a new file name.
-  if (url.origin === location.origin && /\/vendor\/dict\/[^/]+\.js$/.test(url.pathname)) {
+  // Reader dictionary and character-card data (downloaded on first use): cache-first, kept across app versions.
+  // A new edition gets a new file name.
+  if (url.origin === location.origin && /\/vendor\/(dict|chars)\/[^/]+\.js$/.test(url.pathname)) {
     e.respondWith(caches.open("cb-dict").then(function (c) {
       return c.match(req).then(function (hit) {
         return hit || fetch(req).then(function (r) { if (r.ok) c.put(req, r.clone()); return r; });

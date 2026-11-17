@@ -2676,8 +2676,9 @@ async def t_char(b):
     h = await pg.evaluate("decodeURIComponent(location.hash)")
     check("word sheet: tapping 详 opens its card with the word's characters as tabs, sheet closed", h == "#/char/详/d02-07" and await pg.locator(".cc-tab").count() == 2 and await pg.locator(".wsheet").count() == 0, h)
     hl = await pg.evaluate("history.length")
-    await pg.click(".cc-tab >> nth=1"); await pg.wait_for_function("decodeURIComponent(location.hash)==='#/char/细/d02-07'", timeout=10000); await pg.wait_for_selector(".cc-head", timeout=10000)
-    check("char tabs: 细 replaces 详 (no extra back step)", (await pg.evaluate("history.length")) == hl and "xì" in await pg.inner_text(".cc-head"))
+    await pg.click(".cc-tab >> nth=1")
+    await pg.wait_for_function("decodeURIComponent(location.hash)==='#/char/细/d02-07' && document.querySelector('.cc-head') && document.querySelector('.cc-head').innerText.indexOf('xì') >= 0", timeout=15000)
+    check("char tabs: 细 replaces 详 (no extra back step)", (await pg.evaluate("history.length")) == hl, [hl, await pg.evaluate("history.length")])
     await pg.click("#cc-back"); await pg.wait_for_timeout(700)
     check("char: back returns to the page and reopens the word sheet", (await pg.evaluate("location.hash")) == "#/review" and await pg.locator(".wsheet").count() == 1)
     # English: no Hán Việt

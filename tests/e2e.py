@@ -2739,6 +2739,75 @@ async def t_char(b):
     await ctx.close()
 
 
+FAKE_SR = """window.__srStarts = 0; window.__say = null;
+window.SpeechRecognition = function () { var self = this;
+  this.start = function () { window.__srStarts++; setTimeout(function () { var said = window.__say; window.__say = null;
+    if (said) { var r = [{ transcript: said }]; r.isFinal = true; if (self.onresult) self.onresult({ results: [r] }); }
+    else if (self.onerror) self.onerror({ error: "no-speech" });
+    if (self.onend) self.onend(); }, 80); };
+  this.stop = function () {}; this.abort = function () {}; };0"""
+
+
+async def t_freetalk(b):
+    """Free talk with AI: any topic, partner, level; voice mode (mic opens by itself, text hidden); say it in Vietnamese
+    with what the phone heard against it; the end report."""
+    ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
+    await go(pg, "#/", 300); await pg.evaluate(FAKE_SR)
+    await go(pg, "#/freetalk", 500)
+    check("freetalk: setup with 10 topic chips, partners, levels, corrections and voice mode", await pg.locator("[data-ft-topic]").count() == 10 and await pg.locator("[data-ft-partner]").count() == 4
+          and await pg.locator("[data-ft-level]").count() == 3 and await pg.locator("[data-ft-fix]").count() == 3 and await pg.locator("#ft-voice").count() == 1)
+    await pg.click("#ft-go"); await pg.wait_for_timeout(300)
+    check("freetalk: a topic is needed to start", await pg.locator("#ft-topic").count() == 1)
+    await pg.click("[data-ft-topic='Travel']"); await pg.click("[data-ft-partner='teacher']"); await pg.click("[data-ft-level='hsk3']")
+    check("freetalk: a topic chip fills the topic box", (await pg.input_value("#ft-topic")) == "Travel")
+    await pg.click("#ft-go")
+    await pg.wait_for_selector(".tb-ai.ft-hid", timeout=10000)
+    check("voice mode: the AI's opening is spoken with the text hidden (Show text, Play again, Slow)", await pg.locator(".tb-ai.ft-hid [data-ft='show']").count() == 1 and await pg.locator(".tb-ai [data-ft='slow']").count() == 1)
+    await pg.wait_for_function("window.__srStarts >= 1", timeout=5000)
+    check("voice mode: the mic opens by itself after the AI speaks", (await pg.evaluate("window.__srStarts")) >= 1)
+    await pg.click(".tb-ai [data-ft='show']")
+    check("freetalk: Show text reveals the reply about the learner's topic", "Travel" in await pg.inner_text(".tb-ai >> nth=0"))
+    prefs = await pg.evaluate("JSON.parse(localStorage.getItem('cbChinese.freetalk'))")
+    check("freetalk: the choices are remembered", prefs["topic"] == "Travel" and prefs["partner"] == "teacher" and prefs["level"] == "hsk3" and prefs["voice"] is True, prefs)
+    # an answer by voice: sent when the learner stops, corrected under it
+    await pg.evaluate("window.__say = '我去爬山';0"); await pg.click("#ft-talk")
+    await pg.wait_for_function("document.querySelectorAll('.tb-ai').length >= 2 && !document.querySelector('.tb-ai:last-child').textContent.startsWith('…')", timeout=10000)
+    me = await pg.inner_text(".tb-me >> nth=0")
+    check("voice: the spoken answer is sent and corrected", "🎤 我去爬山" in me and "我想去" in me and (await pg.inner_text("#ft-n")) == "1", me)
+    # stuck: say it in Vietnamese -> the Chinese -> say it -> what the phone heard
+    await pg.click("#ft-vi"); await pg.fill("#ft-vi-in", "Tôi muốn đi leo núi cuối tuần"); await pg.click("#ft-vi-go")
+    await pg.wait_for_selector(".ft-sug", timeout=10000)
+    check("say it in Vietnamese: the Chinese with pinyin, to say aloud", "我周末想去爬山" in await pg.inner_text(".ft-sug"))
+    await pg.evaluate("window.__say = '我周末想去八山';0"); await pg.click("#ft-talk")
+    await pg.wait_for_selector(".tb-me >> nth=1", timeout=10000); await pg.wait_for_selector(".tb-me:nth-of-type(n) .ft-heard", timeout=10000)
+    heard = await pg.inner_text(".ft-heard")
+    miss = await pg.evaluate("[...document.querySelectorAll('.ft-heard .ft-miss')].map(m=>m.textContent).join('')")
+    check("heard as: the character the phone did not hear is marked (爬 heard as 八)", miss == "爬" and "1 not heard" in heard and await pg.locator("#ft-say").is_hidden(), [miss, heard])
+    await pg.wait_for_function("document.querySelectorAll('.tb-ai').length >= 3", timeout=10000)
+    await pg.evaluate("window.__say = '我喜欢旅游';0"); await pg.click("#ft-talk")
+    await pg.wait_for_selector("#ft-fin:not([hidden])", timeout=10000)
+    await pg.wait_for_function("document.querySelectorAll('.tb-ai').length >= 4 && !document.querySelector('#ft-log > :last-child').textContent.startsWith('…')", timeout=10000)
+    await pg.click("#ft-fin"); await pg.wait_for_selector(".talk-end", timeout=10000)
+    end = await pg.inner_text(".talk-end")
+    log = await pg.evaluate("(Store.state.talkLog||[]).slice(-1)[0]")
+    check("finish: score, comment, corrections to remember and a phrase; logged as a free talk", "7/10" in end and "To remember" in end and "我想去" in end and "听起来不错" in end and log and log["id"] == "free" and log["l"] == 3, [end, log])
+    check("finish: the reply box is gone", await pg.locator("#ft-in").is_hidden())
+    # without voice mode: text shown, a mic button that only fills the box
+    await go(pg, "#/games", 200); await go(pg, "#/freetalk", 400)
+    await pg.uncheck("#ft-voice"); await pg.click("#ft-go")
+    await pg.wait_for_selector(".tb-ai .zh", timeout=10000)
+    check("typing mode: the reply text is shown, no Tap to talk, a 🎤 button instead", await pg.locator(".tb-ai.ft-hid").count() == 0 and await pg.locator("#ft-talk").count() == 0 and await pg.locator("#ft-mic").count() == 1)
+    await pg.evaluate("window.__say = '我也喜欢';0"); await pg.click("#ft-mic"); await pg.wait_for_timeout(400)
+    check("typing mode: 🎤 fills the box for checking, it does not send", (await pg.input_value("#ft-text")) == "我也喜欢" and await pg.locator(".tb-me").count() == 0)
+    await pg.click("#ft-send"); await pg.wait_for_selector(".tb-me", timeout=10000)
+    check("typing mode: Send sends it", "我也喜欢" in await pg.inner_text(".tb-me"))
+    # Practice links to it
+    await go(pg, "#/games", 400)
+    check("practice: the Speaking section links to Free talk", await pg.locator(".speak-list a[href='#/freetalk']").count() == 1)
+    check("freetalk: no script errors", not page_errors, page_errors[-3:])
+    await ctx.close()
+
+
 GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_group), ("hsk5", t_hsk5), ("grammar5", t_grammar5),
           ("practice5", t_practice5), ("newgames", t_newgames), ("extras", t_extras), ("offline", t_offline), ("state", t_state), ("sync", t_sync),
           ("admin", t_admin), ("admin2", t_admin2), ("coach", t_coach), ("first_run", t_first_run), ("resume", t_resume), ("tip", t_tip),
@@ -2746,7 +2815,7 @@ GROUPS = [("prep", t_prep), ("writing2", t_writing2), ("admin_group", t_admin_gr
           ("hearts", t_hearts), ("reader", t_reader), ("a11y", t_a11y), ("crash", t_crash), ("contrast", t_contrast), ("talk", t_talk),
           ("pages", t_pages), ("track", t_track), ("engage", t_engage), ("mocks2", t_mocks2), ("knowledge2", t_knowledge2), ("practice2", t_practice2),
           ("sync_heal", t_sync_heal), ("chat", t_chat), ("simple", t_simple), ("boost", t_boost), ("aiplus", t_aiplus), ("examflow", t_examflow),
-          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood), ("speak", t_speak), ("saycheck", t_saycheck), ("char", t_char)]
+          ("quickui", t_quickui), ("sweep", t_sweep), ("vi", t_vi), ("split", t_split), ("mocks5", t_mocks5), ("lastgood", t_lastgood), ("speak", t_speak), ("saycheck", t_saycheck), ("char", t_char), ("freetalk", t_freetalk)]
 
 
 async def t_phrases(b):

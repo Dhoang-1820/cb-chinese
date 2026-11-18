@@ -11,7 +11,7 @@ export type Clean = { task: Task; lang: Lang; data: Record<string, unknown> };
 export function cleanInput(body: any): Clean | string {
   if (!body || typeof body !== "object") return "bad_request";
   const task = body.task as Task;
-  if (["grade", "explain", "ask", "coach", "weekly", "roleplay", "similar", "listen", "passage", "patterns", "draft"].indexOf(task) < 0) return "bad_task";
+  if (["grade", "explain", "ask", "coach", "weekly", "roleplay", "freetalk", "sayit", "similar", "listen", "passage", "patterns", "draft"].indexOf(task) < 0) return "bad_task";
   const lang: Lang = body.lang === "vi" || body.lang === "en" ? body.lang : "both";
   const p = body.payload && typeof body.payload === "object" ? body.payload : {};
   if (task === "grade") {
@@ -47,6 +47,27 @@ export function cleanInput(body: any): Clean | string {
     const learnerTurns = Math.max(told, hist.filter((h: any) => h.speaker === "learner").length + (text ? 1 : 0));
     return { task, lang, data: { character: sc.role, situation: sc.situation, company_rules: sc.rules, hidden_detail: sc.twists[pick(p.variant, sc.twists.length)],
       mood: MOODS[pick(p.mood, MOODS.length)], level: p.level === "hsk5" ? "hsk5" : "hsk4", related_topics: sc.topics, wrap_up: wrap, history: hist, learner_latest_message: text, learner_turns: Math.min(30, learnerTurns) } };
+  }
+  // free conversation on a topic the learner chooses (any language; it reaches the AI as data)
+  if (task === "freetalk") {
+    const topic = str(p.topic, 80).replace(/[\u0000-\u001f]/g, " ").trim();
+    if (!topic) return "empty_topic";
+    const hist = (Array.isArray(p.history) ? p.history : []).slice(-10).map((h: any) => ({ speaker: h && h.role === "me" ? "learner" : "partner", zh: str(h && h.zh, 160) })).filter((h: any) => h.zh);
+    const start = p.start === true && !hist.some((h: any) => h.speaker === "learner");
+    const wrap = !start && p.wrap === true && hist.some((h: any) => h.speaker === "learner");
+    const text = start ? "" : str(p.text, 120);
+    if (!start && !(wrap && !text) && (!text || !HAN.test(text))) return "empty_sentence";
+    const told = typeof p.turns === "number" && isFinite(p.turns) ? Math.max(0, Math.min(200, Math.round(p.turns))) : 0;
+    const words = (Array.isArray(p.words) ? p.words : []).slice(0, 12).map((w: unknown) => str(w, 8)).filter((w: string) => w && HAN.test(w));
+    return { task, lang, data: { topic, partner: ["friend", "colleague", "teacher", "interviewer"].indexOf(p.partner) >= 0 ? p.partner : "friend",
+      level: ["hsk3", "hsk4", "hsk5"].indexOf(p.level) >= 0 ? p.level : "hsk4", target_words: words, wrap_up: wrap, history: hist, learner_latest_message: text,
+      learner_turns: Math.max(told, hist.filter((h: any) => h.speaker === "learner").length + (text ? 1 : 0)) } };
+  }
+  // "say it in Vietnamese": the learner's idea in Vietnamese or English -> how to say it in Chinese
+  if (task === "sayit") {
+    const idea = str(p.text, 200).replace(/[\u0000-\u001f]/g, " ").trim();
+    if (!idea) return "empty_sentence";
+    return { task, lang, data: { idea, last_line: str(p.context, 160), level: ["hsk3", "hsk4", "hsk5"].indexOf(p.level) >= 0 ? p.level : "hsk4" } };
   }
   if (task === "weekly") {
     const n = (x: unknown, hi: number) => { const v = typeof x === "number" && isFinite(x) ? Math.round(x) : 0; return Math.max(0, Math.min(hi, v)); };
@@ -109,7 +130,7 @@ export function buildRequest(c: Clean) {
   return {
     systemInstruction: { parts: [{ text: systemPrompt(c.task, c.lang) }] },
     contents: [{ role: "user", parts: [{ text: JSON.stringify(c.data) }] }],
-    generationConfig: { temperature: c.task === "roleplay" ? 0.9 : ["similar", "listen", "passage"].indexOf(c.task) >= 0 ? 0.7 : c.task === "draft" ? 0.6 : 0.2, maxOutputTokens: 2048, responseMimeType: "application/json", responseSchema: SCHEMAS[c.task] }
+    generationConfig: { temperature: c.task === "roleplay" || c.task === "freetalk" ? 0.9 : c.task === "sayit" ? 0.3 : ["similar", "listen", "passage"].indexOf(c.task) >= 0 ? 0.7 : c.task === "draft" ? 0.6 : 0.2, maxOutputTokens: 2048, responseMimeType: "application/json", responseSchema: SCHEMAS[c.task] }
   };
 }
 
@@ -229,7 +250,12 @@ export function validateResult(task: Task, raw: any, input?: Record<string, unkn
     const tags = (Array.isArray(raw.tags) ? raw.tags : []).filter((t: unknown, i: number, a: unknown[]) => TAGS.indexOf(t as string) >= 0 && a.indexOf(t) === i).slice(0, 4);
     return { sentences, corrected_text: corrected, score, missing, tags, summary, confidence };
   }
-  if (task === "roleplay") {
+  if (task === "sayit") {
+    const zh = str(raw.zh, 60), pinyin = str(raw.pinyin, 200), meaning = str(raw.meaning, 300);
+    if (!HAN.test(zh) || !pinyin || !meaning) return null;
+    return { zh, pinyin, meaning, note: str(raw.note, 300), confidence };
+  }
+  if (task === "roleplay" || task === "freetalk") {
     const reply = ex(raw.reply); if (!reply || !HAN.test(reply.zh || "")) return null;
     const fb = raw.feedback && typeof raw.feedback === "object" ? raw.feedback : {};
     const sent = input ? String(input.learner_latest_message || "") : "";
@@ -241,7 +267,7 @@ export function validateResult(task: Task, raw: any, input?: Record<string, unkn
     if (!sent && !wrap) return { ...base, feedback: empty, done: false, summary: null }; // opening line
     const corrected = str(fb.corrected, 200) || sent, same = corrected === sent;
     let upgrade = str(fb.upgrade, 200); if (!HAN.test(upgrade) || upgrade === corrected || upgrade === sent) upgrade = "";
-    const done = wrap || (raw.done === true && turns >= 20);
+    const done = wrap || (task === "roleplay" && raw.done === true && turns >= 20); // free talk ends only when the learner says so
     let summary = null;
     if (done) {
       const sm = raw.summary && typeof raw.summary === "object" ? raw.summary : {};

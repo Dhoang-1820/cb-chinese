@@ -1677,3 +1677,30 @@ a.cc-part[href]:active { background: var(--surface-2); }
 .cc-tab { font: inherit; font-size: 1.5rem; cursor: pointer; }
 /* holding Chinese text opens its card, so iOS's copy menu and text selection are off there */
 .zh, .hz, :lang(zh) { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+/* ---------- Free talk with AI (#/freetalk) ---------- */
+.ft-h { font-size: .95rem; margin: 14px 0 6px; }
+.ft-topics { display: flex; flex-wrap: wrap; gap: 6px; }
+.ft-topics .chip.on, .ft-seg .chip.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+.ft-lab { display: block; margin: 10px 0 4px; font-size: .9rem; color: var(--muted); }
+#ft-topic, #ft-vi-in { width: 100%; box-sizing: border-box; font: inherit; font-size: 1rem; padding: 10px 12px; min-height: 44px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); }
+.ft-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.ft-voice { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+.ft-voice input { width: 22px; height: 22px; margin-top: 2px; flex: 0 0 auto; }
+.ft-setup #ft-go { margin-top: 12px; }
+.ft-talk { min-height: 56px; font-size: 1.1rem; margin: 6px 0; }
+.ft-talk.on { background: #d93a3a; border-color: #d93a3a; animation: ftPulse 1.2s ease-in-out infinite; }
+#ft-mic.on { color: #d93a3a; }
+@keyframes ftPulse { 50% { box-shadow: 0 0 0 8px rgba(217, 58, 58, .18); } }
+@media (prefers-reduced-motion: reduce) { .ft-talk.on { animation: none; } }
+.ft-hid .ft-body { display: none; }
+.ft-ctl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ft-ctl .chip { min-height: 36px; }
+.ft-say { margin: 6px 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.ft-sug-zh { font-size: 1.35rem; display: inline; margin-right: 6px; }
+.ft-heard { margin-top: 6px; font-size: .92rem; padding: 8px 10px; border-radius: 12px; background: var(--surface); color: var(--text); }
+.ft-heard .dim { color: var(--muted); }
+.ft-miss { background: transparent; color: #c62828; text-decoration: underline wavy #c62828; text-underline-offset: 3px; }
+:root[data-theme="dark"] .ft-miss { color: #ff8a80; text-decoration-color: #ff8a80; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ft-miss { color: #ff8a80; text-decoration-color: #ff8a80; } }
+.ft-fix { margin: 6px 0; text-align: left; }

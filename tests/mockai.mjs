@@ -52,6 +52,17 @@ const good = (c) => {
       { sentence: "这份工作____有意思。", options: ["很", "把", "被", "了"], answer: "0", explain: "很 + adjective." },
       { sentence: "no gap here", options: ["a"], answer: "9", explain: "dropped" }], confidence: "high" };
   }
+  if (props.zh && props.note && !props.reply) return { zh: "我周末想去爬山。", pinyin: "Wǒ zhōumò xiǎng qù páshān.", meaning: "I want to go hiking at the weekend. (" + d.idea + ")", note: "想 + verb = want to.", confidence: "high" };
+  if (props.reply && d.topic) { // free talk: about the learner's topic
+    const msg = d.learner_latest_message || "";
+    const reply = d.wrap_up ? { zh: "今天聊得很开心，下次再聊！", pinyin: "Jīntiān liáo de hěn kāixīn, xià cì zài liáo!", meaning: "Great chat today, talk again next time!" }
+      : msg ? { zh: "听起来不错！你周末一般做什么？", pinyin: "Tīng qǐlai búcuò! Nǐ zhōumò yìbān zuò shénme?", meaning: "Sounds good! What do you usually do at the weekend?" }
+      : { zh: "你好！我们聊聊" + d.topic.slice(0, 10) + "吧，你喜欢吗？", pinyin: "Nǐ hǎo! Wǒmen liáoliao ba, nǐ xǐhuan ma?", meaning: "Hi! Let's talk about " + d.topic + ". Do you like it?" };
+    return { reply, words: [{ zh: "一般", pinyin: "yìbān", meaning: "usually" }],
+      feedback: !msg ? { corrected: "", note: "", upgrade: "", upgrade_point: "" } : /我去/.test(msg) ? { corrected: "我想去。", note: "Add 想.", upgrade: "", upgrade_point: "" } : { corrected: msg, note: "", upgrade: "", upgrade_point: "" },
+      hint: "我觉得……", hint_pinyin: "Wǒ juéde……", done: !!d.wrap_up, confidence: "high",
+      summary: d.wrap_up ? { goal_met: true, score: 7, comment: "You asked good questions. Use more connectors.", phrase: { zh: "听起来不错", pinyin: "tīng qǐlai búcuò", meaning: "sounds good" } } : undefined };
+  }
   if (props.reply) {
     const msg = d.learner_latest_message || "", n = d.learner_turns || 0;
     const reply = d.wrap_up ? { zh: "好，那我先回去工作了，谢谢你！", pinyin: "Hǎo, nà wǒ xiān huíqu gōngzuò le, xièxie nǐ!", meaning: "OK, I'll get back to work then. Thanks!" } : msg ? { zh: "那为什么周日只按一点五倍算？", pinyin: "Nà wèishénme zhōurì zhǐ àn yī diǎn wǔ bèi suàn?", meaning: "Then why was Sunday paid at only 1.5 times?" }

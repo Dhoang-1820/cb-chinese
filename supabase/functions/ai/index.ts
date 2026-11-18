@@ -6,6 +6,8 @@
      coach   — give feedback on a short paragraph (2-5 sentences) written with required words
      weekly  — turn the weekly report numbers into 3 concrete actions
      roleplay — one turn of a short HR role-play in Chinese, with a correction of the learner's last message
+     freetalk — one turn of free conversation on any topic the learner picks (same answer shape as roleplay)
+     sayit   — the learner's idea in Vietnamese/English → how to say it in Chinese, mid-conversation
 
    The Gemini API key lives only in the function's secrets. The phone sends an access code (APP_CODE) in the
    `x-app-code` header; a daily cap (AI_DAILY_CAP) limits the damage if the code ever leaks.

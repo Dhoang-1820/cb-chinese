@@ -314,7 +314,7 @@
   }
   var LRN_SECS = [["progress", "Progress"], ["practice", "Practice"], ["habit", "Habit"], ["week", "Week"], ["chat", "Chat"]];
   /* one-tap buttons the teacher can attach to a message; each opens that screen on the learner's phone */
-  var CHAT_ACTS = [["#/session", "Start Today's session"], ["#/shadow", "Practise speaking (shadowing)"], ["#/session/comeback", "5-minute restart"], ["#/exam", "Open my exam plan"], ["#/mock/4/sim", "Full mock 4 in the simulator"], ["#/mock/5/sim", "Full mock 5 in the simulator"],
+  var CHAT_ACTS = [["#/session", "Start Today's session"], ["#/shadow", "Practise speaking (shadowing)"], ["#/freetalk", "Free talk with AI"], ["#/session/comeback", "5-minute restart"], ["#/exam", "Open my exam plan"], ["#/mock/4/sim", "Full mock 4 in the simulator"], ["#/mock/5/sim", "Full mock 5 in the simulator"],
     ["#/mock/6/sim", "Full mock 6 in the simulator"], ["#/parts", "Practise one exam part"], ["#/parts/R1", "Reading part 1, timed"], ["#/parts/R3", "Reading part 3, timed"], ["#/parts/W1", "Writing part 1, timed"],
     ["#/parts/W2", "Writing part 2, timed"], ["#/parts/L2", "Listening part 2, timed"], ["#/mistakes/repeat", "Fix my repeat mistakes"], ["#/mistakes", "Open my mistake notebook"], ["#/review", "Review due words"], ["#/exams", "Open My exams"], ["#/me", "Check my cloud backup"]];
   var ACHAT = { timer: null, id: "", msgs: [], prefill: null };

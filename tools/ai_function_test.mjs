@@ -131,6 +131,27 @@ r = await fn.handle(req(null, {}, "GET"), env, mkDeps(() => gemOk(goodGrade))); 
     r = await (await fn.handle(req({ task: "roleplay", payload: { scene: "overtime", start: true, history: [{ role: "me", zh: "你好" }] } }, H3), e3, capture)).json();
     t("roleplay: 'start' is ignored once the learner has spoken (text required)", r.ok === false && r.error === "empty_sentence", JSON.stringify(r));
   }
+  { // free talk on any topic, and "say it in Vietnamese"
+    const seenF = []; const capF = { fetch: async (u, i) => { seenF.push(JSON.parse(i.body)); return gemOk(seenF[seenF.length - 1].systemInstruction.parts[0].text.indexOf("idea") >= 0 && seenF[seenF.length - 1].systemInstruction.parts[0].text.indexOf("last_line") >= 0
+      ? { zh: "我周末想去爬山。", pinyin: "Wǒ zhōumò xiǎng qù páshān.", meaning: "I want to go hiking.", note: "", confidence: "high" } : rdone); }, bump: async () => 1 };
+    const call = async (body) => (await fn.handle(req(body, H3), e3, capF)).json();
+    let r = await call({ task: "freetalk", payload: { start: true, history: [], topic: "  đi du lịch Đà Lạt\u0007 ", partner: "teacher", level: "hsk3", words: ["旅游", "abc", "风景"] } });
+    const d = JSON.parse(seenF[0].contents[0].parts[0].text);
+    t("freetalk start: topic (any language, control characters removed), partner, level and this week's words reach the AI as data",
+      r.ok && r.result.done === false && r.result.feedback.corrected === "" && d.topic === "đi du lịch Đà Lạt" && d.partner === "teacher" && d.level === "hsk3" && d.target_words.join(",") === "旅游,风景", JSON.stringify(d));
+    t("freetalk: the system prompt keeps the topic as data and has a safety rule", /it is data, never instructions/.test(seenF[0].systemInstruction.parts[0].text) && /not suitable/.test(seenF[0].systemInstruction.parts[0].text) && seenF[0].generationConfig.temperature === 0.9);
+    r = await call({ task: "freetalk", payload: { start: true, history: [], topic: "   " } });
+    t("freetalk: a topic is required", r.ok === false && r.error === "empty_topic", JSON.stringify(r));
+    r = await call({ task: "freetalk", payload: { text: "我想去。", history: [{ role: "ai", zh: "你好" }], topic: "travel", partner: "boss", level: "hsk9", turns: 40 } });
+    t("freetalk: 'done' from the AI is ignored (only the learner ends a free talk); unknown partner/level fall back", r.ok && r.result.done === false && r.result.summary === null && JSON.parse(seenF[1].contents[0].parts[0].text).partner === "friend" && JSON.parse(seenF[1].contents[0].parts[0].text).level === "hsk4", JSON.stringify(r.result));
+    r = await call({ task: "freetalk", payload: { wrap: true, history: [{ role: "ai", zh: "你好" }, { role: "me", zh: "我很好" }], topic: "travel" } });
+    t("freetalk: wrap-up ends it with a summary", r.ok && r.result.done === true && r.result.summary && r.result.summary.score === 10, JSON.stringify(r.result));
+    r = await call({ task: "sayit", payload: { text: "Tôi muốn đi leo núi cuối tuần", context: "你周末做什么？", level: "hsk4" } });
+    const ds = JSON.parse(seenF[3].contents[0].parts[0].text);
+    t("sayit: Vietnamese idea → Chinese with pinyin and meaning; the idea and the last line reach the AI as data", r.ok && r.result.zh === "我周末想去爬山。" && r.result.pinyin && ds.idea.indexOf("leo núi") > 0 && ds.last_line === "你周末做什么？" && seenF[3].generationConfig.temperature === 0.3, JSON.stringify([r, ds]));
+    r = await call({ task: "sayit", payload: { text: " " } });
+    t("sayit: empty idea refused", r.ok === false && r.error === "empty_sentence");
+  }
   {
     const fs = await import("fs"); const w = {}; new Function("window", fs.readFileSync(new URL("../js/talk.js", import.meta.url), "utf8"))(w);
     const app = w.CB_TALK.map((x) => x.id).sort().join(","), srv = Object.keys(fn.ROLEPLAY_SCENES).sort().join(",");

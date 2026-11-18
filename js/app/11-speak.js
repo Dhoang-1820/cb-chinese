@@ -185,6 +185,7 @@
     var w = speakWeek(), talkOn = !!(window.AI && AI.configured());
     return '<h2 class="gh">' + tx("🗣️ Speaking") + '</h2><div class="glist speak-list">' +
       '<a class="grow" href="#/shadow"><span class="g-ico">🎙</span><span class="g-txt"><b>' + tx("Shadowing · listen, record, compare") + "</b><small>" + (w ? tx("{n} sentences said aloud this week", { n: w }) : tx("5 sentences from your words · about 2 min")) + '</small></span><span class="g-go">▶</span></a>' +
+      '<a class="grow" href="#/freetalk"><span class="g-ico">🎧</span><span class="g-txt"><b>' + tx("Free talk with AI") + "</b><small>" + (talkOn ? tx("Any topic, by voice: the AI answers aloud") : tx("Needs the AI assistant (Me → AI assistant)")) + '</small></span><span class="g-go">▶</span></a>' +
       '<a class="grow" href="#/talk"><span class="g-ico">💬</span><span class="g-txt"><b>' + tx("Role-play with AI") + "</b><small>" + (talkOn ? tx("Answer a colleague or candidate in Chinese") : tx("Needs the AI assistant (Me → AI assistant)")) + '</small></span><span class="g-go">▶</span></a>' +
       '<a class="grow" href="#/phrases"><span class="g-ico">📋</span><span class="g-txt"><b>' + tx("HR phrasebook") + "</b><small>" + tx("Ready-made messages with audio, to say aloud") + '</small></span><span class="g-go">▶</span></a></div>';
   }

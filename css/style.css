@@ -1704,3 +1704,74 @@ a.cc-part[href]:active { background: var(--surface-2); }
 :root[data-theme="dark"] .ft-miss { color: #ff8a80; text-decoration-color: #ff8a80; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ft-miss { color: #ff8a80; text-decoration-color: #ff8a80; } }
 .ft-fix { margin: 6px 0; text-align: left; }
+
+/* =========================================================
+   Clay theme (Nov 2026 redesign): soft 3D "claymorphism" cards, one indigo for learning, green for progress,
+   one colour per skill, Baloo 2 headings (self-hosted, OFL: fonts/OFL-Baloo2.txt). Light colours change here;
+   dark mode keeps its palette (its rules are more specific) and gets darker clay shadows below.
+   ========================================================= */
+@font-face { font-family: 'Baloo 2'; font-style: normal; font-display: swap; font-weight: 400 800; src: url(../fonts/baloo-2-vietnamese-wght-normal.woff2) format('woff2');
+  unicode-range: U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB; }
+@font-face { font-family: 'Baloo 2'; font-style: normal; font-display: swap; font-weight: 400 800; src: url(../fonts/baloo-2-latin-ext-wght-normal.woff2) format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: 'Baloo 2'; font-style: normal; font-display: swap; font-weight: 400 800; src: url(../fonts/baloo-2-latin-wght-normal.woff2) format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+:root {
+  --bg: #eef2ff; --surface-2: #e4e7ff; --text: #1e1b4b; --muted: #4b5070; --border: #d9ddfb;
+  --primary: #4f46e5; --primary-2: #6366f1; --primary-text: #4338ca; --g-violet: #4f46e5; --g-blue: #4f46e5;
+  --radius: 24px; --tabbar-h: 80px;
+  --head: "Baloo 2", var(--ui);
+  --clay: 8px 10px 20px rgba(79, 70, 229, .13), -6px -6px 14px rgba(255, 255, 255, .85), inset -3px -4px 8px rgba(79, 70, 229, .07), inset 3px 3px 6px rgba(255, 255, 255, .9);
+  --clay-edge: rgba(255, 255, 255, .9);
+  --btn-clay: inset -3px -4px 8px rgba(20, 10, 90, .35), inset 3px 3px 6px rgba(255, 255, 255, .22), 0 5px 0 rgba(30, 27, 75, .28);
+  /* skills: tile background / text-and-icon colour (each pair ≥ 4.5:1) */
+  --sk-speak: #ffe1d6; --sk-speak-ink: #a3330e; --sk-listen: #d3f4ee; --sk-listen-ink: #0f6359; --sk-read: #dcebff; --sk-read-ink: #1d58ad;
+  --sk-write: #ffedc7; --sk-write-ink: #7a4a00; --sk-vocab: #ede3ff; --sk-vocab-ink: #5634bd; --sk-exam: #d7f5dc; --sk-exam-ink: #1b6e2f;
+}
+:root[data-theme="dark"] {
+  --clay: 6px 8px 18px rgba(0, 0, 0, .42), inset -3px -4px 8px rgba(0, 0, 0, .25), inset 2px 2px 5px rgba(255, 255, 255, .05); --clay-edge: rgba(255, 255, 255, .04);
+  --btn-clay: inset -3px -4px 8px rgba(0, 0, 0, .35), 0 5px 0 rgba(0, 0, 0, .45);
+  --sk-speak: #3a2119; --sk-speak-ink: #ffb59c; --sk-listen: #13332f; --sk-listen-ink: #7ce0d0; --sk-read: #172a45; --sk-read-ink: #9cc3ff;
+  --sk-write: #382a10; --sk-write-ink: #f5c66b; --sk-vocab: #2a2148; --sk-vocab-ink: #c3b0ff; --sk-exam: #15301c; --sk-exam-ink: #86e09b;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --clay: 6px 8px 18px rgba(0, 0, 0, .42), inset -3px -4px 8px rgba(0, 0, 0, .25), inset 2px 2px 5px rgba(255, 255, 255, .05); --clay-edge: rgba(255, 255, 255, .04);
+  --btn-clay: inset -3px -4px 8px rgba(0, 0, 0, .35), 0 5px 0 rgba(0, 0, 0, .45);
+  --sk-speak: #3a2119; --sk-speak-ink: #ffb59c; --sk-listen: #13332f; --sk-listen-ink: #7ce0d0; --sk-read: #172a45; --sk-read-ink: #9cc3ff;
+  --sk-write: #382a10; --sk-write-ink: #f5c66b; --sk-vocab: #2a2148; --sk-vocab-ink: #c3b0ff; --sk-exam: #15301c; --sk-exam-ink: #86e09b;
+} }
+.blobs { display: none; }
+h1, h2, .gh, .appbar h1 { font-family: var(--head); font-weight: 800; letter-spacing: 0; }
+.card, .glist { border-radius: var(--radius); box-shadow: var(--clay); border: 3px solid var(--clay-edge); }
+.btn { border-radius: 18px; }
+.btn.primary { background: var(--primary); color: #fff; box-shadow: var(--btn-clay); }
+.btn.primary:active { transform: translateY(3px); box-shadow: inset -2px -3px 6px rgba(20, 10, 90, .35), 0 2px 0 rgba(30, 27, 75, .28); }
+@media (prefers-reduced-motion: reduce) { .btn.primary:active { transform: none; } }
+/* floating clay tab bar with line icons */
+.tabbar { background: transparent; border-top: 0; -webkit-backdrop-filter: none; backdrop-filter: none; padding: 0 10px calc(8px + var(--safe-b)); }
+.tabbar::before { content: ""; position: absolute; z-index: -1; left: 10px; right: 10px; top: 0; bottom: calc(8px + var(--safe-b)); border-radius: 26px; background: var(--surface); box-shadow: var(--clay); border: 3px solid var(--clay-edge); }
+.tabbar a { margin: 7px 2px; color: var(--muted); border-radius: 18px; }
+.tabbar .ti { filter: none; display: flex; }
+.tabbar .ti svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.tabbar a.active { background: var(--surface-2); color: var(--primary-text); }
+.tabbar a.active .ti { transform: none; }
+.tabbar a.active::after { display: none; }
+/* Practice: six skill tiles, and the skill pages */
+.sk-lead { margin: 4px 4px 10px; }
+.sk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 8px; }
+.sk-tile { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 140px; padding: 16px; border-radius: var(--radius); box-shadow: var(--clay); border: 3px solid var(--clay-edge); text-decoration: none; }
+.sk-tile:active { transform: translateY(2px); box-shadow: inset 3px 4px 10px rgba(30, 27, 75, .14); }
+@media (prefers-reduced-motion: reduce) { .sk-tile:active { transform: none; } }
+.sk-ico { width: 52px; height: 52px; border-radius: 16px; background: var(--surface); display: flex; align-items: center; justify-content: center; box-shadow: inset -2px -3px 5px rgba(30, 27, 75, .08), inset 2px 2px 4px rgba(255, 255, 255, .6); }
+.sk-svg { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.sk-name { font-family: var(--head); font-weight: 800; font-size: 1.3rem; line-height: 1.1; }
+.sk-count { font-size: .88rem; font-weight: 700; }
+.sk-new { position: absolute; top: 12px; right: 12px; padding: 2px 10px; border-radius: 999px; font-size: .75rem; font-weight: 800; color: var(--surface); background: currentColor; }
+.sk-new { color: inherit; }
+.sk-tile .sk-new { background: var(--sk-speak-ink); color: var(--sk-speak); }
+.sk-speak { background: var(--sk-speak); color: var(--sk-speak-ink); } .sk-listen { background: var(--sk-listen); color: var(--sk-listen-ink); }
+.sk-read { background: var(--sk-read); color: var(--sk-read-ink); } .sk-write { background: var(--sk-write); color: var(--sk-write-ink); }
+.sk-vocab { background: var(--sk-vocab); color: var(--sk-vocab-ink); } .sk-exam { background: var(--sk-exam); color: var(--sk-exam-ink); }
+.sk-hero { display: flex; align-items: center; gap: 14px; padding: 16px 18px; margin: 4px 0 14px; border-radius: var(--radius); box-shadow: var(--clay); border: 3px solid var(--clay-edge); }
+.sk-hero h2 { margin: 0; font-size: 1.7rem; color: inherit; }
+.sk-hero .sk-ico { width: 60px; height: 60px; }

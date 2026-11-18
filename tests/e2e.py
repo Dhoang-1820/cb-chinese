@@ -225,10 +225,10 @@ async def t_theme(b):
         other = "dark" if scheme == "light" else "light"
         await pg.select_option("#s-theme", other); await pg.wait_for_timeout(300)
         m = await pg.evaluate(metas); col = await pg.evaluate(bg)
-        check("status bar: changes with a manual theme (%s on a %s phone)" % (other, scheme), m == [col, col] and col == ("#17161f" if other == "dark" else "#ece8fa"), (m, col))
+        check("status bar: changes with a manual theme (%s on a %s phone)" % (other, scheme), m == [col, col] and col == ("#17161f" if other == "dark" else "#eef2ff"), (m, col))
         await pg.select_option("#s-theme", "auto"); await pg.wait_for_timeout(300)
         m = await pg.evaluate(metas)
-        check("status bar: back to the system colours with theme System (%s)" % scheme, m == ["#ece8fa", "#17161f"], m)
+        check("status bar: back to the system colours with theme System (%s)" % scheme, m == ["#eef2ff", "#17161f"], m)
         await ctx.close()
     # export: share sheet when the phone can share a file, download otherwise
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
@@ -531,10 +531,10 @@ async def t_practice2(b):
           "mockHistory": [{"id": 1, "date": day(-3), "mode": "exam", "total": 150, "sections": {"listening": 60, "reading": 40, "writing": 50}}]}
     ctx, pg = await open_app(b, st)
     await go(pg, "#/games", 400)
-    check("reading drill: listed in Games", await pg.locator(".grow[href='#/game/reading']").count() == 1)
+    check("reading drill: Practice has a Reading tile", await pg.locator("a.sk-tile[href='#/skill/read']").count() == 1)
     await go(pg, "#/learn", 600)
-    await go(pg, "#/games", 600)
-    check("reading drill: listed in Practice", await pg.locator(".grow[href='#/game/reading']").count() == 1)
+    await go(pg, "#/skill/read", 600)
+    check("reading drill: listed under Practice → Reading", await pg.locator(".grow[href='#/game/reading']").count() == 1)
     await go(pg, "#/game/reading", 800); await pg.wait_for_selector(".rd-drill .passage-in", timeout=10000)
     srcs, right = [], 0
     for i in range(3):
@@ -829,11 +829,12 @@ async def t_contrast(b):
             if name == "arrange the words":
                 for k in range(await pg.locator("#pool .piece").count()): await pg.locator("#pool .piece").nth(k).click()
                 await pg.click("#chk"); await pg.wait_for_timeout(150)
-            if name == "games":  # the daily-challenge card changes colour by day; check it in every colour, starting with today's
-                for cls in ("", "g-sun", "g-coral", "g-teal", "g-blue", "g-violet", "g-boss"):
-                    if cls: await pg.evaluate("c=>{const e=document.querySelector('.gfeat');e.className=e.className.replace(/g-[a-z]+/,c)}", cls)
-                    f = await pg.evaluate(CONTRAST_JS)
-                    if f: bad["games " + (cls or "today")] = f[:4]
+            if name == "games":  # the six skill tiles each have their own colours; check them, then every skill page
+                f = await pg.evaluate(CONTRAST_JS)
+                if f: bad["games"] = f[:4]
+                for k in ("speak", "listen", "read", "write", "vocab", "exam"):
+                    await go(pg, "#/skill/" + k, 500); f = await pg.evaluate(CONTRAST_JS)
+                    if f: bad["skill " + k] = f[:4]
                 continue
             faint = await pg.evaluate(CONTRAST_JS)
             if faint: bad[name] = faint[:4]
@@ -998,7 +999,8 @@ def order_for(tokens, target):
 async def t_newgames(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
     await go(pg, "#/games", 600)
-    check("practice: Word Bank is listed under All games (Arrange the Words stays reachable by its link)", await pg.locator(".all-games .grow[href='#/game/bank']").count() == 1)
+    await go(pg, "#/skill/read", 500)
+    check("practice: Word Bank is listed under Reading, Arrange the Words under Writing", await pg.locator(".grow[href='#/game/bank']").count() == 1 and (await go(pg, "#/skill/write", 500)) is None and await pg.locator(".grow[href='#/game/wordorder']").count() == 1)
     # --- arrange the words: one wrong answer, then right ones (an 'alt' order when the item has one)
     await go(pg, "#/game/wordorder", 600); await pg.wait_for_selector("#pool .piece")
     check("arrange the words: Chinese is tagged and focus is on the screen", await pg.evaluate(ZH_TAGGED) and await pg.evaluate("document.activeElement&&document.activeElement.id") == "app")
@@ -1062,7 +1064,8 @@ async def t_newgames(b):
     check("word bank: a full round of 10 is scored, with XP", st["games"].get("bank") == {"best": 10, "plays": 1} and "10 / 10" in await pg.inner_text(".result"), st["games"])
     check("word bank: counts as choosing the right word", st["skills"].get("fill-word") == {"r": 10, "w": 0}, st["skills"])
     await go(pg, "#/games", 500)
-    check("games: both new games show their best score", "Best 10" in await pg.locator(".all-games .grow[href='#/game/bank']").text_content() and await pg.evaluate("Store.state.games.wordorder.best") == 7)
+    await go(pg, "#/skill/read", 500)
+    check("games: both new games show their best score", "Best 10" in await pg.locator(".grow[href='#/game/bank']").text_content() and await pg.evaluate("Store.state.games.wordorder.best") == 7)
     await ctx.close()
 
 
@@ -1997,12 +2000,14 @@ async def t_simple(b):
     shown = await pg.evaluate("getComputedStyle(document.getElementById('btn-py')).display")
     check("simple: the 拼 switch is back inside a lesson", shown != "none", shown)
     await go(pg, "#/games", 1200)
-    secs = await pg.evaluate("[...document.querySelectorAll('#app > h2.gh')].map(h=>h.innerText)")
-    check("practice: For the exam, then Speaking, then Recommended for you", [x for x in secs if x != "🗣️ Speaking"][:2] == ["For the exam", "Recommended for you"] and "🗣️ Speaking" in secs, secs)
-    check("practice: a recommended mock test with a start button", await pg.locator("#pr-mock-go").count() == 1 and "Mock Test" in await pg.locator(".pr-mock").inner_text())
+    tiles = await pg.evaluate("[...document.querySelectorAll('a.sk-tile')].map(a=>a.getAttribute('href'))")
+    check("practice: six skill tiles, speaking first, mock exams last", tiles == ["#/skill/" + k for k in ("speak", "listen", "read", "write", "vocab", "exam")], tiles)
     rec = await pg.evaluate("[...document.querySelectorAll('.rec-games .grow')].map(a=>a.getAttribute('href')+' '+(a.querySelector('.g-acc')||{}).innerText)")
-    check("practice: 3 recommended games, weakest skills first with their accuracy", len(rec) == 3 and rec[0].startswith("#/game/type 55%") and rec[1].startswith("#/game/bank 60%"), rec)
-    check("practice: all other games are folded away", await pg.locator("details.all-games").count() == 1 and not await pg.evaluate("document.querySelector('details.all-games').open"))
+    games = [r for r in rec if r.startswith("#/game/")]
+    check("practice: suggestions: free talk, the 2 weakest skills with their accuracy, the daily challenge", rec[0].startswith("#/freetalk") and games[0].startswith("#/game/type 55%") and games[1].startswith("#/game/bank 60%") and len(rec) == 4, rec)
+    await go(pg, "#/skill/exam", 900)
+    check("practice → mock exams: a recommended mock test with a start button", await pg.locator("#pr-mock-go").count() == 1 and "Mock Test" in await pg.locator(".pr-mock").inner_text())
+    check("practice: no folded list of every game any more", await pg.locator("details.all-games").count() == 0)
     await go(pg, "#/me", 800)
     t = await pg.inner_text("#app")
     check("me: no admin tools for a learner", "Content review" not in t and "Learner tracking" not in t and await pg.locator("a[href='#/learners']").count() == 0)
@@ -2064,7 +2069,7 @@ async def t_boost(b):
 
     # 3. exam words
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
-    await go(pg, "#/games", 1500)
+    await go(pg, "#/skill/exam", 1500)
     row = await pg.locator(".grow[href='#/sprint']").inner_text() if await pg.locator(".grow[href='#/sprint']").count() else ""
     check("exam words: Practice says how many of the tests' most used words are in review", "words the tests use most" in row and "0 of the" in row, row)
     await go(pg, "#/session", 900)
@@ -2119,7 +2124,7 @@ async def t_aiplus(b):
     await go(pg, "#/parts", 900)
     t = await pg.inner_text("#app")
     check("new questions: Exam parts offers New on listening 1-3 and reading part 3", await pg.locator(".part-row a[href^='#/newq/']").count() == 4 and "New · 3" in t, t[-600:])
-    await go(pg, "#/games", 900)
+    await go(pg, "#/skill/exam", 900)
     check("new questions: Practice mentions them on the Exam parts row", "plus new questions" in await pg.inner_text(".grow[href='#/parts']"))
     # listening part 2 by the AI
     await go(pg, "#/newq/L2", 300); await pg.wait_for_selector("#qcard", timeout=15000)
@@ -2265,7 +2270,7 @@ async def t_examflow(b):
     await go(pg, "#/parts", 300); await go(pg, "#/newq/R3", 300); await pg.wait_for_timeout(600)
     check("offline: when the saved ones are used up it says to connect", "offline" in await pg.inner_text("#app"))
     await ctx.set_offline(False)
-    await go(pg, "#/games", 700)
+    await go(pg, "#/skill/exam", 700)
     check("clean-up: Practice keeps four rows (no separate new-questions row)", await pg.locator(".grow[href^='#/newq/']").count() == 0 and "plus new questions" in await pg.inner_text(".grow[href='#/parts']"))
     await ctx.close()
 
@@ -2512,9 +2517,9 @@ async def t_speak(b):
     await ctx.grant_permissions(["microphone"])
     plan = await pg.evaluate("App._sessionPlan().map(x=>x.id+':'+(x.n||''))")
     check("speak: Today has a short speaking step by default (exam + a little speaking)", "speak:3" in plan, plan)
-    await go(pg, "#/games", 800)
-    heads = await pg.evaluate("[...document.querySelectorAll('h2.gh')].map(h=>h.innerText)")
-    check("speak: Practice has a Speaking section, after the exam part", any("Speaking" in h for h in heads) and heads.index(next(h for h in heads if "Speaking" in h)) > heads.index(next(h for h in heads if "exam" in h.lower())), heads)
+    await go(pg, "#/skill/speak", 800)
+    heads = await pg.evaluate("[document.querySelector('.sk-hero h2').innerText]")
+    check("speak: Practice → Speaking has its own page", "Speaking" in heads[0], heads)
     check("speak: the section has shadowing, role-play and the phrasebook", await pg.locator(".speak-list a[href='#/shadow'], .speak-list a[href='#/talk'], .speak-list a[href='#/phrases']").count() == 3)
     # shadowing: listen, record, compare, rate
     await pg.evaluate("window._streams=[];const g=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=c=>g(c).then(s=>{window._streams.push(s);return s});0")
@@ -2561,7 +2566,7 @@ async def t_speak(b):
     plan = await pg.evaluate("App._sessionPlan().map(x=>x.id+':'+(x.n||''))")
     check("focus: 'Speaking first' gives 8 sentences in Today", "speak:8" in plan, plan)
     await go(pg, "#/games", 800)
-    check("focus: 'Speaking first' puts the Speaking section at the top of Practice", "Speaking" in await pg.inner_text("h2.gh >> nth=0"))
+    check("focus: Speaking is the first skill tile in Practice", (await pg.get_attribute("a.sk-tile >> nth=0", "href")) == "#/skill/speak")
     await go(pg, "#/me", 600); await pg.select_option("#s-focus", "exam"); await pg.wait_for_timeout(200)
     check("focus: 'Exam only' has no speaking step", not any(x.startswith("speak") for x in await pg.evaluate("App._sessionPlan().map(x=>x.id)")))
     await pg.select_option("#s-focus", "mix"); await pg.evaluate("Store.state.settings.examDate=Store.addDays(Store.today(),5);Store.save()")
@@ -2802,8 +2807,8 @@ async def t_freetalk(b):
     await pg.click("#ft-send"); await pg.wait_for_selector(".tb-me", timeout=10000)
     check("typing mode: Send sends it", "我也喜欢" in await pg.inner_text(".tb-me"))
     # Practice links to it
-    await go(pg, "#/games", 400)
-    check("practice: the Speaking section links to Free talk", await pg.locator(".speak-list a[href='#/freetalk']").count() == 1)
+    await go(pg, "#/skill/speak", 400)
+    check("practice: the Speaking page links to Free talk", await pg.locator(".speak-list a[href='#/freetalk']").count() == 1)
     check("freetalk: no script errors", not page_errors, page_errors[-3:])
     await ctx.close()
 

@@ -34,11 +34,6 @@
   }
 
   /* ---------- hub ---------- */
-  var GROUPS = [
-    ["Words", ["speed", "race", "quick", "listen", "boss"]],
-    ["Listening and writing", ["drill", "write", "type", "picture", "coach"]],
-    ["Grammar and exam skills", ["reading", "builder", "order", "bank", "confuse", "measure"]]
-  ];
   /* the 3 games for the weakest skills (5+ answers, under 80%), else a sensible exam mix */
   var SKILL_GAME = { "fill-word": "bank", "word-order": "builder", typing: "type", ordering: "order", confusable: "confuse", measure: "measure", writing: "picture",
     "listen-tf": "drill", "listen-short": "drill", "listen-long": "drill", "listen-word": "listen", vocab: "quick", pinyin: "race", handwriting: "write", passage: "reading" };
@@ -51,33 +46,61 @@
     ["bank", "builder", "drill"].forEach(function (id) { if (out.length < 3 && !seen[id]) { seen[id] = 1; out.push({ id: id, acc: null }); } });
     return out;
   }
+  /* ---------- Practice: six skills (Nov 2026 redesign) ----------
+     The hub is a catalog of 6 colour tiles; each opens #/skill/<k> with that skill's activities. Every game and tool has
+     exactly one home here. Below the tiles: a few suggestions (free talk, the weakest skills, the daily challenge). */
+  var SK_SVG = {
+    speak: '<rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/>',
+    listen: '<path d="M3 15v-3a9 9 0 0 1 18 0v3"/><rect x="3" y="14" width="5" height="7" rx="2"/><rect x="16" y="14" width="5" height="7" rx="2"/>',
+    read: '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+    write: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+    vocab: '<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 8.5h8M12 8.5v8.5M9 13h6"/>',
+    exam: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="m9 13 2 2 4-4"/>'
+  };
+  function skSvg(k, size) { return '<svg class="sk-svg" viewBox="0 0 24 24" width="' + (size || 26) + '" height="' + (size || 26) + '" aria-hidden="true" focusable="false">' + SK_SVG[k] + "</svg>"; }
+  /* each skill: name, games from LIST, and other screens [hash, icon, title, line] */
+  var SKILLS = [
+    { k: "speak", name: "Speaking", games: [], links: [] }, // its rows come from App.speakSection (shadowing, free talk, role-play, phrasebook)
+    { k: "listen", name: "Listening", games: ["drill", "listen"], links: [["#/listen-mode", "🎧", "Hands-free listening", "Words and examples play on their own"]] },
+    { k: "read", name: "Reading", games: ["reading", "bank", "order"], links: [["#/read", "📖", "Reader", "Paste a Chinese email. Tap any word."]] },
+    { k: "write", name: "Writing", games: ["builder", "wordorder", "picture", "type", "coach", "write"], links: [] },
+    { k: "vocab", name: "Vocabulary", games: ["speed", "race", "quick", "boss", "confuse", "measure"], links: [] },
+    { k: "exam", name: "Mock exams", games: [], links: [] } // its rows come from App.practiceTop (mock test, exam parts, exam words, mistakes)
+  ];
+  var SKBY = {}; SKILLS.forEach(function (x) { SKBY[x.k] = x; });
+  function gameRow(g, acc) {
+    var st = Store.state.games[g.id] || {};
+    return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + tx(g.name) + "</b><small>" + tx(g.desc) + "</small></span>" +
+      (acc != null ? '<span class="g-acc" aria-label="' + tx("Your accuracy {n}%", { n: acc }) + '">' + acc + "%</span>" : st.plays ? '<span class="g-best">' + tx("Best {n}", { n: st.best }) + "</span>" : '<span class="g-go">▶</span>') + "</a>";
+  }
+  function skCount(x) {
+    if (x.k === "speak") return tx("{n} activities", { n: 4 });
+    if (x.k === "exam") return tx("Mock tests, timed parts");
+    return tx("{n} activities", { n: x.games.length + x.links.length });
+  }
   function hub() {
-    var App = A(), ch = challenge(), s = Store.state, chDone = !!s.challenges[Store.today()];
-    function row(g) {
-      var st = s.games[g.id] || {};
-      return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + tx(g.name) + "</b><small>" + tx(g.desc) + "</small></span>" +
-        (st.plays ? '<span class="g-best">' + tx("Best {n}", { n: st.best }) + "</span>" : '<span class="g-go">▶</span>') + "</a>";
-    }
-    /* Practice: what matters for the exam first, then the three games for the weakest skills, then everything else folded. */
-    /* the speaking section comes first when speaking is the learner's focus (Me → What to focus on), after the exam part otherwise */
-    var sp = App.speakSection ? App.speakSection() : "", spFirst = !!(App.speakFirst && App.speakFirst());
-    var html = (spFirst ? sp : "") + '<h2 class="gh">' + tx("For the exam") + '</h2>' + (App.practiceTop ? App.practiceTop() : "") + (spFirst ? "" : sp);
-    var rec = recommended();
-    html += '<h2 class="gh">' + tx("Recommended for you") + '</h2><div class="glist rec-games">' + rec.map(function (r) {
-      var g = BY[r.id], st = s.games[g.id] || {};
-      return '<a class="grow" href="#/game/' + g.id + '"><span class="g-ico">' + g.icon + '</span><span class="g-txt"><b>' + tx(g.name) + "</b><small>" + tx(g.desc) + "</small></span>" +
-        (r.acc != null ? '<span class="g-acc" aria-label="' + tx("Your accuracy {n}%", { n: r.acc }) + '">' + r.acc + "%</span>" : st.plays ? '<span class="g-best">' + tx("Best {n}", { n: st.best }) + "</span>" : '<span class="g-go">▶</span>') + "</a>";
-    }).join("") + "</div>";
-    var n = 0; GROUPS.forEach(function (gr) { n += gr[1].length; });
-    html += '<details class="more all-games"><summary><span>' + tx("All games ({n})", { n: n + 2 }) + '</span></summary>' +
-      '<a class="gfeat ' + ch.cls + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="g-ico">' + ch.icon + '</span><span class="g-txt"><small>' + (chDone ? tx("Daily challenge · done ✓") : tx("Daily challenge · +15 XP")) + "</small><b>" + tx(ch.name) + "</b><em>" + tx(ch.desc) + '</em></span><span class="g-go">▶</span></a>' +
-      '<div class="glist"><a class="grow" href="#/talk"><span class="g-ico">🗣️</span><span class="g-txt"><b>' + tx("Talk it through") + '</b><small>' + tx("AI role-play · HR conversations") + '</small></span><span class="g-go">▶</span></a>' +
-      '<a class="grow" href="#/read"><span class="g-ico">📖</span><span class="g-txt"><b>' + tx("Reader") + '</b><small>' + tx("Paste a Chinese email. Tap any word.") + '</small></span><span class="g-go">▶</span></a></div>';
-    GROUPS.forEach(function (gr) {
-      html += '<h2 class="gh">' + tx(gr[0]) + '</h2><div class="glist">' + gr[1].map(function (id) { return row(BY[id]); }).join("") + "</div>";
-    });
-    html += "</details>";
-    App.render(html, "games");
+    var App = A(), ch = challenge(), s = Store.state, chDone = !!s.challenges[Store.today()], aiOn = !!(window.AI && AI.configured());
+    var tiles = SKILLS.map(function (x) {
+      return '<a class="sk-tile sk-' + x.k + '" href="#/skill/' + x.k + '"><span class="sk-ico">' + skSvg(x.k) + '</span><b class="sk-name">' + tx(x.name) + '</b><span class="sk-count">' + skCount(x) + "</span>" +
+        (x.k === "speak" ? '<span class="sk-new">' + tx("New") + "</span>" : "") + "</a>";
+    }).join("");
+    var rec = recommended().slice(0, 2);
+    var sugg = (aiOn ? '<a class="grow" href="#/freetalk"><span class="g-ico">🎧</span><span class="g-txt"><b>' + tx("Free talk with AI") + "</b><small>" + tx("Any topic, by voice: the AI answers aloud") + '</small></span><span class="g-go">▶</span></a>' : "") +
+      rec.map(function (r) { return gameRow(BY[r.id], r.acc); }).join("") +
+      '<a class="grow' + (chDone ? " done" : "") + '" href="#/game/' + ch.id + '"><span class="g-ico">' + ch.icon + '</span><span class="g-txt"><b>' + tx(ch.name) + "</b><small>" + (chDone ? tx("Daily challenge · done ✓") : tx("Daily challenge · +15 XP")) + '</small></span><span class="g-go">▶</span></a>';
+    App.render('<p class="sub sk-lead">' + tx("Pick a skill") + '</p><div class="sk-grid">' + tiles + "</div>" +
+      '<h2 class="gh">' + tx("Recommended for you") + '</h2><div class="glist rec-games">' + sugg + "</div>", "games");
+  }
+  /* #/skill/<k>: one skill's activities */
+  function skillPage(k) {
+    var App = A(), x = SKBY[k];
+    if (!x) { location.hash = "#/games"; return; }
+    var body = "";
+    if (k === "speak") body = (App.speakSection ? App.speakSection() : "").replace(/^<h2 class="gh">[\s\S]*?<\/h2>/, "");
+    else if (k === "exam") body = (App.practiceTop ? App.practiceTop() : "") + '<div class="glist"><a class="grow" href="#/mock"><span class="g-ico">📝</span><span class="g-txt"><b>' + tx("All mock tests") + "</b><small>" + tx("Your scores and the official papers") + '</small></span><span class="g-go">›</span></a></div>';
+    else body = '<div class="glist">' + x.games.map(function (id) { return gameRow(BY[id]); }).join("") +
+      x.links.map(function (l) { return '<a class="grow" href="' + l[0] + '"><span class="g-ico">' + l[1] + '</span><span class="g-txt"><b>' + tx(l[2]) + "</b><small>" + tx(l[3]) + '</small></span><span class="g-go">▶</span></a>'; }).join("") + "</div>";
+    App.render('<a class="back" href="#/games">‹ ' + tx("Practice") + '</a><section class="sk-hero sk-' + k + '"><span class="sk-ico">' + skSvg(k, 32) + '</span><h2>' + tx(x.name) + "</h2></section>" + body, "games");
   }
 
   function run(id, arg, opts) {
@@ -900,5 +923,5 @@
       c.wire();
     })();
   }
-  window.Games = { hub: hub, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _drillQ: drillQ, _drillItem: function (type, id) { return drillItems(type, /^h5/.test(id) ? 5 : 4).filter(function (x) { return x.id === id; })[0] || null; }, H5_DESC: H5_DESC, _drillList: function (type) { return drillItems(type, 4); }, _hwSkill: hwSkill, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
+  window.Games = { hub: hub, skill: skillPage, SKILLS: SKILLS, run: run, challenge: challenge, LIST: LIST, _q: { makeQ: makeQ, qHTML: qHTML, wireQ: wireQ }, _drillCard: drillCard, _drillQ: drillQ, _drillItem: function (type, id) { return drillItems(type, /^h5/.test(id) ? 5 : 4).filter(function (x) { return x.id === id; })[0] || null; }, H5_DESC: H5_DESC, _drillList: function (type) { return drillItems(type, 4); }, _hwSkill: hwSkill, _typeCard: typeCard, _chunk: function (s) { if (!dict) buildDict(); return chunk(s); } };
 })();

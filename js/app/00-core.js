@@ -212,7 +212,7 @@
     var metas = document.querySelectorAll('meta[name="theme-color"]');
     for (var i = 0; i < metas.length; i++) metas[i].setAttribute("content", s.theme === "dark" ? THEME_BG.dark : s.theme === "light" ? THEME_BG.light : (metas[i].getAttribute("data-c") || THEME_BG.light));
   }
-  var THEME_BG = { light: "#ece8fa", dark: "#17161f" }; // --bg in css/style.css
+  var THEME_BG = { light: "#eef2ff", dark: "#17161f" }; // --bg in css/style.css
   function refreshChrome() {
     var s = Store.state, lv = Game.level(s.xp);
     var st = document.getElementById("chip-streak"); if (st) { st.innerHTML = "🔥 <b>" + Store.streak() + "</b>"; st.setAttribute("aria-label", tx("Streak: {n} days", { n: Store.streak() })); }
@@ -360,7 +360,7 @@
   function missing(v, parts) {
     var m = [], a = parts[1] || "", b = parts[2] || "";
     if (!fullReady && ((v === "day" && parts[2] && parts[2] !== "words") || v === "core" || v === "parts" || (v === "cards" && /^k/.test(parts[1] || "")) || (v === "game" && /^(builder|drill|type|confuse|order|picture|measure|bank|wordorder|reading)$/.test(parts[1] || "")) || v === "session" || v === "grammar" || v === "mistakes" || v === "weekly" || v === "catchup")) m.push("full");
-    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || v === "parts" || v === "games" || v === "sprint" || v === "newq" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
+    if (!mocksReady && (v === "mock" || v === "mistakes" || v === "session" || v === "exam" || v === "parts" || v === "games" || v === "skill" || v === "sprint" || v === "newq" || (v === "game" && parts[1] === "reading"))) m.push("mocks");
     var hard5 = (v === "learn" && (a === "h5" || a === "h5p" || (!a && Store.state.settings.level === 5))) || (v === "pack" && a === "h5") || (v === "grammar" && /^h5/.test(a)) || (v === "game" && (b === "h5" || /^p-h5-/.test(b))) || (v === "cards" && /^p-h5-/.test(a));
     var hard4 = (v === "learn" && a === "extra") || (v === "pack" && a === "x4") || v === "families" || (v === "game" && /^p-x4-/.test(b)) || (v === "cards" && /^p-x4-/.test(a));
     /* screens that list or review words wait once for the packs this learner uses, so those words are there too */
@@ -408,7 +408,7 @@
   }
 
   /* ---------- router ---------- */
-  var TITLES = { freetalk: "Free talk", "char": "Character", shadow: "Shadowing", "say-check": "Shadowing sentences", "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Practice", game: "Practice", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", sprint: "Exam words", newq: "New questions", exams: "My exams", eve: "Day before the exam", warmup: "Exam-morning warm-up", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", phrases: "HR phrasebook", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
+  var TITLES = { skill: "Practice", freetalk: "Free talk", "char": "Character", shadow: "Shadowing", "say-check": "Shadowing sentences", "": "Home", learn: "Learn", day: "Lesson", cards: "Flashcards", review: "Review", games: "Practice", game: "Practice", search: "Search", me: "Me", mock: "Mock Exam", parts: "Exam parts", sprint: "Exam words", newq: "New questions", exams: "My exams", eve: "Day before the exam", warmup: "Exam-morning warm-up", chat: "Messages", mistakes: "Mistakes", plan: "Study plan", progress: "Progress", core: "HSK words", check: "Quick check", "listen-mode": "Listen", session: "Today's session", grammar: "Grammar", official: "Official practice", fixes: "Content review", learners: "Learner tracking", exam: "Exam plan", track: "Pro track", talk: "Role-play", phrases: "HR phrasebook", ready: "Am I ready?", read: "Reader", pack: "Word pack", families: "Word families", weekly: "Weekly review", catchup: "Catch-up" };
   var routed = 0;
   function route() {
     try { route0(); }
@@ -443,6 +443,7 @@
     else if (v === "cards") viewCards(parts[1]);
     else if (v === "review") viewReview();
     else if (v === "games") Games.hub();
+    else if (v === "skill") Games.skill(parts[1]);
     else if (v === "game") Games.run(parts[1], parts[2]);
     else if (v === "quiz") { location.replace("#/game/quick"); return; }
     else if (v === "search") viewSearch();
@@ -493,7 +494,7 @@
     else viewHome();
     fillExtras();
     /* which tab is lit: the tab a screen is reached from (mock tests and exam parts live in Practice, My exams in Me) */
-    var tab = { freetalk: "games", "char": "learn", shadow: "games", "say-check": "me", "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "games", parts: "games", newq: "games", sprint: "games", chat: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", phrases: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home", quiz: "learn", track: "learn", exams: "me", eve: "home", warmup: "home" }[v] || "home";
+    var tab = { skill: "games", freetalk: "games", "char": "learn", shadow: "games", "say-check": "me", "": "home", read: "games", ready: "home", day: "learn", cards: "learn", search: "learn", learn: "learn", review: "review", games: "games", game: "games", me: "me", settings: "me", reports: "me", fixes: "me", learners: "me", exam: "home", mock: "games", parts: "games", newq: "games", sprint: "games", chat: "me", mistakes: "review", plan: "home", progress: "me", core: "learn", check: "learn", pack: "learn", families: "learn", "listen-mode": "review", talk: "games", phrases: "games", session: "home", grammar: "learn", official: "me", weekly: "learn", catchup: "home", quiz: "learn", track: "learn", exams: "me", eve: "home", warmup: "home" }[v] || "home";
     document.querySelectorAll(".tabbar a").forEach(function (a) { a.classList.toggle("active", a.getAttribute("data-tab") === tab); });
     var title = TITLES[v] ? tx(TITLES[v]) : "C&B 中文";
     document.getElementById("page-title").textContent = title;

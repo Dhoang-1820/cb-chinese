@@ -522,6 +522,27 @@
     if (wqOffer()) steps.push({ id: "weekly", ico: "🧠", name: tx("Weekly review quiz"), sub: tx("Words and grammar from the last 7 days"), href: "#/weekly", done: false });
     return steps;
   }
+  /* this week at a glance: a dot per studied day, words in review, lessons done (opens Me) */
+  function weekStrip() {
+    var s = Store.state, t = Store.today(), wd = (new Date(t + "T00:00:00").getDay() + 6) % 7, mon = Store.addDays(t, -wd), log = s.log || {};
+    var names = [tx("Mon"), tx("Tue"), tx("Wed"), tx("Thu"), tx("Fri"), tx("Sat"), tx("Sun")], n = 0, dots = "";
+    for (var i = 0; i < 7; i++) {
+      var d = Store.addDays(mon, i), on = (log[d] || 0) > 0; if (on) n++;
+      dots += '<span class="ws-d' + (on ? " on" : "") + (d === t ? " ws-today" : "") + '"><i>' + (on ? "✓" : "") + "</i><small>" + names[i] + "</small></span>";
+    }
+    var words = Object.keys(s.srs).length, done = Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length;
+    return '<a class="card week-strip" href="#/me" aria-label="' + esc(tx("This week: studied {n} of 7 days. Open Me", { n: n })) + '"><div class="ws-h"><b>' + tx("This week") + '</b><span>' + tx("See progress") + ' ›</span></div>' +
+      '<div class="ws-dots" aria-hidden="true">' + dots + '</div><div class="ws-f"><span>' + tx("{n} words", { n: words }) + "</span><span>" + tx("Lesson {n} / {m}", { n: done, m: DAYS.length }) + "</span></div></a>";
+  }
+  /* three shortcuts into Practice's skills */
+  function quickSkills() {
+    var S = window.Games && Games.SKILLS ? Games.SKILLS : [];
+    var pick = ["speak", "listen", "exam"].map(function (k) { return S.filter(function (x) { return x.k === k; })[0]; }).filter(Boolean);
+    if (!pick.length) return "";
+    return '<h2 class="gh">' + tx("Quick practice") + '</h2><div class="quick-sk">' + pick.map(function (x) {
+      return '<a class="qs sk-' + x.k + '" href="#/skill/' + x.k + '">' + Games.skIcon(x.k) + "<b>" + tx(x.name) + "</b></a>";
+    }).join("") + "</div>";
+  }
   function todayMain() {
     var steps = todaySteps(), done = steps.filter(function (x) { return x.done; }).length, next = -1;
     steps.forEach(function (x, i) { if (next < 0 && !x.done) next = i; });
@@ -561,9 +582,9 @@
     freezeForecast();
     html += chatCard() + syncPausedCard() + realAskCard() + afterCard();
     if (fin) html += readyCard();
-    html += todayMain() + h5HomeRow(); // on HSK 5: the next unfinished pack, right under Today
+    html += todayMain() + h5HomeRow() + weekStrip(); // on HSK 5: the next unfinished pack, right under Today
     if (!fin) html += readyCard();
-    html += planLine();
+    html += planLine() + quickSkills();
     var plan = planCard();
     html += '<details class="more home-more"><summary><span>' + tx("More: quests, coach plan, activity, badges") + '</span></summary>' +
       questsCard() + plan + patternCard() + focusCard() + todayCard() + weeklyTeaser() +

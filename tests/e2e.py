@@ -128,6 +128,11 @@ CONTRAST_JS = r"""() => {
 # ----------------------------------------------------------------------------------------------------------------------
 async def t_first_run(b):
     ctx, pg = await open_app(b, None)
+    await pg.wait_for_selector("#wl-go")
+    wl = await pg.inner_text(".modal.welcome")
+    check("first run: a Welcome page first: courses, the six skills, a progress example marked as an example, no testimonials",
+          "Courses" in wl and await pg.locator(".wl-skills > span").count() == 6 and "Example numbers" in wl and await pg.locator(".wl-course").count() == 3 and "testimonial" not in wl.lower(), wl[:300])
+    await pg.click("#wl-go")
     await pg.wait_for_selector("#su-go")
     check("first run: one short setup step (exam date, study time, days a week)", await pg.locator("#su-exam").count() == 1 and await pg.locator("#su-time").count() == 1 and await pg.locator("#su-days").count() == 1
           and await pg.locator("#su-goal, #su-lv, #g-skip").count() == 0)
@@ -151,6 +156,7 @@ async def t_first_run(b):
     await ctx.close()
     # Continue straight away: defaults are saved
     ctx, pg = await open_app(b, None)
+    await pg.wait_for_selector("#wl-go"); await pg.click("#wl-go")
     await pg.wait_for_selector("#su-go"); await pg.click("#su-go"); await pg.wait_for_timeout(600)
     st = await pg.evaluate("Store.state.settings")
     check("setup: Continue with no choices keeps the defaults", st.get("remindTime") == "20:00" and st.get("weeklyDays") == 5 and st.get("onboarded") and await pg.locator(".modal-wrap").count() == 0, st)
@@ -221,7 +227,7 @@ async def t_theme(b):
         m = await pg.evaluate(metas); col = await pg.evaluate(bg)
         used = await pg.evaluate("[...document.querySelectorAll('meta[name=\"theme-color\"]')].filter(m=>matchMedia(m.media).matches).map(m=>m.content)")
         check("status bar: follows the system theme (%s) and matches the page background" % scheme, len(m) == 2 and used == [col], (m, used, col))
-        await go(pg, "#/me", 500)
+        await go(pg, "#/settings", 500)
         other = "dark" if scheme == "light" else "light"
         await pg.select_option("#s-theme", other); await pg.wait_for_timeout(300)
         m = await pg.evaluate(metas); col = await pg.evaluate(bg)
@@ -233,7 +239,7 @@ async def t_theme(b):
     # export: share sheet when the phone can share a file, download otherwise
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})
     await pg.evaluate("()=>{window.__sh=null;navigator.canShare=d=>!!(d&&d.files&&d.files.length);navigator.share=d=>{window.__sh={n:d.files[0].name,t:d.files[0].type};return Promise.resolve()}}")
-    await go(pg, "#/me", 500); await pg.evaluate("document.querySelectorAll('#app details').forEach(d=>d.open=true)")
+    await go(pg, "#/settings", 500); await pg.evaluate("document.querySelectorAll('#app details').forEach(d=>d.open=true)")
     await pg.click("#s-exp"); await pg.wait_for_timeout(300)
     sh = await pg.evaluate("window.__sh")
     check("export: uses the share sheet with a JSON file when files can be shared", sh and sh["n"].endswith(".json") and sh["t"] == "application/json", sh)
@@ -612,7 +618,7 @@ async def t_sync(b):
     r = await p1.evaluate("Sync.now()"); c = await p1.evaluate(cfg)
     check("backup: saved after study, with a 16-character code", r == "saved" and c.get("rev") == 1 and len(c.get("code", "")) == 16, (r, c))
     check("backup: nothing is sent again when nothing changed", await p1.evaluate("Sync.now()") == "same")
-    await go(p1, "#/me", 500); await p1.evaluate(opened)
+    await go(p1, "#/settings", 500); await p1.evaluate(opened)
     shown = await p1.locator("#y-show").inner_text()
     check("backup: Me shows the restore code in groups of four", shown.replace("-", "") == c["code"] and shown.count("-") == 3, shown)
     # the admin sees this phone, as numbers only
@@ -664,7 +670,7 @@ async def t_sync(b):
     await p1.evaluate("localStorage.removeItem('cbChinese.ai.admin')")
     # a second phone restores with the code
     c2, p2 = await open_app(b, {"settings": settings(), "srs": {}}, ai=True)
-    await go(p2, "#/me", 500); await p2.evaluate(opened)
+    await go(p2, "#/settings", 500); await p2.evaluate(opened)
     await p2.click("#y-code"); await p2.fill("#y-in", "AAAA-BBBB-CCCC-DDDD"); await p2.click("#y-go"); await p2.wait_for_timeout(700)
     check("backup: a wrong code changes nothing", await p2.evaluate("Store.state.xp") == 0)
     await p2.fill("#y-in", shown.lower()); await p2.click("#y-go"); await p2.wait_for_timeout(900)
@@ -681,9 +687,9 @@ async def t_sync(b):
     check("backup: the first phone combines the newer copy instead of overwriting it", r1 == "saved" and "conflict" not in k1 and await p1.evaluate("Store.state.xp") >= 51 and await p1.evaluate("!!Store.state.srs['d01-01'] && !!Store.state.srs['d01-02']"), (r2b, r1, k1))
     got = await p2.evaluate("AI.call('sync_get',{code:%s}).then(r=>Object.keys(r.result.data.srs).sort().join(','))" % json.dumps(c["code"]))
     check("backup: the cloud copy now has the words from both phones", "d01-01" in got and "d01-02" in got, got)
-    await go(p1, "#/", 300); await go(p1, "#/me", 500); await p1.evaluate(opened)
+    await go(p1, "#/", 300); await go(p1, "#/settings", 500); await p1.evaluate(opened)
     check("backup: nothing to choose in Me", await p1.locator("#y-take").count() == 0)
-    await go(p1, "#/me", 500); await p1.evaluate(opened)
+    await go(p1, "#/settings", 500); await p1.evaluate(opened)
     await p1.click("#y-off"); await p1.wait_for_timeout(600)
     check("backup: turning off (and deleting) stops saving", await p1.evaluate("Sync.now()") == "off" and "code" not in await p1.evaluate(cfg))
     gone = await p2.evaluate("AI.call('sync_get',{code:%s}).then(r=>r.error)" % json.dumps(c["code"]))
@@ -1805,7 +1811,7 @@ async def t_sync_heal(b):
     check("sync_heal: Home shows no paused backup", await p1.locator(".sync-paused").count() == 0)
     # the fallback when combining could not happen (e.g. offline at that moment): Home explains, Me offers "Combine both"
     await p1.evaluate("(()=>{const c=JSON.parse(localStorage.getItem('cbChinese.sync'));c.conflict={at:new Date().toISOString(),meta:{xp:9999,words:0,last:''}};c.rev=0;localStorage.setItem('cbChinese.sync',JSON.stringify(c))})()")
-    await go(p1, "#/me", 300); await go(p1, "#/", 800)
+    await go(p1, "#/settings", 300); await go(p1, "#/", 800)
     t = await p1.locator(".sync-paused").inner_text() if await p1.locator(".sync-paused").count() else ""
     check("sync_heal: a pause left over says the app combines both by itself", "combines both" in t and await p1.locator(".sync-paused").get_attribute("href") == "#/me", t)
     await go(p1, "#/me/backup", 1200); await p1.wait_for_selector("#y-merge", timeout=10000)
@@ -2008,7 +2014,7 @@ async def t_simple(b):
     await go(pg, "#/skill/exam", 900)
     check("practice → mock exams: a recommended mock test with a start button", await pg.locator("#pr-mock-go").count() == 1 and "Mock Test" in await pg.locator(".pr-mock").inner_text())
     check("practice: no folded list of every game any more", await pg.locator("details.all-games").count() == 0)
-    await go(pg, "#/me", 800)
+    await go(pg, "#/settings", 800)
     t = await pg.inner_text("#app")
     check("me: no admin tools for a learner", "Content review" not in t and "Learner tracking" not in t and await pg.locator("a[href='#/learners']").count() == 0)
     check("me: four key settings, the rest under More settings", await pg.locator("#s-exam-link").is_visible() and await pg.locator("#s-smode").is_visible() and not await pg.locator("#s-rate").is_visible())
@@ -2082,7 +2088,7 @@ async def t_boost(b):
     ctx, pg = await open_app(b, {"settings": settings(examDate=day(8), examTime="09:00"), "srs": {}})
     await go(pg, "#/exam", 1200); await pg.wait_for_selector(".ep-list li", timeout=10000)
     check("exam time: final-week full mocks start at the exam hour", "start at 09:00" in await pg.inner_text(".ep-list"))
-    await go(pg, "#/me", 600)
+    await go(pg, "#/settings", 600)
     check("exam: Me shows the exam in one row that opens My exams (no second date or time field)", "09:00" in await pg.inner_text("#s-exam-link") and await pg.locator("#s-exam, #s-etime").count() == 0)
     await pg.click("#s-exam-link"); await pg.wait_for_selector("#ex-t", timeout=10000)
     check("exam time: set in My exams", await pg.input_value("#ex-t") == "09:00")
@@ -2401,7 +2407,7 @@ async def t_vi(b):
     await ctx.close()
     st = {"settings": settings(), "srs": {}}
     ctx, pg = await open_app(b, st, ui=None)
-    await go(pg, "#/me", 500)
+    await go(pg, "#/settings", 500)
     has = await pg.evaluate("() => !!document.getElementById('s-ui') && document.getElementById('s-ui').value")
     check("vi: Me → Settings has the interface language switch, set to Vietnamese", has == "vi", has)
     await pg.select_option("#s-ui", "en"); await pg.wait_for_timeout(400)
@@ -2411,7 +2417,7 @@ async def t_vi(b):
     await pg.reload(); await pg.wait_for_timeout(900)
     t = await pg.evaluate(tabs)
     check("vi: the choice survives a reload", "Home" in t, t)
-    await go(pg, "#/me", 500); await pg.select_option("#s-ui", "vi"); await pg.wait_for_timeout(400)
+    await go(pg, "#/settings", 500); await pg.select_option("#s-ui", "vi"); await pg.wait_for_timeout(400)
     h2 = await pg.evaluate("() => [...document.querySelectorAll('#app h2')].map(e => e.textContent).join('|')")
     check("vi: back to Vietnamese, the Settings heading is Vietnamese", "Cài đặt" in h2, h2[:200])
     bad = []
@@ -2561,13 +2567,13 @@ async def t_speak(b):
     await pg.click("#sh-rec"); await pg.wait_for_timeout(400)
     check("shadowing: without the microphone it becomes listen and repeat, still rateable", "listen and repeat" in await pg.inner_text(".sh-steps") and await pg.locator("[data-sh='ok']").count() == 1)
     # focus setting
-    await go(pg, "#/me", 600)
+    await go(pg, "#/settings", 600)
     await pg.select_option("#s-focus", "speak"); await pg.wait_for_timeout(200)
     plan = await pg.evaluate("App._sessionPlan().map(x=>x.id+':'+(x.n||''))")
     check("focus: 'Speaking first' gives 8 sentences in Today", "speak:8" in plan, plan)
     await go(pg, "#/games", 800)
     check("focus: Speaking is the first skill tile in Practice", (await pg.get_attribute("a.sk-tile >> nth=0", "href")) == "#/skill/speak")
-    await go(pg, "#/me", 600); await pg.select_option("#s-focus", "exam"); await pg.wait_for_timeout(200)
+    await go(pg, "#/settings", 600); await pg.select_option("#s-focus", "exam"); await pg.wait_for_timeout(200)
     check("focus: 'Exam only' has no speaking step", not any(x.startswith("speak") for x in await pg.evaluate("App._sessionPlan().map(x=>x.id)")))
     await pg.select_option("#s-focus", "mix"); await pg.evaluate("Store.state.settings.examDate=Store.addDays(Store.today(),5);Store.save()")
     check("focus: in the exam week the default leaves speaking out", not any(x.startswith("speak") for x in await pg.evaluate("App._sessionPlan().map(x=>x.id)")))
@@ -2886,8 +2892,9 @@ async def t_progress_go(b):
     await go(pg, "#/progress", 900)
     check("progress: with no words yet the words chart offers new words", await pg.locator("#go-words").get_attribute("href") == "#/learn")
     await ctx.close()
-    # first run: setup Continue (tap 1), Start on Home (tap 2) → a flashcard
+    # first run: Start learning on Welcome (tap 1), setup Continue (tap 2), Start on Home (tap 3) → a flashcard
     ctx, pg = await open_app(b, None)
+    await pg.wait_for_selector("#wl-go"); await pg.click("#wl-go")
     await pg.wait_for_selector("#su-go")
     ex = await pg.input_value("#su-exam")
     check("first run: the suggested exam date is never in the past, nor less than 2 weeks away", ex >= day(14), ex)
@@ -2896,7 +2903,7 @@ async def t_progress_go(b):
     # The first step depends on the plan for that day (a flashcard deck, or near the exam e.g. "Type the Sentence"),
     # so check that some exercise opened: no plan page, no Home, and either a flashcard or a step counter like "1/3".
     txt = await pg.inner_text("#app")
-    check("first run: 2 taps reach the first card", "#/session/go" in pg.url and await pg.locator("#ss-go").count() == 0 and await pg.locator("#today-go").count() == 0
+    check("first run: 3 taps (Welcome, setup, Start) reach the first card", "#/session/go" in pg.url and await pg.locator("#ss-go").count() == 0 and await pg.locator("#today-go").count() == 0
           and ("Tap to flip" in txt or re.search(r"(^|\n)1/\d+(\n|$)", txt) is not None), [pg.url, txt[:80]])
     await ctx.close()
 

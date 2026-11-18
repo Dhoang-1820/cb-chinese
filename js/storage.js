@@ -13,7 +13,7 @@
   function defaults() {
     return {
       version: 2,
-      settings: { showPinyin: true, lang: "both", theme: "auto", audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std", focus: "mix", level: 4, h5: false }, // level: 4 or 5 = the Learn level switch; h5: HSK 5 was opened once (its data is then kept ready)
+      settings: { showPinyin: true, lang: "both", theme: "light", themeV2: true, audioRate: 1, sfx: true, examDate: "2026-11-14", coreTarget: 30, dailyGoal: 30, installHintDismissed: false, textSize: "m", onboarded: false, remindTime: "20:00", weeklyDays: 5, noise: 0, mockRate: 0, sessionMode: "std", focus: "mix", level: 4, h5: false }, // level: 4 or 5 = the Learn level switch; h5: HSK 5 was opened once (its data is then kept ready)
       srs: {},        // wordId -> { box, due, right, wrong, added, last }
       days: {},       // dayNo -> { quizBest, practice: {}, completed, completedOn, cu: date it was done as a short catch-up lesson (cleared when its full quiz is passed) }
       streak: { count: 0, last: null, best: 0 },
@@ -212,6 +212,8 @@
     else if (d.fcAtExam) d.fcAtExam = { d: d.fcAtExam.d, t: n(d.fcAtExam.t), L: n(d.fcAtExam.L), R: n(d.fcAtExam.R), W: n(d.fcAtExam.W) };
     if (["both", "vi", "en"].indexOf(st.lang) < 0) st.lang = dflt.lang;
     if (["auto", "light", "dark"].indexOf(st.theme) < 0) st.theme = dflt.theme;
+    // Nov 2026: light became the default; learners still on "System" from before move to light once (Settings → Theme can set it back)
+    if (st.themeV2 !== true) { if (st.theme === "auto") st.theme = "light"; st.themeV2 = true; }
     if (["m", "l", "xl"].indexOf(st.textSize) < 0) st.textSize = dflt.textSize;
     st.dailyGoal = [20, 30, 50, 80].indexOf(+st.dailyGoal) >= 0 ? +st.dailyGoal : dflt.dailyGoal;
     st.audioRate = [0.75, 0.9, 1, 1.15].indexOf(+st.audioRate) >= 0 ? +st.audioRate : dflt.audioRate;

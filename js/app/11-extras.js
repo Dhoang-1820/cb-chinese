@@ -71,8 +71,30 @@
         if (/^#?\/?$/.test(location.hash)) route(); // Home shows the new exam date and weekly goal
       };
     }
+    /* Welcome (new learners only, before the two setup choices): what the app is, the courses, the six skills,
+       an example of the progress page (marked as an example), and one button to start. */
+    function welcome() {
+      var hsk4 = WORDS.filter(function (w) { return !/^h5-/.test(w.id); }).length;
+      var sk = window.Games && Games.SKILLS ? Games.SKILLS : [];
+      var go = function (id) { return '<button type="button" class="btn primary wide wl-go" id="' + id + '">' + tx("Start learning") + "</button>"; };
+      wrap.innerHTML = '<div class="modal welcome" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="wl-hero"><div class="g-mas">' + UI.mascot("wave", 72) + '</div><h2 id="guide-t">' +
+        tx("HSK 4 Chinese for HR people") + '</h2><p class="sub">' + tx("15 minutes a day: new words, speaking with AI, mock tests. Fits around work.") + "</p>" + go("wl-go") +
+        '<small class="wl-note">' + tx("Setup takes 1 minute") + "</small></div>" +
+        '<h3 class="wl-h">' + tx("Courses") + "</h3>" +
+        [["HSK 4", tx("{n} lessons · {w} words", { n: DAYS.length, w: hsk4 }), tx("Pay, benefits, hiring, labour law"), "c4"], ["HSK 5", tx("Word packs and grammar"), tx("After HSK 4"), "c5"],
+         ["C&amp;B Pro", tx("24-week track"), tx("Chinese for pay and benefits work"), "cp"]].map(function (c) {
+          return '<div class="wl-course"><span class="wl-badge ' + c[3] + '">' + c[0] + '</span><span><b>' + c[1] + "</b><small>" + c[2] + "</small></span></div>";
+        }).join("") +
+        '<h3 class="wl-h">' + tx("You will practise") + '</h3><div class="wl-skills">' + sk.map(function (x) { return '<span class="sk-' + x.k + '">' + Games.skIcon(x.k) + "<b>" + tx(x.name) + "</b></span>"; }).join("") + "</div>" +
+        '<h3 class="wl-h">' + tx("Track your progress") + ' <small>' + tx("example") + '</small></h3><div class="wl-demo"><div class="wl-dh"><b>' + tx("Ready for the exam") + '</b><b class="good-t">72%</b></div>' +
+        '<div class="xpbar"><span style="width:72%"></span></div><div class="wl-stats"><span><b>21</b>' + tx("days in a row") + "</span><span><b>640</b>" + tx("words learned") + "</span><span><b>235</b>" + tx("predicted score") + "</span></div>" +
+        '<small class="wl-note">' + tx("Example numbers, not a real learner's.") + "</small></div>" + go("wl-go2") + "</div>";
+      var next = function () { welcomed = true; setup(); };
+      wrap.querySelector("#wl-go").onclick = next; wrap.querySelector("#wl-go2").onclick = next;
+    }
+    var welcomed = false;
     function draw() {
-      if (!Store.state.settings.setupDone && !(Store.state.settings.onboarded)) { setup(); return; }
+      if (!Store.state.settings.setupDone && !(Store.state.settings.onboarded)) { if (welcomed) setup(); else welcome(); return; }
       var g = GUIDE[i];
       wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guide-t"><div class="g-ico">' + g.icon + '</div><h2 id="guide-t">' + tx(g.t) + "</h2><p>" + tx(g.d) + "</p>" +
         '<div class="g-dots">' + GUIDE.map(function (_, k) { return '<i class="' + (k === i ? "on" : "") + '"></i>'; }).join("") + "</div>" +

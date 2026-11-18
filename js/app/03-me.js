@@ -8,6 +8,17 @@
     var g = Store.lastGood();
     return g ? esc(tx("Saved {date} · {n} words", { date: new Date(g.at).toLocaleString(), n: g.words })) : esc(tx("Not made yet"));
   }
+  /* this week's XP, Monday to Sunday, as clay bars (the full charts are in Progress) */
+  function meWeek() {
+    var t = Store.today(), d0 = new Date(t + "T00:00:00"), wd = (d0.getDay() + 6) % 7, mon = Store.addDays(t, -wd), log = Store.state.log || {}, days = [], max = 1;
+    var names = [tx("Mon"), tx("Tue"), tx("Wed"), tx("Thu"), tx("Fri"), tx("Sat"), tx("Sun")];
+    for (var i = 0; i < 7; i++) { var d = Store.addDays(mon, i), x = log[d] || 0; days.push({ d: d, x: x, n: names[i] }); if (x > max) max = x; }
+    var sum = days.reduce(function (a, b) { return a + b.x; }, 0);
+    return '<a class="card me-week" href="#/progress" aria-label="' + esc(tx("XP this week: {n}. Open Progress", { n: sum })) + '"><div class="mw-h"><b>' + tx("XP this week") + '</b><span>' + sum + " XP ›</span></div>" +
+      '<div class="mw-bars" aria-hidden="true">' + days.map(function (x) {
+        return '<span class="mw-col' + (x.d === t ? " mw-today" : "") + '"><i style="height:' + (x.x ? Math.max(8, Math.round(x.x / max * 88)) : 4) + 'px"></i><small>' + x.n + "</small></span>";
+      }).join("") + "</div></a>";
+  }
   function viewMe(sub) {
     var s = Store.state, set = s.settings, lv = Game.level(s.xp), bc = SRS.boxCounts();
     var inSrs = Object.keys(s.srs).length, done = Object.keys(s.days).filter(function (k) { return s.days[k].completed; }).length;
@@ -70,6 +81,15 @@
       (isIOS && !standalone ? '<section class="card"><h2>' + tx("Install on iPhone") + '</h2><p class="sub">' + tx("In Chrome, tap <b>Share ⬆︎</b> (address bar) → <b>Add to Home Screen</b>. The home-screen app opens full-screen, works offline, and iOS won't clear its progress. Export a backup now and then anyway.") + '</p></section>' : "") +
       '<p class="sub center">' + tx("{d} days · {w} words", { d: DAYS.length, w: WORDS.length }) + ' · <a href="#/search">' + tx("Search") + '</a></p>' +
       '<p class="sub center" id="s-ver">' + tx("Version 1.1 · build {b}", { b: BUILD }) + '</p><p class="sub center">' + tx("Animated emoji: Noto Emoji Animation by Google, CC BY 4.0") + '</p>';
+    /* Me is a progress page; the settings have their own page (#/settings). Both parts are always built (their controls
+       are wired by id below) and the one not shown stays hidden. */
+    var cut = html.indexOf('<section class="card settings"><h2>'), foot = html.indexOf('<p class="sub center">' + tx("{d} days · {w} words", { d: DAYS.length, w: WORDS.length }));
+    if (cut > 0 && foot > cut) {
+      var top = html.slice(0, cut), setp = html.slice(cut, foot), tail = html.slice(foot), onSet = /^#\/settings/.test(location.hash) || !!sub; // #/me/backup and the like open the settings page
+      html = onSet ? '<a class="back" href="#/me">‹ ' + tx("Me") + '</a><h2 class="set-title">' + tx("Settings") + '</h2><div hidden>' + top + "</div>" + setp + tail
+        : (function () { var k = top.indexOf('<section class="card me-rows">'); return k > 0 ? top.slice(0, k) + meWeek() + top.slice(k) : top + meWeek(); })() + '<section class="card me-rows"><a class="me-row" href="#/settings" id="me-settings"><span class="mr-i" aria-hidden="true">⚙️</span><span class="mr-t"><b>' + tx("Settings") +
+          '</b><small>' + tx("Language, theme, AI, reminders, backup") + '</small></span><span class="lc-go" aria-hidden="true">›</span></a></section><div hidden>' + setp + "</div>" + tail;
+    }
     render(html, "me");
     var vt = 0, ver = document.getElementById("s-ver");
     if (ver) ver.onclick = function () { if (++vt >= 5 && !admin) { try { localStorage.setItem(ADMIN_FLAG, "1"); } catch (e) { /* fine */ } UI.toast(tx("Admin tools shown in More settings"), "🔧"); viewMe(); } };

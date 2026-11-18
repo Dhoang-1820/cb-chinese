@@ -643,10 +643,13 @@
   function viewReview() {
     var ids = SRS.dueIds(WORDMAP), bc = SRS.boxCounts(), total = 0;
     Object.keys(bc).forEach(function (k) { total += bc[k]; });
-    var max = Math.max(1, bc[1], bc[2], bc[3], bc[4], bc[5]);
-    var boxes = '<div class="card boxes">' + [1, 2, 3, 4, 5].map(function (b) {
-      return '<div class="box"><div class="bcol"><i class="b' + b + '" style="height:' + Math.max(6, bc[b] / max * 100) + '%"></i></div><b>' + bc[b] + '</b><span>' + tx("Box {n}", { n: b }) + "</span><small>" + tx("{n}d", { n: SRS.INTERVALS[b] }) + "</small></div>";
-    }).join("") + "</div>";
+    /* memory in plain words instead of "box 1-5": box 1 = about to forget, 2-3 = still learning, 4-5 = remembered well */
+    var weak = bc[1] || 0, mid = (bc[2] || 0) + (bc[3] || 0), firm = (bc[4] || 0) + (bc[5] || 0);
+    var boxes = total ? '<section class="card mem-card"><h2>' + tx("Your memory") + '</h2><div class="mem-bar" role="img" aria-label="' +
+      esc(tx("{a} remembered well, {b} still learning, {c} about to forget", { a: firm, b: mid, c: weak })) + '">' +
+      [["firm", firm], ["mid", mid], ["weak", weak]].map(function (x) { return x[1] ? '<i class="mem-' + x[0] + '" style="flex:' + x[1] + '"></i>' : ""; }).join("") + "</div>" +
+      '<div class="mem-key"><div><b class="mem-t-firm">' + firm + "</b><span>" + tx("Remembered well") + '</span></div><div><b class="mem-t-mid">' + mid + "</b><span>" + tx("Still learning") +
+      '</span></div><div><b class="mem-t-weak">' + weak + "</b><span>" + tx("About to forget") + "</span></div></div></section>" : "";
     if (!ids.length) {
       var nd = SRS.nextDue();
       render('<div class="card result">' + (total ? UI.mascot("think", 88) : UI.anim("cat-sleep", 150, UI.mascot("sleepy", 88))) + "<h2>" + (total ? tx("All caught up!") : tx("Nothing to review yet")) + "</h2>" +
@@ -655,7 +658,7 @@
       return;
     }
     render('<div class="card result">' + UI.mascot("happy", 88) + "<h2>" + (ids.length > 1 ? tx("{n} words due", { n: ids.length }) : tx("{n} word due", { n: ids.length })) + "</h2>" +
-      '<p class="sub">' + tx("✓ moves a card up a box · ✗ brings it back today · hard words return sooner") + '</p><button class="btn primary wide" id="start">' + tx("Start review") + '</button></div>' + boxes + mistakesCard(), "review");
+      '<p class="sub">' + tx("✓ you knew it: it comes back later · ✗ not yet: it comes back today") + '</p><button class="btn primary wide" id="start">' + tx("Start review") + '</button></div>' + boxes + mistakesCard(), "review");
     document.getElementById("start").onclick = function () {
       runDeck({ title: tx("Review"), words: ids.map(function (id) { return WORDMAP[id]; }), mode: "review", back: "#/review" });
     };

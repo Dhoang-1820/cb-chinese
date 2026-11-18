@@ -1638,7 +1638,7 @@ a.cc-part[href]:active { background: var(--surface-2); }
 .cc-rl { color: var(--muted); font-size: .9rem; }
 .cc-ss { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; font-size: 1.25rem; min-width: 0; }
 .cc-ss .tone-ic { flex: 0 0 auto; }
-.cc-via { font-size: .9rem; color: var(--muted); }
+.cc-vias { font-size: 1.05rem; } .cc-via1 .zh { color: var(--muted); margin-right: 2px; } .cc-dot { color: var(--muted); }
 .cc-rn { grid-column: 2; color: var(--muted); font-size: .88rem; }
 .cc-arr { color: var(--muted); margin: 0 4px; }
 .syl .s-diff { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; color: var(--ch-0); }
@@ -1665,3 +1665,15 @@ a.cc-part[href]:active { background: var(--surface-2); }
 .ch-link { color: inherit; text-decoration: underline dotted var(--muted); text-underline-offset: 6px; text-decoration-thickness: 2px; }
 .ws-chhint { margin: -2px 0 4px; font-size: .82rem; }
 @media (max-width: 380px) { .cc-box { width: 124px; height: 124px; } .cc-pg { font-size: 2.2rem; } }
+/* card as a sheet over any screen (press and hold a character) */
+.modal:has(.csheet) { width: min(560px, 100%); padding: 14px 12px; text-align: left; }
+.modal-wrap:has(.csheet) { padding: 12px; }
+.cs-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cs-top .cc-tabs { margin: 0; }
+.cs-full { min-width: 44px; min-height: 44px; font-size: 1.1rem; }
+.csheet .card { box-shadow: none; border: 1.5px solid var(--border); padding: 12px; margin: 0 0 10px; }
+.csheet .cc-box { width: 120px; height: 120px; }
+.csheet .cc-py { font-size: 1.6rem; }
+.cc-tab { font: inherit; font-size: 1.5rem; cursor: pointer; }
+/* holding Chinese text opens its card, so iOS's copy menu and text selection are off there */
+.zh, .hz, :lang(zh) { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }

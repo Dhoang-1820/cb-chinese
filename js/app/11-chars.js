@@ -89,6 +89,7 @@
   /* parts shown as cards: meaning and sound parts for a meaning + sound character, otherwise the top-level parts */
   function cardParts(e) {
     var k = e.k || [];
+    if (e.t === "g") return []; // a picture character: its strokes are not parts with their own meaning
     if (e.t === "p" && e.s && e.p) {
       var si = k.indexOf(e.s), pi = k.indexOf(e.p), out = [{ c: e.s, role: "s" }, { c: e.p, role: "p" }];
       return si > pi && pi >= 0 ? out.reverse() : out;
@@ -159,26 +160,121 @@
     [].forEach.call(document.querySelectorAll(".cc-tab"), function (t) { // switching characters of one word keeps one history entry
       t.onclick = function (ev) { ev.preventDefault(); location.replace(t.getAttribute("href")); };
     });
-        Promise.all([loadChars().catch(function () { return null; }), strokeJSON(ch)]).then(function (res) {
-      var C = res[0], sd = res[1], body = document.getElementById("cc-body");
-      if (!body || location.hash !== myHash) return;
+    loadCard(ch, function () { var b = document.getElementById("cc-body"); return b && location.hash === myHash ? b : null; });
+  }
+  /* fetch the data and the strokes, then draw into the body that is still current (getBody returns null if the user moved on) */
+  function loadCard(ch, getBody, after) {
+    Promise.all([loadChars().catch(function () { return null; }), strokeJSON(ch)]).then(function (res) {
+      var C = res[0], sd = res[1], body = getBody();
+      if (!body) return;
       if (!C) { body.innerHTML = '<p class="empty">' + tx("Couldn't load the character data. Check your connection and try again.") + "</p>"; return; }
       drawCard(body, C, ch, C[ch] || {}, sd);
+      if (after) after(body);
     });
   }
 
+  /* The card as a sheet over whatever is on screen (a lesson, a deck, the reader…): closing it leaves that screen as it was.
+     Inside the sheet, a part or another character of the word swaps the card in place; ⤢ opens the full page. */
+  var SHEET_SEQ = 0;
+  function openCharSheet(ch, wordId) {
+    if (!HAN1.test(ch)) return;
+    if (/^#\/char\//.test(location.hash)) { location.hash = "#/char/" + encodeURIComponent(ch); return; } // the page itself is a card
+    var host = document.getElementById("csheet");
+    if (!host) { UI.modal('<div class="csheet" id="csheet"></div>'); host = document.getElementById("csheet"); }
+    fillSheet(host, ch, wordId);
+  }
+  function fillSheet(host, ch, wordId) {
+    var w = wordId && WORDMAP[wordId] && WORDMAP[wordId].hanzi.indexOf(ch) >= 0 ? WORDMAP[wordId] : null, seq = ++SHEET_SEQ;
+    var strip = w ? Array.from(w.hanzi).filter(function (c) { return HAN1.test(c); }) : [];
+    host.innerHTML = '<div class="cs-top">' + (strip.length > 1 ? '<div class="cc-tabs" role="tablist">' + strip.map(function (c) {
+      return '<button type="button" role="tab" class="cc-tab zh' + (c === ch ? " on" : "") + '" aria-selected="' + (c === ch) + '" data-csch="' + esc(c) + '">' + esc(c) + "</button>";
+    }).join("") + "</div>" : "<span></span>") +
+      '<a class="btn small cs-full" href="#/char/' + encodeURIComponent(ch) + (w ? "/" + encodeURIComponent(w.id) : "") + '" aria-label="' + tx("Open as a full page") + '">⤢</a></div>' +
+      '<div id="cc-body"><p class="empty">' + tx("Loading…") + "</p></div>";
+    [].forEach.call(host.querySelectorAll("[data-csch]"), function (b) { b.onclick = function () { fillSheet(host, b.getAttribute("data-csch"), wordId); }; });
+    host.querySelector(".cs-full").addEventListener("click", function () { [].forEach.call(document.querySelectorAll(".modal-wrap"), function (m) { m.remove(); }); });
+    loadCard(ch, function () { return seq === SHEET_SEQ && host.isConnected ? host.querySelector("#cc-body") : null; }, function (body) {
+      [].forEach.call(body.querySelectorAll("a.cc-part[href]"), function (a) { // a part: its card here, not a new page
+        a.onclick = function (ev) { ev.preventDefault(); fillSheet(host, decodeURIComponent(a.getAttribute("href").split("/")[2] || ""), ""); };
+      });
+      host.scrollIntoView({ block: "start" });
+    });
+  }
+
+  /* Press and hold any Chinese character, anywhere, to open its card. Not while a question waits for an answer (open answer
+     buttons, the front of a flashcard, games, exams): the card shows the pinyin and the meaning. */
+  var LP = { t: null, x: 0, y: 0, fired: 0, swallow: false }, HOLD_MS = 450;
+  function charAt(x, y) {
+    var node = null, off = 0;
+    if (document.caretRangeFromPoint) { var r = document.caretRangeFromPoint(x, y); if (r) { node = r.startContainer; off = r.startOffset; } }
+    else if (document.caretPositionFromPoint) { var p = document.caretPositionFromPoint(x, y); if (p) { node = p.offsetNode; off = p.offset; } }
+    if (!node || node.nodeType !== 3) return null;
+    var s = node.nodeValue || "", tries = [off, off - 1];
+    for (var k = 0; k < tries.length; k++) {
+      var i = tries[k];
+      if (i < 0 || i >= s.length || !HAN1.test(s.charAt(i))) continue;
+      var rg = document.createRange(); rg.setStart(node, i); rg.setEnd(node, i + 1);
+      var b = rg.getBoundingClientRect();
+      if (x >= b.left - 4 && x <= b.right + 4 && y >= b.top - 4 && y <= b.bottom + 4) return { ch: s.charAt(i), el: node.parentElement };
+    }
+    return null;
+  }
+  function quizOpen(el) {
+    if (/^#\/(game|mock|exam|sprint)(\/|$)/.test(location.hash) && !(el && el.closest(".modal-wrap"))) return true;
+    var app = document.getElementById("app");
+    if (app && [].some.call(app.querySelectorAll(".opt"), function (o) { return !o.disabled && o.offsetParent !== null; })) return true;
+    var card = el && el.closest(".fcard");
+    if (card && !card.classList.contains("flipped")) return true; // the answer side is not shown yet
+    return false;
+  }
+  function wordIdNear(el, ch) {
+    var host = el && el.closest("[data-w],[data-cw],[data-wid]");
+    var id = host && (host.getAttribute("data-w") || host.getAttribute("data-cw") || host.getAttribute("data-wid"));
+    return id && WORDMAP[id] && WORDMAP[id].hanzi.indexOf(ch) >= 0 ? id : "";
+  }
+  function onHold() {
+    LP.t = null;
+    var hit = charAt(LP.x, LP.y);
+    if (!hit) return;
+    LP.fired = Date.now(); LP.swallow = true;
+    try { window.getSelection().removeAllRanges(); } catch (e) { /* no selection */ }
+    if (quizOpen(hit.el)) { UI.toast(tx("Answer first, then hold a character to see its card"), "🔒"); return; }
+    openCharSheet(hit.ch, wordIdNear(hit.el, hit.ch));
+  }
+  document.addEventListener("pointerdown", function (e) {
+    clearTimeout(LP.t); LP.t = null; LP.swallow = false;
+    if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if (e.target.closest && e.target.closest("input,textarea,select,[contenteditable],svg,canvas,.hw-box,.no-charpeek")) return;
+    LP.x = e.clientX; LP.y = e.clientY;
+    LP.t = setTimeout(onHold, HOLD_MS);
+  }, true);
+  document.addEventListener("pointermove", function (e) {
+    if (LP.t && Math.hypot(e.clientX - LP.x, e.clientY - LP.y) > 10) { clearTimeout(LP.t); LP.t = null; }
+  }, true);
+  ["pointerup", "pointercancel", "scroll"].forEach(function (ev) { document.addEventListener(ev, function () { clearTimeout(LP.t); LP.t = null; }, true); });
+  // the tap that ends a hold must not also press what was under the finger (flip a card, play audio, open a link)
+  document.addEventListener("click", function (e) { if (LP.swallow && Date.now() - LP.fired < 1500) { LP.swallow = false; e.preventDefault(); e.stopPropagation(); } }, true);
+  document.addEventListener("contextmenu", function (e) { if (Date.now() - LP.fired < 1500 || LP.t) e.preventDefault(); }, true);
+  /* tell learners once, the first time they open a word */
+  function charTipOnce() {
+    try { if (localStorage.getItem("cbChinese.charTip")) return; localStorage.setItem("cbChinese.charTip", "1"); } catch (e) { return; }
+    setTimeout(function () { UI.toast(tx("Tip: hold any Chinese character to see its card"), "👆"); }, 600);
+  }
+
   function drawCard(body, C, ch, e, sd) {
-    var en = enOnly(), one = oneCharWord(ch), ws = wordsWith(ch, 8), parts = cardParts(e), roles = e.r || "";
-    // its meaning: the one-character word if the course has it, otherwise the meaning of the shortest course word using it
-    var via = !one && ws.length && ws[0].hanzi.length <= 3 ? ws[0] : null;
-    var meaning = one ? (en ? one.en : one.vi) : via ? (en ? via.en : via.vi) : "";
+    var en = enOnly(), one = oneCharWord(ch), ws = wordsWith(ch, 8), parts = cardParts(e), roles = parts.length ? e.r || "" : "";
+    // its meaning: the one-character word if the course has it; otherwise the course words using it (up to two), because
+    // one compound alone can mislead (工 is not "salary" just because of 工资)
+    var vias = one ? [] : ws.filter(function (x) { return x.hanzi.length <= 3; }).slice(0, 2);
+    var meaning = one ? (en ? one.en : one.vi) : vias.length ? (en ? vias[0].en : vias[0].vi) : "";
     var hasSP = e.t === "p" && e.s && e.p;
     var legend = hasSP ? '<span class="cc-key"><i class="k-p"></i>' + tx("Sound part") + ' <b class="zh r-p">' + esc(e.p) + '</b></span><span class="cc-key"><i class="k-s"></i>' + tx("Meaning part") + ' <b class="zh r-s">' + esc(e.s) + "</b></span>"
       : parts.length >= 2 && roles ? parts.map(function (x) { return '<span class="cc-key"><i class="k-' + x.role + '"></i><b class="zh ' + ROLE_CLS[x.role] + '">' + esc(x.c) + "</b></span>"; }).join("") : "";
     var head = '<section class="card cc-head"><div class="cc-box" id="cc-box">' + (sd ? glyphSVG(ch, sd, roles, false) : '<span class="cc-big zh">' + esc(ch) + "</span>") +
       (sd ? '<button type="button" class="cc-replay" id="cc-replay" aria-label="' + tx("Show the stroke order") + '"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg></button>' : "") + "</div>" +
       '<div class="cc-info"><div class="cc-py">' + (e.py || []).map(function (p) { return "<span>" + esc(p) + "</span>"; }).join(" · ") + SAY(ch, null, true) + "</div>" +
-      (meaning ? '<p class="cc-mean">' + esc(meaning) + (via ? ' <span class="cc-via">(' + tx("in {w}", { w: '<span class="zh">' + esc(via.hanzi) + "</span>" }) + ")</span>" : "") + "</p>" : "") +
+      (one ? '<p class="cc-mean">' + esc(meaning) + "</p>" : vias.length ? '<p class="cc-mean cc-vias">' + vias.map(function (x) {
+        return '<span class="cc-via1"><span class="zh">' + esc(x.hanzi) + "</span> " + esc(en ? x.en : x.vi) + "</span>"; }).join('<span class="cc-dot"> · </span>') + "</p>" : "") +
       (e.d && (en || !meaning) ? '<p class="cc-def' + (en ? "" : " dim") + '">' + (en ? "" : '<span class="tag">EN</span> ') + esc(e.d) + "</p>" : "") +
       (!en && hvAll(e) ? '<p class="cc-hv">' + tx("Hán Việt") + " <b>" + esc(hvAll(e)) + "</b></p>" : "") +
       '<div class="cc-chips">' + (e.n ? '<span class="tag">' + tx("{n} strokes", { n: e.n }) + "</span>" : "") + (e.rn && !e.k ? '<span class="tag">' + tx("Radical") + "</span>" : "") + "</div>" +

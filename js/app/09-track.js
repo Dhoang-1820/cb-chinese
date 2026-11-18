@@ -162,9 +162,10 @@
       (window.AI && AI.configured() ? '<div class="ws-ask" id="ws-ask"><button class="btn small ai-btn" id="ws-askbtn">🤖 ' + tx("Ask AI about this word") + '</button></div>' : "") +
       '<div class="ws-ask"><button class="btn small" id="ws-report">⚑ ' + tx("Report a problem with this word") + '</button></div></div>');
     fillExtras();
-    [].forEach.call(document.querySelectorAll(".wsheet .ch-link"), function (a) { // the character card replaces the sheet
-      a.addEventListener("click", function () { var m = a.closest(".modal-wrap"); if (m) m.remove(); });
+    [].forEach.call(document.querySelectorAll(".wsheet .ch-link"), function (a) { // the character card opens on top of the word
+      a.addEventListener("click", function (ev) { ev.preventDefault(); openCharSheet(decodeURIComponent(a.getAttribute("href").split("/")[2] || ""), w.id); });
     });
+    charTipOnce();
     var wrb = document.getElementById("ws-report");
     if (wrb) wrb.onclick = function () { openReport({ ref: "word:" + id, label: w.hanzi + " · " + w.pinyin }); };
     var ab = document.getElementById("ws-askbtn");

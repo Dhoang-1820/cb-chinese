@@ -2668,19 +2668,64 @@ async def t_char(b):
     sec = await pg.inner_text("#cc-body")
     r2 = await pg.evaluate("[...new Set([...document.querySelectorAll('.cc-svg .cc-st')].map(p=>p.classList[1]))].join(',')")
     check("char: 好 = 女 + 子, hội ý, coloured by part, with the origin hint", "hội ý" in sec and await pg.locator(".cc-part").count() == 2 and r2 == "r-0,r-1" and "A woman" in sec and "Gợi ý âm đọc" not in sec, [r2, sec[:200]])
-    # from the word sheet: each character links to its card, tabs switch without stacking history
+    # from the word sheet: a character opens its card as a sheet on top of the word
     await go(pg, "#/review", 300)
     await pg.evaluate("App._openWord('d02-07')"); await pg.wait_for_selector(".wsheet .ch-link")
     check("word sheet: each character of 详细 links to its card", await pg.locator(".wsheet .ch-link").count() == 2)
-    await pg.click(".wsheet .ch-link >> nth=0"); await pg.wait_for_selector(".cc-head", timeout=10000)
-    h = await pg.evaluate("decodeURIComponent(location.hash)")
-    check("word sheet: tapping 详 opens its card with the word's characters as tabs, sheet closed", h == "#/char/详/d02-07" and await pg.locator(".cc-tab").count() == 2 and await pg.locator(".wsheet").count() == 0, h)
+    await pg.click(".wsheet .ch-link >> nth=0"); await pg.wait_for_selector(".csheet .cc-head", timeout=10000)
+    check("word sheet: tapping 详 opens its card on top, the word stays underneath, the page does not change",
+          (await pg.evaluate("location.hash")) == "#/review" and await pg.locator(".wsheet").count() == 1 and await pg.locator(".csheet .cc-tab").count() == 2 and "xiáng" in await pg.inner_text(".csheet .cc-head"))
+    await pg.click(".csheet .cc-tab >> nth=1")
+    await pg.wait_for_function("document.querySelector('.csheet .cc-head') && document.querySelector('.csheet .cc-head').innerText.indexOf('xì') >= 0", timeout=10000)
+    check("card sheet: the tab 细 swaps the card in place", await pg.locator(".csheet").count() == 1)
+    await pg.click(".modal-wrap:has(.csheet) [data-close]"); await pg.wait_for_timeout(400)
+    check("card sheet: OK closes it and the word sheet is still there", await pg.locator(".csheet").count() == 0 and await pg.locator(".wsheet").count() == 1)
+    await pg.click(".wsheet .ch-link >> nth=0"); await pg.wait_for_selector(".csheet .cc-head", timeout=10000)
+    await pg.click(".csheet .cs-full"); await pg.wait_for_function("decodeURIComponent(location.hash)==='#/char/详/d02-07'", timeout=10000)
+    await pg.wait_for_selector("#app .cc-head", timeout=10000)
+    check("card sheet: ⤢ opens the full page and closes the sheets", await pg.locator(".modal-wrap").count() == 0 and await pg.locator("#app .cc-tab").count() == 2)
     hl = await pg.evaluate("history.length")
     await pg.click(".cc-tab >> nth=1")
     await pg.wait_for_function("decodeURIComponent(location.hash)==='#/char/细/d02-07' && document.querySelector('.cc-head') && document.querySelector('.cc-head').innerText.indexOf('xì') >= 0", timeout=15000)
     check("char tabs: 细 replaces 详 (no extra back step)", (await pg.evaluate("history.length")) == hl, [hl, await pg.evaluate("history.length")])
     await pg.click("#cc-back"); await pg.wait_for_timeout(700)
     check("char: back returns to the page and reopens the word sheet", (await pg.evaluate("location.hash")) == "#/review" and await pg.locator(".wsheet").count() == 1)
+    await pg.evaluate("document.querySelectorAll('.modal-wrap').forEach(m=>m.remove());0")
+    # press and hold any Chinese character, anywhere
+    async def hold_char(sel_js, ms=650):
+        pt = await pg.evaluate("""(() => { const root = %s; if (!root) return null; const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            let n; while ((n = w.nextNode())) { const i = n.nodeValue.search(/[\\u3400-\\u9fff]/); if (i < 0) continue; const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1);
+            const b = r.getBoundingClientRect(); if (b.width && b.top > 0 && b.bottom < innerHeight) return {x: b.left + b.width / 2, y: b.top + b.height / 2, ch: n.nodeValue[i]}; } return null; })()""" % sel_js)
+        if not pt: return None
+        await pg.mouse.move(pt["x"], pt["y"]); await pg.mouse.down(); await pg.wait_for_timeout(ms); await pg.mouse.up(); await pg.wait_for_timeout(300)
+        return pt["ch"]
+    await go(pg, "#/day/2", 600)
+    h0 = await pg.evaluate("location.hash")
+    ch1 = await hold_char("document.querySelector('#app')")
+    await pg.wait_for_selector(".csheet .cc-head", timeout=10000)
+    check("hold: holding a character in a lesson opens its card on top", ch1 and await pg.locator(".csheet").count() == 1 and (await pg.evaluate("location.hash")) == h0 and await pg.locator(".wsheet").count() == 0, [ch1, await pg.evaluate("location.hash")])
+    await pg.click(".modal-wrap:has(.csheet) [data-close]"); await pg.wait_for_timeout(400)
+    ch2 = await hold_char("document.querySelector('#app')", 150)
+    check("hold: a short tap does not open a card", await pg.locator(".csheet").count() == 0)
+    await pg.evaluate("document.querySelectorAll('.modal-wrap').forEach(m=>m.remove());0")
+    # not while a question waits for an answer
+    await go(pg, "#/day/2/quiz", 800)
+    if await pg.locator(".opt").count():
+        await hold_char("document.querySelector('#app')")
+        check("hold: blocked while answer buttons are open (with a note)", await pg.locator(".csheet").count() == 0 and "Trả lời xong" in await pg.inner_text("body"))
+    else:
+        check("hold: the lesson quiz has answer buttons", False, await pg.inner_text("#app"))
+    await pg.evaluate("document.querySelectorAll('.modal-wrap').forEach(m=>m.remove());0")
+    # flashcards: not on the front; on the back it opens over the deck and the deck stays where it was
+    await go(pg, "#/cards/2", 800)
+    pos = await pg.inner_text(".deck-top")
+    await hold_char("document.querySelector('.face.front')")
+    check("hold: blocked on the front of a flashcard", await pg.locator(".csheet").count() == 0)
+    await pg.click("#flip"); await pg.wait_for_timeout(500)
+    await hold_char("document.querySelector('.face.back')")
+    await pg.wait_for_selector(".csheet .cc-head", timeout=10000)
+    await pg.click(".modal-wrap:has(.csheet) [data-close]"); await pg.wait_for_timeout(400)
+    check("hold: on the back it opens over the deck; closing keeps the same card", (await pg.inner_text(".deck-top")) == pos and await pg.locator(".fcard").count() == 1, [pos, await pg.inner_text(".deck-top")])
     # English: no Hán Việt
     await pg.evaluate("Store.state.settings.lang='en';Store.state.settings.uiLang='en';localStorage.setItem('cbChinese.uiLang','en');Store.save();0")
     await go(pg, "#/", 200); await go(pg, "#/char/" + urllib.parse.quote("详"), 300); await pg.wait_for_selector(".cc-head", timeout=10000)

@@ -45,7 +45,7 @@
       /* packs this learner already uses (HSK 5 opened once, extra HSK 4 words in review): load them when idle so their
          words are in Review, Search and the due count. A first-time learner never downloads them here. */
       whenIdle(3000).then(function () { if (h5Wanted()) ensureH5(); if (x4Wanted()) ensureX4(); });
-      if (!Store.state.settings.onboarded) setTimeout(showGuide, 600);
+      if (!Store.state.settings.onboarded) setTimeout(showGuide, 600); else setTimeout(newsOnce, 900);
     });
     if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
       navigator.serviceWorker.register("sw.js").then(function (reg) {

@@ -1,5 +1,16 @@
 /* Vietnamese interface text, keyed by the English phrase used in tx() (js/i18n.js). Checked by tools/i18n_check.js. */
 window.CB_I18N_VI = {
+  "What's new": "Có gì mới",
+  "Latest features and how to try them": "Tính năng mới nhất và cách dùng thử",
+  "Try it ›": "Dùng thử ›",
+  "OK, got it": "Đã hiểu",
+  "Hold any character": "Giữ vào chữ Hán bất kỳ",
+  "Talk about any topic by voice. The AI answers out loud and helps when you get stuck.": "Nói về chủ đề bất kỳ bằng giọng nói. AI trả lời thành tiếng và gợi ý khi bạn bí.",
+  "Press and hold a Chinese character anywhere to see its card: strokes, Hán Việt and a sound hint.": "Nhấn giữ một chữ Hán ở bất kỳ đâu để xem thẻ chữ: nét viết, âm Hán Việt và gợi ý âm đọc.",
+  "Practice by skill": "Luyện theo kỹ năng",
+  "Practice is now six skills: speaking, listening, reading, writing, vocabulary and mock exams.": "Luyện tập giờ chia thành sáu kỹ năng: nói, nghe, đọc, viết, từ vựng và đề thi thử.",
+  "A fresh, clearer look": "Giao diện mới, rõ ràng hơn",
+  "New light and dark themes. Change the theme in Settings.": "Chế độ sáng và tối mới. Đổi giao diện trong Cài đặt.",
   "(best {n})": "(cao nhất {n})",
   "(incl. +10 bonus)": "(gồm +10 thưởng)",
   "(optional · your final full mocks are planned at this hour)": "(tùy chọn · các đề thi thử đầy đủ cuối cùng sẽ được xếp vào giờ này)",

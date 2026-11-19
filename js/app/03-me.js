@@ -33,7 +33,8 @@
       '<a class="me-row" href="#/ready"><span class="mr-i" aria-hidden="true">🎯</span><span class="mr-t"><b>' + tx("Am I ready?") + '</b><small>' + tx("Readiness, score forecast, official papers") + '</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
       '<a class="me-row" href="#/progress"><span class="mr-i" aria-hidden="true">📈</span><span class="mr-t"><b>' + tx("Progress") + '</b><small>' + tx("Charts, mock scores, study plan") + '</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
       '<a class="me-row" href="#/me/backup"><span class="mr-i" aria-hidden="true">☁️</span><span class="mr-t"><b>' + tx("Cloud backup") + '</b><small>' + esc(backupLine()) + '</small></span><span class="lc-go" aria-hidden="true">›</span></a>' +
-      '<button type="button" class="me-row" id="s-guide"><span class="mr-i" aria-hidden="true">❓</span><span class="mr-t"><b>' + tx("App guide") + '</b><small>' + tx("How the app works, in 1 minute") + '</small></span><span class="lc-go" aria-hidden="true">›</span></button></section>' +
+      '<button type="button" class="me-row" id="s-guide"><span class="mr-i" aria-hidden="true">❓</span><span class="mr-t"><b>' + tx("App guide") + '</b><small>' + tx("How the app works, in 1 minute") + '</small></span><span class="lc-go" aria-hidden="true">›</span></button>' +
+      '<button type="button" class="me-row" id="s-news"><span class="mr-i" aria-hidden="true">✨</span><span class="mr-t"><b>' + tx("What's new") + '</b><small>' + tx("Latest features and how to try them") + '</small></span><span class="lc-go" aria-hidden="true">›</span></button></section>' +
       '<details class="more"><summary><span>' + tx("Badges · {n}/{m}", { n: Object.keys(s.badges).length, m: Game.BADGES.length }) + '</span></summary><section class="card"><div class="badge-grid">' +
       Game.BADGES.map(function (b) {
         var got = s.badges[b.id];
@@ -119,6 +120,7 @@
     };
     wireSync(); wireBackup(); wireAI();
     var sg = document.getElementById("s-guide"); if (sg) sg.onclick = function () { showGuide(); };
+    var sn = document.getElementById("s-news"); if (sn) sn.onclick = function () { showNews(); };
     document.getElementById("s-core").onchange = function () { sv("coreTarget", parseInt(this.value, 10)); UI.toast(tx("Plan updated"), "📅"); };
     document.getElementById("s-test").onclick = function () { Audio2.noise(0); Audio2.play("你好，这是薪酬福利中文。", "F"); };
     var dl = document.getElementById("s-dl");

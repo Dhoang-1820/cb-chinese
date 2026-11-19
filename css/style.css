@@ -1884,3 +1884,15 @@ h1, h2, .gh, .appbar h1 { font-family: var(--head); font-weight: 800; letter-spa
 .today-main, .learn-now, .pr-mock { border: 3px solid var(--hero-edge); box-shadow: var(--hero-base); }
 .chip { border: 2px solid var(--clay-edge); box-shadow: 0 3px 0 var(--clay-edge); }
 .tabbar a.active { box-shadow: inset 0 0 0 2px var(--clay-edge); }
+
+/* What's new */
+.news .modal { text-align: left; }
+.news h2 { text-align: center; margin: 4px 0 12px; }
+.news .g-mas { text-align: center; }
+.nw-list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+.nw-list li { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 18px; border: 2px solid var(--tile-edge, var(--border)); }
+.nw-list .sk-ico { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px; }
+.nw-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nw-t b { font-weight: 900; }
+.nw-t small { font-size: .85rem; line-height: 1.4; color: inherit; opacity: .9; }
+.nw-try { align-self: flex-start; margin-top: 4px; min-height: 32px; display: inline-flex; align-items: center; font-weight: 900; color: inherit; text-decoration: underline; text-underline-offset: 3px; }

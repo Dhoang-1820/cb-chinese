@@ -22,6 +22,9 @@ TODAY = datetime.date.today()
 results, page_errors = [], []
 
 
+NEWS_ID = re.search(r'var NEWS = \{ id: "([^"]+)"', open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "js", "app", "11-extras.js"), encoding="utf-8").read()).group(1)
+
+
 def day(n):
     return (TODAY + datetime.timedelta(days=n)).isoformat()
 
@@ -56,7 +59,7 @@ def csp_safe_wait(pg):
     pg.wait_for_function = wait_for_function
 
 
-async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, ui="en", **ctx_opts):
+async def open_app(browser, state=None, path="", ai=False, expect_errors=False, seed=True, watch=None, ui="en", news=False, **ctx_opts):
     """A fresh phone with the given saved state (None = first run). Returns (context, page).
     ui: this device's interface language (the app defaults to Vietnamese; most checks read English text, so "en";
     None leaves the device default alone).
@@ -80,6 +83,8 @@ async def open_app(browser, state=None, path="", ai=False, expect_errors=False, 
         init += "localStorage.setItem('cbChinese.ai',%s);" % json.dumps(json.dumps({"url": "http://localhost:1/off", "code": ""}))
     if seed and ui:
         init += "localStorage.setItem('cbChinese.uiLang','%s');" % ui
+    if seed and not news:  # "What's new" already seen, so it does not cover other checks
+        init += "if(!localStorage.getItem('cbChinese.news'))localStorage.setItem('cbChinese.news','%s');" % NEWS_ID
     if init:
         await ctx.add_init_script(init)
     pg = await ctx.new_page()
@@ -2953,6 +2958,32 @@ async def t_minimock(b):
 
 
 GROUPS.append(("minimock", t_minimock))
+
+async def t_news(b):
+    """What's new: once per release for existing learners, never for a brand-new one; Try it opens the feature; Me reopens it."""
+    ctx, pg = await open_app(b, {"settings": settings()}, news=True)
+    await pg.wait_for_selector(".modal-wrap.news .nw-list", timeout=5000)
+    check("what's new: shown to an existing learner after an update, with four features", await pg.locator(".nw-list li").count() == 4)
+    await pg.wait_for_timeout(300)
+    check("what's new: it is a named dialog with focus inside", await pg.evaluate("(()=>{const m=document.querySelector('.news .modal');return m.contains(document.activeElement)&&!!m.getAttribute('aria-labelledby')})()"))
+    await pg.click(".nw-list a[href='#/freetalk']"); await pg.wait_for_timeout(500)
+    check("what's new: Try it closes the dialog and opens the feature", "#/freetalk" in pg.url and await pg.locator(".modal-wrap.news").count() == 0, pg.url)
+    await pg.reload(); await pg.wait_for_selector("#app > *:not(.skel)"); await pg.wait_for_timeout(1400)
+    check("what's new: not shown again after it was seen", await pg.locator(".modal-wrap.news").count() == 0)
+    await go(pg, "#/me", 500); await pg.click("#s-news"); await pg.wait_for_timeout(400)
+    check("what's new: Me reopens it", await pg.locator(".modal-wrap.news").count() == 1)
+    await pg.click("#nw-ok"); await pg.wait_for_timeout(400)
+    check("what's new: OK closes it", await pg.locator(".modal-wrap.news").count() == 0)
+    await ctx.close()
+    ctx, pg = await open_app(b, None, news=True)
+    await pg.wait_for_selector("#wl-go"); await pg.click("#wl-go"); await pg.wait_for_selector("#su-go"); await pg.click("#su-go")
+    await pg.wait_for_timeout(600); await pg.reload(); await pg.wait_for_selector("#app > *:not(.skel)"); await pg.wait_for_timeout(1400)
+    check("what's new: a brand-new learner does not get it after the Welcome", await pg.locator(".modal-wrap.news").count() == 0)
+    await ctx.close()
+
+
+GROUPS.append(("news", t_news))
+
 
 PW = None
 csp_blocked = []  # console messages about requests or code the Content Security Policy refused, from every page

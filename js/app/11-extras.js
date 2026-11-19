@@ -42,7 +42,7 @@
     var i = 0, wrap = document.createElement("div");
     wrap.className = "modal-wrap guide";
     document.body.appendChild(wrap);
-    function done() { Store.state.settings.onboarded = true; Store.save(); wrap.classList.remove("show"); setTimeout(function () { wrap.remove(); }, 250); }
+    function done() { if (!Store.state.settings.onboarded) markNews(); Store.state.settings.onboarded = true; Store.save(); wrap.classList.remove("show"); setTimeout(function () { wrap.remove(); }, 250); }
     /* First run: one short step with the defaults already chosen, so Continue can be tapped straight away.
        Daily goal and the rest keep their defaults and can be changed under Me; the guide pages are under Me → App guide. */
     function setup() {
@@ -106,6 +106,35 @@
     requestAnimationFrame(function () { wrap.classList.add("show"); });
   }
 
+
+  /* ---------- "What's new" ----------
+     Shown once per release to learners who were already using the app (new learners get the Welcome instead and
+     never see it for the release they started on). Each item has a "Try it" link; reopen under Me. */
+  var NEWS = { id: "2026-11", items: [
+    { k: "speak", t: "Free talk with AI", d: "Talk about any topic by voice. The AI answers out loud and helps when you get stuck.", href: "#/freetalk" },
+    { k: "write", t: "Hold any character", d: "Press and hold a Chinese character anywhere to see its card: strokes, Hán Việt and a sound hint.", href: "#/char/" + encodeURIComponent("学") },
+    { k: "vocab", t: "Practice by skill", d: "Practice is now six skills: speaking, listening, reading, writing, vocabulary and mock exams.", href: "#/games" },
+    { k: "read", t: "A fresh, clearer look", d: "New light and dark themes. Change the theme in Settings.", href: "#/settings" }
+  ] };
+  function newsSeen() { try { return localStorage.getItem("cbChinese.news") === NEWS.id; } catch (e) { return true; } }
+  function markNews() { try { localStorage.setItem("cbChinese.news", NEWS.id); } catch (e) {} }
+  function showNews() {
+    if (document.querySelector(".modal-wrap")) return;
+    markNews();
+    var wrap = document.createElement("div");
+    wrap.className = "modal-wrap news";
+    wrap.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="news-t"><div class="g-mas">' + UI.mascot("wave", 52) + '</div><h2 id="news-t">' + tx("What's new") + "</h2>" +
+      '<ul class="nw-list">' + NEWS.items.map(function (x) {
+        return '<li class="sk-' + x.k + '">' + Games.skIcon(x.k) + '<span class="nw-t"><b>' + tx(x.t) + "</b><small>" + tx(x.d) + '</small><a class="nw-try" href="' + x.href + '">' + tx("Try it ›") + "</a></span></li>";
+      }).join("") + "</ul>" +
+      '<div class="actions center"><button class="btn primary wide" id="nw-ok">' + tx("OK, got it") + "</button></div></div>";
+    document.body.appendChild(wrap);
+    function close() { wrap.classList.remove("show"); setTimeout(function () { wrap.remove(); }, 250); }
+    wrap.querySelector("#nw-ok").onclick = close;
+    wrap.addEventListener("click", function (e) { if (e.target === wrap || e.target.closest(".nw-try")) close(); });
+    requestAnimationFrame(function () { wrap.classList.add("show"); var m = wrap.querySelector(".modal"); m.setAttribute("tabindex", "-1"); m.focus({ preventScroll: true }); });
+  }
+  function newsOnce() { if (Store.state.settings.onboarded && !newsSeen()) showNews(); }
 
   /* ---------- role-play chat (AI plays the other person; you are HR) ----------
      Scenes, goals and the company rules card live in js/talk.js (window.CB_TALK); the server has the same rules plus a

@@ -214,6 +214,33 @@
       }).join("") + "</div>", "learn");
   }
   /* Learn: the lesson to do now, the next three, then everything else one tap away (all lessons, word lists, more courses). */
+  /* Course map on Learn: the 90 lessons as 3 parts × 6 weeks, each with a progress ring. Tapping a week opens its first
+     lesson not yet done (or its first lesson when the week is complete). Nothing is locked. */
+  function ring(pct, size, sw) {
+    var r = (size - sw) / 2, c = 2 * Math.PI * r, h = size / 2;
+    return '<svg class="ring" viewBox="0 0 ' + size + " " + size + '" width="' + size + '" height="' + size + '" aria-hidden="true"><circle class="rg-bg" cx="' + h + '" cy="' + h + '" r="' + r + '" stroke-width="' + sw + '"/>' +
+      (pct > 0 ? '<circle class="rg-fg" cx="' + h + '" cy="' + h + '" r="' + r + '" stroke-width="' + sw + '" stroke-dasharray="' + c.toFixed(2) + '" stroke-dashoffset="' + (c * (1 - Math.min(1, pct))).toFixed(2) + '" transform="rotate(-90 ' + h + " " + h + ')"/>' : "") + "</svg>";
+  }
+  var MAP_PARTS = [["Part 1 · Exam core", "speak"], ["Part 2 · Advanced C&amp;B", "listen"], ["Part 3 · Exam year", "write"]];
+  function courseMap() {
+    var st = Store.state, nd = nextDay(), days = DAYS.slice().sort(function (a, b) { return a.day - b.day; });
+    function isDone(d) { return !!(st.days[d.day] || {}).completed; }
+    var html = '<section class="card cmap"><div class="cm-h"><h3 class="sec">' + tx("Course map") + '</h3><a href="#/learn/all">' + tx("All {n} lessons ›", { n: days.length }) + "</a></div>";
+    for (var pi = 0; pi * 30 < days.length; pi++) {
+      var part = days.slice(pi * 30, pi * 30 + 30), pDone = part.filter(isDone).length, mp = MAP_PARTS[pi] || [tx("Part {n}", { n: pi + 1 }), "vocab"];
+      var hasNow = part.some(function (d) { return nd && d.day === nd.day; });
+      html += '<div class="cm-part sk-' + mp[1] + (hasNow ? " now" : "") + '"><div class="cm-ph"><span class="cm-big">' + ring(pDone / part.length, 56, 7) + "<b>" + Math.round(pDone / part.length * 100) + "%</b></span>" +
+        '<span class="cm-pt"><b>' + tx(mp[0]) + "</b><small>" + tx("{n} of {m} lessons done", { n: pDone, m: part.length }) + "</small></span></div><div class=\"cm-weeks\">";
+      for (var wi = 0; wi * 5 < part.length; wi++) {
+        var wk = part.slice(wi * 5, wi * 5 + 5), wDone = wk.filter(isDone).length, wn = pi * 6 + wi + 1;
+        var cur = nd && wk.some(function (d) { return d.day === nd.day; }), go = wk.filter(function (d) { return !isDone(d); })[0] || wk[0];
+        html += '<a class="cm-wk' + (cur ? " cur" : "") + (wDone === wk.length ? " full" : "") + '" href="#/day/' + go.day + '" aria-label="' + tx("Week {n}: {d} of {m} lessons done", { n: wn, d: wDone, m: wk.length }) + (cur ? ", " + tx("you are here") : "") + '">' +
+          '<span class="cm-r">' + ring(wDone / wk.length, 46, 6) + "<i>" + (wDone === wk.length ? "✓" : wn) + "</i></span><small>" + (cur ? tx("Now") : wDone + "/" + wk.length) + "</small></a>";
+      }
+      html += "</div></div>";
+    }
+    return html + "</section>";
+  }
   function viewLearnNow() {
     var st = Store.state, nd = nextDay(), cut = coreCut(), done = DAYS.filter(function (d) { return (st.days[d.day] || {}).completed; }).length;
     var next = DAYS.filter(function (d) { return d.day > nd.day && !(st.days[d.day] || {}).completed; }).slice(0, 3);
@@ -225,8 +252,7 @@
       (next.length ? '<section class="card ln-next"><h3 class="sec">' + tx("Coming next") + '</h3>' + next.map(function (d) {
         return '<a class="ln-row" href="#/day/' + d.day + '"><span class="ln-n">' + d.day + '</span><span class="ln-t"><b class="zh">' + esc(d.title.zh) + "</b><small>" + M(d.title) + '</small></span><span class="lc-go" aria-hidden="true">›</span></a>';
       }).join("") + "</section>" : "") +
-      wqRow() +
-      '<a class="trackrow toolrow" href="#/learn/all"><span class="t-ico">🗂️</span><span class="tr-t"><small>' + tx("{n} done · about {m} fit before your exam", { n: done, m: cut }) + "</small><b>" + tx("All {n} lessons", { n: DAYS.length }) + '</b></span><span class="tr-go">›</span></a>' +
+      courseMap() + wqRow() +
       '<details class="more learn-more"><summary><span>' + tx("More courses: HSK 5 · C&amp;B Pro track") + '</span></summary>' +
       '<a class="trackrow toolrow" href="#/track"><span class="t-ico">🎓</span><span class="tr-t"><small>' + tx("6-month track · writing templates, role-plays") + "</small><b>" + tx("C&amp;B Professional Chinese") + '</b></span><span class="tr-go">›</span></a>' +
       '<a class="trackrow toolrow" href="#/learn/h5" data-level="5"><span class="t-ico">📗</span><span class="tr-t"><small>' + tx("Next level · word packs and practice") + '</small><b>HSK 5</b></span><span class="tr-go">›</span></a></details>';

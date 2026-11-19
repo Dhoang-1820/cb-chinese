@@ -1,5 +1,13 @@
 /* Vietnamese interface text, keyed by the English phrase used in tx() (js/i18n.js). Checked by tools/i18n_check.js. */
 window.CB_I18N_VI = {
+  "Course map": "Bản đồ khóa học",
+  "All {n} lessons ›": "Tất cả {n} bài ›",
+  "Part 1 · Exam core": "Phần 1 · Trọng tâm thi",
+  "Part 2 · Advanced C&amp;B": "Phần 2 · C&amp;B nâng cao",
+  "Part 3 · Exam year": "Phần 3 · Năm thi",
+  "Week {n}: {d} of {m} lessons done": "Tuần {n}: xong {d}/{m} bài",
+  "you are here": "bạn đang ở đây",
+  "Now": "Hiện tại",
   "What's new": "Có gì mới",
   "Latest features and how to try them": "Tính năng mới nhất và cách dùng thử",
   "Try it ›": "Dùng thử ›",

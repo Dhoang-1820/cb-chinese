@@ -2985,6 +2985,28 @@ async def t_news(b):
 GROUPS.append(("news", t_news))
 
 
+async def t_coursemap(b):
+    """Learn: the course map shows 3 parts × 6 weeks with progress rings; the current week is marked and opens its next lesson."""
+    days = {str(d): {"completed": True} for d in range(1, 8)}
+    ctx, pg = await open_app(b, {"settings": settings(), "days": days}, "#/learn")
+    await pg.wait_for_selector(".cmap")
+    check("course map: 3 parts and 18 weeks", await pg.locator(".cm-part").count() == 3 and await pg.locator(".cm-wk").count() == 18)
+    check("course map: week 1 is complete", "full" in (await pg.locator(".cm-wk").nth(0).get_attribute("class")))
+    w2 = pg.locator(".cm-wk").nth(1)
+    check("course map: week 2 is the current week and opens day 8", "cur" in (await w2.get_attribute("class")) and await w2.get_attribute("href") == "#/day/8" and "you are here" in (await w2.get_attribute("aria-label")),
+          await w2.get_attribute("aria-label"))
+    check("course map: part 1 shows its progress", "7 of 30" in await pg.locator(".cm-part").nth(0).inner_text() and await pg.locator(".cm-part").nth(0).locator(".cm-big .rg-fg").count() == 1)
+    check("course map: weeks not started have no progress arc", await pg.locator(".cm-wk").nth(5).locator(".rg-fg").count() == 0)
+    box = await w2.bounding_box()
+    check("course map: week buttons are big enough to tap", box and box["height"] >= 44 and box["width"] >= 44, box)
+    await pg.click(".cmap .cm-h a"); await pg.wait_for_timeout(600)
+    check("course map: 'All 90 lessons' opens the full list", "#/learn/all" in pg.url, pg.url)
+    await ctx.close()
+
+
+GROUPS.append(("coursemap", t_coursemap))
+
+
 PW = None
 csp_blocked = []  # console messages about requests or code the Content Security Policy refused, from every page
 

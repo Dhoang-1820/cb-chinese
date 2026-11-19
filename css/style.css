@@ -1863,3 +1863,24 @@ h1, h2, .gh, .appbar h1 { font-family: var(--head); font-weight: 800; letter-spa
   :root:not([data-theme="light"]) .tabbar svg { opacity: .85; }
   :root:not([data-theme="light"]) .grow .g-go { background: rgba(176, 164, 255, .18); color: var(--primary-text); }
 }
+
+/* Light mode: crisper clay — visible tinted edges and a solid "clay base" instead of foggy white glows */
+:root {
+  --clay: 0 5px 0 #d3d8fb, 0 12px 22px rgba(49, 46, 129, .09), inset 0 -3px 0 rgba(79, 70, 229, .05), inset 0 2px 0 #fff;
+  --clay-edge: #cfd5fb;
+  --tile-edge: color-mix(in srgb, currentColor 24%, transparent);
+  --tile-shadow: 0 5px 0 color-mix(in srgb, currentColor 20%, transparent), 0 12px 20px rgba(49, 46, 129, .08), inset 0 2px 0 rgba(255, 255, 255, .7);
+  --ico-edge: color-mix(in srgb, currentColor 18%, transparent);
+  --hero-edge: #4338ca; --hero-base: 0 6px 0 #3730a3, 0 14px 26px rgba(55, 48, 163, .22);
+}
+:root[data-theme="dark"] { --tile-edge: var(--clay-edge); --tile-shadow: var(--clay); --ico-edge: rgba(255, 255, 255, .06); --hero-edge: transparent; --hero-base: var(--clay); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --clay: 0 6px 16px rgba(0,0,0,.3), inset -2px -3px 6px rgba(0,0,0,.18), inset 2px 2px 4px rgba(255,255,255,.04); --clay-edge: rgba(255,255,255,.05);
+  --tile-edge: var(--clay-edge); --tile-shadow: var(--clay); --ico-edge: rgba(255, 255, 255, .06); --hero-edge: transparent; --hero-base: var(--clay);
+} }
+:root[data-theme="dark"] { --clay: 0 6px 16px rgba(0,0,0,.3), inset -2px -3px 6px rgba(0,0,0,.18), inset 2px 2px 4px rgba(255,255,255,.04); --clay-edge: rgba(255,255,255,.05); }
+.sk-tile, .qs { border-color: var(--tile-edge); box-shadow: var(--tile-shadow); }
+.sk-ico { border: 2px solid var(--ico-edge); }
+.today-main, .learn-now, .pr-mock { border: 3px solid var(--hero-edge); box-shadow: var(--hero-base); }
+.chip { border: 2px solid var(--clay-edge); box-shadow: 0 3px 0 var(--clay-edge); }
+.tabbar a.active { box-shadow: inset 0 0 0 2px var(--clay-edge); }

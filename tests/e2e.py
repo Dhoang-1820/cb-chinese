@@ -231,10 +231,10 @@ async def t_theme(b):
         other = "dark" if scheme == "light" else "light"
         await pg.select_option("#s-theme", other); await pg.wait_for_timeout(300)
         m = await pg.evaluate(metas); col = await pg.evaluate(bg)
-        check("status bar: changes with a manual theme (%s on a %s phone)" % (other, scheme), m == [col, col] and col == ("#17161f" if other == "dark" else "#eef2ff"), (m, col))
+        check("status bar: changes with a manual theme (%s on a %s phone)" % (other, scheme), m == [col, col] and col == ("#1c1b27" if other == "dark" else "#eef2ff"), (m, col))
         await pg.select_option("#s-theme", "auto"); await pg.wait_for_timeout(300)
         m = await pg.evaluate(metas)
-        check("status bar: back to the system colours with theme System (%s)" % scheme, m == ["#eef2ff", "#17161f"], m)
+        check("status bar: back to the system colours with theme System (%s)" % scheme, m == ["#eef2ff", "#1c1b27"], m)
         await ctx.close()
     # export: share sheet when the phone can share a file, download otherwise
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}})

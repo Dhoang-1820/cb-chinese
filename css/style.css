@@ -1828,3 +1828,16 @@ h1, h2, .gh, .appbar h1 { font-family: var(--head); font-weight: 800; letter-spa
 .wl-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; text-align: center; margin-top: 10px; font-size: .78rem; font-weight: 700; color: var(--muted); }
 .wl-stats b { display: block; font-family: var(--head); font-size: 1.35rem; color: var(--text); }
 .modal.welcome > .wl-go { margin-top: 16px; }
+
+/* Dark mode, softer (Nov 2026): a less black background and slightly softer text, and the big colour blocks (Today card,
+   lesson cards, listening card) muted, so nothing glares; every text pair still passes 4.5:1. */
+:root[data-theme="dark"] { --bg: #1c1b27; --surface: #252434; --surface-2: #2f2e41; --border: #3b3a52; --text: #d4d2e2; --muted: #a9a7bf; --primary: #6e61e0; --primary-2: #8577ea; --primary-text: #b0a4ff; --g-violet: #4f45b0; --g-coral: #8a4442; --g-teal: #1f5f57; --g-sun: #7a5518; --g-blue: #2d5394; --clay: 0 6px 16px rgba(0, 0, 0, .3), inset -2px -3px 6px rgba(0, 0, 0, .18), inset 2px 2px 4px rgba(255, 255, 255, .04); --clay-edge: rgba(255, 255, 255, .05); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #1c1b27; --surface: #252434; --surface-2: #2f2e41; --border: #3b3a52; --text: #d4d2e2; --muted: #a9a7bf; --primary: #6e61e0; --primary-2: #8577ea; --primary-text: #b0a4ff; --g-violet: #4f45b0; --g-coral: #8a4442; --g-teal: #1f5f57; --g-sun: #7a5518; --g-blue: #2d5394; --clay: 0 6px 16px rgba(0, 0, 0, .3), inset -2px -3px 6px rgba(0, 0, 0, .18), inset 2px 2px 4px rgba(255, 255, 255, .04); --clay-edge: rgba(255, 255, 255, .05); } }
+:root[data-theme="dark"] .today-main, :root[data-theme="dark"] .learn-now, :root[data-theme="dark"] .pr-mock { background: #3d3591; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .today-main, :root:not([data-theme="light"]) .learn-now, :root:not([data-theme="light"]) .pr-mock { background: #3d3591; } }
+:root[data-theme="dark"] .tm-go { background: #dedaff; color: #2e2680; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tm-go { background: #dedaff; color: #2e2680; } }
+:root[data-theme="dark"] .ws-d.on i { background: #2f8a50; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ws-d.on i { background: #2f8a50; } }
+:root[data-theme="dark"] .mem-firm { background: #2f8a50; } :root[data-theme="dark"] .mem-mid { background: #a8812f; } :root[data-theme="dark"] .mem-weak { background: #a9474c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mem-firm { background: #2f8a50; } :root:not([data-theme="light"]) .mem-mid { background: #a8812f; } :root:not([data-theme="light"]) .mem-weak { background: #a9474c; } }

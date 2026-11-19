@@ -212,7 +212,7 @@
     var metas = document.querySelectorAll('meta[name="theme-color"]');
     for (var i = 0; i < metas.length; i++) metas[i].setAttribute("content", s.theme === "dark" ? THEME_BG.dark : s.theme === "light" ? THEME_BG.light : (metas[i].getAttribute("data-c") || THEME_BG.light));
   }
-  var THEME_BG = { light: "#eef2ff", dark: "#17161f" }; // --bg in css/style.css
+  var THEME_BG = { light: "#eef2ff", dark: "#1c1b27" }; // --bg in css/style.css
   function refreshChrome() {
     var s = Store.state, lv = Game.level(s.xp);
     var st = document.getElementById("chip-streak"); if (st) { st.innerHTML = "🔥 <b>" + Store.streak() + "</b>"; st.setAttribute("aria-label", tx("Streak: {n} days", { n: Store.streak() })); }

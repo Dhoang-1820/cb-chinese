@@ -1841,3 +1841,25 @@ h1, h2, .gh, .appbar h1 { font-family: var(--head); font-weight: 800; letter-spa
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ws-d.on i { background: #2f8a50; } }
 :root[data-theme="dark"] .mem-firm { background: #2f8a50; } :root[data-theme="dark"] .mem-mid { background: #a8812f; } :root[data-theme="dark"] .mem-weak { background: #a9474c; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mem-firm { background: #2f8a50; } :root:not([data-theme="light"]) .mem-mid { background: #a8812f; } :root:not([data-theme="light"]) .mem-weak { background: #a9474c; } }
+
+/* Dark mode: calmer icons (muted skill inks, tinted chips instead of dark wells, softer emoji) */
+:root[data-theme="dark"] {
+  --sk-speak-ink: #e8a48c; --sk-listen-ink: #74c7ba; --sk-read-ink: #93b4e6;
+  --sk-write-ink: #d9b56c; --sk-vocab-ink: #b3a4e8; --sk-exam-ink: #82c595;
+}
+:root[data-theme="dark"] .sk-ico { background: rgba(255, 255, 255, .07); box-shadow: none; border: 1px solid rgba(255, 255, 255, .06); }
+:root[data-theme="dark"] .sk-ico svg { opacity: .9; }
+:root[data-theme="dark"] .g-ico { filter: saturate(.75) brightness(.92); }
+:root[data-theme="dark"] .tabbar svg { opacity: .85; }
+:root[data-theme="dark"] .grow .g-go { background: rgba(176, 164, 255, .18); color: var(--primary-text); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sk-speak-ink: #e8a48c; --sk-listen-ink: #74c7ba; --sk-read-ink: #93b4e6;
+    --sk-write-ink: #d9b56c; --sk-vocab-ink: #b3a4e8; --sk-exam-ink: #82c595;
+  }
+  :root:not([data-theme="light"]) .sk-ico { background: rgba(255, 255, 255, .07); box-shadow: none; border: 1px solid rgba(255, 255, 255, .06); }
+  :root:not([data-theme="light"]) .sk-ico svg { opacity: .9; }
+  :root:not([data-theme="light"]) .g-ico { filter: saturate(.75) brightness(.92); }
+  :root:not([data-theme="light"]) .tabbar svg { opacity: .85; }
+  :root:not([data-theme="light"]) .grow .g-go { background: rgba(176, 164, 255, .18); color: var(--primary-text); }
+}

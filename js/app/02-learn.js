@@ -243,15 +243,11 @@
   }
   function viewLearnNow() {
     var st = Store.state, nd = nextDay(), cut = coreCut(), done = DAYS.filter(function (d) { return (st.days[d.day] || {}).completed; }).length;
-    var next = DAYS.filter(function (d) { return d.day > nd.day && !(st.days[d.day] || {}).completed; }).slice(0, 3);
     var allDone = DAYS.every(function (d) { return (st.days[d.day] || {}).completed; });
     var html = '<a class="searchbar card" href="#/search">🔎 <span>' + tx("Search {n} words — hanzi, pinyin, Việt, English", { n: WORDS.length }) + '</span></a>' + learnSeg("cb", true) +
       '<section class="card learn-now g-violet"><small>' + (allDone ? tx("ALL LESSONS DONE · REVISIT") : (examLeft() != null && examLeft() >= 0 ? tx("NOW · DAY {n} OF {m} BEFORE THE EXAM", { n: nd.day, m: cut }) : tx("NOW · DAY {n} OF {m}", { n: nd.day, m: DAYS.length }))) + '</small><b class="zh">' + esc(nd.title.zh) + "</b><em>" + M(nd.title) + "</em>" +
       '<span class="ln-bar" role="img" aria-label="' + tx("{n} of {m} lessons done", { n: done, m: cut }) + '"><i style="width:' + Math.min(100, Math.round(done / Math.max(1, cut) * 100)) + '%"></i></span>' +
       '<a class="tm-go" id="learn-go" href="#/day/' + nd.day + '">▶ ' + ((st.days[nd.day] || {}).best ? tx("Continue lesson") : tx("Start lesson")) + "</a></section>" +
-      (next.length ? '<section class="card ln-next"><h3 class="sec">' + tx("Coming next") + '</h3>' + next.map(function (d) {
-        return '<a class="ln-row" href="#/day/' + d.day + '"><span class="ln-n">' + d.day + '</span><span class="ln-t"><b class="zh">' + esc(d.title.zh) + "</b><small>" + M(d.title) + '</small></span><span class="lc-go" aria-hidden="true">›</span></a>';
-      }).join("") + "</section>" : "") +
       courseMap() + wqRow() +
       '<details class="more learn-more"><summary><span>' + tx("More courses: HSK 5 · C&amp;B Pro track") + '</span></summary>' +
       '<a class="trackrow toolrow" href="#/track"><span class="t-ico">🎓</span><span class="tr-t"><small>' + tx("6-month track · writing templates, role-plays") + "</small><b>" + tx("C&amp;B Professional Chinese") + '</b></span><span class="tr-go">›</span></a>' +

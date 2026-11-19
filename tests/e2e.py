@@ -383,7 +383,7 @@ async def t_ready(b):
 async def t_learn(b):
     ctx, pg = await open_app(b, {"settings": settings(), "srs": {}, "days": {"1": {"completed": True, "quizBest": 9}, "2": {"completed": True, "quizBest": 8}, "3": {"completed": True, "quizBest": 10}}})
     await go(pg, "#/learn", 1200)
-    check("learn: the Now card opens the next lesson and 3 more are listed", await pg.locator("#learn-go[href='#/day/4']").count() == 1 and await pg.locator(".ln-row").count() == 3)
+    check("learn: the Now card opens the next lesson, then the course map (no separate 'Coming next' list)", await pg.locator("#learn-go[href='#/day/4']").count() == 1 and await pg.locator(".ln-row").count() == 0 and await pg.locator(".cmap").count() == 1)
     await go(pg, "#/learn/all", 1500)
     check("learn: path has 90 lessons, 3 done, one next", await pg.locator(".pnode").count() == 90 and await pg.locator(".pnode.done").count() == 3 and await pg.locator(".pnode.next").count() == 1)
     await pg.locator(".pnode.next").click(force=True); await pg.wait_for_timeout(700)
